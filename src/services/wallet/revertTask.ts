@@ -35,7 +35,8 @@ const unit = transaction.unit as MintUnit
 
 try {
     
-    const pendingProofs = proofsStore.getByTransactionId(transaction.id)
+    const allProofs = proofsStore.getByTransactionId(transaction.id)
+    const pendingProofs = allProofs.filter(p => p.isPending === true)
 
     if(pendingProofs.length === 0) {
     throw new AppError(Err.VALIDATION_ERROR, 'Missing proofs to swap')

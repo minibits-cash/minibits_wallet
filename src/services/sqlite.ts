@@ -611,7 +611,6 @@ const getLastTransactionBy = function (
       throw new AppError(
         Err.DATABASE_ERROR,
         'Exactly one of paymentId, quote, or paymentRequest must be provided',
-        'Invalid criteria'
       )
     }
 
@@ -886,6 +885,11 @@ const addOrUpdateProofs = function (
 
     if(isPending && isSpent) {
       throw new Error('Conflicting proof states')
+    }
+
+    if(proofs.length === 0) {
+      log.error('[addOrUpdateProofs] Empty proof array passed')
+      return 0
     }
 
 

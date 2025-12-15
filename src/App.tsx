@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import FlashMessage from "react-native-flash-message"
 import {  
   SafeAreaProvider,
@@ -20,15 +20,12 @@ import { spacing, typography } from './theme'
 import { displayName } from '../app.json'
 import { Text } from './components/Text'
 import useIsInternetReachable from './utils/useIsInternetReachable'
-import * as Sentry from '@sentry/react-native'
-import { ANDROID_VERSION_NAME, APP_ENV, JS_BUNDLE_VERSION, SENTRY_DSN } from '@env'
 
 /* Set default size ratio for styling */
 setSizeMattersBaseWidth(375)
 setSizeMattersBaseHeight(812)
 
 function App() {
-    
     const {userSettingsStore, relaysStore, authStore, walletStore, walletProfileStore} = useStores()
     const [isUserAuthenticated, setIsUserAuthenticated] = useState(false)
     const [isDeviceAuthenticated, setIsDeviceAuthenticated] = useState(false)
@@ -65,8 +62,8 @@ function App() {
         }
 
         // re-enroll device for JWT authentication if refresh token expired        
-        if(authStore.isRefreshTokenExpired && isInternetReachable && userSettingsStore.isOnboarded) {
-            log.trace('[useInitialRootStore]', 'Re-enrolling device for JWT authentication')
+        if(authStore.isRefreshTokenExpired && isInternetReachable === true && userSettingsStore.isOnboarded) {
+            log.trace('[useInitialRootStore]', 'Re-enrolling device for JWT authentication', {isInternetReachable})
             try {
                 const walletKeys: WalletKeys = await walletStore.getCachedWalletKeys()
                 const deviceId = walletProfileStore.device

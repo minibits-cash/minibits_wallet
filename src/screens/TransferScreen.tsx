@@ -634,7 +634,7 @@ const transfer = async function () {
     )
 
     await handleTransferTaskResult(result)
-
+    
   } catch (e: any) {
     handleError(e)
   }

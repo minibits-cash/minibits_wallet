@@ -3,6 +3,7 @@ import NfcManager, { NfcTech, Ndef, NfcEvents, TagEvent } from 'react-native-nfc
 import { log } from './logService'
 import AppError, { Err } from '../utils/AppError'
 
+
 const NFC_STALE_DELAY_MS = 120
 
 const init = async function () {
@@ -26,7 +27,7 @@ const goToNfcSetting = function () {
  * Ensures a fresh NFC connection by cancelling any previous session
  * and adding a tiny delay on Android
  */
-const withFreshNfcConnection = async <T>(action: () => Promise<T>): Promise<T> => {
+/* const withFreshNfcConnection = async <T>(action: () => Promise<T>): Promise<T> => {
     // Cancel any previous session
     await NfcManager.cancelTechnologyRequest().catch(() => {})
     log.trace('[withFreshNfcConnection] Pre-cancel completed')
@@ -36,36 +37,40 @@ const withFreshNfcConnection = async <T>(action: () => Promise<T>): Promise<T> =
     }
 
     try {
-        return await action()  // Only requestTechnology + getTag / writeNdef
+        return await action()
     } finally {
-        // This now runs IMMEDIATELY after read/write
         await NfcManager.cancelTechnologyRequest().catch(() => {})
         log.trace('[withFreshNfcConnection] Post-cancel completed')
+    }
+}*/
+
+
+const readNdefTag = async () => {
+    log.trace('[readNdefTag] start')
+    try {
+        await NfcManager.requestTechnology(NfcTech.Ndef) // needs to run only once per read/write session
+        log.trace('[readNdefTag] requestTechnology completed')
+        const tag = await NfcManager.getTag()
+        log.trace('[readNdefTag] tag read') // do not close session
+        
+        return tag
+    } catch(e: any) {
+        throw new AppError(Err.NFC_ERROR, e.message, {caller: 'readNdefTag', error: String(e)})
     }
 }
 
 
-const readNdefTag = async () => {
-    return await withFreshNfcConnection(async () => {
-        log.trace('[readNdefTag] requesting technology')
-        await NfcManager.requestTechnology(NfcTech.Ndef)
-        log.trace('[readNdefTag] requestTechnology completed')
-        const tag = await NfcManager.getTag()
-        
-        return tag
-    })
-}
-
 const writeNdefMessage = async (text: string) => {
-    return await withFreshNfcConnection(async () => {
-        await NfcManager.requestTechnology(NfcTech.Ndef)
-        log.trace('[writeNdefMessage] requestTechnology completed')
+    try {
+        log.trace('[writeNdefMessage] start') // no more requestTechnology, it requires second tap then
         const bytes = Ndef.encodeMessage([Ndef.textRecord('en', text)])
         await NfcManager.ndefHandler.writeNdefMessage(bytes)
-    })
+        log.trace('[writeNdefMessage] write completed')
+        await NfcManager.cancelTechnologyRequest().catch(() => {}) // close session
+    } catch(e: any) {
+        throw new AppError(Err.NFC_ERROR, e.message, {caller: 'writeNdefMessage', error: String(e)})
+    }
 }
-
-
 
 export const NfcService = {
     init,

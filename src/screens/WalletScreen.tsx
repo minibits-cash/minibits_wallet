@@ -684,17 +684,23 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 />}                
                 TitleActionComponent={<HeaderTitle />}               
                 RightActionComponent={
-                <>
+                <View style={{justifyContent: 'flex-end', flexDirection: 'row'}}>
                     {pendingCount > 0 && (
                         <Pressable 
-                            style={{flexDirection: 'row', alignItems:'center', marginRight: spacing.medium}}
+                            style={{flexDirection: 'row', alignItems:'center', marginRight: spacing.small}}
                             onPress={gotoPendingTransactions}
                         >
                             <Icon icon='faClock' color={headerTitleColor}/>
                             <Text text={`${pendingCount}`} style={{color: headerTitleColor}} />
                         </Pressable>
                     )}
-                </>
+                    <Pressable 
+                            style={{marginRight: spacing.medium}}
+                            onPress={gotoNfcPay}
+                    >
+                        <Icon icon='faNfcSymbol' color={headerTitleColor}/>
+                    </Pressable>
+                </View>
                 }                
             />
             {groupedMints.length > 0 && (                              
@@ -846,14 +852,14 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 tx="walletScreen_payWithLightning"
                 subTx="walletScreen_payWithLightningDesc"
                 onPress={() => gotoLightningPay()}
-                bottomSeparator={true}
+                //bottomSeparator={true}
             />
-            <ListItem   
+            {/*<ListItem   
                 leftIcon='faNfcSymbol'             
                 text="Pay with NFC"
                 subText="Tap NFC-enabled wallet or POS to pay"
                 onPress={() => gotoNfcPay()}
-            />
+            />*/}
             </>      
           }
           onBackButtonPress={toggleSendModal}

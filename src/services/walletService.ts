@@ -1109,7 +1109,7 @@ const syncStateWithMintQueueAwaitable = function (
   })
 
   const now = Date.now()
-  const taskId = `syncStateWithMintTask-${now}`
+  const taskId = `${SYNC_STATE_WITH_MINT_TASK}-${now}`
 
   return new Promise<SyncStateTaskResult>((resolve, reject) => {
       let resolved = false
@@ -1126,7 +1126,7 @@ const syncStateWithMintQueueAwaitable = function (
           reject(error)
       }
 
-      const eventName = `ev_syncStateWithMintTask_result`
+      const eventName = `ev_${SYNC_STATE_WITH_MINT_TASK}_result`
       const handler = (result: SyncStateTaskResult) => {
           EventEmitter.off(eventName, handler)
           resolveOnce(result)
@@ -1159,7 +1159,7 @@ const syncStateWithMintQueueAwaitable = function (
               EventEmitter.off(eventName, handler)
               rejectOnce(new AppError(Err.TIMEOUT_ERROR, 'Sync mint state timed out'))
           }
-      }, 20000)
+      }, TASK_QUEUE_TIMEOUT)
   })
 }
 
@@ -1429,7 +1429,7 @@ const syncStateWithMintTask = async function (
         revertedTransactionIds: revertedTxIds,
       }
     } catch (e: any) {
-      log.error('[syncStateWithMintTask] failed', { mintUrl, error: e.message })
+      log.error('[syncStateWithMintTask] failed', { mintUrl, error: e.message, stack: e.stack  })
   
       if (mint && e.name === Err.MINT_ERROR && e.message.includes('network')) {
         mint.setStatus(MintStatus.OFFLINE)

@@ -291,6 +291,7 @@ export const WelcomeScreen = function ({ route }: Props) {
 const $dotsContainer: ViewStyle ={
     height: 50,
     justifyContent: 'space-evenly',
+    marginBottom: 50
 }
 
 const $dotContainer: ViewStyle ={

@@ -118,12 +118,12 @@ export const sendTask = async function (
             outputToken
         })
         
+        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
+
         transactionData.push({
             status: TransactionStatus.PENDING,                      
             createdAt: new Date(),
         })
-
-        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
         
         transaction.update({
             status: TransactionStatus.PENDING,
@@ -143,13 +143,14 @@ export const sendTask = async function (
             const wsWallet = new CashuWallet(wsMint)
             
             try {
+                log.trace('[send] Subscribing to onProofStateUpdates for proof', {secret: proofsToSend[0]})
                 const unsub = await wsWallet.onProofStateUpdates(
                     [proofsToSend[0]],
                     async (proofState: ProofState) => {
-                        log.trace(`Websocket: proof state updated: ${proofState.state}`)
+                        log.trace(`Websocket: proof state updated: ${proofState.state} with secret: ${proofsToSend[0].secret}`)
                         
                         if (proofState.state == CheckStateEnum.SPENT) {
-                            await WalletTask.syncStateWithMintQueueAwaitable({proofsToSync, mintUrl, isPending: true})
+                            WalletTask.syncStateWithMintQueueAwaitable({proofsToSync, mintUrl, isPending: true})
                             unsub()
                         }
                     },
@@ -171,7 +172,7 @@ export const sendTask = async function (
                         maxPolls: 3,
                         maxErrors: 1
                     },
-                    {proofsToSync, mintUrl, isPending: true}
+                    {proofsToSend, mintUrl, isPending: true}
                 )
                 .then(() => log.trace('[syncStateWithMintPoller]', 'polling completed', {mintUrl}))
             }    
@@ -222,7 +223,8 @@ export const sendFromMintSync = async function (
 ) {
     const mintUrl = mintBalance.mintUrl
     const mintInstance = mintsStore.findByUrl(mintUrl)    
-    let proofsToSendFrom: Proof[] = []   
+    let proofsToSendFrom: Proof[] = []
+    let proofsToSend: CashuProof[] | Proof[] = []  
     
     try {
         if (!mintInstance) {
@@ -322,7 +324,6 @@ export const sendFromMintSync = async function (
         let swapFeeReserve: number = 0
         let returnedAmount = 0
         let swapFeePaid: number = 0
-        let proofsToSend: CashuProof[] | Proof[] = []
         let returnedProofs: CashuProof[] = []
         let isSwapNeeded: boolean = false
 
@@ -463,7 +464,7 @@ export const sendFromMintSync = async function (
             log.error('[sendFromMintSync] Going to clean spent proofs from proofsToSendFrom and from pending', {transactionId})
             
             await WalletTask.syncStateWithMintTask({
-                proofsToSync: proofsToSendFrom,
+                proofsToSync: proofsToSend as Proof[],
                 mintUrl,
                 isPending: true
             })            

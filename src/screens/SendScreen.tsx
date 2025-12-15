@@ -433,23 +433,30 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     
 
     
-    // Offline send
-    useEffect(() => {        
-        if(isInternetReachable) return
-        log.trace('[Offline send]')
-
-        // if offline we set all non-zero mint balances as available to allow ecash selection
-        const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(1, unitRef.current)
-
-        if (availableBalances.length === 0) {
-            setInfo('Not enough funds to send')
-            return
+    useEffect(() => {
+        log.trace('Offline send effect', { isInternetReachable })
+    
+        if (isInternetReachable === true) {
+            // We are definitively online → force online mode
+            log.trace('[Online send] Switching to online mode')
+            setIsOfflineSend(false)
+            setAvailableMintBalances([]) // or whatever your online default is
+            setInfo('') // clear any offline-specific messages
+        } else if (isInternetReachable === false) {
+            // We are definitively offline → enable offline send
+            log.trace('[Offline send] Enabling offline mode')
+    
+            const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(1, unitRef.current)
+    
+            if (availableBalances.length === 0) {
+                setInfo('Not enough funds to send')
+                return // keep isOfflineSend false or as-is
+            }
+    
+            setIsOfflineSend(true)
+            setAvailableMintBalances(availableBalances)
         }
-        
-        log.trace('[Offline send] Setting availableBalances')
-
-        setIsOfflineSend(true)
-        setAvailableMintBalances(availableBalances)     
+        // If isInternetReachable is null (still checking), do nothing
     }, [isInternetReachable])
 
 

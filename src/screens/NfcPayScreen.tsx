@@ -7,6 +7,17 @@ import {
     ColorValue,
     Platform,
 } from 'react-native'
+import {
+    BallIndicator,
+    BarIndicator,
+    DotIndicator,
+    MaterialIndicator,
+    PacmanIndicator,
+    PulseIndicator,
+    SkypeIndicator,
+    UIActivityIndicator,
+    WaveIndicator,
+  } from 'react-native-indicators'
 import { PaymentRequest as CashuPaymentRequest, MeltQuoteResponse, PaymentRequestTransport, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken } from '@cashu/cashu-ts'
 import NfcManager, { NfcTech, Ndef, NfcEvents, TagEvent } from 'react-native-nfc-manager'
 import { colors, spacing, typography, useThemeColor } from '../theme'
@@ -14,7 +25,7 @@ import EventEmitter from '../utils/eventEmitter'
 import { log } from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError, { Err } from '../utils/AppError'
-import { BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, ScanIcon, Screen, Text } from '../components'
+import { AmountInput, BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, ScanIcon, Screen, Text } from '../components'
 import { infoMessage } from '../utils/utils'
 import { SvgXml } from 'react-native-svg'
 import { formatCurrency, getCurrency, MintUnit, MintUnits } from '../services/wallet/currency'
@@ -48,6 +59,7 @@ import Animated, {
     Easing,
   } from 'react-native-reanimated';
 import { NfcService } from '../services/nfcService'
+import { TranItem } from './TranDetailScreen'
 //import Animated from 'react-native-reanimated'
 
 const ContactlessIcon = (color: ColorValue | string) => `<?xml version="1.0" encoding="utf-8"?>
@@ -110,9 +122,11 @@ type Props = StaticScreenProps<{
     unit: MintUnit
 }>
 
+const SYNC_STATE_WITH_MINT_TIMEOUT = 10 * 1000
+
 export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const navigation = useNavigation<any>()
-    const { mintsStore, walletStore, proofsStore } = useStores()
+    const { mintsStore, walletStore, proofsStore, transactionsStore } = useStores()
     const unitRef = useRef<MintUnit>('sat')
 
     const isInternetReachable = useIsInternetReachable()
@@ -139,6 +153,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const [isNfcEnabled, setIsNfcEnabled] = useState(false)
     const [isNfcSupported, setIsNfcSupported] = useState(false)
     const [isProcessing, setIsProcessing] = useState(false)
+    const [isPaid, setIsPaid] = useState(false)
     const [nfcInfo, setNfcInfo] = useState<string | undefined>()
     const [readNfcData, setReadNfcData] = useState<string | undefined>()
     const [mint, setMint] = useState<Mint | undefined>()
@@ -164,7 +179,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                     return
                 }
 
-                setNfcInfo('Tap your device to the NFC reader to pay')
+                setNfcInfo('Hold your device close to the NFC reader.')
                 setIsNfcEnabled(true)
 
                 // Start listening for tags immediately
@@ -196,6 +211,39 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     }, [navigation, isNfcEnabled, isProcessing])
 
 
+    const showSuccessModal = function () {
+        const amountSentInt = Math.round(
+            (toNumber(amountToPay || '0') * getCurrency(unitRef.current).precision)
+        );
+
+        const currency = getCurrency(unitRef.current);
+
+        setResultModalInfo({
+            status: TransactionStatus.COMPLETED,
+            title: 'That was fast!',
+            message: `${formatCurrency(amountSentInt, currency.code)} ${currency.code} were received by the payee.`,
+        });
+        setTransactionStatus(TransactionStatus.COMPLETED);
+        setIsResultModalVisible(true);
+        //setNfcInfo('Payment completed successfully!');
+    }
+
+
+    const showPendingModal = function () {
+        const amountSentInt = Math.round(
+            (toNumber(amountToPay || '0') * getCurrency(unitRef.current).precision)
+        );
+
+        const currency = getCurrency(unitRef.current);
+
+        setResultModalInfo({
+            status: TransactionStatus.PENDING,
+            //title: 'Payment is pending',
+            message: `${formatCurrency(amountSentInt, currency.code)} ${currency.code} were sent successfully, but the payee has not yet claimed the ecash . You can wait for confirmation or revert the transaction.`,
+        });
+        setTransactionStatus(TransactionStatus.PENDING);
+        setIsResultModalVisible(true)
+    }
 
     // Stable handler — only recreated when dependencies actually change
     const handleSyncStateResult = useCallback(async (result: SyncStateTaskResult) => {
@@ -208,21 +256,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         // ——— SUCCESS: Receiver claimed the ecash ———
         if (completedTransactionIds?.includes(transactionId)) {
             log.debug('[NfcScreen.handleSyncStateResult] Ecash claimed successfully by the payee.', { transactionId });
-
-            const amountSentInt = Math.round(
-                (toNumber(amountToPay || '0') * getCurrency(unitRef.current).precision)
-            );
-
-            const currency = getCurrency(unitRef.current);
-
-            setResultModalInfo({
-                status: TransactionStatus.COMPLETED,
-                title: 'That was fast!',
-                message: `${formatCurrency(amountSentInt, currency.code)} ${currency.code} were received by the payee.`,
-            });
-            setTransactionStatus(TransactionStatus.COMPLETED);
-            setIsResultModalVisible(true);
-            setNfcInfo('Payment completed successfully!');
+            showSuccessModal()
             return;
         }
 
@@ -250,8 +284,10 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
     // One-time listener with auto-cleanup using ref
     const syncStateListenerRef = useRef<((r: SyncStateTaskResult) => void) | null>(null)
+    const fallbackTimeoutRef = useRef<number>(null)
 
     useEffect(() => {
+        log.trace('[useEffect] Triggered to set syncStateListenerRef', {transactionId})
         // If no transactionId → nothing to listen for
         if (!transactionId) {
             // Clean up any dangling listener
@@ -259,10 +295,33 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 EventEmitter.off(`ev_${SYNC_STATE_WITH_MINT_TASK}_result`, syncStateListenerRef.current)
                 syncStateListenerRef.current = null
             }
+
+            if (fallbackTimeoutRef.current) {
+                clearTimeout(fallbackTimeoutRef.current)
+                fallbackTimeoutRef.current = null
+            }
             return
         }
 
+        const checkFallback = () => {
+            const currentTx = transactionsStore.findById(transactionId)
+            log.trace('[checkFallback] Check after timeout returned transaction', {status: currentTx?.status})
+            if (currentTx?.status === TransactionStatus.COMPLETED) {
+                showSuccessModal()
+            }
+
+            if(currentTx?.status === TransactionStatus.PENDING) {
+                showPendingModal()
+            }
+            return
+            // If still PENDING or ERROR → do nothing, user can close manually
+        }
+
         const eventName = `ev_${SYNC_STATE_WITH_MINT_TASK}_result`
+        // Start fallback timer — 15 seconds after token write. Skip if offline.
+        if(isInternetReachable) {
+            fallbackTimeoutRef.current = setTimeout(checkFallback, SYNC_STATE_WITH_MINT_TIMEOUT)
+        }      
 
         // Remove previous listener (defensive)
         if (syncStateListenerRef.current) {
@@ -270,7 +329,13 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         }
 
         const handler = (result: SyncStateTaskResult) => {
-            handleSyncStateResult(result);
+            handleSyncStateResult(result)
+
+            // Clear fallback — event won
+            if (fallbackTimeoutRef.current) {
+                clearTimeout(fallbackTimeoutRef.current)
+                fallbackTimeoutRef.current = null
+            }
     
             // "keep listening" for poller if our transaction is still pending
             const shouldStaySubscribed = (() => {
@@ -297,13 +362,15 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         // Cleanup on unmount or when transactionId changes/becomes null
         return () => {
             if (syncStateListenerRef.current) {
-            EventEmitter.off(eventName, syncStateListenerRef.current)
-            syncStateListenerRef.current = null
+                EventEmitter.off(eventName, syncStateListenerRef.current)
+                syncStateListenerRef.current = null
+            }
+            if (fallbackTimeoutRef.current) {
+                clearTimeout(fallbackTimeoutRef.current)
+                fallbackTimeoutRef.current = null
             }
         }
-    }, [
-        handleSyncStateResult, // ← stable thanks to useCallback
-    ])
+    }, [transactionId, handleSyncStateResult])
 
 
     // ====================== Lightning Payment (Transfer Task) Result Handler ======================
@@ -318,6 +385,8 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             if (!tag) {
                 return
             }
+
+            setIsProcessing(true)
 
             //log.info('NFC Tag found', {tag});
             const bytes = new Uint8Array(tag.ndefMessage[0]?.payload ?? [])
@@ -337,7 +406,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 return
             }
 
-            setNfcInfo('Processing payment request...')            
+            setNfcInfo('Processing, keep your device still...')            
 
             log.info('NFC tag decoded', { decoded })
 
@@ -352,7 +421,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
              })
             handleError(e)
         } finally { 
-            
+            setIsProcessing(false)
         }
     }
 
@@ -408,7 +477,13 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         )
 
         if(!selectedBalance) { // we might not find suitable balance if offline
-            setInfo('Wallet do')
+            setResultModalInfo({
+                status: (transaction?.status || TransactionStatus.ERROR) as TransactionStatus,
+                title: 'Offline payment failed',
+                message: 'Wallet is offline and does not have ecash denominations matching requested amount',
+            });
+            toggleResultModal()
+            setNfcInfo('Can not pay requested amount')
             return
         }
 
@@ -489,7 +564,19 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
             log.trace('[NfcScreen] handleSendTaskResult: Write completed.')
             setNfcInfo('Ecash token sent successfully.')
+            setIsPaid(true)
+            expandHeader()
 
+            // Show explanatory modal immediately when offline
+            if (!isInternetReachable) {
+                setResultModalInfo({
+                    status: TransactionStatus.PENDING,
+                    title: translate('commonOfflinePretty'),
+                    message: 'Your wallet sent this payment while offline. Consult the payee that the funds have been claimed.',
+                })
+    
+                toggleResultModal()
+            }
         } catch (err: any) {
             log.error('Error in handleSendTaskResult', {error: err, caller: 'NfcScreen.handleSendTaskResult'})
 
@@ -500,6 +587,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             })
 
             toggleResultModal()
+
         }
     }
         
@@ -507,7 +595,13 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
     const handleLightningInvoice = async (encodedInvoice: string) => {
         if (!isInternetReachable) {
-            setInfo(translate('commonOfflinePretty'))
+            setResultModalInfo({
+                status: TransactionStatus.ERROR,
+                title: translate('commonOfflinePretty'),
+                message: 'Can not use Lightning payment method while offline.',
+            })
+
+            toggleResultModal()
             return
         }
     
@@ -524,19 +618,24 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         const balances = proofsStore.getMintBalancesWithEnoughBalance(totalRequired, unitRef.current)
     
         if (balances.length === 0) {
-            setInfo(
-                translate('transferScreen_insufficientFunds', {
+            setResultModalInfo({
+                status: TransactionStatus.ERROR,
+                title: 'Not enough funds',
+                message: translate('transferScreen_insufficientFunds', {
                     currency: getCurrency(unitRef.current).code,
                     amount: totalRequired,
-                })
-            )
+                }),
+            })
+
+            toggleResultModal()
             return
         }
     
         const selectedBalance = balances[0]
         setMintBalanceToSendFrom(selectedBalance)
     
-        setInfo('Creating Lightning payment quote...')
+        setNfcInfo('Creating Lightning payment quote...')
+
         const quote = await walletStore.createLightningMeltQuote(
             selectedBalance.mintUrl,
             unitRef.current,
@@ -552,8 +651,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         if (description) setMemo(description)
     
         try {
-            setInfo('Paying Lightning invoice...')
-            setIsLoading(true)
+            setNfcInfo('Paying Lightning invoice...')
     
             const result = await WalletTask.transferQueueAwaitable(
                 selectedBalance,
@@ -601,12 +699,15 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                         })
                     }
                 } else {
-                // Success or settled pending
-                setResultModalInfo({
-                    status,
-                    message: message || 'Lightning payment successful!',
-                    title: status === TransactionStatus.COMPLETED ? 'Payment sent!' : undefined,
-                });
+                    // Success or settled pending
+                    setResultModalInfo({
+                        status,
+                        message: message || 'Lightning payment successful!',
+                        title: status === TransactionStatus.COMPLETED ? 'Payment sent!' : undefined,
+                    });
+                    setIsPaid(true)
+                    expandHeader()
+                    setNfcInfo(transaction.memo || 'Lightning payment settled.')
                 }
             } else {
                 // Fallback (shouldn't happen)
@@ -616,11 +717,10 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                     message: 'No transaction data received',
                 })
             }
-
+            
             toggleResultModal()
-        } finally {
-            setIsLoading(false)
-            setInfo('')
+        } catch (e: any) {
+            handleError(e)
         }
     }
 
@@ -720,36 +820,123 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         setInfo('')
         setError(undefined)
         setIsLoading(false)
+        setIsProcessing(false)
         setIsResultModalVisible(false)
         setResultModalInfo(undefined)
+        setIsPaid(false)
     }
 
     const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
+
+    const headerHeight = useSharedValue(spacing.screenHeight * 0.15); // Initial height
+    const collapseHeader = () => {
+        headerHeight.value = spacing.screenHeight * 0.15
+    }
+    
+    const expandHeader = () => {
+        headerHeight.value = spacing.screenHeight * 0.20
+    }
+
+    const animatedHeader = useAnimatedStyle(() => {
+        return {
+            height: withTiming(headerHeight.value, { duration: 300 }),
+            // opacity: withTiming(isVisible.value ? 1 : 0, { duration: 300 }),
+        }
+    })
 
     // Theme
     const hintText = useThemeColor('textDim')
     const headerBg = useThemeColor('header')
     const headerTitle = useThemeColor('headerTitle')
     const scanIcon = useThemeColor('text')
-    const scanButtonColor = useThemeColor('card') 
+    const indicatorStandby = useThemeColor('headerTitle')
+    const indicatorProcessing = useThemeColor('button') 
 
     return (
         <Screen preset="fixed" contentContainerStyle={$screen}>
             <MintHeader mint={mint} unit={unitRef.current} />
-            <View style={[$headerContainer, { backgroundColor: headerBg }]}>
-                {/*<Icon
-                    icon='faNfcSymbol'
-                    size={verticalScale(35)}
-                    color={headerTitle}
-                />*/}
-            </View>
-
+            <Animated.View style={[animatedHeader, $headerContainer, {backgroundColor: headerBg}]}>
+                <View style={{}}>
+                    {isPaid && (
+                        <AmountInput
+                            //ref={amountInputRef}                                               
+                            value={`${amountToPay}`}                    
+                            onChangeText={() => {}}
+                            unit={unitRef.current}
+                            editable={false}
+                        />
+                    )}
+                </View>
+            </Animated.View>
             <View style={$contentContainer}>
-                <Card
-                    ContentComponent={
+                {isPaid && transaction ? (
+                    <Card
+                        style={{padding: spacing.medium}}
+                        ContentComponent={
+                            <>
+                            <TranItem
+                                label="tranDetailScreen_trasferredTo"
+                                isFirst={true}
+                                value={
+                                mintsStore.findByUrl(transaction.mint)
+                                    ?.shortname as string
+                                }
+                            />
+                            {transaction?.memo && (
+                                <TranItem
+                                label="tranDetailScreen_memoFromInvoice"
+                                value={transaction.memo as string}
+                                />
+                            )}
+                            <TranItem
+                                label="transactionCommon_feePaid"
+                                value={transaction.fee || 0}
+                                unit={unitRef.current}
+                                isCurrency={true}
+                            />
+                            <TranItem
+                                label="tranDetailScreen_status"
+                                value={transaction.status as string}
+                            />
+                            </>
+                        }
+                    />
+                ) : (
+                    <Card
+                        ContentComponent={
                         <>
-                            <PulsingContactlessIcon isNfcEnabled={isNfcEnabled} />
-                            <Text
+                            {isProcessing ? (
+                                <WaveIndicator 
+                                    color={indicatorProcessing} 
+                                    size={verticalScale(120)}
+                                    animating={resultModalInfo ? false : true}
+                                    animationDuration={2000}
+                                />
+                            ) : isNfcEnabled ? (
+                            
+                                <PulseIndicator 
+                                    color={indicatorStandby} 
+                                    size={verticalScale(120)}
+                                    animating={resultModalInfo ? false : true}
+                                    hidesWhenStopped={false}
+                                    animationDuration={2000}
+                                />
+                                    
+                            ) : (
+                                <PulseIndicator 
+                                    color={hintText} 
+                                    size={verticalScale(120)}
+                                    animating={false}
+                                    useNativeDriver={true}
+                                    hidesWhenStopped={false}
+                                    //animationDuration={2000}
+                                />
+                            )}
+                            
+                        </>
+                    }
+                    FooterComponent={
+                        <Text
                                 text={
                                     nfcInfo ? nfcInfo : ''
                                 }
@@ -757,17 +944,20 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                                     textAlign: 'center',
                                     marginBottom: spacing.medium,
                                     //fontFamily: typography.code,
-                                    color: isNfcEnabled ? colors.palette.success200 : colors.palette.neutral500,
+                                    color: isProcessing ? indicatorProcessing : isNfcEnabled ? indicatorStandby : hintText,
                                     fontSize: 18,
+                                    
                                 }}
-                            />
-                        </>
+                        />
                     }
+                    style={{height: spacing.screenHeight * 0.3}}
                 />
+                )}
+                
 
                 <View style={$bottomContainer}>
                     <View style={$buttonContainer}>
-                        <Button
+                        {!isProcessing && (<Button
                             preset='tertiary'                                    
                             LeftAccessory={() => (
                                 <SvgXml 
@@ -781,7 +971,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                             onPress={gotoScan}
                             //style={{backgroundColor: scanButtonColor}}
                             text='Scan QR instead'
-                        />  
+                        />)} 
                     </View>
                 </View>
             </View>
@@ -854,7 +1044,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                             <ResultModalInfo
                                 icon="faTriangleExclamation"
                                 iconColor={colors.palette.iconYellow300}
-                                title={translate('payCommon_isPending')}
+                                title={resultModalInfo?.title || translate('payCommon_isPending')}
                                 message={resultModalInfo?.message}
                             />
                             <View style={$buttonContainer}>

@@ -42,7 +42,7 @@ type Props = StaticScreenProps<{
 }>
 
 export const CashuPaymentRequestScreen = observer(function CashuPaymentRequestScreen({ route }: Props) {
-  const isInternetReachable = useIsInternetReachable()
+  //const isInternetReachable = useIsInternetReachable()
   const navigation = useNavigation()
   const {
     proofsStore,

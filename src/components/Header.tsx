@@ -168,7 +168,7 @@ function FocusAwareStatusBar(props: StatusBarProps) {
  * - [Documentation and Examples](https://github.com/infinitered/ignite/blob/master/docs/Components-Header.md)
  */
 export function Header(props: HeaderProps) {
-  const isInternetReachable = useIsInternetReachable()
+  //const isInternetReachable = useIsInternetReachable()
   
   const {
     backgroundColor = useThemeColor('header'),

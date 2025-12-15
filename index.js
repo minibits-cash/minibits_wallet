@@ -56,7 +56,7 @@ notifee.registerForegroundService(async (notification) => {
       if(notification.data.task === SYNC_STATE_WITH_ALL_MINTS_TASK) {
         log.debug(`[registerForegroundService] Submitting task ${SYNC_STATE_WITH_ALL_MINTS_TASK} to the queue.`)
 
-        WalletTask.syncStateWithAllMintsQueue({isPending: false})
+        await WalletTask.syncStateWithAllMintsQueueAwaitable({isPending: false})
       }
 
 

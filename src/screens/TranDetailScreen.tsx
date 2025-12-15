@@ -1143,7 +1143,8 @@ const SendInfoBlock = function (props: {
           throw new AppError(Err.VALIDATION_ERROR, message)          
         }
         
-        const pendingProofs = proofsStore.getByTransactionId(transaction.id)
+        const allProofs = proofsStore.getByTransactionId(transaction.id)
+        const pendingProofs = allProofs.filter(p => p.isPending === true)
 
         if(pendingProofs.length === 0) {
           const message = 'Could not get proofs related to the transaction from wallet state.'
@@ -1160,9 +1161,10 @@ const SendInfoBlock = function (props: {
           })         
         }
 
+        setIsLoading(true)
         const result = await WalletTask.revertQueueAwaitable(transaction)
         await handleRevertTaskResult(result)
-        setIsLoading(true)
+        
 
       } catch (e: any) {
         setResultModalInfo({status: TransactionStatus.ERROR, message: e.message})
@@ -1186,7 +1188,6 @@ const SendInfoBlock = function (props: {
               message: result.message,
           })
       }
-      setIsLoading(false)
       toggleResultModal() 
   }
     

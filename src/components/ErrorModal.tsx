@@ -7,6 +7,7 @@ import { isObj } from '@cashu/cashu-ts/src/utils'
 import JSONTree from 'react-native-json-tree'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useStores } from '../models'
+import useIsInternetReachable from '../utils/useIsInternetReachable'
 
 type ErrorModalProps = {
     error: AppError 
@@ -41,9 +42,11 @@ export const ErrorModal: FC<ErrorModalProps> = function ({ error }) {
         }
     }
 
+    const isInternetReachable = useIsInternetReachable()
+
     const enrollDevice = async () => {
         const keys = await walletStore.getCachedWalletKeys()
-        if (keys.NOSTR) {
+        if (keys.NOSTR && isInternetReachable === true) {
             authStore.enrollDevice(keys.NOSTR, walletProfileStore.device)
                 .then(() => {
                     setIsErrorVisible(false)
