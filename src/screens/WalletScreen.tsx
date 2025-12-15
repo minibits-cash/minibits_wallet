@@ -78,6 +78,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const appState = useRef(AppState.currentState)
     const lastMintCheckRef = useRef<number>(0)
     const lastBackgroundTimestampRef = useRef<number>(0)
+    const isOnline = useRef<boolean>(true)
     const isInternetReachable = useIsInternetReachable()
     const groupedMints: MintsByUnit[] = mintsStore.groupedByUnit
 
@@ -106,6 +107,11 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const [updateDescription, setUpdateDescription] = useState<string>('')
     const [updateSize, setUpdateSize] = useState<string>('')
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
+
+    useEffect(() => {
+        log.trace('on change', {isInternetReachable})
+        isOnline.current = isInternetReachable
+    }, [isInternetReachable])
 
     // On app start
     useEffect(() => {
@@ -147,7 +153,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         } 
         
         setTimeout(() => {
-            if(!isInternetReachable) {
+            if(!isOnline.current) {
                 return
             }
             checkForUpdate()
@@ -170,7 +176,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 nwcStore.resetDailyLimits()
             }
             
-            if(!isInternetReachable) { return }
+            if(!isOnline.current) { return }
             
             if(groupedMints.length === 0) {
                 await addMint()
@@ -195,14 +201,14 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
         const handleReceivedEventTaskResult  = async (result: WalletTaskResult) => {
             log.trace('[handleReceivedEventTaskResult]')
-            if(result.error) {
+            if(result.error && isOnline.current) {
                 handleError(result.error)
             }        
         }
 
         const handleClaimTaskResult  = async (result: WalletTaskResult) => {
             log.trace('[handleClaimTaskResult]')
-            if(result.error) {
+            if(result.error && isOnline.current) {
                 handleError(result.error)
             }
         }
@@ -280,7 +286,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     
     const performChecks = useCallback(async () => {
 
-        if (!isInternetReachable) {
+        if (!isOnline.current) {
             return
         }
 
@@ -299,7 +305,9 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 if(userSettingsStore.exchangeCurrency) {
                     walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency!) 
                 }
-            }).catch(e => handleError(e))
+            }).catch(e => {
+                if(isOnline.current) handleError(e)
+            })
             
             // TODO rethink
             const countByStatus = Database.getTransactionsCount()
@@ -311,7 +319,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         }
      
 
-    }, [isInternetReachable, userSettingsStore.exchangeCurrency])
+    }, [isOnline.current, userSettingsStore.exchangeCurrency])
     
     
     useFocusEffect(() => {
@@ -633,7 +641,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
 
     const HeaderTitle = function (props: any) {
-        if (!isInternetReachable) {
+        if (!isOnline.current) {
             return (
                 <Text
                     tx="commonOffline"

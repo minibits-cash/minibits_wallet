@@ -8,14 +8,7 @@ import {
     Platform,
 } from 'react-native'
 import {
-    BallIndicator,
-    BarIndicator,
-    DotIndicator,
-    MaterialIndicator,
-    PacmanIndicator,
     PulseIndicator,
-    SkypeIndicator,
-    UIActivityIndicator,
     WaveIndicator,
   } from 'react-native-indicators'
 import { PaymentRequest as CashuPaymentRequest, MeltQuoteResponse, PaymentRequestTransport, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken } from '@cashu/cashu-ts'
@@ -38,19 +31,15 @@ import { StackActions, StaticScreenProps, useNavigation } from '@react-navigatio
 import { observer } from 'mobx-react-lite'
 import { Mint, MintBalance } from '../models/Mint'
 import { SYNC_STATE_WITH_MINT_TASK, SyncStateTaskResult, TransactionTaskResult, WalletTask } from '../services'
-import { SendOption } from './SendScreen'
-import { TransferOption } from './TransferScreen'
 import { Transaction, TransactionStatus } from '../models/Transaction'
 import { Proof } from '../models/Proof'
-import { SEND_TASK } from '../services/wallet/sendTask'
-import { round, toNumber } from '../utils/number'
+import { toNumber } from '../utils/number'
 import numbro from 'numbro'
 import { DecodedLightningInvoice, LightningUtils } from '../services/lightning/lightningUtils'
 import { addSeconds } from 'date-fns/addSeconds'
 import { CashuUtils } from '../services/cashu/cashuUtils'
 import { LIGHTNING_FEE_PERCENT, MIN_LIGHTNING_FEE } from '../models/NwcStore'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
-import { TRANSFER_TASK } from '../services/wallet/transferTask'
 import Animated, {
     useSharedValue,
     withRepeat,
@@ -128,6 +117,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const navigation = useNavigation<any>()
     const { mintsStore, walletStore, proofsStore, transactionsStore } = useStores()
     const unitRef = useRef<MintUnit>('sat')
+    const isOnline = useRef<boolean>(true)
 
     const isInternetReachable = useIsInternetReachable()
 
@@ -147,6 +137,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const [transactionId, setTransactionId] = useState<number | undefined>()      
     const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, title?: string, message: string} | undefined>()    
     const [isLoading, setIsLoading] = useState(false)
+    //const [isOffline, setIsOffline] = useState(false)
 
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     // NFC state
@@ -167,6 +158,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             try {
                 const supported = await NfcService.init() // runs NfcManager.start()
                 setIsNfcSupported(supported)
+                log.trace({isInternetReachable})
 
                 if (!supported) {
                     setNfcInfo('NFC is not supported on this device')
@@ -199,6 +191,11 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             NfcManager.setEventListener(NfcEvents.SessionClosed, null)
         }
     }, [])
+
+    useEffect(() => {
+        log.trace('on change', {isInternetReachable})
+        isOnline.current = isInternetReachable
+    }, [isInternetReachable])
 
     // Auto-restart session when screen comes into focus
     useEffect(() => {
@@ -319,7 +316,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
         const eventName = `ev_${SYNC_STATE_WITH_MINT_TASK}_result`
         // Start fallback timer — 15 seconds after token write. Skip if offline.
-        if(isInternetReachable) {
+        if(isOnline.current) {
             fallbackTimeoutRef.current = setTimeout(checkFallback, SYNC_STATE_WITH_MINT_TIMEOUT)
         }      
 
@@ -392,18 +389,12 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             const bytes = new Uint8Array(tag.ndefMessage[0]?.payload ?? [])
             decoded = Ndef.text.decodePayload(bytes)
 
-            if(!decoded || decoded.length < 140) {
+            log.trace({decoded})
+
+            if(!decoded || decoded.length < 40) {
                 const msg = 'This NFC tag can not be processed, missing or truncated NDEF message.'
                 
-                setResultModalInfo({
-                        status: TransactionStatus.ERROR,
-                        message: msg,
-                })
-
-                toggleResultModal()
-
-                log.error(Err.NFC_ERROR, msg, { tag })
-                return
+                throw new AppError(Err.NFC_ERROR, msg)
             }
 
             setNfcInfo('Processing, keep your device still...')            
@@ -415,9 +406,9 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
         } catch (e: any) {
             log.error('[NfcPayScreen] handlePaymentRequest failed', {
-                error: e?.message ?? String(e),
+                message: e?.message,
                 stack: e?.stack,
-                decoded: decoded?.slice?.(0,200)
+                //decoded: decoded?.slice?.(0,200)
              })
             handleError(e)
         } finally { 
@@ -568,7 +559,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             expandHeader()
 
             // Show explanatory modal immediately when offline
-            if (!isInternetReachable) {
+            if (!isOnline.current) {
                 setResultModalInfo({
                     status: TransactionStatus.PENDING,
                     title: translate('commonOfflinePretty'),
@@ -594,63 +585,70 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
 
     const handleLightningInvoice = async (encodedInvoice: string) => {
-        if (!isInternetReachable) {
-            setResultModalInfo({
-                status: TransactionStatus.ERROR,
-                title: translate('commonOfflinePretty'),
-                message: 'Can not use Lightning payment method while offline.',
-            })
-
-            toggleResultModal()
-            return
-        }
-    
-        const decoded = LightningUtils.decodeInvoice(encodedInvoice)
-        const { amount: invoiceAmount, description, expiry, timestamp } = LightningUtils.getInvoiceData(decoded)
-    
-        if (!invoiceAmount || invoiceAmount <= 0) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Lightning invoice has no amount')
-        }
-    
-        const expiresAt = addSeconds(new Date((timestamp as number) * 1000), expiry as number)
-        const feeReserve = Math.max(MIN_LIGHTNING_FEE, Math.round(invoiceAmount * LIGHTNING_FEE_PERCENT / 100))
-        const totalRequired = invoiceAmount + feeReserve
-        const balances = proofsStore.getMintBalancesWithEnoughBalance(totalRequired, unitRef.current)
-    
-        if (balances.length === 0) {
-            setResultModalInfo({
-                status: TransactionStatus.ERROR,
-                title: 'Not enough funds',
-                message: translate('transferScreen_insufficientFunds', {
-                    currency: getCurrency(unitRef.current).code,
-                    amount: totalRequired,
-                }),
-            })
-
-            toggleResultModal()
-            return
-        }
-    
-        const selectedBalance = balances[0]
-        setMintBalanceToSendFrom(selectedBalance)
-    
-        setNfcInfo('Creating Lightning payment quote...')
-
-        const quote = await walletStore.createLightningMeltQuote(
-            selectedBalance.mintUrl,
-            unitRef.current,
-            encodedInvoice
-        )
-    
-        // Update UI
-        setEncodedInvoice(encodedInvoice)
-        setInvoice(decoded)
-        setInvoiceExpiry(expiresAt)
-        setMeltQuote(quote)
-        setAmountToPay(formatDisplayAmount(quote.amount, unitRef.current))
-        if (description) setMemo(description)
-    
         try {
+            log.trace('[handleLightningInvoice] start', {isOnline: isOnline.current})
+
+            if (!isOnline.current) {
+                // setInfo('Can not use Lightning payment method while offline.')
+                setResultModalInfo({
+                    status: TransactionStatus.ERROR,
+                    title: translate('commonOfflinePretty'),
+                    message: 'Can not use Lightning payment method while offline.',
+                })
+
+                setIsResultModalVisible(true)
+                return
+            }
+
+            log.trace('[handleLightningInvoice] decoding invoice')
+
+            const decoded = LightningUtils.decodeInvoice(encodedInvoice)
+            const { amount: invoiceAmount, description, expiry, timestamp } = LightningUtils.getInvoiceData(decoded)
+        
+            if (!invoiceAmount || invoiceAmount <= 0) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Lightning invoice has no amount')
+            }
+        
+            const expiresAt = addSeconds(new Date((timestamp as number) * 1000), expiry as number)
+            const feeReserve = Math.max(MIN_LIGHTNING_FEE, Math.round(invoiceAmount * LIGHTNING_FEE_PERCENT / 100))
+            const totalRequired = invoiceAmount + feeReserve
+            const balances = proofsStore.getMintBalancesWithEnoughBalance(totalRequired, unitRef.current)
+        
+            if (balances.length === 0) {
+                setResultModalInfo({
+                    status: TransactionStatus.ERROR,
+                    title: 'Not enough funds',
+                    message: translate('transferScreen_insufficientFunds', {
+                        currency: getCurrency(unitRef.current).code,
+                        amount: totalRequired,
+                    }),
+                })
+
+                toggleResultModal()
+                return
+            }
+        
+            const selectedBalance = balances[0]
+            setMintBalanceToSendFrom(selectedBalance)
+        
+            let msgQuote = 'Creating Lightning payment quote...'
+            log.trace('[handleLightningInvoice]', msgQuote)
+            setNfcInfo(msgQuote)
+
+            const quote = await walletStore.createLightningMeltQuote(
+                selectedBalance.mintUrl,
+                unitRef.current,
+                encodedInvoice
+            )
+        
+            // Update UI
+            setEncodedInvoice(encodedInvoice)
+            setInvoice(decoded)
+            setInvoiceExpiry(expiresAt)
+            setMeltQuote(quote)
+            setAmountToPay(formatDisplayAmount(quote.amount, unitRef.current))
+            if (description) setMemo(description)
+        
             setNfcInfo('Paying Lightning invoice...')
     
             const result = await WalletTask.transferQueueAwaitable(
@@ -720,6 +718,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             
             toggleResultModal()
         } catch (e: any) {
+            log.error(e.message, {error: String(e)})
             handleError(e)
         }
     }
@@ -765,7 +764,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     ): Promise<{ selectedBalance: MintBalance | undefined; selectedProofs: Proof[] }> => {
         let selectedProofs: Proof[] = [];
 
-        if (!isInternetReachable) {
+        if (!isOnline.current) {
             // Try to pay exactly with available proofs (avoid swap)
             for (const balance of balances) {
                 const proofs = proofsStore.getByMint(balance.mintUrl, { isPending: false, unit })
@@ -857,6 +856,13 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             <MintHeader mint={mint} unit={unitRef.current} />
             <Animated.View style={[animatedHeader, $headerContainer, {backgroundColor: headerBg}]}>
                 <View style={{}}>
+                    {!isOnline.current && !isPaid && ( 
+                        <Text
+                            tx="commonOffline"
+                            style={$warning}
+                            size="xxs"
+                        />    
+                    )}
                     {isPaid && (
                         <AmountInput
                             //ref={amountInputRef}                                               
@@ -1018,8 +1024,8 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                         </View>
                         </>
                     )}
-                    {resultModalInfo &&
-                    transactionStatus === TransactionStatus.ERROR && (
+                    {resultModalInfo && resultModalInfo.status === TransactionStatus.ERROR &&
+                    (
                         <>
                         <ResultModalInfo
                             icon="faTriangleExclamation"
@@ -1033,7 +1039,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                             <Button
                                 preset="secondary"
                                 tx={'commonClose'}
-                                onPress={toggleResultModal}
+                                onPress={gotoWallet}
                             />                        
                         </View>
                         </>
@@ -1079,4 +1085,10 @@ const $bottomContainer: ViewStyle = {
     justifyContent: 'flex-end',
     marginBottom: spacing.medium,
     alignSelf: 'stretch',
+}
+const $warning: TextStyle = {
+    backgroundColor: colors.palette.orange400,
+    borderRadius: spacing.extraSmall,
+    paddingHorizontal: spacing.tiny,
+    marginTop: spacing.medium
 }
