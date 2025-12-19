@@ -402,7 +402,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             log.info('NFC tag decoded', { decoded })
 
             setReadNfcData(decoded)
-            await handlePaymentRequest(decoded)
+            await handleIncomingData(decoded)
 
         } catch (e: any) {
             log.error('[NfcPayScreen] handlePaymentRequest failed', {
@@ -417,8 +417,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     }
 
 
-    // handlePaymentRequest.ts (main entry)
-    const handlePaymentRequest = async (data: string) => {
+    const handleIncomingData = async (data: string) => {
         
         // Alert.alert(data)
         log.info('[handlePaymentRequest] received data via NFC', { data })
@@ -434,6 +433,8 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             await handleCashuPaymentRequest(result.encoded)
         } else if (result.type === IncomingDataType.INVOICE) {
             await handleLightningInvoice(result.encoded)
+        } else if(result.type === IncomingDataType.CASHU) {
+            await handleCashuToken(result.encoded)
         }
     }
 
@@ -661,15 +662,15 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 encodedInvoice
             )
 
-            const { transaction, message, finalFee } = result
+            const { transaction, message, error: txError } = result
     
-            if (!transaction && error) {
+            if (!transaction && txError) {
                 setTransactionStatus(TransactionStatus.ERROR)
 
                 setResultModalInfo({
                     status: TransactionStatus.ERROR,
                     title: translate('payCommon_failed'),
-                    message: error.message || 'Lightning payment failed',
+                    message: txError.message || 'Lightning payment failed',
                 })
 
                 toggleResultModal()
@@ -682,7 +683,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 setTransactionStatus(status);
                 setTransaction(transaction);
 
-                if (error) {
+                if (txError) {
                     // Pending but timed out / failed
                     if (status === TransactionStatus.PENDING) {
                         setResultModalInfo({
@@ -692,8 +693,8 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                     } else {
                         setResultModalInfo({
                             status,
-                            title: error.params?.message ? error.message : translate('payCommon_failed'),
-                            message: error.params?.message || error.message || 'Lightning payment failed',
+                            title: txError.params?.message ? txError.message : translate('payCommon_failed'),
+                            message: txError.params?.message || txError.message || 'Lightning payment failed',
                         })
                     }
                 } else {
@@ -718,6 +719,66 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             
             toggleResultModal()
         } catch (e: any) {
+            log.error(e.message, {error: String(e)})
+            handleError(e)
+        }
+    }
+
+
+    const handleCashuToken = async function (encodedToken: string) {
+        try {
+            const decoded = getDecodedToken(encodedToken)
+            const amountToReceive = CashuUtils.getProofsAmount(decoded.proofs)        
+            const memo = decoded.memo || 'Received over NFC'
+            const result = await WalletTask.receiveQueueAwaitable(
+                decoded,
+                amountToReceive,
+                memo,
+                encodedToken
+            )
+
+            const { transaction, message, error: txError } = result
+    
+            if (transaction) {
+                const { status } = transaction;
+                setTransactionStatus(status);
+                setTransaction(transaction);
+
+                if (txError) {
+                    // Pending but timed out / failed
+                    if (status === TransactionStatus.PENDING) {
+                        setResultModalInfo({
+                            status,
+                            message,
+                        })
+                    } else {
+                        setResultModalInfo({
+                            status,
+                            title: txError.params?.message ? txError.message : 'Receive failed',
+                            message: txError.params?.message || txError.message || 'Could not receive cashu token',
+                        })
+                    }
+                } else {
+                    // Success or settled pending
+                    setResultModalInfo({
+                        status,
+                        message: message || 'Ecash token has been successfully received to your wallet.',
+                        title: status === TransactionStatus.COMPLETED ? 'Ecash received!' : undefined,
+                    });
+                    setIsPaid(true)
+                    expandHeader()
+                    setNfcInfo(transaction.memo || 'Receive over NFC completed.')
+                }
+            } else {
+                // Fallback (shouldn't happen)
+                setResultModalInfo({
+                    status: TransactionStatus.ERROR,
+                    title: 'Unknown error',
+                    message: 'No transaction data received',
+                })
+            }
+
+        } catch(e: any) {
             log.error(e.message, {error: String(e)})
             handleError(e)
         }
@@ -909,6 +970,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                     />
                 ) : (
                     <Card
+                        HeadingComponent={<Icon icon='faNfcSymbol' size={spacing.medium} containerStyle={{alignSelf: 'center'}}/>}
                         ContentComponent={
                         <>
                             {isProcessing ? (

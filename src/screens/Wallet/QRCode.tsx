@@ -1,17 +1,20 @@
-import React from 'react'
-import { ActivityIndicator, Share, View, ViewStyle } from "react-native"
+import React, { useEffect, useRef, useState } from 'react'
+import { ActivityIndicator, Alert, Platform, Share, View, ViewStyle } from "react-native"
+import { HCESession, NFCTagType4NDEFContentType, NFCTagType4 } from 'react-native-hce'
+import NfcManager  from 'react-native-nfc-manager'
 import { UR, UREncoder } from '@gandlaf21/bc-ur';
 import { infoMessage } from "../../utils/utils"
-import { Button, Card, Icon, ListItem, Loading } from "../../components"
+import { Button, Card, Icon, ListItem } from "../../components"
 import QRCode from "react-native-qrcode-svg"
 import Clipboard from "@react-native-clipboard/clipboard"
 import { moderateScale, verticalScale } from "@gocodingnow/rn-size-matters"
 import { colors, spacing } from "../../theme"
-import { useEffect, useState } from "react"
 import { translate, TxKeyPath } from "../../i18n"
-import { CashuUtils, CashuProof } from "../../services/cashu/cashuUtils"
 import { log } from "../../services"
-import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts';
+import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts'
+import { isSupported } from '@react-native-firebase/messaging';
+import { NfcService } from '../../services/nfcService';
+
 
 export type QRCodeBlockTypes = 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC' | 'PUBKEY' | 'PaymentRequest'
 
@@ -27,7 +30,7 @@ export const QRCodeBlock = function (props: {
   }
 ) {
   
-    const {qrCodeData, title, titleTx, type, size} = props
+    const { qrCodeData, title, titleTx, type, size } = props
     const [qrError, setQrError] = useState<Error | undefined>()
     const [encodedV3Token, setEncodedV3Token] = useState<string | undefined>()
     const [decodedToken, setDecodedToken] = useState<Token>()
@@ -35,8 +38,50 @@ export const QRCodeBlock = function (props: {
     const [isLoadingQRCode, setIsLoadingQRCode] = useState<boolean>(false)
     const [isQRCodeError, setIsQRCodeError] = useState<boolean>(false)
     const [isAnimating, setIsAnimating] = useState<boolean>(false)
+    const [isNfcSupported, setIsNfcSupported] = useState<boolean>(false)
+    const [isStringSafeForNfc, setIsStringSafeForNfc] = useState<boolean>(false)
+    const [isNfcEnabled, setIsNfcEnabled] = useState<boolean>(false)
     const [qrCodeChunk, setQrCodeChunk] = useState<string | undefined>()
-    
+
+    // NFC State
+    const [nfcBroadcast, setNfcBroadcast] = useState(false)
+    const simulationRef = useRef<any>(null)
+
+    // Cleanup NFC session on unmount
+    useEffect(() => {
+      const nfcSupport = async () => {
+        try {
+          if (['EncodedV3Token', 'EncodedV4Token', 'Bolt11Invoice', 'PaymentRequest'].includes(type)) {
+            const isSafe = NfcService.isStringSafeForNFC(qrCodeData)
+            setIsStringSafeForNfc(isSafe)
+          }
+
+          const isSupported = await NfcManager.isSupported()
+          const isEnabled = await NfcManager.isEnabled()
+          
+          setIsNfcSupported(isSupported)
+          setIsNfcEnabled(isEnabled)
+          
+        } catch (e: any) {}
+      }
+
+      nfcSupport()
+
+      return () => {
+          if (simulationRef.current) {
+              simulationRef.current.setEnabled(false)
+          }
+      }
+    }, [])
+
+    // Stop NFC if it was active when toggling off
+    /*useEffect(() => {
+        if (!nfcBroadcast && simulationRef.current) {
+            simulationRef.current.setEnabled(false)
+            simulationRef.current = null
+        }
+    }, [nfcBroadcast])*/
+
     useEffect(() => {
       const detectKeysetFormat = () => {
         if(type === 'EncodedV4Token') {
@@ -47,7 +92,6 @@ export const QRCodeBlock = function (props: {
             setKeysetFormat('hex')            
           } else {
             try {
-              // make v3 legacy format
               const encodedV3 = getEncodedToken(decoded, {version: 3})
               setEncodedV3Token(encodedV3)
             } catch (e: any) {
@@ -59,8 +103,7 @@ export const QRCodeBlock = function (props: {
       }
 
       detectKeysetFormat()
-      return () => {}
-    }, [])
+    }, [qrCodeData, type])
 
 
     useEffect(() => {
@@ -78,24 +121,19 @@ export const QRCodeBlock = function (props: {
           qrCodeInterval = setInterval(() => {
             setIsLoadingQRCode(false)            
             setQrCodeChunk(encoder.nextPart())
-            // log.trace(encoder.nextPart())            
           }, ANIMATED_QR_INTERVAL)
 
-          
         } catch (e: any) {
           handleQrError(e)
         }
       }
 
-      // Cleanup function that runs on component unmount or when the interval needs to stop
       return () => {
         if (qrCodeInterval) {
           clearInterval(qrCodeInterval)
         }
       }
     }, [isAnimating, qrCodeData])
-
-
 
     const handleQrError = function (error: Error) {
         stopAnimatedQRcode()
@@ -121,21 +159,14 @@ export const QRCodeBlock = function (props: {
       }
     }
 
-
     const switchTokenEncoding = function () {
       try {
         if(encodedV3Token) {
           setEncodedV3Token(undefined)
         } else if(type === 'EncodedV4Token') {
-          log.trace('[v4]', qrCodeData)
-          
-          if(!decodedToken) {
-            return false
-          }
+          if(!decodedToken) return
 
           const encodedV3 = getEncodedToken(decodedToken, {version: 3})
-            
-          log.trace('[v3]', encodedV3)            
           setEncodedV3Token(encodedV3)
         }
       } catch (e: any) {
@@ -143,32 +174,63 @@ export const QRCodeBlock = function (props: {
       }
     }
 
-
-    const startAnimatedQRcode = () => {
-      setIsAnimating(true)
-    }
-
-
-    const stopAnimatedQRcode = () => {
-      setIsAnimating(false)
-    }
-
-
+    const startAnimatedQRcode = () => setIsAnimating(true)
+    const stopAnimatedQRcode = () => setIsAnimating(false)
     const switchToAnimatedQRcodeOnError = () => {
       setIsQRCodeError(true)
       startAnimatedQRcode()
     }
-
-
-    const toggleQRcodeAnimation = () => setIsAnimating(previousState => !previousState)
-  
+    const toggleQRcodeAnimation = () => setIsAnimating(prev => !prev)
   
     const onCopy = function () {
       try {
-        Clipboard.setString(encodedV3Token || qrCodeData as string)
+        Clipboard.setString(encodedV3Token || qrCodeData)
       } catch (e: any) {
         handleQrError(e)
       }
+    }
+
+    // NFC Functions
+    const startNFCSimulation = async () => {
+        const dataToBroadcast = encodedV3Token || qrCodeData
+        const tag = new NFCTagType4({
+          type: NFCTagType4NDEFContentType.Text,
+          content: dataToBroadcast,
+          writable: false,
+        })
+        const session = await HCESession.getInstance()
+        session.setApplication(tag)
+        await session.setEnabled(true)
+        log.trace('[startNFCSimulation] Session enabled')
+        simulationRef.current = session
+    }
+
+    const stopNFCSimulation = async () => {
+      if (simulationRef.current) {
+        try {
+          await simulationRef.current.setEnabled(false)
+          log.trace('[stopNFCSimulation] Session closed')
+        } catch (error) {
+          console.warn('Failed to terminate NFC session:', error)
+        }
+        simulationRef.current = null
+      }
+    }
+
+    const toggleNFC = async () => {
+      if (nfcBroadcast) {
+        await stopNFCSimulation()
+        setNfcBroadcast(prev => !prev)
+      } else {
+        try {
+          await startNFCSimulation()
+          setNfcBroadcast(prev => !prev)
+        } catch(e: any) {
+          log.error('NFC simulation failed to start: ', e.message, {stack: e.stack})
+          infoMessage(e.message)
+        }
+      }
+      
     }
 
     const qrCodeSize = size || spacing.screenWidth - spacing.large * 2
@@ -214,36 +276,29 @@ export const QRCodeBlock = function (props: {
               )}
               </>
             )}
-            
           </View>              
         )}
         FooterComponent={
           <View style={$buttonContainer}>
             <Button
-                tx="commonShare"
+                //tx="commonShare"
                 preset="tertiary" 
                 onPress={onShareToApp}
-                LeftAccessory={() => <Icon icon='faShareNodes' size={spacing.small} color={colors.light.text} />}
+                LeftAccessory={() => <Icon icon='faShareNodes' size={spacing.medium} color={colors.light.text} />}
                 textStyle={{color: colors.light.text, fontSize: 14}}
                 pressedStyle={{backgroundColor: colors.light.buttonTertiaryPressed}}
-                style={{                    
-                    minHeight: verticalScale(40), 
-                    paddingVertical: verticalScale(spacing.tiny)                    
-                }}  
+                style={{ minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny) }}  
             />
             <Button 
                 preset="tertiary" 
-                tx="commonCopy" 
+                //tx="commonCopy" 
                 onPress={onCopy}
-                LeftAccessory={() => <Icon icon='faCopy' size={spacing.small} color={colors.light.text} />}
+                LeftAccessory={() => <Icon icon='faCopy' size={spacing.medium} color={colors.light.text} />}
                 textStyle={{color: colors.light.text, fontSize: 14}}
                 pressedStyle={{backgroundColor: colors.light.buttonTertiaryPressed}}
-                style={{                     
-                    minHeight: verticalScale(40),                    
-                    paddingVertical: verticalScale(spacing.tiny)                    
-                }}  
+                style={{ minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny) }}  
             />
-            {type === 'EncodedV4Token' && keysetFormat === 'hex' && !isAnimating && (
+            {/*type === 'EncodedV4Token' && keysetFormat === 'hex' && !isAnimating && (
               <Button
                   preset="tertiary" 
                   tx={encodedV3Token ? "qrCodeNewFormatButton" : "qrCodeOldFormatButton"}
@@ -251,46 +306,66 @@ export const QRCodeBlock = function (props: {
                   LeftAccessory={() => <Icon icon='faMoneyBill1' size={spacing.small} color={colors.light.text}/>}
                   textStyle={{color: colors.light.text, fontSize: 14}}
                   pressedStyle={{backgroundColor: colors.light.buttonTertiaryPressed}}
-                  style={{                       
-                      minHeight: verticalScale(40),                    
-                      paddingVertical: verticalScale(spacing.tiny),                      
-                  }}  
+                  style={{ minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny) }}  
               /> 
-            )}
+            )*/}
             {type === 'EncodedV4Token' && !isQRCodeError && (
               <Button
                   preset="tertiary" 
-                  tx={isAnimating ? "qrCodeStaticButton" : "qrCodeAnimateButton"}
+                  //tx={isAnimating ? "qrCodeStaticButton" : "qrCodeAnimateButton"}
                   onPress={toggleQRcodeAnimation}
-                  LeftAccessory={() => <Icon icon='faQrcode' size={spacing.small} color={colors.light.text} />}
+                  LeftAccessory={() => <Icon icon='faQrcode' size={spacing.medium} color={colors.light.text} />}
                   textStyle={{color: colors.light.text, fontSize: 14}}
                   pressedStyle={{backgroundColor: colors.light.buttonTertiaryPressed}}
-                  style={{                      
-                      minHeight: verticalScale(40),                    
-                      paddingVertical: verticalScale(spacing.tiny),
-                      paddingHorizontal: spacing.tiny                     
-                  }}  
+                  style={{ minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny) }}  
               /> 
-            )}           
-        </View>
+            )}
+            {/* NFC HCE share button - only on Android */}
+            {Platform.OS === 'android' && isStringSafeForNfc && isNfcSupported && (
+              <Button
+                  preset="tertiary"
+                  //text={nfcBroadcast ? "NFC active" : "NFC"}
+                  onPress={isNfcEnabled ? toggleNFC : () => Alert.alert('Enable NFC in device settings')}
+                  LeftAccessory={() => (
+                    <Icon 
+                      icon='faNfcSymbol' 
+                      size={spacing.medium} 
+                      color={nfcBroadcast ? colors.palette.success300 : colors.light.text}
+                    />
+                  )}
+                  textStyle={{ 
+                    color: nfcBroadcast ? colors.palette.success300 : colors.light.text, 
+                    fontSize: 14,
+                    fontWeight: nfcBroadcast ? 'bold' : 'normal'
+                  }}
+                  pressedStyle={{ backgroundColor: colors.light.buttonTertiaryPressed }}
+                  style={{ 
+                    minHeight: verticalScale(40), 
+                    paddingVertical: verticalScale(spacing.tiny),
+                    paddingHorizontal: spacing.tiny,
+                    backgroundColor: nfcBroadcast ? colors.palette.success100 : undefined, 
+                  }}
+              />
+            )}
+          </View>
         }
       />
-        
     )
-  }
-  
+}
 
-  const $qrCodeContainer: ViewStyle = {
-    alignItems: 'center',
-    backgroundColor: 'white',
-    paddingHorizontal: spacing.small,    
-    marginHorizontal: spacing.small,
-    // marginBottom: spacing.small,
-    borderRadius: spacing.small
+const $qrCodeContainer: ViewStyle = {
+  alignItems: 'center',
+  backgroundColor: 'white',
+  paddingHorizontal: spacing.small,    
+  marginHorizontal: spacing.small,
+  borderRadius: spacing.small
 }
 
 const $buttonContainer: ViewStyle = {
   marginTop: spacing.small,
   flexDirection: 'row',
   alignSelf: 'center',
+  flexWrap: 'wrap',
+  justifyContent: 'center',
+  gap: spacing.small
 }

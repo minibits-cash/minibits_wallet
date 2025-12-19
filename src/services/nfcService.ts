@@ -13,7 +13,7 @@ const init = async function () {
       
     }
     return supported
-  }
+}
 
 const isEnabled = function () {
     return NfcManager.isEnabled()
@@ -72,9 +72,33 @@ const writeNdefMessage = async (text: string) => {
     }
 }
 
+
+/**
+ * Checks if a string is safe to broadcast via Android NFC HCE (Type 4 Tag emulation)
+ * Safe limit: 32,000 bytes (conservative, accounts for NDEF overhead)
+ * 
+ * @param str The string to check (e.g., token, invoice, URL)
+ * @returns true if the string's byte size is safely under the limit, false otherwise
+ */
+const isStringSafeForNFC = function (str: string): boolean {
+    const SAFE_NFC_BYTE_LIMIT = 32000 // Conservative limit (leaves room for NDEF wrapper)
+  
+    try {
+      // Encode string to UTF-8 bytes
+      const encoder = new TextEncoder()
+      const bytes = encoder.encode(str)
+      
+      return bytes.length <= SAFE_NFC_BYTE_LIMIT
+    } catch (error) {
+      console.warn('Error measuring string byte size:', error)
+      return false
+    }
+  }
+
 export const NfcService = {
     init,
     isEnabled,
+    isStringSafeForNFC,
     goToNfcSetting,
     readNdefTag,
     writeNdefMessage,
