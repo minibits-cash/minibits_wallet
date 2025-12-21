@@ -103,7 +103,8 @@ import { SerializedDLEQ } from '@cashu/cashu-ts'
               .sort((a, b) => 
                   options.ascending ? a.amount - b.amount : b.amount - a.amount
               )
-      },))
+        }
+      }))
     
         // ───────────────────── ACTIONS ─────────────────────
         .actions(self => ({
