@@ -123,6 +123,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
     const [encodedTokenToSend, setEncodedTokenToSend] = useState<string | undefined>()
     const [amountToPay, setAmountToPay] = useState<string | undefined>()
+    const [amountToReceive, setAmountToReceive] = useState<string | undefined>()
     const [encodedCashuPaymentRequest, setEncodedCashuPaymentRequest] = useState<string | undefined>()
     const [decodedCashuPaymentRequest, setDecodedCashuPaymentRequest] = useState<CashuPaymentRequest | undefined>()
     const [encodedInvoice, setEncodedInvoice] = useState<string>('')
@@ -379,7 +380,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
             const tag = await NfcService.readNdefTag()
 
-            if (!tag) {
+            if (!tag || !tag.ndefMessage) {
                 return
             }
 
@@ -728,11 +729,11 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const handleCashuToken = async function (encodedToken: string) {
         try {
             const decoded = getDecodedToken(encodedToken)
-            const amountToReceive = CashuUtils.getProofsAmount(decoded.proofs)        
+            const amount = CashuUtils.getProofsAmount(decoded.proofs)        
             const memo = decoded.memo || 'Received over NFC'
             const result = await WalletTask.receiveQueueAwaitable(
                 decoded,
-                amountToReceive,
+                amount,
                 memo,
                 encodedToken
             )
@@ -768,6 +769,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                     setIsPaid(true)
                     expandHeader()
                     setNfcInfo(transaction.memo || 'Receive over NFC completed.')
+                    setAmountToReceive(formatDisplayAmount(transaction.amount, transaction.unit))
                 }
             } else {
                 // Fallback (shouldn't happen)
@@ -777,6 +779,8 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                     message: 'No transaction data received',
                 })
             }
+
+            setIsResultModalVisible(true)
 
         } catch(e: any) {
             log.error(e.message, {error: String(e)})
@@ -909,7 +913,8 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const headerBg = useThemeColor('header')
     const headerTitle = useThemeColor('headerTitle')
     const scanIcon = useThemeColor('text')
-    const indicatorStandby = useThemeColor('headerTitle')
+    const nfcText = useThemeColor('text')
+    const indicatorStandby = colors.palette.primary400
     const indicatorProcessing = useThemeColor('button') 
 
     return (
@@ -927,7 +932,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                     {isPaid && (
                         <AmountInput
                             //ref={amountInputRef}                                               
-                            value={`${amountToPay}`}                    
+                            value={`${amountToPay || amountToReceive}`}                    
                             onChangeText={() => {}}
                             unit={unitRef.current}
                             editable={false}
@@ -1012,7 +1017,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                                     textAlign: 'center',
                                     marginBottom: spacing.medium,
                                     //fontFamily: typography.code,
-                                    color: isProcessing ? indicatorProcessing : isNfcEnabled ? indicatorStandby : hintText,
+                                    color: isProcessing ? indicatorProcessing : isNfcEnabled ? nfcText : hintText,
                                     fontSize: 18,
                                     
                                 }}
