@@ -53,7 +53,7 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
     const [walletStateSize, setWalletStateSize] = useState<number>(0)
     const [dbVersion, setDbVersion] = useState<number>(0)
     const [isLogLevelSelectorVisible, setIsLogLevelSelectorVisible] = useState<boolean>(false)
-    const [selectedLogLevel, setSelectedLogLevel] = useState<LogLevel>(userSettingsStore.logLevel)ß
+    const [selectedLogLevel, setSelectedLogLevel] = useState<LogLevel>(userSettingsStore.logLevel)
     const [error, setError] = useState<AppError | undefined>()
     const [info, setInfo] = useState('')
 
