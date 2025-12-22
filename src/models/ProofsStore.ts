@@ -83,16 +83,16 @@ import { SerializedDLEQ } from '@cashu/cashu-ts'
       ): Proof[] {
           let proofs = Array.from(self.proofs.values())
               .filter(p => !p.isSpent)
+
+          proofs = proofs.filter(p => p.mintUrl === mintUrl)
       
           // Default: only non-pending proofs. Explicit true returns only pending.
-          const includePending = options.isPending ?? false
-          proofs = proofs.filter(p => p.isPending === includePending)
+          const selectPending = options.isPending ?? false
+          proofs = proofs.filter(p => p.isPending === selectPending)
       
           if (options.keysetIds?.length) {
               proofs = proofs.filter(p => options.keysetIds!.includes(p.id))
           }
-      
-          proofs = proofs.filter(p => p.mintUrl === mintUrl)
       
           if (options.unit) {
               proofs = proofs.filter(p => p.unit === options.unit)

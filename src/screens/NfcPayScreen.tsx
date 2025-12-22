@@ -708,6 +708,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                     setIsPaid(true)
                     expandHeader()
                     setNfcInfo(transaction.memo || 'Lightning payment settled.')
+
                 }
             } else {
                 // Fallback (shouldn't happen)
@@ -722,6 +723,8 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         } catch (e: any) {
             log.error(e.message, {error: String(e)})
             handleError(e)
+        } finally {
+            await NfcManager.cancelTechnologyRequest().catch(() => {})
         }
     }
 
@@ -785,6 +788,8 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         } catch(e: any) {
             log.error(e.message, {error: String(e)})
             handleError(e)
+        } finally {
+            await NfcManager.cancelTechnologyRequest().catch(() => {})
         }
     }
 

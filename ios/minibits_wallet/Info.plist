@@ -41,6 +41,12 @@
 		<string/>
 		<key>NSUserNotificationUsageDescription</key>
 		<string>This app uses notifications to keep you updated with incoming transactions.</string>
+		<key>NFCReaderUsageDescription</key>
+		<string>This app uses NFC to pay on supported POS</string>
+		<key>com.apple.developer.nfc.readersession.iso7816.select-identifiers</key>
+			<array>
+			<string>D2760000850101</string>
+			</array>
 		<key>RCTNewArchEnabled</key>
 		<true/>
 		<key>UIAppFonts</key>
