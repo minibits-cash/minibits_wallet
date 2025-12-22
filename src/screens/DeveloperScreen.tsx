@@ -6,7 +6,7 @@ import {
     APP_ENV,        
     JS_BUNDLE_VERSION,
     COMMIT,
-    ANDROID_VERSION_NAME,
+    IOS_BUILD,
     ANDROID_VERSION_CODE,
 } from '@env'
 import packageJson from '../../package.json'
@@ -53,7 +53,7 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
     const [walletStateSize, setWalletStateSize] = useState<number>(0)
     const [dbVersion, setDbVersion] = useState<number>(0)
     const [isLogLevelSelectorVisible, setIsLogLevelSelectorVisible] = useState<boolean>(false)
-    const [selectedLogLevel, setSelectedLogLevel] = useState<LogLevel>(userSettingsStore.logLevel)
+    const [selectedLogLevel, setSelectedLogLevel] = useState<LogLevel>(userSettingsStore.logLevel)ß
     const [error, setError] = useState<AppError | undefined>()
     const [info, setInfo] = useState('')
 
@@ -296,11 +296,11 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
                   tx="developerScreen_info"
                   subText={`Environment: ${APP_ENV}
 JS Bundle version: ${JS_BUNDLE_VERSION}
-${Platform.OS === 'android' ? 'Android version code:' + ANDROID_VERSION_CODE : ''}
+${Platform.OS === 'android' ? 'Android version code: ' + ANDROID_VERSION_CODE : 'iOS build: ' + IOS_BUILD}
 Commit: ${COMMIT}
 DB version: ${dbVersion}
 State size: ${walletStateSize.toLocaleString()} bytes
-React Native: ${rnVersion}
+React Native: ${rnVersion}ß
 Sentry id: ${walletProfileStore.walletId}
                   `}
                   leftIcon='faInfoCircle'

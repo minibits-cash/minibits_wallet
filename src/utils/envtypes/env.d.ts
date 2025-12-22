@@ -9,8 +9,10 @@ declare module '@env' {
     export const MINIBITS_MINT_URL: string
     export const HOT_UPDATER_URL: string
     export const HOT_UPDATER_API_KEY: string
-    export const ANDROID_VERSION_NAME: string
-    export const ANDROID_VERSION_CODE: string  
+    export const ANDROID_VERSION_NAME: string  
+    export const ANDROID_VERSION_CODE: string
+    export const IOS_VERSION_NAME: string
+    export const IOS_BUILD: string  
     export const JS_BUNDLE_VERSION: string
     export const COMMIT: string    
 }
