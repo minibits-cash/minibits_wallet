@@ -18,8 +18,8 @@ Minibits is an ecash and Lightning wallet exploring how ₿-backed ecash can ena
 ## Roadmap
 
 Platform support
-- [x] Android app
-- [x] iOS app [✨ over the Testflight and Freedomstore.io]
+- [x] Android app - Play Store, Zapstore [✨ New!] , Github
+- [x] iOS app - AppStore [✨ New!], Testflight and Freedomstore.io
 - [x] Light and dark mode
 - [x] i18n support
 - [x] EN, PT, ES, SK languange support [✨ New!]
@@ -99,6 +99,8 @@ Backup and recovery
 Interoperability
 - [x] Nostr Wallet Connect - lets you initiate payments from another app, such as Nostr client
 - [x] Deeplinks - app reacts to lightning: and cashu: URIs
+- [x] NFC - App reads Cashu payment requests or Lightning invoices over the NFC and pays instantly[✨ New!]
+- [x] NFC Host card emulation - Android app shares Cashu tokens, requests or Lightning invoices over the NFC [✨ New!]
 
 
 Security and Privacy
