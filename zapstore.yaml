@@ -1,0 +1,9 @@
+name: Minibits Wallet
+summary: Minibits is an ecash and Lightning wallet exploring how ₿-backed ecash can enable instant, cheap, and private value transfer.
+repository: https://github.com/minibits-cash/minibits_wallet
+homepage: https://minibits.cash/
+assets:
+  - .*.apk
+remote_metadata:
+  - github
+  - playstore
