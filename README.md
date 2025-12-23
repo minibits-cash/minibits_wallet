@@ -99,8 +99,8 @@ Backup and recovery
 Interoperability
 - [x] Nostr Wallet Connect - lets you initiate payments from another app, such as Nostr client
 - [x] Deeplinks - app reacts to lightning: and cashu: URIs
-- [x] NFC - App reads Cashu payment requests or Lightning invoices over the NFC and pays instantly[✨ New!]
-- [x] NFC Host card emulation - Android app shares Cashu tokens, requests or Lightning invoices over the NFC [✨ New!]
+- [x] NFC - reads Cashu requests or Lightning invoices over the NFC and pays instantly [✨ New!]
+- [x] NFC HCE - Android app shares Cashu tokens, requests or invoices over the NFC [✨ New!]
 
 
 Security and Privacy
