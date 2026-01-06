@@ -27,7 +27,7 @@ import { InFlightRequest, Mint } from './Mint'
 import { getRootStore } from './helpers/getRootStore'
 import { getUnixTime } from 'date-fns/getUnixTime'
 
-
+//refresh
 /* 
    Not persisted, in-memory only model of the cashu-ts wallet instances and wallet keys persisted in the device secure store.
    It is instantiated on first use so that wallet retrieves fresh mint keysets, then cached, 

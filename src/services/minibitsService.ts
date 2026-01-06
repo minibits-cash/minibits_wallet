@@ -1,16 +1,14 @@
 import AppError, { Err } from "../utils/AppError"
 import { log } from "./logService"
 import {
-    MINIBITS_SERVER_API_KEY,
     MINIBITS_SERVER_API_HOST,
     JS_BUNDLE_VERSION,    
 } from '@env'
 import { WalletProfileRecord } from "../models/WalletProfileStore"
 import { CurrencyCode } from "./wallet/currency"
 import { rootStoreInstance } from "../models"
-import { JwtTokens } from "./keyChain"
 import { AuthChallengeResponse, TokenPair, VerifyChallengeResponse } from "../models/AuthStore"
- // refresh // refresh // refresh // refresh
+ // refresh
 
 type MinibitsRequestArgs = {
 	method: 'POST' | 'PUT' | 'DELETE' | 'GET'

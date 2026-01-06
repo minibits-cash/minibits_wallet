@@ -19,6 +19,8 @@ import AppError, { Err } from "../utils/AppError"
 
 const { userSettingsStore } = rootStoreInstance
 
+// refresh
+
 if (!__DEV__) {
     Sentry.init({
         dsn: SENTRY_DSN,
@@ -74,7 +76,7 @@ const redactSensitive = (text: string): string => {
     return text
         .replace(/lnurl\w{50,}/gi, 'lnurl[redacted]')
         .replace(/nsec1[ac-hj-np-z02-9]{58,}/g, 'nsec1[redacted]')
-        .replace(/cashuB[ac-hj-np-z02-9]{58,}/g, 'nsec1[redacted]')
+        .replace(/cashuB[ac-hj-np-z02-9]{58,}/g, 'cashuB[redacted]')
 }
 
 

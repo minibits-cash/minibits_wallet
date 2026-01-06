@@ -11,7 +11,7 @@ import {
     PulseIndicator,
     WaveIndicator,
   } from 'react-native-indicators'
-import { PaymentRequest as CashuPaymentRequest, MeltQuoteResponse, PaymentRequestTransport, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken } from '@cashu/cashu-ts'
+import { PaymentRequest as CashuPaymentRequest, MeltQuoteResponse, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken } from '@cashu/cashu-ts'
 import NfcManager, { NfcTech, Ndef, NfcEvents, TagEvent } from 'react-native-nfc-manager'
 import { colors, spacing, typography, useThemeColor } from '../theme'
 import EventEmitter from '../utils/eventEmitter'
@@ -30,7 +30,7 @@ import { translate } from '../i18n'
 import { StackActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
 import { observer } from 'mobx-react-lite'
 import { Mint, MintBalance } from '../models/Mint'
-import { SYNC_STATE_WITH_MINT_TASK, SyncStateTaskResult, TransactionTaskResult, WalletTask } from '../services'
+import { MinibitsClient, NostrClient, SYNC_STATE_WITH_MINT_TASK, SyncStateTaskResult, TransactionTaskResult, WalletTask } from '../services'
 import { Transaction, TransactionStatus } from '../models/Transaction'
 import { Proof } from '../models/Proof'
 import { toNumber } from '../utils/number'
@@ -49,6 +49,8 @@ import Animated, {
   } from 'react-native-reanimated';
 import { NfcService } from '../services/nfcService'
 import { TranItem } from './TranDetailScreen'
+import { ProfilePointer } from 'nostr-tools/nip19'
+import { Contact } from '../models/Contact'
 //import Animated from 'react-native-reanimated'
 
 const ContactlessIcon = (color: ColorValue | string) => `<?xml version="1.0" encoding="utf-8"?>
@@ -448,10 +450,23 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             throw new AppError(Err.VALIDATION_ERROR, 'Payment request has no valid amount')
         }
 
+        const transports = pr.transport
+
+        if(transports && transports.length > 0 && !isOnline.current) {
+            setResultModalInfo({
+                status: TransactionStatus.ERROR,
+                title: 'Payment failed',
+                message: 'Wallet can not pay this payment request while offline.',
+            })
+            toggleResultModal()
+            setNfcInfo('Can not pay requested amount')
+            return
+        }
+
         const unit = validateAndNormalizeUnit(pr.unit)
         unitRef.current = unit
 
-        // Store for UI
+        // Store
         setDecodedCashuPaymentRequest(pr)
         setEncodedCashuPaymentRequest(encoded)
         if (pr.description) setMemo(pr.description)
@@ -534,12 +549,12 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 return
             }
 
-            // ———————— Missing Token ————————
-            if (!encodedTokenToSend) {
+            // ———————— Missing Token or PR ————————
+            if (!encodedTokenToSend || !decodedCashuPaymentRequest) {
                 setResultModalInfo({
                     status: TransactionStatus.ERROR,
                     title: 'Internal error',
-                    message: 'Failed to generate ecash token',
+                    message: 'Failed to retrieve Payment request or ecash token',
                 });
                 toggleResultModal()
                 setNfcInfo('Payment failed')
@@ -548,28 +563,104 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
             // ———————— Success Path ————————
             setEncodedTokenToSend(encodedTokenToSend)
-            // Send over NFC to payee's POS or wallet
+            // Send over NFC to payee's POS or using the PR transport method
 
-            setNfcInfo('Prepared ecash token to be sent via NFC.')
+            const transports = decodedCashuPaymentRequest.transport
 
-            log.trace('[NfcScreen] handleSendTaskResult: Starting NFC write of an ecash token.')
-            await NfcService.writeNdefMessage(encodedTokenToSend)
+            // NFC write back only if no transport methods specified (POS device)
+            if(!transports || transports.length === 0) {
+                setNfcInfo('Prepared ecash token to be sent via NFC.')
 
-            log.trace('[NfcScreen] handleSendTaskResult: Write completed.')
+                log.trace('[NfcScreen] handleSendTaskResult: Starting NFC write of an ecash token.')
+                await NfcService.writeNdefMessage(encodedTokenToSend)
+    
+                log.trace('[NfcScreen] handleSendTaskResult: Write completed.')
+                setNfcInfo('Ecash token sent successfully.')
+                setIsPaid(true)
+                expandHeader()
+    
+                // Show explanatory modal immediately when offline
+                if (!isOnline.current) {
+                    setResultModalInfo({
+                        status: TransactionStatus.PENDING,
+                        title: translate('commonOfflinePretty'),
+                        message: 'Your wallet sent this payment while offline. Consult the payee that the funds have been claimed.',
+                    })
+        
+                    toggleResultModal()
+                }
+
+                return
+            }
+
+            // Check for NOSTR transport first
+            const nostrTransport = transports.find(t => t.type === PaymentRequestTransportType.NOSTR)
+            const decodedTokenToSend = getDecodedToken(encodedTokenToSend)
+
+            if (nostrTransport) {
+                const decoded = NostrClient.decodeNprofile(nostrTransport.target)
+                const pubkey = (decoded.data as ProfilePointer).pubkey
+                let relays = (decoded.data as ProfilePointer).relays?.slice(0, 5)
+
+                if(!relays || relays.length === 0) {
+                    relays = NostrClient.getAllRelays()
+                }
+
+                
+                
+                const messageContent = JSON.stringify({
+                    id: decodedCashuPaymentRequest.id,
+                    mint: decodedTokenToSend.mint,
+                    unit: decodedTokenToSend.unit,
+                    proofs: decodedTokenToSend.proofs,
+                })
+            
+                const sentEvent = await NostrClient.encryptAndSendDirectMessageNip17(                
+                    pubkey, 
+                    messageContent,
+                    relays
+                )
+
+                if(!sentEvent) {
+                    setResultModalInfo({
+                        status: TransactionStatus.PENDING,
+                        title: 'Payment not confirmed',
+                        message: 'Nostr relays could not confirm that payment has been sent. Consult the payee if the funds have been claimed.',
+                    })
+        
+                    toggleResultModal()
+                    return
+                }
+
+            } else {
+                // Fallback to POST transport
+                const postTransport = transports.find(t => t.type === PaymentRequestTransportType.POST)
+
+                if (postTransport && postTransport.target) {
+                    const payload = {
+                        id: decodedCashuPaymentRequest.id,
+                        mint: decodedTokenToSend.mint,
+                        unit: decodedTokenToSend.unit,
+                        proofs: decodedTokenToSend.proofs,
+                        memo: decodedTokenToSend.memo || undefined,
+                    }
+        
+                    await MinibitsClient.fetchApi(postTransport.target, {
+                        method: 'POST',
+                        body: payload,
+                        jwtAuthRequired: false
+                    })
+                    
+                } else {
+                    // Error if neither transport is supported
+                    throw new AppError(Err.VALIDATION_ERROR, 'Payment request only supports NOSTR or POST transports, but neither is available.')
+                }
+            }
+
             setNfcInfo('Ecash token sent successfully.')
             setIsPaid(true)
             expandHeader()
-
-            // Show explanatory modal immediately when offline
-            if (!isOnline.current) {
-                setResultModalInfo({
-                    status: TransactionStatus.PENDING,
-                    title: translate('commonOfflinePretty'),
-                    message: 'Your wallet sent this payment while offline. Consult the payee that the funds have been claimed.',
-                })
-    
-                toggleResultModal()
-            }
+            
         } catch (err: any) {
             log.error('Error in handleSendTaskResult', {error: err, caller: 'NfcScreen.handleSendTaskResult'})
 
