@@ -232,7 +232,7 @@ import {
                 Database.addOrUpdateProofs(updatedProofs, isPending, isSpent)
             }
     
-            log.trace('[addOrUpdate]', `Added or updated ${updatedProofs.length} ${isPending && 'pending '} ${isSpent && 'spent '} proofs`)
+            log.trace('[addOrUpdate]', `Added or updated ${updatedProofs.length} ${isPending ? 'pending ' : ''} ${isSpent ? 'spent ' : ''} proofs`)
             return { updatedAmount, updatedProofs }
         },
 

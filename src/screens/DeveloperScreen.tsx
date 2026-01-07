@@ -34,7 +34,7 @@ import RNExitApp from 'react-native-exit-app'
 import { TransactionStatus } from '../models/Transaction'
 import { maxTransactionsInHistory } from '../models/TransactionsStore'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
-// refresh
+// 
 
 type Props = StaticScreenProps<undefined>
 
@@ -300,7 +300,7 @@ ${Platform.OS === 'android' ? 'Android version code: ' + ANDROID_VERSION_CODE : 
 Commit: ${COMMIT}
 DB version: ${dbVersion}
 State size: ${walletStateSize.toLocaleString()} bytes
-React Native: ${rnVersion}ß
+React Native: ${rnVersion}
 Sentry id: ${walletProfileStore.walletId}
                   `}
                   leftIcon='faInfoCircle'

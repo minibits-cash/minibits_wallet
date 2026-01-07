@@ -929,7 +929,7 @@ const addOrUpdateProofs = function (
     
     // DO NOT log proof secrets to Sentry
     log.info('[addOrUpdateProofs]',
-      `${rowsAffected}${isPending && ' pending'} ${isSpent && ' spent'} proofs were added or updated in the database`,
+      `${rowsAffected}${isPending ? ' pending' : ''} ${isSpent ? ' spent' : ''} proofs were added or updated in the database`,
       {isPending, isSpent}
     )
 
