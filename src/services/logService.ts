@@ -19,7 +19,6 @@ import AppError, { Err } from "../utils/AppError"
 
 const { userSettingsStore } = rootStoreInstance
 
-// refresh
 
 if (!__DEV__) {
     Sentry.init({
@@ -125,7 +124,7 @@ const customSentryTransport: transportFunctionType<TransportOptions> = async (pr
         }
         // For native JS Errors: preserve stack, don't override
         if ('stack' in rawMessage) {
-            params.stack = rawMessage.stack
+            params.stack = rawMessage.stack?.slice(0, 200)
         }
     } else if (rawMessage && typeof rawMessage === 'object') {
         message = '[Object logged]'

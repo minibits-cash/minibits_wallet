@@ -126,9 +126,9 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const [encodedTokenToSend, setEncodedTokenToSend] = useState<string | undefined>()
     const [amountToPay, setAmountToPay] = useState<string | undefined>()
     const [amountToReceive, setAmountToReceive] = useState<string | undefined>()
-    const [encodedCashuPaymentRequest, setEncodedCashuPaymentRequest] = useState<string | undefined>()
-    const [decodedCashuPaymentRequest, setDecodedCashuPaymentRequest] = useState<CashuPaymentRequest | undefined>()
-    const [encodedInvoice, setEncodedInvoice] = useState<string>('')
+    // const [encodedCashuPaymentRequest, setEncodedCashuPaymentRequest] = useState<string | undefined>()
+    // const [decodedCashuPaymentRequest, setDecodedCashuPaymentRequest] = useState<CashuPaymentRequest | undefined>()
+    // const [encodedInvoice, setEncodedInvoice] = useState<string>('')
     const [invoice, setInvoice] = useState<DecodedLightningInvoice | undefined>()    
     const [invoiceExpiry, setInvoiceExpiry] = useState<Date | undefined>()           
     const [meltQuote, setMeltQuote] = useState<MeltQuoteResponse | undefined>() 
@@ -148,6 +148,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const [isNfcSupported, setIsNfcSupported] = useState(false)
     const [isProcessing, setIsProcessing] = useState(false)
     const [isPaid, setIsPaid] = useState(false)
+    const [isError, setIsError] = useState(false)
     const [nfcInfo, setNfcInfo] = useState<string | undefined>()
     const [readNfcData, setReadNfcData] = useState<string | undefined>()
     const [mint, setMint] = useState<Mint | undefined>()
@@ -310,11 +311,11 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 showSuccessModal()
             }
 
-            if(currentTx?.status === TransactionStatus.PENDING) {
+            if(currentTx?.status === TransactionStatus.PENDING && !isError) { // avoid showing pending if we've got an error later
                 showPendingModal()
             }
             return
-            // If still PENDING or ERROR → do nothing, user can close manually
+            // If ERROR → do nothing, user can close manually
         }
 
         const eventName = `ev_${SYNC_STATE_WITH_MINT_TASK}_result`
@@ -408,21 +409,26 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             await handleIncomingData(decoded)
 
         } catch (e: any) {
-            log.error('[NfcPayScreen] handlePaymentRequest failed', {
-                message: e?.message,
-                stack: e?.stack,
-                //decoded: decoded?.slice?.(0,200)
-             })
-            handleError(e)
-        } finally { 
+            log.error(e.message, {params: e.params || {}})
+
+             setResultModalInfo({
+                status: TransactionStatus.ERROR,
+                title: e.params?.message ? e.message : 'NFC Payment failed',
+                message: e.params?.message || e.message || 'Unknown error during NFC payment processing.',
+            })
+
+            setNfcInfo(e.message)
+            setIsError(true)
+            toggleResultModal()
+        } finally {
+            await NfcManager.cancelTechnologyRequest().catch(() => {}) 
             setIsProcessing(false)
         }
     }
 
 
     const handleIncomingData = async (data: string) => {
-        
-        // Alert.alert(data)
+
         log.info('[handlePaymentRequest] received data via NFC', { data })
 
         const result = IncomingParser.findAndExtract(data)
@@ -453,29 +459,26 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         const transports = pr.transport
 
         if(transports && transports.length > 0 && !isOnline.current) {
-            setResultModalInfo({
-                status: TransactionStatus.ERROR,
-                title: 'Payment failed',
-                message: 'Wallet can not pay this payment request while offline.',
-            })
-            toggleResultModal()
-            setNfcInfo('Can not pay requested amount')
-            return
+            throw new AppError(Err.VALIDATION_ERROR, 'Payment failed',
+                { message: 'Wallet can not pay this payment request while offline.' }
+            )
         }
 
         const unit = validateAndNormalizeUnit(pr.unit)
         unitRef.current = unit
 
         // Store
-        setDecodedCashuPaymentRequest(pr)
-        setEncodedCashuPaymentRequest(encoded)
+        // setDecodedCashuPaymentRequest(pr)
+        // setEncodedCashuPaymentRequest(encoded)
         if (pr.description) setMemo(pr.description)
 
         const requiredAmount = pr.amount
         const eligibleBalances = await getEligibleMintBalancesForCashu(pr, requiredAmount, unit)
 
         if (eligibleBalances.length === 0) {
-            throw new AppError(Err.NOTFOUND_ERROR, 'Wallet has no mint with enough balance accepted by this payment request')
+            throw new AppError(Err.NOTFOUND_ERROR, 'Payment failed', {
+                message: 'Wallet has no mint with enough balance accepted by this payment request.'
+            })
         }
 
         const { selectedBalance, selectedProofs } = await selectMintBalance(
@@ -485,14 +488,9 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         )
 
         if(!selectedBalance) { // we might not find suitable balance if offline
-            setResultModalInfo({
-                status: (transaction?.status || TransactionStatus.ERROR) as TransactionStatus,
-                title: 'Offline payment failed',
-                message: 'Wallet is offline and does not have ecash denominations matching requested amount',
-            });
-            toggleResultModal()
-            setNfcInfo('Can not pay requested amount')
-            return
+            throw new AppError(Err.NOTFOUND_ERROR, 'Offline payment failed', {
+                message: 'Wallet is offline and does not have ecash denominations matching requested amount.'
+            })
         }
 
         setMintBalanceToSendFrom(selectedBalance)
@@ -508,380 +506,316 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             undefined
         )
 
-        await handleSendTaskResult(result)
+        await handleSendTaskResult(encoded, result)
+        // await handleSendTaskResult(result)
 
     }
 
 
-    const handleSendTaskResult = async function (result: TransactionTaskResult) {
+    const handleSendTaskResult = async function (encodedCashuPaymentRequest: string, result: TransactionTaskResult) {
         log.debug('[NfcScreen] handleSendTaskResult start', {transactionStatus: result.transaction?.status})
 
-        try {
-            const { transaction, error, encodedTokenToSend } = result
+        const { transaction, error, encodedTokenToSend } = result
+        const decodedCashuPaymentRequest = decodePaymentRequest(encodedCashuPaymentRequest)
 
-            // Always update core transaction state
-            if (transaction) {
-                setTransactionStatus(transaction.status)
-                setTransaction(transaction)
-                setTransactionId(transaction.id)
+        // update tx with pr info
+        if (transaction) {
+            setTransactionStatus(transaction.status)
+            setTransaction(transaction)
+            setTransactionId(transaction.id)
 
-                // Optional: link back to original payment request
-                if (decodedCashuPaymentRequest?.id || encodedCashuPaymentRequest) {
-                    transaction.update({
-                        paymentId: decodedCashuPaymentRequest?.id,
-                        paymentRequest: encodedCashuPaymentRequest,
-                    });
-                }
+            // Optional: link back to original payment request
+            if (decodedCashuPaymentRequest?.id || encodedCashuPaymentRequest) {
+                transaction.update({
+                    paymentId: decodedCashuPaymentRequest?.id,
+                    paymentRequest: encodedCashuPaymentRequest,
+                })
             }
+        }
 
-            // ———————— Error Cases ————————
-            if (error || !transaction) {
-                const message = error?.params?.message || error?.message || 'Unknown error'
-                const title = error ? 'Payment failed' : 'Internal error'
+        // ———————— Error Cases ————————
+        if (error || !transaction) {
+            throw new AppError(Err.NOTFOUND_ERROR, 'Payment failed', {
+                message: error?.params?.message || error?.message || 'Unknown error'
+            })
+        }
 
+        // ———————— Missing Token or PR ————————
+        if (!encodedTokenToSend || !decodedCashuPaymentRequest) {
+            throw new AppError(Err.NOTFOUND_ERROR, 'Internal error', {
+                message: 'Failed to retrieve Payment request or ecash token'
+            })
+        }
+
+        // ———————— Success Path ————————
+        setEncodedTokenToSend(encodedTokenToSend)
+        // Send over NFC to payee's POS or using the PR transport method
+
+        const transports = decodedCashuPaymentRequest.transport
+
+
+        // NFC write back only if no transport methods specified (POS device)
+        if(!transports || transports.length === 0) {
+            setNfcInfo('Prepared ecash token to be sent via NFC.')
+
+            log.trace('[NfcScreen] handleSendTaskResult: Starting NFC write of an ecash token.')
+            await NfcService.writeNdefMessage(encodedTokenToSend)
+
+            log.trace('[NfcScreen] handleSendTaskResult: Write completed.')
+            setNfcInfo('Ecash token sent successfully.')
+            setIsPaid(true)
+            expandHeader()
+
+            // Show explanatory modal immediately when offline
+            if (!isOnline.current) {
                 setResultModalInfo({
-                    status: (transaction?.status || TransactionStatus.ERROR) as TransactionStatus,
-                    title,
-                    message,
-                });
+                    status: TransactionStatus.PENDING,
+                    title: translate('commonOfflinePretty'),
+                    message: 'Your wallet sent this payment while offline. Consult the payee that the funds have been claimed.',
+                })
+    
                 toggleResultModal()
-                setNfcInfo('Payment failed')
-                return
             }
 
-            // ———————— Missing Token or PR ————————
-            if (!encodedTokenToSend || !decodedCashuPaymentRequest) {
-                setResultModalInfo({
-                    status: TransactionStatus.ERROR,
-                    title: 'Internal error',
-                    message: 'Failed to retrieve Payment request or ecash token',
-                });
-                toggleResultModal()
-                setNfcInfo('Payment failed')
-                return
+            return
+        }
+
+        // Check for NOSTR transport first
+        const nostrTransport = transports.find(t => t.type === PaymentRequestTransportType.NOSTR)
+        const decodedTokenToSend = getDecodedToken(encodedTokenToSend)
+
+        if (nostrTransport) {
+            const decoded = NostrClient.decodeNprofile(nostrTransport.target)
+            const pubkey = (decoded.data as ProfilePointer).pubkey
+            let relays = (decoded.data as ProfilePointer).relays?.slice(0, 5)
+
+            if(!relays || relays.length === 0) {
+                relays = NostrClient.getAllRelays()
             }
 
-            // ———————— Success Path ————————
-            setEncodedTokenToSend(encodedTokenToSend)
-            // Send over NFC to payee's POS or using the PR transport method
-
-            const transports = decodedCashuPaymentRequest.transport
-
-            // NFC write back only if no transport methods specified (POS device)
-            if(!transports || transports.length === 0) {
-                setNfcInfo('Prepared ecash token to be sent via NFC.')
-
-                log.trace('[NfcScreen] handleSendTaskResult: Starting NFC write of an ecash token.')
-                await NfcService.writeNdefMessage(encodedTokenToSend)
-    
-                log.trace('[NfcScreen] handleSendTaskResult: Write completed.')
-                setNfcInfo('Ecash token sent successfully.')
-                setIsPaid(true)
-                expandHeader()
-    
-                // Show explanatory modal immediately when offline
-                if (!isOnline.current) {
-                    setResultModalInfo({
-                        status: TransactionStatus.PENDING,
-                        title: translate('commonOfflinePretty'),
-                        message: 'Your wallet sent this payment while offline. Consult the payee that the funds have been claimed.',
-                    })
+            log.debug('[NfcScreen] handleSendTaskResult: Sending ecash token via Nostr NIP-17 to payee.', { pubkey, relays })
+            const messageContent = JSON.stringify({
+                id: decodedCashuPaymentRequest.id,
+                mint: decodedTokenToSend.mint,
+                unit: decodedTokenToSend.unit,
+                proofs: decodedTokenToSend.proofs,
+            })
         
-                    toggleResultModal()
-                }
+            const sentEvent = await NostrClient.encryptAndSendDirectMessageNip17(                
+                pubkey, 
+                messageContent,
+                relays
+            )
 
+            if(!sentEvent) {
+                setResultModalInfo({
+                    status: TransactionStatus.PENDING,
+                    title: 'Payment not confirmed',
+                    message: 'Nostr relays could not confirm that payment has been sent. Consult the payee if the funds have been claimed.',
+                })
+    
+                toggleResultModal()
                 return
             }
 
-            // Check for NOSTR transport first
-            const nostrTransport = transports.find(t => t.type === PaymentRequestTransportType.NOSTR)
-            const decodedTokenToSend = getDecodedToken(encodedTokenToSend)
+        } else {
+            // Fallback to POST transport
+            const postTransport = transports.find(t => t.type === PaymentRequestTransportType.POST)
 
-            if (nostrTransport) {
-                const decoded = NostrClient.decodeNprofile(nostrTransport.target)
-                const pubkey = (decoded.data as ProfilePointer).pubkey
-                let relays = (decoded.data as ProfilePointer).relays?.slice(0, 5)
-
-                if(!relays || relays.length === 0) {
-                    relays = NostrClient.getAllRelays()
-                }
-
-                
-                
-                const messageContent = JSON.stringify({
+            if (postTransport && postTransport.target) {
+                const payload = {
                     id: decodedCashuPaymentRequest.id,
                     mint: decodedTokenToSend.mint,
                     unit: decodedTokenToSend.unit,
                     proofs: decodedTokenToSend.proofs,
+                    memo: decodedTokenToSend.memo || undefined,
+                }
+    
+                await MinibitsClient.fetchApi(postTransport.target, {
+                    method: 'POST',
+                    body: payload,
+                    jwtAuthRequired: false
                 })
-            
-                const sentEvent = await NostrClient.encryptAndSendDirectMessageNip17(                
-                    pubkey, 
-                    messageContent,
-                    relays
-                )
-
-                if(!sentEvent) {
-                    setResultModalInfo({
-                        status: TransactionStatus.PENDING,
-                        title: 'Payment not confirmed',
-                        message: 'Nostr relays could not confirm that payment has been sent. Consult the payee if the funds have been claimed.',
-                    })
-        
-                    toggleResultModal()
-                    return
-                }
-
+                
             } else {
-                // Fallback to POST transport
-                const postTransport = transports.find(t => t.type === PaymentRequestTransportType.POST)
-
-                if (postTransport && postTransport.target) {
-                    const payload = {
-                        id: decodedCashuPaymentRequest.id,
-                        mint: decodedTokenToSend.mint,
-                        unit: decodedTokenToSend.unit,
-                        proofs: decodedTokenToSend.proofs,
-                        memo: decodedTokenToSend.memo || undefined,
-                    }
-        
-                    await MinibitsClient.fetchApi(postTransport.target, {
-                        method: 'POST',
-                        body: payload,
-                        jwtAuthRequired: false
-                    })
-                    
-                } else {
-                    // Error if neither transport is supported
-                    throw new AppError(Err.VALIDATION_ERROR, 'Payment request only supports NOSTR or POST transports, but neither is available.')
-                }
+                // Error if neither transport is supported
+                throw new AppError(Err.NOTFOUND_ERROR, 'Payment failed', {
+                    message: 'Payment request only supports NOSTR or POST transports, but neither is available.'
+                })
             }
-
-            setNfcInfo('Ecash token sent successfully.')
-            setIsPaid(true)
-            expandHeader()
-            
-        } catch (err: any) {
-            log.error('Error in handleSendTaskResult', {error: err, caller: 'NfcScreen.handleSendTaskResult'})
-
-            setResultModalInfo({
-                status: TransactionStatus.ERROR,
-                title: 'Unexpected error',
-                message: err.message || 'Something went wrong',
-            })
-
-            toggleResultModal()
-
         }
+
+        setNfcInfo('Ecash token sent successfully.')
+        setIsPaid(true)
+        expandHeader()
     }
         
 
 
     const handleLightningInvoice = async (encodedInvoice: string) => {
-        try {
-            log.trace('[handleLightningInvoice] start', {isOnline: isOnline.current})
+        log.trace('[handleLightningInvoice] start', {isOnline: isOnline.current})
 
-            if (!isOnline.current) {
-                // setInfo('Can not use Lightning payment method while offline.')
-                setResultModalInfo({
-                    status: TransactionStatus.ERROR,
-                    title: translate('commonOfflinePretty'),
-                    message: 'Can not use Lightning payment method while offline.',
-                })
+        if (!isOnline.current) {
+            throw new AppError(Err.NOTFOUND_ERROR, translate('commonOfflinePretty'), {
+                message: 'Can not use Lightning payment method while offline.'
+            })
+        }
 
-                setIsResultModalVisible(true)
-                return
-            }
+        log.trace('[handleLightningInvoice] decoding invoice')
 
-            log.trace('[handleLightningInvoice] decoding invoice')
-
-            const decoded = LightningUtils.decodeInvoice(encodedInvoice)
-            const { amount: invoiceAmount, description, expiry, timestamp } = LightningUtils.getInvoiceData(decoded)
-        
-            if (!invoiceAmount || invoiceAmount <= 0) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Lightning invoice has no amount')
-            }
-        
-            const expiresAt = addSeconds(new Date((timestamp as number) * 1000), expiry as number)
-            const feeReserve = Math.max(MIN_LIGHTNING_FEE, Math.round(invoiceAmount * LIGHTNING_FEE_PERCENT / 100))
-            const totalRequired = invoiceAmount + feeReserve
-            const balances = proofsStore.getMintBalancesWithEnoughBalance(totalRequired, unitRef.current)
-        
-            if (balances.length === 0) {
-                setResultModalInfo({
-                    status: TransactionStatus.ERROR,
-                    title: 'Not enough funds',
-                    message: translate('transferScreen_insufficientFunds', {
-                        currency: getCurrency(unitRef.current).code,
-                        amount: totalRequired,
-                    }),
-                })
-
-                toggleResultModal()
-                return
-            }
-        
-            const selectedBalance = balances[0]
-            setMintBalanceToSendFrom(selectedBalance)
-        
-            let msgQuote = 'Creating Lightning payment quote...'
-            log.trace('[handleLightningInvoice]', msgQuote)
-            setNfcInfo(msgQuote)
-
-            const quote = await walletStore.createLightningMeltQuote(
-                selectedBalance.mintUrl,
-                unitRef.current,
-                encodedInvoice
-            )
-        
-            // Update UI
-            setEncodedInvoice(encodedInvoice)
-            setInvoice(decoded)
-            setInvoiceExpiry(expiresAt)
-            setMeltQuote(quote)
-            setAmountToPay(formatDisplayAmount(quote.amount, unitRef.current))
-            if (description) setMemo(description)
-        
-            setNfcInfo('Paying Lightning invoice...')
+        const decoded = LightningUtils.decodeInvoice(encodedInvoice)
+        const { amount: invoiceAmount, description, expiry, timestamp } = LightningUtils.getInvoiceData(decoded)
     
-            const result = await WalletTask.transferQueueAwaitable(
-                selectedBalance,
-                quote.amount,
-                unitRef.current,
-                quote,
-                description ?? '',
-                expiresAt,
-                encodedInvoice
-            )
-
-            const { transaction, message, error: txError } = result
+        if (!invoiceAmount || invoiceAmount <= 0) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Lightning invoice has no amount')
+        }
     
-            if (!transaction && txError) {
-                setTransactionStatus(TransactionStatus.ERROR)
-
-                setResultModalInfo({
-                    status: TransactionStatus.ERROR,
-                    title: translate('payCommon_failed'),
-                    message: txError.message || 'Lightning payment failed',
+        const expiresAt = addSeconds(new Date((timestamp as number) * 1000), expiry as number)
+        const feeReserve = Math.max(MIN_LIGHTNING_FEE, Math.round(invoiceAmount * LIGHTNING_FEE_PERCENT / 100))
+        const totalRequired = invoiceAmount + feeReserve
+        const balances = proofsStore.getMintBalancesWithEnoughBalance(totalRequired, unitRef.current)
+    
+        if (balances.length === 0) {
+            throw new AppError(Err.NOTFOUND_ERROR, 'Not enough funds', {
+                message: translate('transferScreen_insufficientFunds', {
+                    currency: getCurrency(unitRef.current).code,
+                    amount: totalRequired,
                 })
+            })
+        }
+    
+        const selectedBalance = balances[0]
+        setMintBalanceToSendFrom(selectedBalance)
+    
+        let msgQuote = 'Creating Lightning payment quote...'
+        log.trace('[handleLightningInvoice]', msgQuote)
+        setNfcInfo(msgQuote)
 
-                toggleResultModal()
-                return;
-            }
+        const quote = await walletStore.createLightningMeltQuote(
+            selectedBalance.mintUrl,
+            unitRef.current,
+            encodedInvoice
+        )
+    
+        // Update UI
+        // setEncodedInvoice(encodedInvoice)
+        setInvoice(decoded)
+        setInvoiceExpiry(expiresAt)
+        setMeltQuote(quote)
+        setAmountToPay(formatDisplayAmount(quote.amount, unitRef.current))
+        if (description) setMemo(description)
+    
+        setNfcInfo('Paying Lightning invoice...')
 
-            // ——— Transaction exists ———
-            if (transaction) {
-                const { status } = transaction;
-                setTransactionStatus(status);
-                setTransaction(transaction);
+        const result = await WalletTask.transferQueueAwaitable(
+            selectedBalance,
+            quote.amount,
+            unitRef.current,
+            quote,
+            description ?? '',
+            expiresAt,
+            encodedInvoice
+        )
 
-                if (txError) {
-                    // Pending but timed out / failed
-                    if (status === TransactionStatus.PENDING) {
-                        setResultModalInfo({
-                            status,
-                            message,
-                        })
-                    } else {
-                        setResultModalInfo({
-                            status,
-                            title: txError.params?.message ? txError.message : translate('payCommon_failed'),
-                            message: txError.params?.message || txError.message || 'Lightning payment failed',
-                        })
-                    }
-                } else {
-                    // Success or settled pending
+        const { transaction, message, error: txError } = result
+
+        if (!transaction && txError) {
+            throw new AppError(Err.NOTFOUND_ERROR, translate('payCommon_failed'), {
+                message: txError.message || 'Lightning payment failed.'
+            })
+        }
+
+        // ——— Transaction exists ———
+        if (transaction) {
+            const { status } = transaction;
+            setTransactionStatus(status);
+            setTransaction(transaction);
+
+            if (txError) {
+                // Pending but timed out / failed
+                if (status === TransactionStatus.PENDING) {
                     setResultModalInfo({
                         status,
-                        message: message || 'Lightning payment successful!',
-                        title: status === TransactionStatus.COMPLETED ? 'Payment sent!' : undefined,
-                    });
-                    setIsPaid(true)
-                    expandHeader()
-                    setNfcInfo(transaction.memo || 'Lightning payment settled.')
-
+                        message,
+                    })
+                } else {
+                    throw new AppError(Err.NOTFOUND_ERROR, txError.params?.message ? txError.message : translate('payCommon_failed'), {
+                        message: txError.params?.message || txError.message || 'Lightning payment failed'
+                    })
                 }
             } else {
-                // Fallback (shouldn't happen)
+                // Success or settled pending
                 setResultModalInfo({
-                    status: TransactionStatus.ERROR,
-                    title: 'Unknown error',
-                    message: 'No transaction data received',
-                })
+                    status,
+                    message: message || 'Lightning payment successful!',
+                    title: status === TransactionStatus.COMPLETED ? 'Payment sent!' : undefined,
+                });
+                setIsPaid(true)
+                expandHeader()
+                setNfcInfo(transaction.memo || 'Lightning payment settled.')
             }
-            
-            toggleResultModal()
-        } catch (e: any) {
-            log.error(e.message, {error: String(e)})
-            handleError(e)
-        } finally {
-            await NfcManager.cancelTechnologyRequest().catch(() => {})
+        } else {
+            // Fallback (shouldn't happen)
+            throw new AppError(Err.UNKNOWN_ERROR, 'Internal error', {
+                message: 'No transaction data received.'
+            })
         }
+        
+        toggleResultModal()
     }
 
 
     const handleCashuToken = async function (encodedToken: string) {
-        try {
-            const decoded = getDecodedToken(encodedToken)
-            const amount = CashuUtils.getProofsAmount(decoded.proofs)        
-            const memo = decoded.memo || 'Received over NFC'
-            const result = await WalletTask.receiveQueueAwaitable(
-                decoded,
-                amount,
-                memo,
-                encodedToken
-            )
+        
+        const decoded = getDecodedToken(encodedToken)
+        const amount = CashuUtils.getProofsAmount(decoded.proofs)        
+        const memo = decoded.memo || 'Received over NFC'
+        const result = await WalletTask.receiveQueueAwaitable(
+            decoded,
+            amount,
+            memo,
+            encodedToken
+        )
 
-            const { transaction, message, error: txError } = result
-    
-            if (transaction) {
-                const { status } = transaction;
-                setTransactionStatus(status);
-                setTransaction(transaction);
+        const { transaction, message, error: txError } = result
 
-                if (txError) {
-                    // Pending but timed out / failed
-                    if (status === TransactionStatus.PENDING) {
-                        setResultModalInfo({
-                            status,
-                            message,
-                        })
-                    } else {
-                        setResultModalInfo({
-                            status,
-                            title: txError.params?.message ? txError.message : 'Receive failed',
-                            message: txError.params?.message || txError.message || 'Could not receive cashu token',
-                        })
-                    }
-                } else {
-                    // Success or settled pending
+        if (transaction) {
+            const { status } = transaction;
+            setTransactionStatus(status);
+            setTransaction(transaction);
+
+            if (txError) {
+                // Pending but timed out / failed
+                if (status === TransactionStatus.PENDING) {
                     setResultModalInfo({
                         status,
-                        message: message || 'Ecash token has been successfully received to your wallet.',
-                        title: status === TransactionStatus.COMPLETED ? 'Ecash received!' : undefined,
-                    });
-                    setIsPaid(true)
-                    expandHeader()
-                    setNfcInfo(transaction.memo || 'Receive over NFC completed.')
-                    setAmountToReceive(formatDisplayAmount(transaction.amount, transaction.unit))
+                        message,
+                    })
+                } else {
+                    throw new AppError(Err.NOTFOUND_ERROR, txError.params?.message ? txError.message : 'Receive failed', {
+                        message: txError.params?.message || txError.message || 'Could not receive cashu token'
+                    })
                 }
             } else {
-                // Fallback (shouldn't happen)
+                // Success or settled pending
                 setResultModalInfo({
-                    status: TransactionStatus.ERROR,
-                    title: 'Unknown error',
-                    message: 'No transaction data received',
-                })
+                    status,
+                    message: message || 'Ecash token has been successfully received to your wallet.',
+                    title: status === TransactionStatus.COMPLETED ? 'Ecash received!' : undefined,
+                });
+                setIsPaid(true)
+                expandHeader()
+                setNfcInfo(transaction.memo || 'Receive over NFC completed.')
+                setAmountToReceive(formatDisplayAmount(transaction.amount, transaction.unit))
             }
-
-            setIsResultModalVisible(true)
-
-        } catch(e: any) {
-            log.error(e.message, {error: String(e)})
-            handleError(e)
-        } finally {
-            await NfcManager.cancelTechnologyRequest().catch(() => {})
+        } else {
+            // Fallback (shouldn't happen)
+            throw new AppError(Err.UNKNOWN_ERROR, 'Internal error', {
+                message: 'No transaction data received.'
+            })
         }
+
+        setIsResultModalVisible(true)
     }
 
 
@@ -971,7 +905,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     }
     
     const resetState = function () {
-        setEncodedInvoice('')
+        //ßsetEncodedInvoice('')
         setInvoice(undefined)      
         setInvoiceExpiry(undefined)
         setMeltQuote(undefined)
@@ -1208,7 +1142,8 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                         </>
                     )}
                     {resultModalInfo &&
-                    transactionStatus === TransactionStatus.PENDING && (
+                    transactionStatus === TransactionStatus.PENDING &&
+                    resultModalInfo.status !== TransactionStatus.ERROR && (
                         <>
                             <ResultModalInfo
                                 icon="faTriangleExclamation"
