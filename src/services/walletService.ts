@@ -1,5 +1,5 @@
 import {addSeconds, isBefore} from 'date-fns'
-import {getSnapshot} from 'mobx-state-tree'
+import {isAlive} from 'mobx-state-tree'
 import { GiftWrap, EncryptedDirectMessage } from 'nostr-tools/kinds'
 import {log} from './logService'
 import {Proof} from '../models/Proof'
@@ -35,12 +35,12 @@ import { transferTask } from './wallet/transferTask'
 import { revertTask } from './wallet/revertTask'
 import { WalletUtils } from './wallet/utils'
 import { NotificationService } from './notificationService'
-import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, MintUnits, formatCurrency, getCurrency } from './wallet/currency'
+import { CurrencyCode, MintUnit, formatCurrency, getCurrency } from './wallet/currency'
 import { MinibitsClient } from './minibitsService'
 import { UnsignedEvent } from 'nostr-tools'
 import { Platform } from 'react-native'
 import { cashuPaymentRequestTask } from './wallet/cashuPaymentRequestTask'
-import { decodePaymentRequest, sumBlindSignatures } from '@cashu/cashu-ts/src/utils'
+import { decodePaymentRequest } from '@cashu/cashu-ts/src/utils'
 
 
 
@@ -1501,6 +1501,12 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
   
     for (const counter of countersWithInFlight) {
       for (const inFlight of counter.allInFlightRequests) { // clone to allow safe removal
+
+        if (!isAlive(inFlight)) {
+            log.error('[handleInFlightByMintTask]', 'InFlightRequest is not alive', { mintUrl })
+            continue
+        }
+
         const tx = transactionsStore.findById(inFlight.transactionId)
         if (!tx) {
           counter.removeInFlightRequest(inFlight.transactionId)

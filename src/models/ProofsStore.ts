@@ -2,8 +2,6 @@ import {
     Instance,
     SnapshotOut,
     types,
-    isStateTreeNode,
-    getSnapshot,
     flow,
     isAlive,
   } from 'mobx-state-tree'
@@ -12,11 +10,10 @@ import {
   import { log } from '../services/logService'
   import { getRootStore } from './helpers/getRootStore'
   import AppError, { Err } from '../utils/AppError'
-  import { Mint, MintBalance, UnitBalance } from './Mint'
+  import { Mint, MintBalance } from './Mint'
   import { Database } from '../services'
   import { MintUnit } from '../services/wallet/currency'
-import { CashuProof } from '../services/cashu/cashuUtils'
-import { SerializedDLEQ } from '@cashu/cashu-ts'
+  import { CashuProof } from '../services/cashu/cashuUtils'
   
   export const ProofsStoreModel = types
     .model('ProofsStore', {      
@@ -235,7 +232,7 @@ import { SerializedDLEQ } from '@cashu/cashu-ts'
                 Database.addOrUpdateProofs(updatedProofs, isPending, isSpent)
             }
     
-            log.trace('[addOrUpdate]', `Added or updated ${updatedProofs.length} ${isPending && 'pending '} ${isSpent && 'spent '} proofs`)
+            log.trace('[addOrUpdate]', `Added or updated ${updatedProofs.length} ${isPending ? 'pending ' : ''} ${isSpent ? 'spent ' : ''} proofs`)
             return { updatedAmount, updatedProofs }
         },
 

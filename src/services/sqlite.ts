@@ -12,6 +12,7 @@ import AppError, {Err} from '../utils/AppError'
 import {log} from './logService'
 import {ProofRecord} from '../models/Proof'
 import { isDate } from 'date-fns'
+import { isAlive } from 'mobx-state-tree'
 
 // Helper functions to normalize transaction records with Date objects
 const normalizeTransactionRecord = function (r: any) {
@@ -894,6 +895,11 @@ const addOrUpdateProofs = function (
 
 
     for (const proof of proofs) {
+      if(!isAlive(proof)) {
+        log.error('[addOrUpdateProofs] Proof is not alive', {id: proof.id})
+        continue
+      }
+
       insertQueries.push([
         `
           INSERT OR REPLACE INTO proofs (id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl, isPending, isSpent, updatedAt)
@@ -923,7 +929,7 @@ const addOrUpdateProofs = function (
     
     // DO NOT log proof secrets to Sentry
     log.info('[addOrUpdateProofs]',
-      `${rowsAffected}${isPending && ' pending'} ${isSpent && ' spent'} proofs were added or updated in the database`,
+      `${rowsAffected}${isPending ? ' pending' : ''} ${isSpent ? ' spent' : ''} proofs were added or updated in the database`,
       {isPending, isSpent}
     )
 

@@ -19,6 +19,7 @@ import AppError, { Err } from "../utils/AppError"
 
 const { userSettingsStore } = rootStoreInstance
 
+
 if (!__DEV__) {
     Sentry.init({
         dsn: SENTRY_DSN,
@@ -74,7 +75,7 @@ const redactSensitive = (text: string): string => {
     return text
         .replace(/lnurl\w{50,}/gi, 'lnurl[redacted]')
         .replace(/nsec1[ac-hj-np-z02-9]{58,}/g, 'nsec1[redacted]')
-        .replace(/cashuB[ac-hj-np-z02-9]{58,}/g, 'nsec1[redacted]')
+        .replace(/cashuB[ac-hj-np-z02-9]{58,}/g, 'cashuB[redacted]')
 }
 
 
@@ -123,7 +124,7 @@ const customSentryTransport: transportFunctionType<TransportOptions> = async (pr
         }
         // For native JS Errors: preserve stack, don't override
         if ('stack' in rawMessage) {
-            params.stack = rawMessage.stack
+            params.stack = rawMessage.stack?.slice(0, 200)
         }
     } else if (rawMessage && typeof rawMessage === 'object') {
         message = '[Object logged]'
