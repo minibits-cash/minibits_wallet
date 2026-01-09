@@ -206,6 +206,13 @@ export const MintProofsCounterModel = types
                 counter: self.counter,
             })
         },
+
+        setProofsCounter(newCounter: number) {
+            self.counter = newCounter
+            log.debug('[setProofsCounter]', 'Set proofsCounter', {
+                counter: self.counter,
+            })
+        },
     }))
     .views(self => ({
         // === In-flight requests ===

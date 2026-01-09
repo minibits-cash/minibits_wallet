@@ -403,7 +403,7 @@ export const WalletStoreModel = types
                 throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
             }
 
-            const cashuWallet = yield self.getWallet(
+            const cashuWallet: CashuWallet = yield self.getWallet(
                 mintUrl, 
                 unit, 
                 {
@@ -474,7 +474,7 @@ export const WalletStoreModel = types
 
                 // Update our counter to match what the wallet used (v3.x)
                 if (reservedCounters) {
-                    currentCounter.counter = reservedCounters.next
+                    currentCounter.setProofsCounter(reservedCounters.next)
                     log.debug('[receive] Updated counter', {
                         keysetId: reservedCounters.keysetId,
                         start: reservedCounters.start,
@@ -589,7 +589,7 @@ export const WalletStoreModel = types
 
                 // Update our counter to match what the wallet used (v3.x)
                 if (reservedCounters) {
-                    currentCounter.counter = reservedCounters.next
+                    currentCounter.setProofsCounter(reservedCounters.next)
                     log.debug('[send] Updated counter', {
                         keysetId: reservedCounters.keysetId,
                         start: reservedCounters.start,
@@ -818,7 +818,7 @@ export const WalletStoreModel = types
 
                 // Update our counter to match what the wallet used (v3.x)
                 if (reservedCounters) {
-                    currentCounter.counter = reservedCounters.next
+                    currentCounter.setProofsCounter(reservedCounters.next)
                     log.debug('[mintProofs] Updated counter', {
                         keysetId: reservedCounters.keysetId,
                         start: reservedCounters.start,
@@ -942,7 +942,7 @@ export const WalletStoreModel = types
 
             // Update our counter to match what the wallet used (v3.x)
             if (reservedCounters) {
-                currentCounter.counter = reservedCounters.next
+                currentCounter.setProofsCounter(reservedCounters.next)
                 log.debug('[prepareMelt] Updated counter', {
                     keysetId: reservedCounters.keysetId,
                     start: reservedCounters.start,
