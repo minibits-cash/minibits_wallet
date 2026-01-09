@@ -498,7 +498,7 @@ const onRequestLnurlInvoice = async function () {
         amount: roundUp(lnurlPayParams.minSendable / 1000, 0), 
         currency: CurrencyCode.SAT 
       }))        
-      return;
+      return
     }
 
     if (lnurlPayParams.maxSendable && amountSats > lnurlPayParams.maxSendable / 1000) {       
@@ -506,11 +506,12 @@ const onRequestLnurlInvoice = async function () {
         amount: roundDown(lnurlPayParams.maxSendable / 1000, 0),
         currency: CurrencyCode.SAT
       }))          
-      return;
+      return
     }
 
     if (lnurlPayParams.payerData) {
       setInfo(translate("transferScreen_LUD18unsupported"))
+      return
     }
 
     setIsLoading(true)

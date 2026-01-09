@@ -10,7 +10,7 @@ import { TransactionTaskResult } from '../walletService'
 import { WalletUtils } from './utils'
 import { MintUnit } from './currency'
 import { Token } from '@cashu/cashu-ts'
-import { getEncodedToken, getKeepAmounts } from '@cashu/cashu-ts/src/utils'
+import { getEncodedToken, getKeepAmounts } from '@cashu/cashu-ts'
 
 const {
   mintsStore,

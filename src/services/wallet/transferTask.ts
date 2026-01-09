@@ -1,6 +1,6 @@
 import {CashuUtils} from '../cashu/cashuUtils'
 import AppError, {Err} from '../../utils/AppError'
-import {MeltProofsResponse, MeltQuoteResponse, MeltQuoteState, getEncodedToken} from '@cashu/cashu-ts'
+import {MeltProofsResponse, MeltQuoteBolt11Response, MeltQuoteResponse, MeltQuoteState, getEncodedToken} from '@cashu/cashu-ts'
 import {rootStoreInstance} from '../../models'
 import { TransactionTaskResult, WalletTask } from '../walletService'
 import { MintBalance } from '../../models/Mint'
@@ -50,7 +50,8 @@ export const transferTask = async function (
     let proofsToMeltFrom: Proof[] = []
     let proofsToMeltFromAmount: number = 0
     let meltFeeReserve: number = 0
-    let meltResponse: MeltProofsResponse    
+    let meltResponse: MeltProofsResponse
+    let meltQuoteCheck: MeltQuoteBolt11Response    
 
     try {
 
@@ -247,7 +248,9 @@ export const transferTask = async function (
     
                 totalFeePaid = totalFeePaid - returnedAmount
                 lightningFeePaid = totalFeePaid - meltFeeReserve
-            }         
+            }
+            
+            meltQuoteCheck = await walletStore.checkLightningMeltQuote(mintUrl, meltQuote.quote)
 
             const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
     
@@ -257,7 +260,7 @@ export const transferTask = async function (
                 lightningFeePaid,
                 meltFeePaid,
                 returnedAmount,       
-                preimage: meltResponse.quote.payment_preimage,                
+                preimage: meltQuoteCheck.payment_preimage,                
                 createdAt: new Date(),
             }
             transactionData.push(completedDataItem)
@@ -273,8 +276,8 @@ export const transferTask = async function (
                 updatePayload.outputToken = outputToken
             }
 
-            if (meltResponse.quote.payment_preimage) {
-                updatePayload.proof = meltResponse.quote.payment_preimage
+            if (meltQuoteCheck.payment_preimage) {
+                updatePayload.proof = meltQuoteCheck.payment_preimage
             }
     
             transaction.update(updatePayload)
@@ -287,8 +290,8 @@ export const transferTask = async function (
                 lightningFeePaid, 
                 meltFeePaid,          
                 totalFeePaid,
-                meltQuote: meltResponse.quote,
-                preimage: meltResponse.quote.payment_preimage,
+                meltQuote: meltQuoteCheck,
+                preimage: meltQuoteCheck.payment_preimage,
                 nwcEvent
             } as TransactionTaskResult
 
@@ -330,31 +333,31 @@ export const transferTask = async function (
             
             if (proofsToMeltFrom.length > 0) {               
                 
-                const refreshedMeltQuote = await walletStore.checkLightningMeltQuote(mintUrl, meltQuote.quote)
-                taskResult.meltQuote = refreshedMeltQuote                
+                meltQuoteCheck = await walletStore.checkLightningMeltQuote(mintUrl, meltQuote.quote)
+                taskResult.meltQuote = meltQuoteCheck                
                 
-                if(refreshedMeltQuote.state === MeltQuoteState.PAID) {
+                if(meltQuoteCheck.state === MeltQuoteState.PAID) {
 
                     message = `Lightning invoice has been successfully paid, however some error occured: ${e.message}`
                     
-                    taskResult.preimage =  refreshedMeltQuote.payment_preimage
+                    taskResult.preimage =  meltQuoteCheck.payment_preimage
                     taskResult.message = message               
 
                     const {recoveredAmount} = await WalletTask.recoverMeltQuoteChange({
                         mintUrl,
-                        meltQuote: refreshedMeltQuote,                    
+                        meltQuote: meltQuoteCheck,                    
                     })
                     
 
                     log.error('[transfer]', message, {
                         recoveredAmount,
                         error: e.message,
-                        refreshedMeltQuote, 
+                        meltQuoteCheck, 
                         unit,
                         transactionId: transaction.id
                     }) 
                         
-                } else if(refreshedMeltQuote.state === MeltQuoteState.PENDING) {
+                } else if(meltQuoteCheck.state === MeltQuoteState.PENDING) {
 
                     message = 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.'
                     taskResult.message = message
@@ -362,7 +365,7 @@ export const transferTask = async function (
                     log.error('[transfer]', message, {
                         error: `${e.message}: ${e.params.message}`,                       
                         unit,
-                        refreshedMeltQuote,
+                        meltQuoteCheck,
                         transactionId: transaction.id
                     })
 

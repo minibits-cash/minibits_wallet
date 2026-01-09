@@ -3,7 +3,7 @@ import { View, ScrollView, LayoutAnimation, Platform, UIManager, ViewStyle } fro
 import { BottomModal, Button, Icon, ListItem, Text } from '../components'
 import AppError, { Err } from '../utils/AppError'
 import { spacing, useThemeColor, colors } from '../theme'
-import { isObj } from '@cashu/cashu-ts/src/utils'
+import { CashuUtils } from '../services/cashu/cashuUtils'
 import JSONTree from 'react-native-json-tree'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useStores } from '../models'
@@ -85,7 +85,7 @@ export const ErrorModal: FC<ErrorModalProps> = function ({ error }) {
                     />
                 ) : (
                     <>
-                    {error.params && isObj(error.params) && (
+                    {error.params && CashuUtils.isObj(error.params) && (
                     <>
                         {isParamsVisible ? (
                             <>

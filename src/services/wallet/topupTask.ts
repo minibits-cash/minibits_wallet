@@ -11,7 +11,11 @@ import { WalletUtils } from './utils'
 import { MintUnit } from './currency'
 import { NostrEvent } from '../nostrService'
 import AppError, { Err } from '../../utils/AppError'
-import { CashuMint, CashuWallet, MintQuoteResponse } from '@cashu/cashu-ts'
+import { 
+    MintQuoteBolt11Response,
+    Mint as CashuMint,
+    Wallet as CashuWallet,
+ } from '@cashu/cashu-ts'
 import { addSeconds } from 'date-fns/addSeconds'
 
 const {
@@ -125,9 +129,9 @@ export const topupTask = async function (
             const wsWallet = new CashuWallet(wsMint)
 
             try {
-                const unsub = await wsWallet.onMintQuotePaid(
+                const unsub = await wsWallet.on.mintQuotePaid(
                     mintQuote,
-                    async (m: MintQuoteResponse) => {
+                    async (m: MintQuoteBolt11Response) => {
                         log.trace(`Websocket: mint quote PAID: ${m.quote}`)
                         WalletTask.handlePendingQueue()
                         unsub()                        

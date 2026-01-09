@@ -10,12 +10,26 @@ import AppError, {Err} from '../../utils/AppError'
 import { getDecodedToken } from '@cashu/cashu-ts'
 import {Proof} from '../../models/Proof'
 import { log } from '../logService'
-import { decodePaymentRequest, sumProofs } from '@cashu/cashu-ts/src/utils'
+import { decodePaymentRequest } from '@cashu/cashu-ts'
 import { NostrClient } from '../nostrService'
 import { getUnixTime } from 'date-fns/getUnixTime'
 import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
 
 export {CashuProof}
+
+/**
+ * Type guard to check if a value is an object
+ */
+const isObj = function(v: unknown): v is object {
+  return typeof v === 'object'
+}
+
+/**
+ * Sum the amounts of an array of proofs
+ */
+const sumProofs = function(proofs: CashuProof[]): number {
+  return proofs.reduce((acc: number, proof: CashuProof) => acc + proof.amount, 0)
+}
 
 const CASHU_URI_PREFIXES = [
   'https://wallet.nutstash.app/#',
@@ -395,7 +409,7 @@ export const CashuUtils = {
     findEncodedCashuPaymentRequestPayload,
     extractEncodedCashuToken,
     extractEncodedCashuPaymentRequest,
-    getProofsAmount,    
+    getProofsAmount,
     getMintsFromToken,
     findExactMatch,
     findMinExcess,
@@ -407,7 +421,9 @@ export const CashuUtils = {
     getP2PKPubkeySecret,
     getP2PKLocktime,
     isTokenP2PKLocked,
-    isCollidingKeysetId
+    isCollidingKeysetId,
+    isObj,
+    sumProofs
 }
 
 

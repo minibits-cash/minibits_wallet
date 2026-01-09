@@ -15,7 +15,7 @@ import {CashuProof, CashuUtils} from './cashu/cashuUtils'
 import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance, MintStatus} from '../models/Mint'
-import {MeltQuoteResponse, MeltQuoteState, MintQuoteState, PaymentRequestPayload, Token, getDecodedToken, getEncodedToken} from '@cashu/cashu-ts'
+import {MeltQuoteBolt11Response, MeltQuoteResponse, MeltQuoteState, MintQuoteState, PaymentRequestPayload, Token, getDecodedToken, getEncodedToken} from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
@@ -40,7 +40,7 @@ import { MinibitsClient } from './minibitsService'
 import { UnsignedEvent } from 'nostr-tools'
 import { Platform } from 'react-native'
 import { cashuPaymentRequestTask } from './wallet/cashuPaymentRequestTask'
-import { decodePaymentRequest } from '@cashu/cashu-ts/src/utils'
+import { decodePaymentRequest } from '@cashu/cashu-ts'
 
 
 
@@ -168,7 +168,7 @@ export interface TransactionTaskResult extends WalletTaskResult {
     swapFeePaid?: number
     lightningFeePaid?: number
     meltFeePaid?: number
-    meltQuote?: MeltQuoteResponse
+    meltQuote?: MeltQuoteBolt11Response
     nwcEvent?: NostrEvent
 }
 
@@ -1636,7 +1636,16 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
   
             // ─── TRANSFER (melt / lightning out retry) ─────────────
             case TransactionType.TRANSFER: {
-              const { quote, change } = await walletStore.payLightningMelt(
+              const meltQuoteCheck = await walletStore.checkLightningMeltQuote(mintUrl, inFlight.request.meltQuote)
+
+              if(meltQuoteCheck.state === MeltQuoteState.PAID || meltQuoteCheck.state === MeltQuoteState.PENDING) {
+                log.debug('[handleInFlightByMintTask] Melt quote already PAID or PENDING', { tId: tx.id })
+                // TODO recover change if any
+                counter.removeInFlightRequest(inFlight.transactionId)
+                break
+              }
+
+              const { change } = await walletStore.payLightningMelt(
                 mintUrl,
                 unit,
                 inFlight.request.meltQuote,
@@ -1667,9 +1676,9 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                 tx.update({ outputToken })
               }
   
-              if (quote.payment_preimage) {
+              /*if (quote.payment_preimage) {
                 tx.update({ proof: quote.payment_preimage })
-              }
+              }*/
   
               const inputAmount = CashuUtils.getProofsAmount(inFlight.request.proofsToSend)
               const changeAmount = CashuUtils.getProofsAmount(change)
@@ -1680,7 +1689,7 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
               txData.push({
                 status: TransactionStatus.COMPLETED,
                 changeAmount,
-                preimage: quote.payment_preimage,
+                //preimage: quote.payment_preimage,
                 createdAt: new Date(),
               })
   
@@ -2060,7 +2069,7 @@ const recoverMintQuote = async (
   const recoverMeltQuoteChange = async (
     params: { 
       mintUrl: string
-      meltQuote: string | MeltQuoteResponse
+      meltQuote: string | MeltQuoteBolt11Response
   }
   ): Promise<{ recoveredAmount: number }> => {
     const { mintUrl, meltQuote } = params
@@ -2073,7 +2082,7 @@ const recoverMintQuote = async (
   
     log.trace('[recoverMeltQuoteChange] start', { mintUrl, meltQuote })
 
-    const meltQuoteResponse: MeltQuoteResponse =
+    const meltQuoteResponse: MeltQuoteBolt11Response =
       typeof meltQuote === 'string'
         ? await walletStore.checkLightningMeltQuote(mintUrl, meltQuote)
         : meltQuote

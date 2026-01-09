@@ -1,20 +1,20 @@
 import {Instance, SnapshotOut, types, flow, getRoot, getSnapshot} from 'mobx-state-tree'
-import {  
-  CashuMint,
-  CashuWallet,
-  MeltQuoteResponse,  
-  setGlobalRequestOptions,    
+import {
+  Mint as CashuMint,
+  Wallet as CashuWallet,
+  MeltQuoteBolt11Response,
+  setGlobalRequestOptions,
   type MintKeys,
   type MintKeyset,
-  MintAllKeysets,
-  MintActiveKeys,
   Token,
-  MeltProofsResponse,  
+  MeltProofsResponse,
   CheckStateEnum,
-  OutputAmounts,
-  MintQuoteResponse,
+  GetKeysetsResponse,
+  GetKeysResponse,
+  MintQuoteBolt11Response,
+  type ProofState,
+  type OperationCounters,
 } from '@cashu/cashu-ts'
-import { isObj } from '@cashu/cashu-ts/src/utils'
 import { JS_BUNDLE_VERSION } from '@env'
 import {KeyChain, MinibitsClient, WalletKeys} from '../services'
 import {log} from '../services/logService'
@@ -25,7 +25,6 @@ import { Proof } from './Proof'
 
 import { InFlightRequest, Mint } from './Mint'
 import { getRootStore } from './helpers/getRootStore'
-import { getUnixTime } from 'date-fns/getUnixTime'
 
 //refresh
 /* 
@@ -43,7 +42,6 @@ export type ReceiveParams = {
   token: string | Token,
   options?: {
     keysetId?: string;
-    outputAmounts?: OutputAmounts;
     proofsWeHave?: Array<CashuProof>;
     counter?: number;
     pubkey?: string;
@@ -57,7 +55,6 @@ export type SendParams = {
     amount: number,
 		proofs: Array<CashuProof>,
 		options?: {
-			outputAmounts?: OutputAmounts;
 			proofsWeHave?: Array<CashuProof>;
 			counter?: number;
 			pubkey?: string;
@@ -76,7 +73,6 @@ export type MintParams = {
   quote: string,
   options?: {
     keysetId?: string;
-    outputAmounts?: OutputAmounts;
     proofsWeHave?: Array<CashuProof>;
     counter?: number;
     pubkey?: string;
@@ -85,7 +81,7 @@ export type MintParams = {
 
 
 export type MeltParams = {
-  meltQuote: MeltQuoteResponse,
+  meltQuote: MeltQuoteBolt11Response,
   proofsToSend: Array<CashuProof>,
   options?: {
     keysetId?: string;
@@ -208,7 +204,7 @@ export const WalletStoreModel = types
         const mint = self.mints.find(m => m.mintUrl === mintUrl)
 
         if (mint) {
-          return mint
+          return mint as CashuMint
         }
 
         setGlobalRequestOptions({
@@ -255,7 +251,7 @@ export const WalletStoreModel = types
         } 
       ) {        
         // syncs mint model in wallet state and returns cashu-ts mint class instance
-        const cashuMint = yield self.getMint(mintUrl)
+        const cashuMint: CashuMint = yield self.getMint(mintUrl)
             
         // get uptodate mint model from wallet state        
         const mintInstance = self.getMintModelInstance(mintUrl)
@@ -315,7 +311,7 @@ export const WalletStoreModel = types
           
           if (seedWallet) {
             log.trace('[WalletStore.getWallet]', 'Returning CACHED cashuWallet instance with seed', {mintUrl})
-            return seedWallet
+            return seedWallet as CashuWallet
           }
           
           const seed = yield self.getCachedSeed()
@@ -323,14 +319,14 @@ export const WalletStoreModel = types
           const newSeedWallet = new CashuWallet(cashuMint, {
             unit,
             keys: mintInstance.keys,
-            keysets: mintInstance.keysets,                    
+            keysets: mintInstance.keysets,
+            keysetId: walletKeys.id,                   
             bip39seed: seed
           })
 
           // Load uptodate mint info to wallet.mintInfo (NUTS support etc)
-          yield newSeedWallet.getMintInfo()
+          yield newSeedWallet.loadMint()
 
-          newSeedWallet.keysetId = walletKeys.id
           self.seedWallets.push(newSeedWallet)
 
           log.trace('[WalletStore.getWallet]', 'Returning NEW cashuWallet instance with seed', {mintUrl})
@@ -351,11 +347,11 @@ export const WalletStoreModel = types
         const newWallet = new CashuWallet(cashuMint, {
           unit,
           keys: mintInstance.keys,
-          keysets: mintInstance.keysets,   
+          keysets: mintInstance.keysets,
+          keysetId: walletKeys.id,   
           bip39seed: undefined
         })
         
-        newWallet.keysetId = walletKeys.id
         self.wallets.push(newWallet)
           
         log.trace('[WalletStore.getWallet]', 'Returning NEW cashuWallet instance', {mintUrl})
@@ -365,7 +361,7 @@ export const WalletStoreModel = types
         const cashuMint: CashuMint = yield self.getMint(mintUrl)
   
         try {
-          const {keysets} = yield cashuMint.getKeySets() as Promise<MintAllKeysets> // all keysets
+          const {keysets} = yield cashuMint.getKeySets() as Promise<GetKeysetsResponse> // all keysets
           return keysets as MintKeyset[]      
         } catch (e: any) {
           let message = 'Could not connect to the selected mint.'
@@ -377,7 +373,7 @@ export const WalletStoreModel = types
         const cashuMint: CashuMint = yield self.getMint(mintUrl)
   
         try {
-          const {keysets} = yield cashuMint.getKeys() as Promise<MintActiveKeys> // all active keys
+          const {keysets} = yield cashuMint.getKeys() as Promise<GetKeysResponse> // all active keys
           return keysets as MintKeys[]   
         } catch (e: any) {
           let message = 'Could not connect to the selected mint.'
@@ -449,7 +445,7 @@ export const WalletStoreModel = types
                 }
             }                
             
-            if(cashuWallet.mintInfo.nuts['19'] && !options?.inFlightRequest) {
+            if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
                 currentCounter.addInFlightRequest(transactionId, receiveParams)
             }            
 
@@ -540,7 +536,7 @@ export const WalletStoreModel = types
                 }
             }                
             
-            if(cashuWallet.mintInfo.nuts['19'] && !options?.inFlightRequest) {
+            if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
                 currentCounter.addInFlightRequest(transactionId, sendParams)
             }
 
@@ -588,31 +584,51 @@ export const WalletStoreModel = types
                 )
             }              
         }),
-        getProofsStatesFromMint: flow(function* getProofsStatesFromMint(  
+        getProofsStatesFromMint: flow(function* getProofsStatesFromMint(
             mintUrl: string,
-            unit: MintUnit,  
+            unit: MintUnit,
             proofs: Proof[]
         ) {
             try {
                 log.trace('[WalletStore.getProofsStatesFromMint] start', {mintUrl, unit})
-                
-                const cashuWallet: CashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: false})    
-                const proofsByState: {[key in CheckStateEnum]: CashuProof[]} = yield cashuWallet.checkProofsStates(proofs)
-            
+
+                const cashuWallet: CashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: false})
+
+                // v3.x returns ProofState[] array, not grouped by state
+                const proofStatesArray: ProofState[] = yield cashuWallet.checkProofsStates(proofs)
+
+                // Transform array into grouped structure expected by the rest of the code
+                // Map proof states back to original proofs using secret matching
+                const proofsByState: {[key in CheckStateEnum]: CashuProof[]} = {
+                    SPENT: [],
+                    PENDING: [],
+                    UNSPENT: []
+                }
+
+                // proofStatesArray is returned in the same order as input proofs
+                for (let i = 0; i < proofStatesArray.length; i++) {
+                    const proofState = proofStatesArray[i]
+                    const originalProof = proofs[i]
+
+                    if (originalProof) {
+                        proofsByState[proofState.state].push(originalProof as CashuProof)
+                    }
+                }
+
                 log.trace('[WalletStore.getProofsStatesFromMint]', {mintUrl, proofsByState})
-            
+
                 return proofsByState
-            
-            } catch (e: any) {    
+
+            } catch (e: any) {
                 let message = 'Could not get response from the mint.'
                 if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
                 throw new AppError(
-                    Err.MINT_ERROR, 
-                    message, 
+                    Err.MINT_ERROR,
+                    message,
                     {
                     message: e.message,
-                    caller: 'WalletStore.getProofsStatesFromMint', 
-                    mintUrl            
+                    caller: 'WalletStore.getProofsStatesFromMint',
+                    mintUrl
                     }
                 )
             }
@@ -625,8 +641,8 @@ export const WalletStoreModel = types
         ) {
             try {
               const cashuMint = yield self.getMint(mintUrl)
-              const mintQuoteResponse: MintQuoteResponse = yield cashuMint.createMintQuote({
-                  unit, 
+              const mintQuoteResponse: MintQuoteBolt11Response = yield cashuMint.createMintQuoteBolt11({
+                  unit,
                   amount,
                   description
               })
@@ -657,7 +673,7 @@ export const WalletStoreModel = types
         ) {
             try {
               const cashuMint: CashuMint = yield self.getMint(mintUrl)
-              const quoteResponse: MintQuoteResponse = yield cashuMint.checkMintQuote(      
+              const quoteResponse: MintQuoteBolt11Response = yield cashuMint.checkMintQuoteBolt11(      
                   quote
               )
           
@@ -700,7 +716,7 @@ export const WalletStoreModel = types
                 throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
             }
 
-            const cashuWallet = yield self.getWallet(
+            const cashuWallet: CashuWallet = yield self.getWallet(
                 mintUrl, 
                 unit, 
                 {
@@ -714,34 +730,56 @@ export const WalletStoreModel = types
             if(options && options.increaseCounterBy) {
                 currentCounter.increaseProofsCounter(options.increaseCounterBy)
             }
-        
+
             log.debug('[WalletStore.mintProofs] counter', currentCounter.counter)
-            
+
+            // Sync wallet's internal counter with our stored counter (v3.x)
+            yield cashuWallet.counters.advanceToAtLeast(cashuWallet.keysetId, currentCounter.counter)
+
             const mintParams: MintParams = options?.inFlightRequest?.request || {
-                amount,              
+                amount,
                 quote: mintQuote,
-                options: {                    
-                    keysetId: cashuWallet.keysetId,                    
-                    counter: currentCounter.counter                       
+                options: {
+                    keysetId: cashuWallet.keysetId
+                    // Note: counter is no longer passed in v3.x, wallet manages it internally
                 }
-            }                
-            
-            if(cashuWallet.mintInfo.nuts['19'] && !options?.inFlightRequest) {
+            }
+
+            if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
                 currentCounter.addInFlightRequest(transactionId, mintParams)
             }
-            
-            try {            
-            
-                const proofs = yield cashuWallet.mintProofs(
+
+            let reservedCounters: OperationCounters | undefined = undefined
+
+            try {
+
+                const proofs = yield cashuWallet.mintProofsBolt11(
                     mintParams.amount,
                     mintParams.quote,
-                    mintParams.options
+                    {
+                        keysetId: mintParams.options?.keysetId,
+                        onCountersReserved: (info) => {
+                            reservedCounters = info as OperationCounters
+                            log.debug('[mintProofsBolt11] Counters reserved', info)
+                        }
+                    }
                 )
 
-                currentCounter.removeInFlightRequest(transactionId)            
-                
-                log.debug('[mintProofs]', {amount: mintParams.amount, quote: mintParams.quote, proofs})        
-        
+                currentCounter.removeInFlightRequest(transactionId)
+
+                // Update our counter to match what the wallet used (v3.x)
+                if (reservedCounters) {
+                    currentCounter.counter = reservedCounters.next
+                    log.debug('[mintProofs] Updated counter', {
+                        keysetId: reservedCounters.keysetId,
+                        start: reservedCounters.start,
+                        count: reservedCounters.count,
+                        next: reservedCounters.next
+                    })
+                }
+
+                log.debug('[mintProofs]', {amount: mintParams.amount, quote: mintParams.quote, proofs})
+
                 return proofs
         
             } catch (e: any) {
@@ -770,8 +808,8 @@ export const WalletStoreModel = types
             encodedInvoice: string,
         ) {
             try {
-            const cashuMint = yield self.getMint(mintUrl)
-            const lightningQuote: MeltQuoteResponse = yield cashuMint.createMeltQuote({ 
+            const cashuMint: CashuMint = yield self.getMint(mintUrl)
+            const lightningQuote: MeltQuoteBolt11Response = yield cashuMint.createMeltQuoteBolt11({ 
                 unit, 
                 request: encodedInvoice 
             })
@@ -797,7 +835,7 @@ export const WalletStoreModel = types
         payLightningMelt: flow(function* payLightningMelt(  
             mintUrl: string,
             unit: MintUnit,
-            meltQuote: MeltQuoteResponse,  // invoice is stored by mint by quote
+            meltQuote: MeltQuoteBolt11Response,  // invoice is stored by mint by quote
             proofsToMeltFrom: Proof[],
             transactionId: number,
             options?: {
@@ -849,13 +887,13 @@ export const WalletStoreModel = types
                 }
             }                
             
-            if(cashuWallet.mintInfo.nuts['19'] && !options?.inFlightRequest) {
+            if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
                 currentCounter.addInFlightRequest(transactionId, meltParams)
             }            
             
-            try {                
-            
-                const meltResponse: MeltProofsResponse = yield cashuWallet.meltProofs(
+            try {
+
+                const meltResponse = yield cashuWallet.meltProofsBolt11(
                     meltParams.meltQuote,
                     meltParams.proofsToSend,
                     meltParams.options
@@ -865,7 +903,7 @@ export const WalletStoreModel = types
                 
                 log.trace('[payLightningMelt]', {meltResponse})
                 // we normalize naming of returned parameters
-                return meltResponse
+                return meltResponse as MeltProofsResponse
 
             } catch (e: any) {
                 if(!e.message.toLowerCase().includes('timeout') &&
@@ -896,7 +934,7 @@ export const WalletStoreModel = types
         ) {
           try {
             const cashuMint: CashuMint = yield self.getMint(mintUrl)
-            const quoteResponse: MeltQuoteResponse = yield cashuMint.checkMeltQuote(      
+            const quoteResponse: MeltQuoteBolt11Response = yield cashuMint.checkMeltQuoteBolt11(      
                 quote
             )
         
@@ -920,7 +958,7 @@ export const WalletStoreModel = types
         }),
         recoverMeltQuoteChange: flow(function* recoverMeltQuoteChange(
           mintUrl: string,   
-          meltQuote: MeltQuoteResponse,
+          meltQuote: MeltQuoteBolt11Response,
           transactionId: number       
         ) {
           try {
@@ -991,10 +1029,9 @@ export const WalletStoreModel = types
                 unit: 'sat', // just use default unit as we restore by keyset  
                 keys: cashuMint.keys,
                 keysets: cashuMint.keysets,
+                keysetId,
                 bip39seed: seed
             })
-
-            seedWallet.keysetId = keysetId
     
             const count = Math.abs(indexTo - indexFrom)          
             
@@ -1011,7 +1048,7 @@ export const WalletStoreModel = types
                 proofs: proofs || [] as Proof[]            
             }
             } catch (e: any) {        
-                throw new AppError(Err.MINT_ERROR, isObj(e.message) ? JSON.stringify(e.message) : e.message, {mintUrl})
+                throw new AppError(Err.MINT_ERROR, CashuUtils.isObj(e.message) ? JSON.stringify(e.message) : e.message, {mintUrl})
             }
         }),
         getMintInfo: flow(function* getMintInfo(mintUrl: string) {

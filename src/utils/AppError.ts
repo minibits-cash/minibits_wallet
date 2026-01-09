@@ -25,7 +25,7 @@ export enum Err {
 }
 
 export class AppError extends Error {
-  public readonly code: Err
+  public readonly code: number | undefined
   public readonly params?: Record<string, any>
   public readonly caller?: string
 

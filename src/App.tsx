@@ -97,6 +97,12 @@ function App() {
 
     if (isInternetReachable === true) {
 
+      if(userSettingsStore.isOnboarded === false) {
+        log.trace('[App] User not onboarded → new install, skipping device re-enrollment')
+        setIsDeviceAuthenticated(true)
+        return
+      }
+
       if(authStore.isRefreshTokenExpired) {
         log.trace('[App] Network is online and refresh token expired → attempting device re-enrollment')
 
@@ -110,12 +116,7 @@ function App() {
   
             log.trace('[App] Device re-enrollment successful')
           } catch (e: any) {
-            if (e.name !== Err.NOTFOUND_ERROR) {
-              log.error('[App] Device re-enrollment failed', { message: e.message })
-            } else {
-              // Expected on fresh install
-              userSettingsStore.setIsOnboarded(false)
-            }
+            log.error('[App] Device re-enrollment failed', { message: e.message })
           } finally {
             // Always unblock the app
             setIsDeviceAuthenticated(true)

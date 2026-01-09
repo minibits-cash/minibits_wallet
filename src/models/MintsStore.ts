@@ -13,7 +13,9 @@ import {
   import {log} from '../services/logService'  
   import AppError, { Err } from '../utils/AppError'
   import {
-      CashuMint,
+    Mint as CashuMint,
+    GetKeysetsResponse,
+    GetKeysResponse,
     MintActiveKeys,
     MintAllKeysets,
     type MintKeys as CashuMintKeys, 
@@ -124,8 +126,8 @@ export const MintsStoreModel = types
             
             const newMint = new CashuMint(mintUrl)
             // get fresh keysets
-            const keySetResult: MintAllKeysets = yield newMint.getKeySets()
-            const keysResult: MintActiveKeys = yield newMint.getKeys()
+            const keySetResult: GetKeysetsResponse = yield newMint.getKeySets()
+            const keysResult: GetKeysResponse = yield newMint.getKeys()
             const {keysets} = keySetResult
             const {keysets: keys} = keysResult
             

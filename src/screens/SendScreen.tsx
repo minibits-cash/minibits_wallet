@@ -55,7 +55,6 @@ import { MemoInputCard } from '../components/MemoInputCard'
 import { PaymentRequest as CashuPaymentRequest, PaymentRequestTransport, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken } from '@cashu/cashu-ts'
 import { ProfilePointer } from 'nostr-tools/nip19'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
-import { SEND_TASK } from '../services/wallet/sendTask'
 import FastImage from 'react-native-fast-image'
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { CashuUtils } from '../services/cashu/cashuUtils'
@@ -128,7 +127,6 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const [isCashuPrWithDesc, setIsCashuPrWithDesc] = useState(false)   
     const [isNostrDMModalVisible, setIsNostrDMModalVisible] = useState(false)
     const [isProofSelectorModalVisible, setIsProofSelectorModalVisible] = useState(false) // offline mode
-    const [isSendTaskSentToQueue, setIsSendTaskSentToQueue] = useState(false)
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     const [isNostrDMSending, setIsNostrDMSending] = useState(false)
     const [isNostrDMSuccess, setIsNostrDMSuccess] = useState(false)
@@ -769,8 +767,6 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 log.trace('[onMintBalanceConfirm] Locktime', { pubkey: p2pk.pubkey, locktime: p2pk.locktime })
             }
         }
-
-        setIsSendTaskSentToQueue(true)
 
         const result = await WalletTask.sendQueueAwaitable(
             mintBalanceToSendFrom as MintBalance,

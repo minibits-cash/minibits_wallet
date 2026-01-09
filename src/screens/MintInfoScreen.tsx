@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { GetInfoResponse as CashuGetInfoResponse, SwapMethod } from '@cashu/cashu-ts'
-import { isObj } from '@cashu/cashu-ts/src/utils'
+import { CashuUtils } from '../services/cashu/cashuUtils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { observer } from 'mobx-react-lite'
 import { getSnapshot } from 'mobx-state-tree'
@@ -529,7 +529,7 @@ function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: str
         text={translate('mintInfo_emptyValueParam', { param: key })}
       />
       
-      let stringValue = isObj(value) ? JSON.stringify(value) : value.toString() ?? ''
+      let stringValue = CashuUtils.isObj(value) ? JSON.stringify(value) : value.toString() ?? ''
       let valueComponent = stringValue.trim() !== ''
         ? <Text size='xs' text={stringValue} />
         : missingComponent;
