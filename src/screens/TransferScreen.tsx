@@ -510,7 +510,7 @@ const onRequestLnurlInvoice = async function () {
     }
 
     if (lnurlPayParams.payerData) {
-      setInfo(translate("transferScreen_LUD18unsupported"))
+      throw new AppError(Err.VALIDATION_ERROR, translate("transferScreen_LUD18unsupported"))
     }
 
     setIsLoading(true)
