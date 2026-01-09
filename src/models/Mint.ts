@@ -1,10 +1,11 @@
 import {cast, detach, flow, getParent, getRoot, getSnapshot, IAnyStateTreeNode, Instance, isAlive, IStateTreeNode, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
-import {    
-    type GetInfoResponse, 
-    type MintKeys as CashuMintKeys, 
-    type MintKeyset as CashuMintKeyset,    
-    Mint as CashuMint,    
+import {
+    type GetInfoResponse,
+    type MintKeys as CashuMintKeys,
+    type MintKeyset as CashuMintKeyset,
+    Mint as CashuMint,
+    type MeltPreview,
 } from '@cashu/cashu-ts'
 import {colors, getRandomIconColor} from '../theme'
 import { log } from '../services'
@@ -16,7 +17,6 @@ import { generateId } from '../utils/utils'
 import { Proof } from './Proof'
 import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
 
-ß
 export type MintBalance = {
     mintUrl: string
     balances: {
@@ -49,10 +49,11 @@ const InFlightRequestModel = types.model('InFlightRequest', {
     request: types.frozen<any>(), // or replace `any` with your actual request type
 })
 
-// Sub-model for melt counter snapshots
+// Sub-model for melt previews (v3.x uses MeltPreview instead of just counter)
 const MeltCounterValueModel = types.model('MeltCounterValue', {
     transactionId: types.number,
-    counterAtMelt: types.number,        // the counter value when melt started
+    counterAtMelt: types.number,        // the counter value when melt started (kept for backward compatibility)
+    meltPreview: types.maybe(types.frozen<MeltPreview>()),  // v3.x MeltPreview object for recovery
     createdAt: types.optional(types.Date, () => new Date()), // optional: when it was added
 })
 
@@ -140,7 +141,7 @@ export const MintProofsCounterModel = types
         },
 
         // === Melt counter tracking ===
-        addMeltCounterValue(transactionId: number): number {
+        addMeltCounterValue(transactionId: number, meltPreview?: MeltPreview): number {
             const key = transactionId.toString()
             if (self.meltCounterValues.has(key)) {
                 log.warn('[addMeltCounterValue]', 'Melt already tracked', { transactionId })
@@ -150,12 +151,14 @@ export const MintProofsCounterModel = types
             self.meltCounterValues.set(key, {
                 transactionId,
                 counterAtMelt: self.counter,
+                meltPreview,
                 createdAt: new Date(),
             })
 
             log.trace('[addMeltCounterValue]', {
                 transactionId,
                 counterAtMelt: self.counter,
+                hasMeltPreview: !!meltPreview,
             })
 
             return self.counter
