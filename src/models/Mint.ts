@@ -4,7 +4,7 @@ import {
     type GetInfoResponse, 
     type MintKeys as CashuMintKeys, 
     type MintKeyset as CashuMintKeyset,    
-    CashuMint,    
+    Mint as CashuMint,    
 } from '@cashu/cashu-ts'
 import {colors, getRandomIconColor} from '../theme'
 import { log } from '../services'
@@ -16,7 +16,7 @@ import { generateId } from '../utils/utils'
 import { Proof } from './Proof'
 import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
 
-
+ß
 export type MintBalance = {
     mintUrl: string
     balances: {

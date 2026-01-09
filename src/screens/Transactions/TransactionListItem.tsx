@@ -255,7 +255,7 @@ export const TransactionListItem = observer(function (props: TransactionListProp
                           amountStyle={{color: txReceiveColor}}
                     />
                 )}
-                {[TransactionStatus.ERROR, TransactionStatus.BLOCKED, TransactionStatus.PREPARED_OFFLINE, TransactionStatus.EXPIRED].includes(tx.status) && (
+                {[TransactionStatus.ERROR, TransactionStatus.BLOCKED, TransactionStatus.PREPARED_OFFLINE, TransactionStatus.PENDING, TransactionStatus.EXPIRED].includes(tx.status) && (
                     <CurrencyAmount 
                           amount={tx.amount}
                           mintUnit={tx.unit}

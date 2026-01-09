@@ -310,7 +310,7 @@ import {
                         log.error('[revertToSpendable]', 'Proof instance is not alive, aborting state update', { secret: proof.secret })
                         continue
                       }
-                      
+
                       proof.setMintUrl(updatedMintUrl)
                     }
                 }
@@ -320,6 +320,14 @@ import {
 
             Database.updateProofsMintUrl(currentMintUrl, updatedMintUrl)
             log.trace('[updateMintUrl] Updated mint URL in proofs')
+        },
+
+        // Action for importing proofs from backup without validation or side effects
+        importProofs(proofs: Proof[]) {
+            for (const proof of proofs) {
+                self.proofs.put(ProofModel.create(proof))
+            }
+            log.trace('[importProofs]', `Imported ${proofs.length} proofs from backup`)
         },
     }))
   

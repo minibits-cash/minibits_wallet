@@ -90,6 +90,7 @@ const generateWalletKeys = function () {
       const mnemonic = generateMnemonic()
       const seedBytesArray = mnemonicToSeedSync(mnemonic)
       const seed = Buffer.from(seedBytesArray).toString('base64')
+      log.trace('[generateWalletKeys] Seed generated from mnemonic (base64)', {seed})
       const seedHash = QuickCrypto
       .createHash('sha256')
       .update(seedBytesArray)

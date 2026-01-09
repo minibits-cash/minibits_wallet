@@ -8,9 +8,9 @@ import {
 import {rootStoreInstance} from '../../models'
 import {CashuUtils, CashuProof} from '../cashu/cashuUtils'
 import AppError, {Err} from '../../utils/AppError'
-import {    
-    CashuMint,
-    CashuWallet,
+import {
+    Mint as CashuMint,
+    Wallet as CashuWallet,
     CheckStateEnum,
     MintKeyset,
     ProofState,
@@ -144,7 +144,7 @@ export const sendTask = async function (
             
             try {
                 log.trace('[send] Subscribing to onProofStateUpdates for proof', {secret: proofsToSend[0]})
-                const unsub = await wsWallet.onProofStateUpdates(
+                const unsub = await wsWallet.on.proofStateUpdates(
                     [proofsToSend[0]],
                     async (proofState: ProofState) => {
                         log.trace(`Websocket: proof state updated: ${proofState.state} with secret: ${proofsToSend[0].secret}`)
@@ -338,7 +338,7 @@ export const sendFromMintSync = async function (
          */
         if(isSwapNeeded) {
             // Calculate feeReserve from mint fee rate
-            const walletInstance = await walletStore.getWallet(mintUrl, unit, {withSeed: true})
+            const walletInstance = await walletStore.getWallet(mintUrl, unit, {withSeed: true}) as CashuWallet
             swapFeeReserve = walletInstance.getFeesForProofs(proofsToSendFrom)
             const amountWithFees = amountToSend + swapFeeReserve
 

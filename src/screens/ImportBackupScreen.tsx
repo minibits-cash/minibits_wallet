@@ -35,7 +35,7 @@ import { MintsStoreSnapshot } from '../models/MintsStore'
 import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { CashuMint, MintActiveKeys } from '@cashu/cashu-ts'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
-import { Proof, ProofModel } from '../models/Proof'
+import { Proof } from '../models/Proof'
 
 type Props = StaticScreenProps<undefined>
 
@@ -199,11 +199,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
         }
   
         // applySnapshot(proofsStore, walletSnapshot.proofsStore)
-        for (const proof of walletSnapshot.proofsStore.proofs) {
-          proofsStore.proofs.put(
-            ProofModel.create(proof)
-          )
-        }
+        proofsStore.importProofs(walletSnapshot.proofsStore.proofs)
         for(const secret of walletSnapshot.proofsStore.pendingByMintSecrets) {
           proofsStore.pendingByMintSecrets.push(secret)
         }

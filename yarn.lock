@@ -2722,28 +2722,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cashu/cashu-ts@minibits-cash/cashu-ts#e97b1a4ee9a7ddbb1468302c6996a9d6d3efcb6f":
-  version: 2.4.0
-  resolution: "@cashu/cashu-ts@https://github.com/minibits-cash/cashu-ts.git#commit=e97b1a4ee9a7ddbb1468302c6996a9d6d3efcb6f"
+"@cashu/cashu-ts@npm:3.2.2":
+  version: 3.2.2
+  resolution: "@cashu/cashu-ts@npm:3.2.2"
   dependencies:
-    "@cashu/crypto": ^0.3.4
-    "@noble/curves": ^1.3.0
-    "@noble/hashes": ^1.3.3
-    buffer: ^6.0.3
-  checksum: 68d46ceb9c60e9cef305aad86534c08b23de434de1efcd217d00c73bdf84704801c3cd700901903256de5a408caf029cea7886e9a303dd423027f08184bc1cb5
-  languageName: node
-  linkType: hard
-
-"@cashu/crypto@npm:^0.3.4":
-  version: 0.3.4
-  resolution: "@cashu/crypto@npm:0.3.4"
-  dependencies:
-    "@noble/curves": ^1.6.0
-    "@noble/hashes": ^1.5.0
-    "@scure/bip32": ^1.5.0
-    "@scure/bip39": ^1.4.0
-    buffer: ^6.0.3
-  checksum: 634afdd9d8fb262cd3db415794661ba5810f4ba1e64d1af0972c9a9b0a8c45106710a00ee25949014a361458ef544bdfcafe926c548c95b05fff9a41600d34a3
+    "@noble/curves": ^2.0.1
+    "@noble/hashes": ^2.0.1
+    "@scure/bip32": ^2.0.1
+  checksum: 49516a22f3afbf249c52d0f36a9e6513948b763af94c703a05375b513b0d3f90bb1feaade201214d315f5a26305e182ee00493634519ad9b69c7bd44615de11c
   languageName: node
   linkType: hard
 
@@ -5299,12 +5285,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/curves@npm:^1.3.0, @noble/curves@npm:^1.6.0, @noble/curves@npm:~1.8.1":
-  version: 1.8.1
-  resolution: "@noble/curves@npm:1.8.1"
+"@noble/curves@npm:2.0.1, @noble/curves@npm:^2.0.1":
+  version: 2.0.1
+  resolution: "@noble/curves@npm:2.0.1"
   dependencies:
-    "@noble/hashes": 1.7.1
-  checksum: 4143f1248ed57c1ae46dfef5c692a91383e5830420b9c72d3ff1061aa9ebbf8999297da6d2aed8a9716fef8e6b1f5a45737feeab02abf55ca2a4f514bf9339ec
+    "@noble/hashes": 2.0.1
+  checksum: b6844f350d629bb6de55d3a123bc148403901c8b8eed77d2132a389d080d553242bcf1e06913bf51f51e395849ec70b9a8e8902c19e562ea3c6538bb0240d92f
   languageName: node
   linkType: hard
 
@@ -5314,6 +5300,15 @@ __metadata:
   dependencies:
     "@noble/hashes": 1.3.1
   checksum: 2658cdd3f84f71079b4e3516c47559d22cf4b55c23ac8ee9d2b1f8e5b72916d9689e59820e0f9d9cb4a46a8423af5b56dc6bb7782405c88be06a015180508db5
+  languageName: node
+  linkType: hard
+
+"@noble/curves@npm:~1.8.1":
+  version: 1.8.1
+  resolution: "@noble/curves@npm:1.8.1"
+  dependencies:
+    "@noble/hashes": 1.7.1
+  checksum: 4143f1248ed57c1ae46dfef5c692a91383e5830420b9c72d3ff1061aa9ebbf8999297da6d2aed8a9716fef8e6b1f5a45737feeab02abf55ca2a4f514bf9339ec
   languageName: node
   linkType: hard
 
@@ -5331,10 +5326,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/hashes@npm:1.7.1, @noble/hashes@npm:^1.3.3, @noble/hashes@npm:^1.5.0, @noble/hashes@npm:~1.7.1":
+"@noble/hashes@npm:1.7.1, @noble/hashes@npm:^1.3.3, @noble/hashes@npm:~1.7.1":
   version: 1.7.1
   resolution: "@noble/hashes@npm:1.7.1"
   checksum: 4f1b56428a10323feef17e4f437c9093556cb18db06f94d254043fadb69c3da8475f96eb3f8322d41e8670117d7486475a8875e68265c2839f60fd03edd6a616
+  languageName: node
+  linkType: hard
+
+"@noble/hashes@npm:2.0.1, @noble/hashes@npm:^2.0.1":
+  version: 2.0.1
+  resolution: "@noble/hashes@npm:2.0.1"
+  checksum: aea67a671ca464027cd512d07666a804bd99abc343ba98c93ee8463a1c870c5594f8de468279ef3c60f3b23b6330db9f1a92bd23723b8a911ec73bddc9420248
   languageName: node
   linkType: hard
 
@@ -6275,6 +6277,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@scure/base@npm:2.0.0":
+  version: 2.0.0
+  resolution: "@scure/base@npm:2.0.0"
+  checksum: 15d10f154256f52bb3e02b63cdf93b6df6db3814fa4c61a8bb2d339831aec7859609fb715b93c7fc852755f0fe67fb6411664c06159745711bf38af3b10ab93e
+  languageName: node
+  linkType: hard
+
 "@scure/base@npm:~1.1.0":
   version: 1.1.9
   resolution: "@scure/base@npm:1.1.9"
@@ -6282,7 +6291,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@scure/base@npm:~1.2.2, @scure/base@npm:~1.2.4":
+"@scure/base@npm:~1.2.2":
   version: 1.2.4
   resolution: "@scure/base@npm:1.2.4"
   checksum: db554eb550a1bd17684af9282e1ad751050a13d4add0e83ad61cc496680d7d1c1c1120ca780e72935a293bb59721c20a006a53a5eec6f6b5bdcd702cf27c8cae
@@ -6307,7 +6316,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@scure/bip32@npm:1.6.2, @scure/bip32@npm:^1.5.0":
+"@scure/bip32@npm:1.6.2":
   version: 1.6.2
   resolution: "@scure/bip32@npm:1.6.2"
   dependencies:
@@ -6315,6 +6324,17 @@ __metadata:
     "@noble/hashes": ~1.7.1
     "@scure/base": ~1.2.2
   checksum: e7586619f8a669e522267ce71a90b2d00c3a91da658f1f50e54072cf9f432ba26d2bb4d3d91a5d06932ab96612b8bd038bc31d885bbc048cebfb6509c4a790fc
+  languageName: node
+  linkType: hard
+
+"@scure/bip32@npm:^2.0.1":
+  version: 2.0.1
+  resolution: "@scure/bip32@npm:2.0.1"
+  dependencies:
+    "@noble/curves": 2.0.1
+    "@noble/hashes": 2.0.1
+    "@scure/base": 2.0.0
+  checksum: 5e6c7b455c4a5599673d5fa1b7edc1b3655fe2f7b8388dc19ebe4a89adb9c80c511215d4af624eb774c63c216fd8b7bb8fecf1eb8c3d5e979e279c7542657a42
   languageName: node
   linkType: hard
 
@@ -6335,16 +6355,6 @@ __metadata:
     "@noble/hashes": ~1.8.0
     "@scure/base": ~1.2.5
   checksum: 96d46420780473d6c6c9700254a0eceec60302f61d7f9d7f29024e90c7acff3e8e40a5ee52dfaf104db539a10462e531996aaf9e69f082b8540b0a25870545fc
-  languageName: node
-  linkType: hard
-
-"@scure/bip39@npm:^1.4.0":
-  version: 1.5.4
-  resolution: "@scure/bip39@npm:1.5.4"
-  dependencies:
-    "@noble/hashes": ~1.7.1
-    "@scure/base": ~1.2.4
-  checksum: 744f302559ad05ee6ea4928572ac8f0b5443e8068fd53234c9c2e158814e910a043c54f0688d05546decadd2ff66e0d0c76355d10e103a28cb8f44efe140857a
   languageName: node
   linkType: hard
 
@@ -14456,7 +14466,7 @@ __metadata:
     "@babel/plugin-proposal-export-namespace-from": ^7.18.9
     "@babel/preset-env": ^7.25.3
     "@babel/runtime": ^7.25.0
-    "@cashu/cashu-ts": "minibits-cash/cashu-ts#e97b1a4ee9a7ddbb1468302c6996a9d6d3efcb6f"
+    "@cashu/cashu-ts": 3.2.2
     "@fortawesome/fontawesome-svg-core": ^7.1.0
     "@fortawesome/free-brands-svg-icons": ^7.1.0
     "@fortawesome/free-regular-svg-icons": ^7.1.0

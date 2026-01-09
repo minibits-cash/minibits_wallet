@@ -36,7 +36,6 @@ import { getSnapshot } from 'mobx-state-tree'
 import { scale } from '@gocodingnow/rn-size-matters'
 import { WalletUtils } from '../services/wallet/utils'
 import { MintUnit, formatCurrency, getCurrency } from '../services/wallet/currency'
-import { isObj } from '@cashu/cashu-ts/src/utils'
 import { translate } from '../i18n'
 import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { MnemonicInput } from './Recovery/MnemonicInput'
@@ -357,7 +356,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                 e.params = {mintUrl: selectedMintUrl}
             }
 
-            log.error('[doRecovery]', {name: e.name, message: isObj(e.message) ? JSON.stringify(e.message) : e.message, params: e.params})
+            log.error('[doRecovery]', {name: e.name, message: CashuUtils.isObj(e.message) ? JSON.stringify(e.message) : e.message, params: e.params})
             errors.push({name: e.name, message: e.message}) // TODO this could now be single error as we do not loop anymore
 
             if (transaction) {
