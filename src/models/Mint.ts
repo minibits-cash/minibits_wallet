@@ -17,6 +17,13 @@ import { generateId } from '../utils/utils'
 import { Proof } from './Proof'
 import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
 
+// Helper function to serialize MeltPreview and convert BigInt to string
+function serializeMeltPreview(meltPreview: MeltPreview): any {
+    return JSON.parse(JSON.stringify(meltPreview, (_key, value) =>
+        typeof value === 'bigint' ? value.toString() : value
+    ))
+}
+
 export type MintBalance = {
     mintUrl: string
     balances: {
@@ -148,10 +155,13 @@ export const MintProofsCounterModel = types
                 return self.meltCounterValues.get(key)!.counterAtMelt
             }
 
+            // Serialize MeltPreview to handle BigInt values
+            const serializableMeltPreview = meltPreview ? serializeMeltPreview(meltPreview) : undefined
+
             self.meltCounterValues.set(key, {
                 transactionId,
                 counterAtMelt: self.counter,
-                meltPreview,
+                meltPreview: serializableMeltPreview as any,
                 createdAt: new Date(),
             })
 
