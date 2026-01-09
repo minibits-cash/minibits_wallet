@@ -14,6 +14,7 @@ import {
   MintQuoteBolt11Response,
   type ProofState,
   type OperationCounters,
+  type MeltPreview,
 } from '@cashu/cashu-ts'
 import { JS_BUNDLE_VERSION } from '@env'
 import {KeyChain, MinibitsClient, WalletKeys} from '../services'
@@ -411,63 +412,86 @@ export const WalletStoreModel = types
             )
 
             const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
-            
+
             // outputs error healing
             if(options && options.increaseCounterBy) {
                 currentCounter.increaseProofsCounter(options.increaseCounterBy)
             }
 
             log.debug('[WalletStore.receive] counter', currentCounter.counter)
-            
+
+            // Sync wallet's internal counter with our stored counter (v3.x)
+            yield cashuWallet.counters.advanceToAtLeast(cashuWallet.keysetId, currentCounter.counter)
+
             // P2PK locked tokens can be received only by the wallet they are locked to (if lock has not expired)
             const isLocked = CashuUtils.isTokenP2PKLocked(decodedToken)
             let isLockedToWallet = false
             const walletKeys = yield self.getCachedWalletKeys()
-    
+
             if(isLocked) {
                 const lockedToPK = CashuUtils.getP2PKPubkeySecret(decodedToken.proofs[0].secret)
                 const locktime = CashuUtils.getP2PKLocktime(decodedToken.proofs[0].secret)
                 const walletP2PK = '02' + walletKeys.NOSTR.publicKey
 
-                isLockedToWallet = lockedToPK === walletP2PK                
-                
+                isLockedToWallet = lockedToPK === walletP2PK
+
                 if(!isLockedToWallet) {
                     throw new AppError(Err.VALIDATION_ERROR, 'Ecash token is locked to another wallet, can not receive it.', {lockedToPK, walletP2PK, locktime})
-                }                
+                }
             }
-          
+
             const receiveParams: ReceiveParams = options?.inFlightRequest?.request || {
                 token: decodedToken,
                 options: {
-                    keysetId: cashuWallet.keysetId,                    
-                    counter: currentCounter.counter,
-                    privkey: isLockedToWallet ? walletKeys.NOSTR.privateKey : undefined,                   
+                    keysetId: cashuWallet.keysetId,
+                    // Note: counter is no longer passed in v3.x, wallet manages it internally
+                    privkey: isLockedToWallet ? walletKeys.NOSTR.privateKey : undefined,
                 }
-            }                
-            
+            }
+
+            // @ts-ignore
             if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
                 currentCounter.addInFlightRequest(transactionId, receiveParams)
-            }            
+            }
+
+            let reservedCounters: OperationCounters | undefined
 
             try {
                 const proofs = yield cashuWallet.receive(
                   receiveParams.token,
-                  receiveParams.options
+                  {
+                    ...receiveParams.options,
+                    onCountersReserved: (info: OperationCounters) => {
+                      reservedCounters = info
+                      log.debug('[receive] Counters reserved', info)
+                    }
+                  }
                 )
-                
+
                 log.trace('[WalletStore.receive]', {proofs})
-                
-                currentCounter.removeInFlightRequest(transactionId)               
-                
+
+                currentCounter.removeInFlightRequest(transactionId)
+
+                // Update our counter to match what the wallet used (v3.x)
+                if (reservedCounters) {
+                    currentCounter.counter = reservedCounters.next
+                    log.debug('[receive] Updated counter', {
+                        keysetId: reservedCounters.keysetId,
+                        start: reservedCounters.start,
+                        count: reservedCounters.count,
+                        next: reservedCounters.next
+                    })
+                }
+
                 const receivedAmount: number = CashuUtils.getProofsAmount(proofs as Proof[])
                 const amountToReceive: number = CashuUtils.getProofsAmount(decodedToken.proofs)
                 const swapFeePaid = amountToReceive - receivedAmount
-            
+
                 return {
-                  proofs, 
+                  proofs,
                   swapFeePaid
                 } as {
-                  proofs: CashuProof[], 
+                  proofs: CashuProof[],
                   swapFeePaid: number
                 }
 
@@ -516,50 +540,74 @@ export const WalletStoreModel = types
             )
 
             const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
-            
+
             // outputs error healing
             if(options && options.increaseCounterBy) {
               currentCounter.increaseProofsCounter(options.increaseCounterBy)
             }
-        
+
             log.debug('[WalletStore.send] counter', currentCounter.counter)
+
+            // Sync wallet's internal counter with our stored counter (v3.x)
+            yield cashuWallet.counters.advanceToAtLeast(cashuWallet.keysetId, currentCounter.counter)
+
             const p2pk = options?.p2pk
-            
+
             const sendParams: SendParams = options?.inFlightRequest?.request || {
-                amount: amountToSend,              
+                amount: amountToSend,
                 proofs: CashuUtils.exportProofs(proofsToSendFrom),
                 options: {
-                    keysetId: cashuWallet.keysetId,                   
-                    counter: p2pk && p2pk.pubkey  ? undefined : currentCounter.counter, // p2pk is not deterministic
+                    keysetId: cashuWallet.keysetId,
+                    // Note: counter is no longer passed in v3.x, wallet manages it internally
                     includeFees: false, // fee reserve needs to be already in proofsToSendFrom
                     p2pk
                 }
-            }                
-            
+            }
+
+            // @ts-ignore
             if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
                 currentCounter.addInFlightRequest(transactionId, sendParams)
             }
 
+            let reservedCounters: OperationCounters | undefined
+
             try {
-            
+
                 const {keep, send} = yield cashuWallet.swap(
                   sendParams.amount,
                   sendParams.proofs,
-                  sendParams.options
+                  {
+                    ...sendParams.options,
+                    onCountersReserved: (info: OperationCounters) => {
+                      reservedCounters = info
+                      log.debug('[send] Counters reserved', info)
+                    }
+                  }
                 )
 
                 currentCounter.removeInFlightRequest(transactionId)
-            
+
+                // Update our counter to match what the wallet used (v3.x)
+                if (reservedCounters) {
+                    currentCounter.counter = reservedCounters.next
+                    log.debug('[send] Updated counter', {
+                        keysetId: reservedCounters.keysetId,
+                        start: reservedCounters.start,
+                        count: reservedCounters.count,
+                        next: reservedCounters.next
+                    })
+                }
+
                 log.trace(`[WalletStore.send] ${keep.length} returnedProofs`, {keep})
-                log.trace(`[WalletStore.send] ${send.length} proofsToSend`, {send})            
-                
+                log.trace(`[WalletStore.send] ${send.length} proofsToSend`, {send})
+
                 const totalAmountToSendFrom: number = CashuUtils.getProofsAmount(proofsToSendFrom)
-                const returnedAmount: number = CashuUtils.getProofsAmount(keep)            
-                const swapFeePaid = totalAmountToSendFrom - amountToSend - returnedAmount        
-                
+                const returnedAmount: number = CashuUtils.getProofsAmount(keep)
+                const swapFeePaid = totalAmountToSendFrom - amountToSend - returnedAmount
+
                 return {
                     returnedProofs: keep as CashuProof[],
-                    proofsToSend: send as CashuProof[], 
+                    proofsToSend: send as CashuProof[],
                     swapFeePaid
                 }
 
@@ -745,11 +793,12 @@ export const WalletStoreModel = types
                 }
             }
 
+            // @ts-ignore
             if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
                 currentCounter.addInFlightRequest(transactionId, mintParams)
             }
 
-            let reservedCounters: OperationCounters | undefined = undefined
+            let reservedCounters: OperationCounters | undefined
 
             try {
 
@@ -758,8 +807,8 @@ export const WalletStoreModel = types
                     mintParams.quote,
                     {
                         keysetId: mintParams.options?.keysetId,
-                        onCountersReserved: (info) => {
-                            reservedCounters = info as OperationCounters
+                        onCountersReserved: (info: OperationCounters) => {
+                            reservedCounters = info
                             log.debug('[mintProofsBolt11] Counters reserved', info)
                         }
                     }
@@ -864,66 +913,71 @@ export const WalletStoreModel = types
               currentCounter.increaseProofsCounter(options.increaseCounterBy)
             }
 
-            // store local counter value to be able to recover the change if needed
-            const counterValueForMelt = currentCounter.addMeltCounterValue(transactionId)
+            // Sync wallet's internal counter with our stored counter (v3.x)
+            yield cashuWallet.counters.advanceToAtLeast(cashuWallet.keysetId, currentCounter.counter)
 
-            // Preemptively increase local counter in case we miss response with change from mint
-            currentCounter.increaseProofsCounter(proofsToMeltFrom.length) // ?
-            
-            let countChangeOutputs = 0
-            if (meltQuote.fee_reserve > 0) {
-              countChangeOutputs = Math.ceil(Math.log2(meltQuote.fee_reserve)) || 1
-              currentCounter.increaseProofsCounter(countChangeOutputs)              
-            }
-        
-            log.trace('[WalletStore.payLightningMelt] Counter state before melt', {localCounter: currentCounter.counter, counterValueForMelt})
-            
-            const meltParams: MeltParams = options?.inFlightRequest?.request || {
-                meltQuote,              
-                proofsToSend: CashuUtils.exportProofs(proofsToMeltFrom),
-                options: {                    
-                    keysetId: cashuWallet.keysetId,                    
-                    counter: counterValueForMelt              
+            log.trace('[WalletStore.payLightningMelt] Preparing melt', {
+                localCounter: currentCounter.counter,
+                proofsCount: proofsToMeltFrom.length
+            })
+
+            let reservedCounters: OperationCounters | undefined
+
+            // Step 1: Prepare the melt (creates change outputs deterministically)
+            const meltPreview: MeltPreview = yield cashuWallet.prepareMelt(
+                'bolt11',
+                meltQuote,
+                CashuUtils.exportProofs(proofsToMeltFrom),
+                {
+                    keysetId: cashuWallet.keysetId,
+                    onCountersReserved: (info: OperationCounters) => {
+                        reservedCounters = info
+                        log.debug('[prepareMelt] Counters reserved', info)
+                    }
                 }
-            }                
-            
-            if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
-                currentCounter.addInFlightRequest(transactionId, meltParams)
-            }            
-            
+            )
+
+            // Store the MeltPreview for potential recovery
+            currentCounter.addMeltCounterValue(transactionId, meltPreview)
+
+            // Update our counter to match what the wallet used (v3.x)
+            if (reservedCounters) {
+                currentCounter.counter = reservedCounters.next
+                log.debug('[prepareMelt] Updated counter', {
+                    keysetId: reservedCounters.keysetId,
+                    start: reservedCounters.start,
+                    count: reservedCounters.count,
+                    next: reservedCounters.next
+                })
+            }
+
             try {
+                // Step 2: Complete the melt (sends to mint and constructs change proofs)
+                const meltResponse: MeltProofsResponse = yield cashuWallet.completeMelt(meltPreview)
 
-                const meltResponse = yield cashuWallet.meltProofsBolt11(
-                    meltParams.meltQuote,
-                    meltParams.proofsToSend,
-                    meltParams.options
-                )
+                // Remove the stored preview on success
+                currentCounter.removeMeltCounterValue(transactionId)
 
-                currentCounter.removeInFlightRequest(transactionId)    
-                
                 log.trace('[payLightningMelt]', {meltResponse})
-                // we normalize naming of returned parameters
-                return meltResponse as MeltProofsResponse
+                return meltResponse
 
             } catch (e: any) {
-                if(!e.message.toLowerCase().includes('timeout') &&
-                   !e.message.toLowerCase().includes('network request failed')) {
-                  // remove in-flight request only if it was not a timeout or network error
-                  currentCounter.removeInFlightRequest(transactionId)
-                  // we  might roll back preemptive counter increase
-                  // currentCounter.decreaseProofsCounter(countChangeOutputs)
-                }      
+                // On error, keep the MeltPreview stored so we can attempt recovery later
+                log.error('[payLightningMelt] Melt failed, MeltPreview stored for recovery', {
+                    transactionId,
+                    error: e.message
+                })
 
                 let message = 'Lightning payment failed.'
                 if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
                 throw new AppError(
-                    Err.MINT_ERROR, 
+                    Err.MINT_ERROR,
                     message,
                     {
                         message: e.message,
-                        caller: 'payLightningMelt', 
+                        caller: 'payLightningMelt',
                         mintUrl,
-                        code: e.code || undefined,        
+                        code: e.code || undefined,
                     }
                 )
             }
@@ -957,56 +1011,57 @@ export const WalletStoreModel = types
           }
         }),
         recoverMeltQuoteChange: flow(function* recoverMeltQuoteChange(
-          mintUrl: string,   
+          mintUrl: string,
           meltQuote: MeltQuoteBolt11Response,
-          transactionId: number       
+          transactionId: number
         ) {
           try {
             const mintInstance = self.getMintModelInstance(mintUrl)
-            
+
             if(!mintInstance) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
             }
 
             const cashuWallet = yield self.getWallet(
-              mintUrl, 
-              'sat', 
+              mintUrl,
+              'sat',
               {
-                  withSeed: true,         
+                  withSeed: true,
               }
             )
 
             const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
-            const counterValueForMelt = currentCounter.getMeltCounterValue(transactionId)?.counterAtMelt
+            const meltCounterValue = currentCounter.getMeltCounterValue(transactionId)
 
-            if(counterValueForMelt === undefined) {
-              throw new AppError(Err.VALIDATION_ERROR, 'Change already claimed - counterAtMelt not available for this transaction', {mintUrl, transactionId})
+            if(!meltCounterValue) {
+              throw new AppError(Err.VALIDATION_ERROR, 'Change already claimed - melt data not available for this transaction', {mintUrl, transactionId})
             }
 
-            const {change}: MeltProofsResponse = yield cashuWallet.recoverMeltQuoteChange(      
-              meltQuote,
-              {                    
-                keysetId: cashuWallet.keysetId,                    
-                counter: counterValueForMelt                    
-              }
-            )
+            const meltPreview = meltCounterValue.meltPreview
+
+            if(!meltPreview) {
+              throw new AppError(Err.VALIDATION_ERROR, 'MeltPreview not found - this transaction may be from an older version', {mintUrl, transactionId})
+            }
+
+            // Use completeMelt with the stored MeltPreview to recover change
+            const {change}: MeltProofsResponse = yield cashuWallet.completeMelt(meltPreview)
 
             currentCounter.removeMeltCounterValue(transactionId)
-        
+
             log.info('[recoverMeltQuoteChange]', {change})
-        
+
             return change
 
           } catch (e: any) {
             let message = 'The mint could not return change from a melt quote.'
             if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
             throw new AppError(
-                Err.MINT_ERROR, 
-                message, 
+                Err.MINT_ERROR,
+                message,
                 {
                     message: e.message,
-                    caller: 'recoverMeltQuoteChange', 
-                    mintUrl,            
+                    caller: 'recoverMeltQuoteChange',
+                    mintUrl,
                 }
             )
           }
