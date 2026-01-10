@@ -15,7 +15,7 @@ import {CashuProof, CashuUtils} from './cashu/cashuUtils'
 import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance, MintStatus} from '../models/Mint'
-import {MeltQuoteBolt11Response, MeltQuoteResponse, MeltQuoteState, MintQuoteState, PaymentRequestPayload, Token, getDecodedToken, getEncodedToken} from '@cashu/cashu-ts'
+import {MeltQuoteBaseResponse, MeltQuoteBolt11Response, MeltQuoteResponse, MeltQuoteState, MintQuoteState, PaymentRequestPayload, Token, getDecodedToken, getEncodedToken} from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
@@ -168,7 +168,7 @@ export interface TransactionTaskResult extends WalletTaskResult {
     swapFeePaid?: number
     lightningFeePaid?: number
     meltFeePaid?: number
-    meltQuote?: MeltQuoteBolt11Response
+    meltQuote?: MeltQuoteBaseResponse
     nwcEvent?: NostrEvent
 }
 

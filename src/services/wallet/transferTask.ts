@@ -28,7 +28,7 @@ export const transferTask = async function (
     mintBalanceToTransferFrom: MintBalance,
     amountToTransfer: number,
     unit: MintUnit,
-    meltQuote: MeltQuoteResponse,
+    meltQuote: MeltQuoteBolt11Response,
     memo: string,
     invoiceExpiry: Date,    
     encodedInvoice: string,
@@ -250,7 +250,7 @@ export const transferTask = async function (
                 lightningFeePaid = totalFeePaid - meltFeeReserve
             }
             
-            meltQuoteCheck = await walletStore.checkLightningMeltQuote(mintUrl, meltQuote.quote)
+            //meltQuoteCheck = await walletStore.checkLightningMeltQuote(mintUrl, meltQuote.quote)
 
             const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
     
@@ -259,8 +259,9 @@ export const transferTask = async function (
                 status: TransactionStatus.COMPLETED,                
                 lightningFeePaid,
                 meltFeePaid,
-                returnedAmount,       
-                preimage: meltQuoteCheck.payment_preimage,                
+                returnedAmount,
+                //@ts-ignore
+                preimage: meltResponse.quote.payment_preimage,                
                 createdAt: new Date(),
             }
             transactionData.push(completedDataItem)
@@ -276,8 +277,10 @@ export const transferTask = async function (
                 updatePayload.outputToken = outputToken
             }
 
-            if (meltQuoteCheck.payment_preimage) {
-                updatePayload.proof = meltQuoteCheck.payment_preimage
+            //@ts-ignore
+            if (meltResponse.quote.payment_preimage) {
+                //@ts-ignore
+                updatePayload.proof = meltResponse.quote.payment_preimage
             }
     
             transaction.update(updatePayload)
@@ -290,8 +293,9 @@ export const transferTask = async function (
                 lightningFeePaid, 
                 meltFeePaid,          
                 totalFeePaid,
-                meltQuote: meltQuoteCheck,
-                preimage: meltQuoteCheck.payment_preimage,
+                meltQuote: meltResponse.quote,
+                //@ts-ignore
+                preimage: meltResponse.quote.payment_preimage,
                 nwcEvent
             } as TransactionTaskResult
 
