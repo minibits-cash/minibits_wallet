@@ -37,7 +37,6 @@ import { scale } from '@gocodingnow/rn-size-matters'
 import { WalletUtils } from '../services/wallet/utils'
 import { MintUnit, formatCurrency, getCurrency } from '../services/wallet/currency'
 import { translate } from '../i18n'
-import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { MnemonicInput } from './Recovery/MnemonicInput'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
@@ -115,7 +114,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
             const binarySeed = mnemonicToSeedSync(mnemonic)            
 
             const seedHash = QuickCrypto.createHash('sha256')
-            .update(binarySeed)
+            .update(binarySeed.buffer as ArrayBuffer)
             .digest('hex')
 
             seedRef.current = binarySeed
@@ -357,7 +356,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
             }
 
             log.error('[doRecovery]', {name: e.name, message: CashuUtils.isObj(e.message) ? JSON.stringify(e.message) : e.message, params: e.params})
-            errors.push({name: e.name, message: e.message}) // TODO this could now be single error as we do not loop anymore
+            errors.push({name: e.name, message: e.message, code: e.code || null}) // TODO this could now be single error as we do not loop anymore
 
             if (transaction) {
                 transactionData.push({
