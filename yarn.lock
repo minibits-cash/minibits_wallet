@@ -16545,7 +16545,7 @@ __metadata:
   peerDependenciesMeta:
     "@expo/config-plugins":
       optional: true
-  checksum: efd9e1eeee2b75a83d366687a9acf58b4f0a4f4a32b563783cacf1b9308bdccb81afdb065d7df469e5308e3163d5f6b5e2561ea5c8ea5e9abc1ded623b19d697
+  checksum: 4f38adfbd60124f96121a31eaadecd48cb72d50afcfff228be7bfba92ec1051154a2b8acd2cf8c8d0e0c6d12172f48237791d0ecb3a726f8915151ab652b79a5
   languageName: node
   linkType: hard
 

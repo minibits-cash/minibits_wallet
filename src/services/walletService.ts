@@ -1295,7 +1295,7 @@ const syncStateWithMintTask = async function (
           }
         }
   
-        // Recover change from completed melts
+        // Recover change from completed melts / TRANSFERS
         for (const update of transactionStateUpdates) {
           if (update.meltQuoteToRecover) {
             const { recoveredAmount } = await recoverMeltQuoteChange({
@@ -1634,9 +1634,13 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
               break
             }
   
-            // ─── TRANSFER (melt / lightning out retry) ─────────────
+            // ─── TRANSFER (melt / lightning out retry) ───────────── 
+            // 
+            // COMMENTED OUT, 
+            // this is solved by syncStateWithMintTask that recoveres change from pending yet paid transfers.
+            // request params (meltPreview) is stored outside of inFlightRequests now, in proofsCounter.meltCounterValues
             case TransactionType.TRANSFER: {
-              const meltQuoteCheck = await walletStore.checkLightningMeltQuote(mintUrl, inFlight.request.meltQuote)
+              /*const meltQuoteCheck = await walletStore.checkLightningMeltQuote(mintUrl, inFlight.request.meltQuote)
 
               if(meltQuoteCheck.state === MeltQuoteState.PAID || meltQuoteCheck.state === MeltQuoteState.PENDING) {
                 log.debug('[handleInFlightByMintTask] Melt quote already PAID or PENDING', { tId: tx.id })
@@ -1676,9 +1680,9 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                 tx.update({ outputToken })
               }
   
-              /*if (quote.payment_preimage) {
+              if (quote.payment_preimage) {
                 tx.update({ proof: quote.payment_preimage })
-              }*/
+              }
   
               const inputAmount = CashuUtils.getProofsAmount(inFlight.request.proofsToSend)
               const changeAmount = CashuUtils.getProofsAmount(change)
@@ -1698,7 +1702,7 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                 data: JSON.stringify(txData),
                 fee: totalFee,
                 balanceAfter,
-              })
+              })*/
   
               break
             }
@@ -2049,6 +2053,7 @@ const recoverMintQuote = async (
         tx.update({
           status: TransactionStatus.RECOVERED,
           amount: recoveredAmount,
+          keysetId: proofs[0].id,
           balanceAfter,
           data: JSON.stringify(txData),
         })
@@ -2064,7 +2069,7 @@ const recoverMintQuote = async (
   }
   
   /**
-   * Manually recover change from a paid melt quote (lightning out)
+   *  Recover change from a paid melt quote (lightning out)
    */
   const recoverMeltQuoteChange = async (
     params: { 
@@ -2073,10 +2078,10 @@ const recoverMintQuote = async (
   }
   ): Promise<{ recoveredAmount: number }> => {
     const { mintUrl, meltQuote } = params
-    const mint = mintsStore.findByUrl(mintUrl)
+    const mintInstance = mintsStore.findByUrl(mintUrl)
     const unit: MintUnit = 'sat'
   
-    if (!mint || !meltQuote) {
+    if (!mintInstance || !meltQuote) {
       throw new AppError(Err.VALIDATION_ERROR, 'Missing mint or melt quote', { mintUrl, meltQuote })
     }
   
@@ -2089,8 +2094,19 @@ const recoverMintQuote = async (
  
     const { quote, state, change } = meltQuoteResponse
     
+      const tx = transactionsStore.findLastBy({ quote })
+
+      if (!tx) {
+        throw new AppError(Err.VALIDATION_ERROR, `Original melt transaction not found for quote ${meltQuoteResponse.quote}`)
+      }
+
     switch (state) {
       case MeltQuoteState.UNPAID:
+        if(tx.keysetId) {
+          const currentCounter = mintInstance.getProofsCounterByKeysetId!(tx.keysetId)
+          currentCounter.removeMeltCounterValue(tx.id)
+        }
+        
         throw new AppError(Err.VALIDATION_ERROR, `Melt quote ${meltQuote} was not paid`)
   
       case MeltQuoteState.PENDING:
@@ -2098,26 +2114,21 @@ const recoverMintQuote = async (
   
       case MeltQuoteState.PAID: {
         if (!change || change.length === 0) {
-          throw new AppError(Err.VALIDATION_ERROR, `No change available for melt quote ${meltQuote}`)
-        }
-  
-        let tx = transactionsStore.findLastBy({ quote })
-  
-        if (!tx) {
-          throw new AppError(Err.VALIDATION_ERROR, 'Original melt transaction not found', { meltQuote })
+          throw new AppError(Err.VALIDATION_ERROR, `No change available for melt quote ${meltQuoteResponse.quote}`)
         }
   
         let txData: TransactionData = tx.data ? JSON.parse(tx.data) : []
   
         try {
           // Recover blind signatures requires original counter value to produce valid proofs
-          const change = await walletStore.recoverMeltQuoteChange(mintUrl, meltQuoteResponse, tx.id)
+          // This is stored in meltPreview now
+          const change = await walletStore.recoverMeltQuoteChange(mintUrl, tx)
 
           // Make sure we do not recover already received change
           const newChange = change.filter(proof => !proofsStore.alreadyExists(proof))
 
           if (newChange.length === 0) {
-            throw new AppError(Err.MINT_ERROR, `No new ecash proofs to recover from melt quote, ${change.length} proofs already in wallet.`)
+            throw new AppError(Err.MINT_ERROR, `No new ecash proofs to recover from melt quote ${meltQuoteResponse.quote}, ${change.length} proofs already in wallet.`)
           }
   
           // Force zero-value swap to validate and receive change proofs

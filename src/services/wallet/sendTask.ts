@@ -128,6 +128,7 @@ export const sendTask = async function (
         transaction.update({
             status: TransactionStatus.PENDING,
             data: JSON.stringify(transactionData),
+            keysetId: proofsToSend[0].id,
             balanceAfter,
             ...(swapFeePaid > 0 && {fee: swapFeePaid})
         })

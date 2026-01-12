@@ -184,6 +184,7 @@ export const transferTask = async function (
         transaction.update({
             status: TransactionStatus.PREPARED,
             data: JSON.stringify(transactionData),
+            keysetId: proofsToMeltFrom[0].id,
             inputToken,
         })
         
@@ -264,12 +265,13 @@ export const transferTask = async function (
                 preimage: meltResponse.quote.payment_preimage,                
                 createdAt: new Date(),
             }
+
             transactionData.push(completedDataItem)
     
             const updatePayload: any = {
                 status: TransactionStatus.COMPLETED,
                 data: JSON.stringify(transactionData),
-                fee: totalFeePaid,
+                fee: totalFeePaid,                
                 balanceAfter,
             }
             
@@ -332,6 +334,7 @@ export const transferTask = async function (
             message,
             nwcEvent
         } as TransactionTaskResult
+        let recovered: number = 0
 
         if (transaction) { 
             
@@ -340,6 +343,7 @@ export const transferTask = async function (
                 meltQuoteCheck = await walletStore.checkLightningMeltQuote(mintUrl, meltQuote.quote)
                 taskResult.meltQuote = meltQuoteCheck                
                 
+                // --- PAID ---
                 if(meltQuoteCheck.state === MeltQuoteState.PAID) {
 
                     message = `Lightning invoice has been successfully paid, however some error occured: ${e.message}`
@@ -359,8 +363,11 @@ export const transferTask = async function (
                         meltQuoteCheck, 
                         unit,
                         transactionId: transaction.id
-                    }) 
-                        
+                    })
+
+                    recovered = recoveredAmount
+                
+                // --- PENDING BY MINT ---    
                 } else if(meltQuoteCheck.state === MeltQuoteState.PENDING) {
 
                     message = 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.'
@@ -373,6 +380,7 @@ export const transferTask = async function (
                         transactionId: transaction.id
                     })
 
+                // --- UNPAID ---
                 } else {
                     if (e.params && e.params.message && e.params.message.toLowerCase().includes('token already spent')) {
 
@@ -383,7 +391,7 @@ export const transferTask = async function (
                             transactionId: transaction.id
                         })                        
                     } else if (e.params && e.params.message && e.params.message.toLowerCase().includes('proofs are pending')) {
-                        // if melt quote is UNPAID wallet used pending by mint proofs for this transaction
+                        // if melt quote is UNPAID wallet used already pending by mint proofs for this transaction
                         // we do not want to return them to spendable but keep them pending
                         message = 'Pending proofs were used for this transaction, going to sync proofsToMeltFrom with the mint.'
                         taskResult.message = message
@@ -393,7 +401,7 @@ export const transferTask = async function (
                         })
                         
                         await WalletTask.syncStateWithMintTask({
-                            proofsToSync: proofsToMeltFrom,
+                            proofsToSync: proofsToMeltFrom, // includes some pending by mint proofs
                             mintUrl,
                             isPending: true
                         })
@@ -418,16 +426,25 @@ export const transferTask = async function (
                 })
             }
 
-            transactionData.push({
-                status: TransactionStatus.ERROR,
-                error: WalletUtils.formatError(e),
-                createdAt: new Date()
-            })
+            if(meltQuoteCheck && meltQuoteCheck.state === MeltQuoteState.PAID) {
 
-            transaction.update({
-                status: TransactionStatus.ERROR,
-                data: JSON.stringify(transactionData),
-            })
+                transactionData.push({
+                    status: TransactionStatus.RECOVERED,
+                    recoveredChangeAmount: recovered,
+                    error: WalletUtils.formatError(e),
+                    createdAt: new Date()
+                })
+
+                transaction.update({
+                    status: TransactionStatus.RECOVERED,
+                    data: JSON.stringify(transactionData),
+                })
+            } else {
+                transaction.update({
+                    status: TransactionStatus.ERROR,
+                    data: JSON.stringify(transactionData),
+                })
+            }
         }
 
         return taskResult

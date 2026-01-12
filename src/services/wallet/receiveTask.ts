@@ -119,6 +119,7 @@ export const receiveTask = async function (
         transaction.update({
             status: TransactionStatus.COMPLETED,
             data: JSON.stringify(transactionData),
+            keysetId: receivedProofs[0].id,
             outputToken,
             balanceAfter,
             ...(receivedAmount !== amountToReceive && {receivedAmount}),
@@ -328,7 +329,8 @@ export const receiveOfflineCompleteTask = async function (
         }
 
         const {             
-            receivedAmount, 
+            receivedAmount,
+            receivedProofs,
             outputToken,
             swapFeePaid,             
         } = await receiveSync(
@@ -352,6 +354,7 @@ export const receiveOfflineCompleteTask = async function (
         transaction.update({
             status: TransactionStatus.COMPLETED,
             data: JSON.stringify(transactionData),
+            keysetId: receivedProofs[0].id,
             outputToken,
             balanceAfter,
             ...(receivedAmount !== transaction.amount && {receivedAmount}),
@@ -496,6 +499,7 @@ export const receiveByCashuPaymentRequestTask = async function (
         transaction.update({
             status: TransactionStatus.COMPLETED,
             data: JSON.stringify(transactionData),
+            keysetId: receivedProofs[0].id,
             outputToken,
             balanceAfter,
             ...(receivedAmount !== amountToReceive && {receivedAmount}),

@@ -26,6 +26,7 @@ import { Proof } from './Proof'
 
 import { InFlightRequest, Mint } from './Mint'
 import { getRootStore } from './helpers/getRootStore'
+import { Transaction } from './Transaction'
 
 //refresh
 /* 
@@ -962,11 +963,11 @@ export const WalletStoreModel = types
                 return meltResponse
 
             } catch (e: any) {
-                // On error, keep the MeltPreview stored so we can attempt recovery later
-                log.error('[payLightningMelt] Melt failed, MeltPreview stored for recovery', {
-                    transactionId,
-                    error: e.message
-                })
+                if(!e.message.toLowerCase().includes('timeout') &&
+                   !e.message.toLowerCase().includes('network request failed')) {
+                  // remove only if it was not a timeout or network error
+                  currentCounter.removeMeltCounterValue(transactionId)
+                }   
 
                 let message = 'Lightning payment failed.'
                 if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
@@ -1011,37 +1012,38 @@ export const WalletStoreModel = types
           }
         }),
         recoverMeltQuoteChange: flow(function* recoverMeltQuoteChange(
-          mintUrl: string,
-          meltQuote: MeltQuoteBolt11Response,
-          transactionId: number
+          mintUrl: string,         
+          transaction: Transaction
         ) {
           try {
             const mintInstance = self.getMintModelInstance(mintUrl)
+            const transactionId = transaction.id            
 
-            if(!mintInstance) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
+            if(!mintInstance || !transaction.keysetId) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance or keysetId', {mintUrl, transactionId})
             }
 
-            const cashuWallet = yield self.getWallet(
-              mintUrl,
-              'sat',
-              {
-                  withSeed: true,
-              }
-            )
-
-            const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
-            const meltCounterValue = currentCounter.getMeltCounterValue(transactionId)
+            const currentCounter = mintInstance.getProofsCounterByKeysetId!(transaction.keysetId)
+            const meltCounterValue = currentCounter.getMeltCounterValue(transaction.id)
 
             if(!meltCounterValue) {
               throw new AppError(Err.VALIDATION_ERROR, 'Change already claimed - melt data not available for this transaction', {mintUrl, transactionId})
             }
 
-            const meltPreview = meltCounterValue.meltPreview
+            const meltPreview: MeltPreview = meltCounterValue.meltPreview
 
             if(!meltPreview) {
               throw new AppError(Err.VALIDATION_ERROR, 'MeltPreview not found - this transaction may be from an older version', {mintUrl, transactionId})
             }
+
+            const cashuWallet: CashuWallet = yield self.getWallet(
+                mintUrl, 
+                transaction.unit, 
+                {
+                    withSeed: true,
+                    keysetId: transaction.keysetId         
+                }
+            )
 
             // Use completeMelt with the stored MeltPreview to recover change
             const {change}: MeltProofsResponse = yield cashuWallet.completeMelt(meltPreview)

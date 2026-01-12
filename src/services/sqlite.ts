@@ -27,7 +27,7 @@ const normalizeTransactionRows = function(rows: any) {
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 23 // Update this if db changes require migrations
+const _dbVersion = 24 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -65,6 +65,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         unit TEXT,
         fee INTEGER,
         data TEXT,
+        keysetId TEXT,
         sentFrom TEXT,
         sentTo TEXT,
         profile TEXT,
@@ -203,6 +204,14 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
       log.info(`Prepared database migrations from ${currentVersion} -> 23`)
     }
 
+    if (currentVersion < 24) {
+      migrationQueries.push([
+        `ALTER TABLE transactions
+         ADD COLUMN keysetId TEXT` 
+      ])      
+      log.info(`Prepared database migrations from ${currentVersion} -> 24`)
+    }
+
     // Update db version as a part of migration sqls
     migrationQueries.push([
       `INSERT OR REPLACE INTO dbversion (id, version, createdAt)
@@ -291,7 +300,7 @@ const getDatabaseVersion = function (db: QuickSQLiteConnection): {version: numbe
 
 const updateTransaction = function (id: number, fields: Partial<Transaction>): Transaction {
 
-  const allowedColumns = ['amount','fee','unit','data','sentFrom','sentTo','profile','memo','paymentId','quote','paymentRequest','zapRequest','inputToken','outputToken','proof','balanceAfter','noteToSelf','tags','status','expiresAt'];
+  const allowedColumns = ['amount','fee','unit','data', 'keysetId', 'sentFrom','sentTo','profile','memo','paymentId','quote','paymentRequest','zapRequest','inputToken','outputToken','proof','balanceAfter','noteToSelf','tags','status','expiresAt'];
   
   try {
     // Filter keys against allowed columns
