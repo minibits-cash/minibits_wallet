@@ -1680,8 +1680,8 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                 tx.update({ outputToken })
               }
   
-              if (quote.payment_preimage) {
-                tx.update({ proof: quote.payment_preimage })
+              if (meltQuoteCheck.payment_preimage) {
+                tx.update({ proof: meltQuoteCheck.payment_preimage })
               }
   
               const inputAmount = CashuUtils.getProofsAmount(inFlight.request.proofsToSend)

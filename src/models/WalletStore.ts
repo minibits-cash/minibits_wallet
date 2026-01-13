@@ -28,7 +28,7 @@ import { InFlightRequest, Mint } from './Mint'
 import { getRootStore } from './helpers/getRootStore'
 import { Transaction } from './Transaction'
 
-//refresh
+
 /* 
    Not persisted, in-memory only model of the cashu-ts wallet instances and wallet keys persisted in the device secure store.
    It is instantiated on first use so that wallet retrieves fresh mint keysets, then cached, 
@@ -375,8 +375,8 @@ export const WalletStoreModel = types
         const cashuMint: CashuMint = yield self.getMint(mintUrl)
   
         try {
-          const {keysets} = yield cashuMint.getKeys() as Promise<GetKeysResponse> // all active keys
-          return keysets as MintKeys[]   
+          const {keysets: keys} = yield cashuMint.getKeys() as Promise<GetKeysResponse> // all active keys
+          return keys as MintKeys[]   
         } catch (e: any) {
           let message = 'Could not connect to the selected mint.'
           if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
@@ -1026,7 +1026,7 @@ export const WalletStoreModel = types
             const currentCounter = mintInstance.getProofsCounterByKeysetId!(transaction.keysetId)
             const meltCounterValue = currentCounter.getMeltCounterValue(transaction.id)
 
-            if(!meltCounterValue) {
+            if(!meltCounterValue || !meltCounterValue.meltPreview) {
               throw new AppError(Err.VALIDATION_ERROR, 'Change already claimed - melt data not available for this transaction', {mintUrl, transactionId})
             }
 
@@ -1078,32 +1078,32 @@ export const WalletStoreModel = types
             }
         ) {
             try {
-            const {indexFrom, indexTo, keysetId} = options
-            // need special wallet instance to pass seed and keysetId directly
-            const cashuMint = yield self.getMint(mintUrl)
-            
-            const seedWallet = new CashuWallet(cashuMint, {
-                unit: 'sat', // just use default unit as we restore by keyset  
-                keys: cashuMint.keys,
-                keysets: cashuMint.keysets,
-                keysetId,
-                bip39seed: seed
-            })
-    
-            const count = Math.abs(indexTo - indexFrom)          
-            
-            const {proofs} = yield seedWallet.restore(            
-                indexFrom,
-                count,
-                {keysetId}
-            )
-            
-        
-            log.info('[restore]', 'Number of recovered proofs', {proofs: proofs.length})
-        
-            return {
-                proofs: proofs || [] as Proof[]            
-            }
+              const {indexFrom, indexTo, keysetId} = options
+              // need special wallet instance to pass seed and keysetId directly
+              const cashuMint = yield self.getMint(mintUrl)
+              
+              const seedWallet = new CashuWallet(cashuMint, {
+                  unit: 'sat', // just use default unit as we restore by keyset  
+                  keys: cashuMint.keys,
+                  keysets: cashuMint.keysets,
+                  keysetId,
+                  bip39seed: seed
+              })
+      
+              const count = Math.abs(indexTo - indexFrom)          
+              
+              const {proofs} = yield seedWallet.restore(            
+                  indexFrom,
+                  count,
+                  {keysetId}
+              )
+              
+          
+              log.info('[restore]', 'Number of recovered proofs', {proofs: proofs.length})
+          
+              return {
+                  proofs: proofs || [] as Proof[]            
+              }
             } catch (e: any) {        
                 throw new AppError(Err.MINT_ERROR, CashuUtils.isObj(e.message) ? JSON.stringify(e.message) : e.message, {mintUrl})
             }

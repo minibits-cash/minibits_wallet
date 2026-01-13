@@ -182,8 +182,8 @@ export const MintsStoreModel = types
             // refresh up to date mint keys
             const newMint = new CashuMint(mintUrl)
             // get fresh keysets
-            const keySetResult: MintAllKeysets = yield newMint.getKeySets()
-            const keysResult: MintActiveKeys = yield newMint.getKeys()
+            const keySetResult: GetKeysetsResponse = yield newMint.getKeySets()
+            const keysResult: GetKeysResponse = yield newMint.getKeys()
             const {keysets} = keySetResult
             const {keysets: keys} = keysResult       
 

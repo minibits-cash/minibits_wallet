@@ -297,20 +297,30 @@ export const MintModel = types
             }            
         },
         setIsActive(freshKeyset: CashuMintKeyset) {
-            const keyset = self.keysets.find(k => k.id === freshKeyset.id)
+            const index = self.keysets.findIndex(k => k.id === freshKeyset.id)
 
-            if(keyset) {
-                keyset.active = freshKeyset.active
+            if(index !== -1) {
+                // Since keysets is a frozen array, we need to replace the entire keyset object
+                const updatedKeyset = {
+                    ...self.keysets[index],
+                    active: freshKeyset.active
+                }
+                self.keysets[index] = updatedKeyset
                 self.keysets = cast(self.keysets)
-            }            
+            }
         },
         setInputFeePpk(keysetId: string, inputFeePpk: number) {
-            const keyset = self.keysets.find(k => k.id === keysetId)
+            const index = self.keysets.findIndex(k => k.id === keysetId)
 
-            if(keyset) {
-                keyset.input_fee_ppk = inputFeePpk
+            if(index !== -1) {
+                // Since keysets is a frozen array, we need to replace the entire keyset object
+                const updatedKeyset = {
+                    ...self.keysets[index],
+                    input_fee_ppk: inputFeePpk
+                }
+                self.keysets[index] = updatedKeyset
                 self.keysets = cast(self.keysets)
-            }            
+            }
         },
         addKeys(keys: CashuMintKeys) {
             const alreadyExists = self.keys.some(k => k.id === keys.id)
@@ -415,16 +425,20 @@ export const MintModel = types
             const existing = self.keysets.find(k => k.id === keyset.id)
 
             if(existing) {
-                if (existing.unit !== keyset.unit) {                    
+                if (existing.unit !== keyset.unit) {
                     throw new AppError(
-                        Err.VALIDATION_ERROR, 
+                        Err.VALIDATION_ERROR,
                         `Keyset unit mismatch.`,
                         {caller: 'initKeyset', existingUnit: existing.unit, keysetUnit: keyset.unit}
-                    )                 
+                    )
                 }
 
                 if(keyset.input_fee_ppk && existing.input_fee_ppk !== keyset.input_fee_ppk) {
                     self.setInputFeePpk(existing.id, keyset.input_fee_ppk)
+                }
+
+                if(existing.active !== keyset.active) {
+                    self.setIsActive(keyset)
                 }
 
                 return existing
@@ -479,16 +493,16 @@ export const MintModel = types
         },
     }))
     .actions(self => ({
-        refreshKeysets(freshKeysets: CashuMintKeyset[]) {   
+        refreshKeysets(freshKeysets: CashuMintKeyset[]) {
             const mintsStore = getRootStore(self).mintsStore
             const allKeysetIds = mintsStore.allKeysetIds
 
             log.trace('[refreshKeysets]', {freshKeysets, allKeysetIds})
 
-            // add new keyset if not exists            
+            // add new keyset if not exists
             for (const keyset of freshKeysets) {
+                // initKeyset now handles active status updates internally
                 self.initKeyset(keyset, allKeysetIds)
-                self.setIsActive(keyset)
             }
         },
         refreshKeys(freshKeys: CashuMintKeys[]) {            
