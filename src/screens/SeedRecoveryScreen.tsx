@@ -72,7 +72,6 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
     const [endIndex, setEndIndex] = useState<number>(RESTORE_INDEX_INTERVAL) // end of interval
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<AppError | undefined>()
-    const [isErrorsModalVisible, setIsErrorsModalVisible] = useState(false)
     const [isIndexModalVisible, setIsIndexModalVisible] = useState(false)
     const [isKeysetModalVisible, setIsKeysetModalVisible] = useState(false)
     const [isRecoveryStarted, setIsRecoveryStarted] = useState(false)
@@ -80,7 +79,6 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     const [lastRecoveredAmount, setLastRecoveredAmount] = useState<number>(0)
     const [totalRecoveredAmount, setTotalRecoveredAmount] = useState<number>(0)
-    const [recoveryErrors, setRecoveryErrors] = useState<AppError[]>([])
     const [statusMessage, setStatusMessage] = useState<string>()
 
 
@@ -92,9 +90,6 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
     }
 
 
-    const toggleErrorsModal = () => {
-        setIsErrorsModalVisible(previousState => !previousState)
-    }
 
 
     const onConfirmMnemonic = async function () {
@@ -114,7 +109,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
             const binarySeed = mnemonicToSeedSync(mnemonic)            
 
             const seedHash = QuickCrypto.createHash('sha256')
-            .update(binarySeed.buffer as ArrayBuffer)
+            .update(binarySeed)
             .digest('hex')
 
             seedRef.current = binarySeed
@@ -180,12 +175,12 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
         setTimeout(() => doRecovery(), 100)        
     }
 
-    const doRecovery = async function () {        
-        let errors: AppError[] = []
+    const doRecovery = async function () {
+        let recoveryError: AppError | undefined = undefined
         let recoveredAmount: number = 0
-        let alreadySpentAmount: number = 0        
-        
-        const transactionData: TransactionData[] = []            
+        let alreadySpentAmount: number = 0
+
+        const transactionData: TransactionData[] = []
         let transaction: Transaction | undefined = undefined
 
         const pendingTransactionData: TransactionData[] = []
@@ -350,13 +345,14 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
             }
 
         } catch(e: any) {
-            
+
             if (selectedMintUrl) {
                 e.params = {mintUrl: selectedMintUrl}
             }
 
             log.error('[doRecovery]', {name: e.name, message: CashuUtils.isObj(e.message) ? JSON.stringify(e.message) : e.message, params: e.params})
-            errors.push({name: e.name, message: e.message, code: e.code || null}) // TODO this could now be single error as we do not loop anymore
+
+            recoveryError = {name: e.name, message: e.message, code: e.code || null, params: e.params}
 
             if (transaction) {
                 transactionData.push({
@@ -383,7 +379,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                     data: JSON.stringify(pendingTransactionData)
                 })
             }
-            setStatusMessage(undefined)                
+            setStatusMessage(undefined)
         }
         
 
@@ -397,32 +393,30 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
         if(recoveredAmount > 0) {
             const currency = getCurrency(selectedKeyset?.unit as MintUnit)
             setResultModalInfo({
-                status: TransactionStatus.COMPLETED, 
-                message: translate("recovery_recoveredResult", { 
+                status: TransactionStatus.COMPLETED,
+                message: translate("recovery_recoveredResult", {
                   formattedCurrency: formatCurrency(recoveredAmount, currency.code),
                   code: currency.code
                 })
             })
         } else {
-            if(errors.length > 0) {
+            if(recoveryError) {
                 setResultModalInfo({
-                    status: TransactionStatus.ERROR, 
-                    message: translate("recovery_resultErrors")
-                })            
-                setRecoveryErrors(errors)
+                    status: TransactionStatus.ERROR,
+                    message: recoveryError.message
+                })
             } else {
                 if(alreadySpentAmount > 0) {
                     setResultModalInfo({
-                        status: TransactionStatus.EXPIRED, 
+                        status: TransactionStatus.EXPIRED,
                         message: translate("recovery_resultSpent")
-                    }) 
+                    })
                 } else {
                     setResultModalInfo({
-                        status: TransactionStatus.EXPIRED, 
+                        status: TransactionStatus.EXPIRED,
                         message: translate("recovery_resultExpired")
-                    }) 
+                    })
                 }
-
             }
         }
 
@@ -706,28 +700,6 @@ return (
         onBackdropPress={toggleKeysetModal}
         />
         <BottomModal
-        isVisible={isErrorsModalVisible}
-        style={{alignItems: 'stretch'}}          
-        ContentComponent={
-            <>
-                {recoveryErrors?.map((err, index) => (
-                        <ListItem
-                            key={index}
-                            leftIcon='faTriangleExclamation'
-                            leftIconColor={colors.palette.angry500}                       
-                            text={err.message}
-                            subText={err.params ? err.params.mintUrl : ''}
-                            bottomSeparator={true}
-                            style={{paddingHorizontal: spacing.small}}
-                        />             
-                    )
-                )}
-            </>
-        }
-        onBackButtonPress={toggleErrorsModal}
-        onBackdropPress={toggleErrorsModal}
-        />
-        <BottomModal
         isVisible={isResultModalVisible ? true : false}          
         ContentComponent={
             <>
@@ -761,8 +733,8 @@ return (
                     <View style={$buttonContainer}>
                     <Button
                         preset="secondary"
-                        tx="showErrors"
-                        onPress={toggleErrorsModal}
+                        tx='commonClose'
+                        onPress={toggleResultModal}
                     />
                     </View>
                 </>

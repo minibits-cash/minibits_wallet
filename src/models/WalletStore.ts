@@ -1068,27 +1068,38 @@ export const WalletStoreModel = types
             )
           }
         }),
-        restore: flow(function* restore(  
-            mintUrl: string,    
+        restore: flow(function* restore(
+            mintUrl: string,
             seed: Uint8Array,
             options: {
             indexFrom: number,
-            indexTo: number,    
+            indexTo: number,
             keysetId: string
             }
         ) {
             try {
+              log.trace('[restore]', {mintUrl, options})
               const {indexFrom, indexTo, keysetId} = options
               // need special wallet instance to pass seed and keysetId directly
               const cashuMint = yield self.getMint(mintUrl)
-              
+
+              // get uptodate mint model from wallet state
+              const mintInstance = self.getMintModelInstance(mintUrl)
+              if(!mintInstance) {
+                throw new AppError(Err.NOTFOUND_ERROR, 'Mint not found in the wallet state.', {
+                  mintUrl
+                })
+              }
+
               const seedWallet = new CashuWallet(cashuMint, {
-                  unit: 'sat', // just use default unit as we restore by keyset  
-                  keys: cashuMint.keys,
-                  keysets: cashuMint.keysets,
+                  //unit: 'sat', // just use default unit as we restore by keyset
+                  keys: mintInstance.keys,
+                  keysets: mintInstance.keysets,
                   keysetId,
                   bip39seed: seed
               })
+
+              yield seedWallet.loadMint()
       
               const count = Math.abs(indexTo - indexFrom)          
               
