@@ -25,6 +25,13 @@ export const MnemonicInput = forwardRef<TextInput, MnemonicInputProps>((props, m
         onError
     } = props  
 
+    const cleanMnemonic = (text: string): string => {
+        return text
+            .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width chars
+            .replace(/\s+/g, ' ') // Normalize whitespace
+            .trim()
+    }
+
     const onPaste = async function () {
         try {
             const maybeMnemonic = await Clipboard.getString()
@@ -33,12 +40,14 @@ export const MnemonicInput = forwardRef<TextInput, MnemonicInputProps>((props, m
             throw new AppError(Err.VALIDATION_ERROR, translate('backupMissingMnemonicError'))
             }
 
-            const cleaned = maybeMnemonic.replace(/\s+/g, ' ').trim()
-            
-            setMnemonic(cleaned)
+            setMnemonic(cleanMnemonic(maybeMnemonic))
         } catch (e: any) {
             onError(e)
         }
+    }
+
+    const onMnemonicChange = (text: string) => {
+        setMnemonic(cleanMnemonic(text))
     }
 
     const numIconColor = useThemeColor('textDim')
@@ -77,7 +86,7 @@ export const MnemonicInput = forwardRef<TextInput, MnemonicInputProps>((props, m
             <>
             <TextInput
                 ref={mnemonicInputRef}
-                onChangeText={(mnemonic: string) => setMnemonic(mnemonic)}
+                onChangeText={onMnemonicChange}
                 value={mnemonic}
                 numberOfLines={3}
                 multiline={true}
