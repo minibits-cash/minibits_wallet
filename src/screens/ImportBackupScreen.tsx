@@ -15,25 +15,22 @@ import {
   Loading,
   ErrorModal,
   InfoModal,
-  BottomModal,
   Button,
   Header,  
 } from '../components'
 import AppError, { Err } from '../utils/AppError'
-import { Database, KeyChain, log, MinibitsClient } from '../services'
+import { Database, KeyChain, log } from '../services'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { rootStoreInstance, useStores } from '../models'
+import { useStores } from '../models'
 import {MnemonicInput} from './Recovery/MnemonicInput'
 import { MINIBITS_MINT_URL } from '@env'
 import { delay } from '../utils/utils'
 import { applySnapshot} from 'mobx-state-tree'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
-import { WalletProfileRecord } from '../models/WalletProfileStore'
 import { translate } from '../i18n'
-import { ProofsStoreSnapshot } from '../models/ProofsStore'
 import { MintsStoreSnapshot } from '../models/MintsStore'
 import { ContactsStoreSnapshot } from '../models/ContactsStore'
-import { CashuMint, MintActiveKeys } from '@cashu/cashu-ts'
+import { Mint as CashuMint, GetKeysResponse } from '@cashu/cashu-ts'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 import { Proof } from '../models/Proof'
 
@@ -185,7 +182,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
         // hydrate mint keys back to the backup as they are stripped from backup
         for (const mint of walletSnapshot.mintsStore.mints) {
           const cashuMint = new CashuMint(mint.mintUrl)
-          const keysResult: MintActiveKeys = await cashuMint.getKeys()
+          const keysResult: GetKeysResponse = await cashuMint.getKeys()
           const {keysets: keys} = keysResult
 
           for(const key of keys) {

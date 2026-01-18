@@ -8,7 +8,7 @@ import { WalletProfileRecord } from "../models/WalletProfileStore"
 import { CurrencyCode } from "./wallet/currency"
 import { rootStoreInstance } from "../models"
 import { AuthChallengeResponse, TokenPair, VerifyChallengeResponse } from "../models/AuthStore"
- // 
+ // refresh
 
 type MinibitsRequestArgs = {
 	method: 'POST' | 'PUT' | 'DELETE' | 'GET'
