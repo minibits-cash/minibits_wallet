@@ -10,7 +10,6 @@ import {
   Pressable,
   Linking,
   LayoutAnimation,
-  AppStateStatus,
   Platform,
 } from 'react-native'
 import {moderateScale, verticalScale} from '@gocodingnow/rn-size-matters'
@@ -220,6 +219,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
         const handleClaimTaskResult  = async (result: WalletTaskResult) => {
             log.trace('[handleClaimTaskResult]')
+            //isPerfromCheckRunningRef.current = false // allow performChecks to run again
             if(result.error && isOnlineRef.current) {
                 handleError(result.error)
             }
@@ -295,8 +295,13 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         })
     }
     
+    //const isPerfromCheckRunningRef = useRef(false)
+
     
     const performChecks = useCallback(async () => {
+        // Prevent overlapping runs when onFocus and AppState change happen together
+        //if (isPerfromCheckRunningRef.current) return
+        //isPerfromCheckRunningRef.current = true
 
         if(!isOnlineRef.current) { 
             log.trace('[isOnline] Offline → skipping performChecks')
@@ -313,7 +318,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             WalletTask.handlePendingQueue()
             await WalletTask.syncStateWithAllMintsQueueAwaitable({isPending: true})
             
-            // Avoid rate and claim calls enroll or refresh token race
+            // Avoid rate and claim calls to race refreshing tokens
             WalletTask.handleClaimQueue().then(() => {
                 if(userSettingsStore.exchangeCurrency) {
                     walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency!) 
@@ -343,15 +348,6 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     
 
     useEffect(() => {
-        /* const handleAppStateChange = (nextAppState: AppStateStatus) => {
-
-            if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-                log.trace('[handleAppStateChange] WalletScreen active again')
-                performChecks()
-                NostrClient.reconnectToRelays().catch(e => false)
-            }
-            appState.current = nextAppState
-        }*/
 
         const subscription = AppState.addEventListener('change', (nextState) => {
             if (nextState === 'background') {

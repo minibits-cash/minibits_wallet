@@ -443,7 +443,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 setIsOnline(isInternetReachable)
 
                 if(isInternetReachable) {
-                    setAvailableMintBalances([]) // or whatever your online default is
+                    setAvailableMintBalances([])
                     setInfo('') // clear any offline-specific messages
                 } else {
                     const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(1, unitRef.current)
@@ -464,31 +464,36 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
     const handleSyncStateResult = useCallback(
         async (result: SyncStateTaskResult) => {
-            log.trace('[SendScreen] handleSyncStateResult triggered', { result, transactionId });
+            log.trace('[SendScreen] handleSyncStateResult triggered', { result, transactionId })
 
             if (!transactionId) return;
 
-            const { completedTransactionIds, errorTransactionIds, transactionStateUpdates } = result;
+            const { completedTransactionIds, errorTransactionIds, transactionStateUpdates } = result
 
             if (completedTransactionIds?.includes(transactionId)) {
-                log.trace('[SendScreen] Ecash claimed successfully', { transactionId });
+                log.trace('[SendScreen] Ecash claimed successfully', { transactionId })
 
                 const amountSentInt = Math.round(
                     toNumber(amountToSend || '0') * getCurrency(unitRef.current).precision
                 );
-                const currency = getCurrency(unitRef.current);
+                const currency = getCurrency(unitRef.current)
 
-                setIsNostrDMModalVisible(false);
-                setIsProofSelectorModalVisible(false);
+                setIsNostrDMModalVisible(false)
+                
 
                 setResultModalInfo({
                     status: TransactionStatus.COMPLETED,
                     title: '🚀 That was fast!',
                     message: `${formatCurrency(amountSentInt, currency.code)} ${currency.code} were received by the payee.`,
                 });
-                setTransactionStatus(TransactionStatus.COMPLETED);
-                setIsResultModalVisible(true);
-                return;
+                
+                // Delay showing result modal to allow NostrDM modal to fully close
+                setTimeout(() => {
+                    setIsProofSelectorModalVisible(false)
+                    setTransactionStatus(TransactionStatus.COMPLETED)
+                    setIsResultModalVisible(true)
+                }, 500)
+                return
             }
 
             if (errorTransactionIds?.includes(transactionId)) {
@@ -506,7 +511,10 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     message,
                 });
                 setTransactionStatus(TransactionStatus.ERROR);
-                setIsResultModalVisible(true);
+                // Delay showing result modal to allow NostrDM modal to fully close
+                setTimeout(() => {
+                    setIsResultModalVisible(true);
+                }, 300);
             }
         },
         [
@@ -570,7 +578,10 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
        
     const toggleNostrDMModal = () => setIsNostrDMModalVisible(previousState => !previousState)
     const toggleProofSelectorModal = () => setIsProofSelectorModalVisible(previousState => !previousState)
-    const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
+    const toggleResultModal = () => {
+        log.warn('[toggleResultModal] start', isResultModalVisible)
+        setIsResultModalVisible(previousState => !previousState)
+    }
     const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previousState => !previousState)
     const togglePostModal = () => setIsPostModalVisible(previousState => !previousState)
 
