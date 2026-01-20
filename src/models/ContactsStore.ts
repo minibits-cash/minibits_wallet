@@ -73,15 +73,6 @@ import { MINIBITS_NIP05_DOMAIN } from '@env'
     
                 return contactInstance
             },
-            refreshPicture(pubkey: string) {
-                const contactInstance = self.findByPubkey(pubkey)
-                if (contactInstance) {
-                    contactInstance.refreshPicture()
-                    log.debug('[refreshPicture]', 'Contact picture refreshed in ContactsStore')
-                }
-
-                return contactInstance
-            },
             saveNote (pubkey: string, note: string) {              
                 const contactInstance = self.findByPubkey(pubkey)
                 if (contactInstance) {

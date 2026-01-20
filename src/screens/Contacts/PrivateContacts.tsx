@@ -318,12 +318,12 @@ export const PrivateContacts = observer(function (props: {
                     LeftAccessory={() => (
                         <Icon
                             icon='faPlus'
-                            size={spacing.large}
+                            size={spacing.medium}
                             color={mainButtonIcon}
                         />
                     )}
                     onPress={gotoNew}                        
-                    style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonNew]}
+                    // style={[{backgroundColor: mainButtonColor}, $buttonNew]}
                     preset='tertiary'
                     tx='buttonAdd'
                 />            
@@ -472,7 +472,7 @@ const $bottomContainer: ViewStyle = {
   }
   
   const $buttonNew: ViewStyle = {
-    borderRadius: verticalScale(60 / 2),
-    height: verticalScale(60),
-    minWidth: verticalScale(120),  
+    //borderRadius: verticalScale(60 / 2),
+    //height: verticalScale(40),
+    //minWidth: verticalScale(120),  
   } 

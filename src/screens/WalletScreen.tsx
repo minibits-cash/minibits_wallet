@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useState, useEffect, useCallback, useRef, ReactElement} from 'react'
+import React, {useState, useEffect, useCallback, useRef} from 'react'
 import {StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
 import {
   TextStyle,
@@ -14,7 +14,7 @@ import {
 } from 'react-native'
 import {moderateScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
-import { NavigationState, Route, TabBar, TabView } from 'react-native-tab-view'
+import { TabBar, TabView } from 'react-native-tab-view'
 import {useThemeColor, spacing, colors} from '../theme'
 import {
   Button,
@@ -35,8 +35,8 @@ import EventEmitter from '../utils/eventEmitter'
 import {useStores} from '../models'
 import {Mint, UnitBalance} from '../models/Mint'
 import {MintsByUnit} from '../models/MintsStore'
-import {Database, HANDLE_CLAIM_TASK, HANDLE_RECEIVED_EVENT_TASK, log, NostrClient, NotificationService, SyncQueue, WalletTaskResult} from '../services'
-import {Transaction, TransactionStatus} from '../models/Transaction'
+import {Database, HANDLE_CLAIM_TASK, HANDLE_RECEIVED_EVENT_TASK, log, NostrClient, WalletTaskResult} from '../services'
+import {TransactionStatus} from '../models/Transaction'
 import {TransactionListItem} from './Transactions/TransactionListItem'
 import {WalletTask} from '../services'
 import {translate} from '../i18n'
@@ -214,12 +214,12 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             log.trace('[handleReceivedEventTaskResult]')
             if(result.error && isOnlineRef.current) {
                 handleError(result.error)
-            }        
+            }      
         }
 
         const handleClaimTaskResult  = async (result: WalletTaskResult) => {
             log.trace('[handleClaimTaskResult]')
-            //isPerfromCheckRunningRef.current = false // allow performChecks to run again
+
             if(result.error && isOnlineRef.current) {
                 handleError(result.error)
             }
@@ -274,12 +274,6 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         }
     }
 
-
-    /* const handleClipboard = function (clipboard: string) {
-        log.trace('clipboard', clipboard, 'handleClipboard')
-    }*/
-    
-
     const gotoUpdate = function() {
         setIsUpdateModalVisible(false)
         //@ts-ignore
@@ -295,55 +289,66 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         })
     }
     
-    //const isPerfromCheckRunningRef = useRef(false)
+    const isPerformCheckRunningRef = useRef(false)
 
     
     const performChecks = useCallback(async () => {
         // Prevent overlapping runs when onFocus and AppState change happen together
-        //if (isPerfromCheckRunningRef.current) return
-        //isPerfromCheckRunningRef.current = true
+        if (isPerformCheckRunningRef.current) {
+            log.trace('[performChecks] Already running → skipping')
+            return
+        }
 
-        if(!isOnlineRef.current) { 
+        if(!isOnlineRef.current) {
             log.trace('[isOnline] Offline → skipping performChecks')
-            return 
+            return
         }
 
-        const nowInSec = getUnixTime(new Date());
-        log.trace('[performChecks] Start', { secsFromLastMintCheck: nowInSec - lastMintCheckRef.current})
+        isPerformCheckRunningRef.current = true
 
-        if (nowInSec - lastMintCheckRef.current > MINT_CHECK_INTERVAL) {
-            lastMintCheckRef.current = nowInSec
+        try {
+            const nowInSec = getUnixTime(new Date())
+            log.trace('[performChecks] Start', { secsFromLastMintCheck: nowInSec - lastMintCheckRef.current})
 
-            WalletTask.handleInFlightQueue()
-            WalletTask.handlePendingQueue()
-            await WalletTask.syncStateWithAllMintsQueueAwaitable({isPending: true})
-            
-            // Avoid rate and claim calls to race refreshing tokens
-            WalletTask.handleClaimQueue().then(() => {
-                if(userSettingsStore.exchangeCurrency) {
-                    walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency!) 
+            if (nowInSec - lastMintCheckRef.current > MINT_CHECK_INTERVAL) {
+                lastMintCheckRef.current = nowInSec
+
+                WalletTask.handleInFlightQueue()
+                WalletTask.handlePendingQueue()
+                await WalletTask.syncStateWithAllMintsQueueAwaitable({isPending: true})
+
+                // Await claim queue to complete API call before refreshing exchange rate
+                // (both may trigger token refresh, avoiding race condition)
+                try {
+                    await WalletTask.handleClaimQueue()
+                } catch(e: any) {
+                    if(isOnlineRef.current) handleError(e)
                 }
-            }).catch(e => {
-                if(isOnlineRef.current) handleError(e)
-            })
-            
-            // TODO rethink
-            const countByStatus = Database.getTransactionsCount()
-            if(countByStatus[TransactionStatus.PENDING] && countByStatus[TransactionStatus.PENDING] > 0) {
-                setPendingCount(countByStatus[TransactionStatus.PENDING] || 0)
-            }
-        } else {
-            log.trace('[performChecks] Skipping mint server checks...')
-        }
-     
 
-    }, [isOnlineRef.current, userSettingsStore.exchangeCurrency])
+                // Refresh exchange rate after claim API call completes
+                if(userSettingsStore.exchangeCurrency) {
+                    walletStore.refreshExchangeRate(userSettingsStore.exchangeCurrency)
+                }
+
+                const countByStatus = Database.getTransactionsCount()
+                if(countByStatus[TransactionStatus.PENDING] && countByStatus[TransactionStatus.PENDING] > 0) {
+                    setPendingCount(countByStatus[TransactionStatus.PENDING] || 0)
+                }
+            } else {
+                log.trace('[performChecks] Skipping mint server checks...')
+            }
+        } finally {
+            isPerformCheckRunningRef.current = false
+        }
+    }, [])
     
     
-    useFocusEffect(() => {
-        log.trace('[useFocusEffect] WalletScreen')
-        performChecks()
-    })
+    useFocusEffect(
+        useCallback(() => {
+            log.trace('[useFocusEffect] WalletScreen')
+            performChecks()
+        }, [performChecks])
+    )
 
     
 
@@ -532,57 +537,61 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
       setError(e)
     }
 
+    // Theme colors and derived state - declared before render functions that use them
+    const headerBg = useThemeColor('header')
+    const balances = proofsStore.balances
+    const screenBg = useThemeColor('background')
+    const mainButtonIcon = useThemeColor('mainButtonIcon')
+    const mainButtonColor = useThemeColor('card')
+    const label = useThemeColor('textDim')
+    const headerTitleColor = useThemeColor('headerTitle')
 
     const renderUnitTabs = function ({ route }: { route: { key: string } }) {
         const unitMints = groupedMints.find((mintUnit) => mintUnit.unit === route.key)
-                
-        // log.trace('[renderUnitTabs]', {unitMints, balance: balances.unitBalances.find((balance) => balance.unit === unitMints?.unit)})
-        // log.warn({balances})
-        
+
         if (unitMints?.mints && unitMints?.mints.length > 0) {
-            
             const unitBalance = balances.unitBalances.find((balance) => balance.unit === unitMints.unit)
             log.trace('[renderUnitTabs]', {unitBalance})
 
             if(unitBalance) {
+                const recentTransactions = transactionsStore.getRecentByUnit(unitMints.unit)
+
                 return (
                     <>
                         <View style={[
                             $headerContainer, {
-                                backgroundColor: headerBg, 
-                                //paddingTop: spacing.tiny,
-                                //borderWidth: 1
+                                backgroundColor: headerBg,
                             }
                         ]}>
-                            <UnitBalanceBlock                            
+                            <UnitBalanceBlock
                                 unitBalance={unitBalance}
                             />
-                            <Pressable                         
+                            <Pressable
                                 onPress={toggleMintsModal}
-                            >                        
-                                <MintsByUnitSummary 
+                            >
+                                <MintsByUnitSummary
                                     mintsByUnit={unitMints}
                                     navigation={navigation}
                                 />
                             </Pressable>
                         </View>
-                        <View style={$tabContainer}>                           
-                            {transactionsStore.getRecentByUnit(unitMints.unit).length > 0 ? (
-                                <Card                                    
-                                    ContentComponent={                                            
+                        <View style={$tabContainer}>
+                            {recentTransactions.length > 0 ? (
+                                <Card
+                                    ContentComponent={
                                         <FlatList
-                                            data={transactionsStore.getRecentByUnit(unitMints.unit) as Transaction[]}
-                                            renderItem={({item, index}) => {
-                                                return (
-                                                    <TransactionListItem
-                                                        key={item.id}
-                                                        transaction={item}
-                                                        isFirst={index === 0}
-                                                        isTimeAgoVisible={true}                                                
-                                                    />
-                                                )}
-                                            }                                        
-                                        />                                            
+                                            data={recentTransactions}
+                                            extraData={recentTransactions.map(t => `${t.id}-${t.status}`).join(',')}
+                                            keyExtractor={(item) => String(item.id)}
+                                            renderItem={({item, index}) => (
+                                                <TransactionListItem
+                                                    key={item.id}
+                                                    transaction={item}
+                                                    isFirst={index === 0}
+                                                    isTimeAgoVisible={true}
+                                                />
+                                            )}
+                                        />
                                     }
                                     style={[$card, {paddingVertical: spacing.extraSmall}]}
                                 />
@@ -617,21 +626,16 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     }
 
     const tabWidth = moderateScale(75)
-    
-    const getActiveTabColor = (state: NavigationState<Route>) => {
-        return useThemeColor('headerTitle')
-    }
 
-    const renderTabBar = (props: any) => {
+    const renderTabBar = useCallback((props: any) => {
         return(
             <View style={{
-                backgroundColor: headerBg, 
-                marginTop: -spacing.small, 
-                //borderWidth: 1,
+                backgroundColor: headerBg,
+                marginTop: -spacing.small,
             }}>
                 <View style={{width: routes.length * tabWidth, alignSelf: 'center', backgroundColor: headerBg}}>
-                    <TabBar                        
-                        {...props}                 
+                    <TabBar
+                        {...props}
                         tabStyle={{width: tabWidth}}
                         renderTabBarItem={({ route }) => (
                             <CurrencySign
@@ -639,14 +643,14 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                                 textStyle={{color: 'white'}}
                                 containerStyle={{padding: spacing.small, width: tabWidth}}
                             />
-                        )}                       
-                        indicatorStyle={{backgroundColor: getActiveTabColor(props.navigationState)}}                    
+                        )}
+                        indicatorStyle={{backgroundColor: headerTitleColor}}
                         style={{backgroundColor: headerBg, shadowColor: 'transparent'}}
                     />
                 </View>
             </View>
         )
-    }
+    }, [headerBg, routes.length, tabWidth, headerTitleColor])
 
 
     const HeaderTitle = function (props: any) {
@@ -680,14 +684,6 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     
         return undefined
     }
-    
-    const headerBg = useThemeColor('header')    
-    const balances = proofsStore.balances
-    const screenBg = useThemeColor('background')
-    const mainButtonIcon = useThemeColor('mainButtonIcon')
-    const mainButtonColor = useThemeColor('card')
-    const label = useThemeColor('textDim')
-    const headerTitleColor = useThemeColor('headerTitle')
 
     const isNwcVisible = nwcStore.all.some(c => c.remainingDailyLimit !== c.dailyLimit)
     const nwcCardsData = nwcStore.all.filter(c => c.remainingDailyLimit !== c.dailyLimit)
@@ -1245,13 +1241,6 @@ const $buttonReceive: ViewStyle = {
   height: verticalScale(55),
   marginLeft: verticalScale(-15), 
 }
-
-const $bottomModal: ViewStyle = {    
-    alignItems: 'center',  
-    paddingVertical: spacing.large,
-    paddingHorizontal: spacing.small,  
-}
-
 
 const $headerTitle: TextStyle = {
     paddingHorizontal: spacing.small,

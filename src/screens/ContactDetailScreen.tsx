@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useRef, useState} from 'react'
+import React, {FC, useEffect, useRef, useState} from 'react'
 import {Image, Platform, ScrollView, Share, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import { colors, spacing, useThemeColor} from '../theme'
 import {Icon, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, ListItem} from '../components'
@@ -18,6 +18,7 @@ import { translate } from '../i18n'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 import { toJS } from 'mobx'
 import FastImage from 'react-native-fast-image'
+import useIsInternetReachable from '../utils/useIsInternetReachable'
 
 type Props = StaticScreenProps<{
     contact: Contact
@@ -28,21 +29,44 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
     const {contact} = route.params
     const {contactsStore, userSettingsStore} = useStores()
     const noteInputRef = useRef<TextInput>(null)
+    const isInternetReachable = useIsInternetReachable()
 
-    useHeader({        
+    useHeader({
         leftIcon: 'faArrowLeft',
         onLeftPress: () => navigation.goBack(),
         rightIcon:  'faEllipsisVertical',
         onRightPress: () => toggleContactModal()
-    })    
-    
-       
-    const [isContactModalVisible, setIsContactModalVisible] = useState(false) 
-    const [isShareModalVisible, setIsShareModalVisible] = useState(false) 
+    })
+
+
+    const [isContactModalVisible, setIsContactModalVisible] = useState(false)
+    const [isShareModalVisible, setIsShareModalVisible] = useState(false)
     const [isNoteEditing, setIsNoteEditing] = useState(contact.noteToSelf ? false : true)
     const [note, setNote] = useState(contact.noteToSelf || '')
-    const [info, setInfo] = useState('')    
+    const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
+    const [syncStatus, setSyncStatus] = useState<'unknown' | 'synced' | 'not_synced'>('unknown')
+
+    // Check contact sync status on mount when online
+    useEffect(() => {
+        const verifyContact = async () => {
+            if (!isInternetReachable || contact.type !== ContactType.PRIVATE) {
+                return
+            }
+
+            try {
+                if (contact.nip05) {
+                    await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey)
+                }
+                setSyncStatus('synced')
+            } catch (e: any) {
+                log.warn('[ContactDetailScreen] Sync check failed', { error: e.message })
+                setSyncStatus('not_synced')
+            }
+        }
+
+        verifyContact()
+    }, [])
     
     const toggleContactModal = () => {
         setIsContactModalVisible(previousState => !previousState)
@@ -115,11 +139,21 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
         }, 100)
     }
 
-    const onCopyNpub = function () {        
+    const onCopyNpub = function () {
         try {
           Clipboard.setString(contact.npub)
         } catch (e: any) {
           setInfo(translate('commonCopyFailParam', { param: e.message }))
+        }
+    }
+
+    const onLightningAddressCopy = function () {
+        try {
+            if (contact.lud16) {
+                Clipboard.setString(contact.lud16)
+            }
+        } catch (e: any) {
+            setInfo(translate('commonCopyFailParam', { param: e.message }))
         }
     }
 
@@ -140,9 +174,8 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
         try {
             if(contact.nip05) {                
                 await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
+                contact.refreshPicture!()
             }
-
-            contactsStore.refreshPicture(contact.pubkey)
 
             toggleContactModal()            
             setInfo(translate("syncCompleted"))
@@ -193,19 +226,33 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
     
     return (
       <Screen contentContainerStyle={$screen} preset='fixed'>
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
-            {picture ? (
-                <View style={{borderRadius: 48, overflow: 'hidden'}}>
-                    <FastImage style={{width: 96, height: 96}} source={{uri: getImageSource(picture)}} />
-                </View>
-            ) : (
-                <Icon
-                    icon='faCircleUser'                                
-                    size={80}                    
-                    color={'white'}                
-                />
-            )}
-            <Text preset='bold' text={(nip05) ? nip05 : name} style={{color: 'white', marginBottom: spacing.small}} />          
+        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
+            <View style={$avatarContainer}>
+                {picture ? (
+                    <View style={{borderRadius: 48, overflow: 'hidden'}}>
+                        <FastImage style={{width: 96, height: 96}} source={{uri: getImageSource(picture)}} />
+                    </View>
+                ) : (
+                    <Icon
+                        icon='faCircleUser'
+                        size={80}
+                        color={'white'}
+                    />
+                )}
+                {type === ContactType.PRIVATE && syncStatus !== 'unknown' && (
+                    <View style={$syncStatusBadge}>
+                        <Icon
+                            icon={syncStatus === 'synced' ? 'faCheckCircle' : 'faTriangleExclamation'}
+                            size={20}
+                            color={syncStatus === 'synced' ? colors.palette.success200 : colors.palette.angry500}
+                        />
+                    </View>
+                )}
+            </View>
+            <View style={$rightContainer}>
+                <Text preset='bold' text={(nip05) ? nip05 : name} style={{color: 'white', marginBottom: spacing.small}} />
+                          
+            </View>
         </View>
         <ScrollView style={$contentContainer}>
             {type === ContactType.PUBLIC ? (
@@ -270,10 +317,18 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
                 labelStyle={{marginTop: spacing.small}}                
                 ContentComponent={
                     <>                        
-                        <ListItem                                    
-                                text={lud16}                                
+                        <ListItem
+                                text={lud16}
                                 leftIcon='faBolt'
-                                leftIconColor={colors.palette.orange200}                          
+                                leftIconColor={colors.palette.orange200}
+                                RightComponent={
+                                    <Icon
+                                        icon='faCopy'
+                                        size={spacing.medium}
+                                        color={iconNpub}
+                                        onPress={onLightningAddressCopy}
+                                    />
+                                }
                         />                        
                         <ListItem                                                                
                             LeftComponent={
@@ -302,7 +357,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
             )}            
         </ScrollView>
         <View style={[$bottomContainer]}>
-            {type === ContactType.PUBLIC &&  contact.nip05 && (                
+            {/*type === ContactType.PUBLIC &&  contact.nip05 && (                
                 <Button
                     tx="saveContactPrivate"   
                     style={{marginLeft: spacing.small, alignSelf: 'center', minHeight: verticalScale(20)}}
@@ -310,7 +365,7 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
                     onPress={saveToPrivateContacts}
                     preset='tertiary'                    
                 />
-            )}
+            )*/}
             <View style={$buttonContainer}>
                 {contact.nip05 ? (
                     <Button
@@ -403,6 +458,19 @@ const $headerContainer: TextStyle = {
     alignItems: 'center',
     paddingHorizontal: spacing.medium,
     height: spacing.screenHeight * 0.20,
+}
+
+const $avatarContainer: ViewStyle = {
+    position: 'relative',
+}
+
+const $syncStatusBadge: ViewStyle = {
+    position: 'absolute',
+    bottom: -10,
+    right: -10,
+    // backgroundColor: 'white',
+    // borderRadius: 12,
+    // padding: 2,
 }
 
 const $contentContainer: TextStyle = {

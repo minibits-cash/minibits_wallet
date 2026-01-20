@@ -29,8 +29,10 @@ export const ContactModel = types
     })
     .actions(self => ({
         refreshPicture() {
-            const cleaned = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + self.pubkey // remove refresh suffix            
-            self.picture = cleaned + '?r=' + Math.floor(Math.random() * 100) // force url refresh            
+            if(self.nip05 && self.nip05.includes(MINIBITS_NIP05_DOMAIN)) {
+                const cleaned = MINIBITS_SERVER_API_HOST + '/profile/avatar/' + self.pubkey // remove refresh suffix            
+                self.picture = cleaned + '?r=' + Math.floor(Math.random() * 100) // force url refresh      
+            }    
         },
         setNoteToSelf(note: string) {
             self.noteToSelf = note        

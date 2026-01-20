@@ -27,7 +27,7 @@ import { Proof } from './Proof'
 import { InFlightRequest, Mint } from './Mint'
 import { getRootStore } from './helpers/getRootStore'
 import { Transaction } from './Transaction'
-
+// refresh
 
 /* 
    Not persisted, in-memory only model of the cashu-ts wallet instances and wallet keys persisted in the device secure store.
