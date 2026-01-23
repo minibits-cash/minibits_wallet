@@ -142,7 +142,8 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
 
         if(isLocked) {
           const lockedToPK = CashuUtils.getP2PKPubkeySecret(decoded.proofs[0].secret)
-          isLockedToWallet = lockedToPK === '02' + (await NostrClient.getNostrKeys()).publicKey          
+          const keys = await walletStore.getCachedWalletKeys()
+          isLockedToWallet = lockedToPK === '02' + keys.NOSTR.publicKey
         }
 
         log.trace('decoded token', {decoded, isLocked, isLockedToWallet})

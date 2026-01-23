@@ -76,12 +76,14 @@ export const WalletProfileStoreModel = types
                 }
                 
                 const relaysToPublish: string[]  = relaysStore.allUrls
+                const keys: NostrKeyPair = (yield rootStore.walletStore.getCachedWalletKeys() as Promise<any>).NOSTR
 
                 log.debug('[publishToRelays]', 'Publish profile to relays', {profileEvent, relaysToPublish})
 
                 const publishedEvent: Event | undefined = yield NostrClient.publish(
                     profileEvent,
-                    relaysToPublish                    
+                    relaysToPublish,
+                    keys
                 )
                 
                 return publishedEvent

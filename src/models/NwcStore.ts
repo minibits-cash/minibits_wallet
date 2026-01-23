@@ -26,7 +26,7 @@ import AppError, { Err } from '../utils/AppError'
 import { LightningUtils } from '../services/lightning/lightningUtils'
 import { addSeconds } from 'date-fns/addSeconds'
 import { Transaction, TransactionStatus, TransactionType } from './Transaction'
-import { MeltQuoteResponse } from '@cashu/cashu-ts'
+import { MeltQuoteBolt11Response } from '@cashu/cashu-ts'
 import { WalletStore } from './WalletStore'
 import { ProofsStore } from './ProofsStore'
 import { isSameDay } from 'date-fns/isSameDay'
@@ -165,9 +165,13 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         // eventInFlight.pubkey should = connectionPubkey
         log.trace('Encrypt response', {connectionPubkey: self.connectionPubkey, requestEventPubkey: requestEvent.pubkey})
 
+        const walletStore = self.getWalletStore()
+        const keys: NostrKeyPair = (yield walletStore.getCachedWalletKeys()).NOSTR
+
         const encryptedContent = yield NostrClient.encryptNip04(
-            requestEvent.pubkey,          
-            JSON.stringify(nwcResponse)
+            requestEvent.pubkey,
+            JSON.stringify(nwcResponse),
+            keys
         )
 
         const responseEvent: NostrUnsignedEvent = {
@@ -216,7 +220,8 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         yield NostrClient.publish(
             responseEvent,
             self.connectionRelays,
-            false                    
+            keys,
+            false
         )    
     }),
     payInvoice: flow(function* payInvoice(nwcRequest: NwcRequest, encodedInvoice: string, requestEvent: NostrEvent) {
@@ -268,7 +273,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 } as NwcError
             }
             
-            const meltQuote: MeltQuoteResponse = yield walletStore.createLightningMeltQuote(
+            const meltQuote: MeltQuoteBolt11Response = yield walletStore.createLightningMeltQuote(
                 mintBalance.mintUrl,
                 'sat',
                 encodedInvoice,
@@ -365,7 +370,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         )
 
         // TODO barebones implementation, no paging commands support
-        const transactions = lightningTransactions.map(t => {
+        const transactions = lightningTransactions.map((t: Transaction) => {
             return {                
                 type: t.type === TransactionType.TOPUP ? 'incoming' : 'outgoing',
                 invoice: t.paymentRequest,
@@ -555,13 +560,16 @@ export const NwcConnectionModel = types.model('NwcConnection', {
     })
 }))
 .actions(self => ({
-    handleNwcRequestTask: flow(function* handleNwcRequestTask(requestEvent: NostrEvent, decryptedNwcRequest?: NwcRequest) {        
+    handleNwcRequestTask: flow(function* handleNwcRequestTask(requestEvent: NostrEvent, decryptedNwcRequest?: NwcRequest) {
         let nwcRequest: NwcRequest
         if(!decryptedNwcRequest) {
-            
+            const walletStore = self.getWalletStore()
+            const keys: NostrKeyPair = (yield walletStore.getCachedWalletKeys()).NOSTR
+
             const decryptedContent = yield NostrClient.decryptNip04(
-                requestEvent.pubkey, 
-                requestEvent.content
+                requestEvent.pubkey,
+                requestEvent.content,
+                keys
             )
 
             nwcRequest = JSON.parse(decryptedContent)
@@ -708,16 +716,22 @@ export const NwcStoreModel = types
                 const infoEvent: NostrUnsignedEvent = {
                     kind: NWCWalletInfo,
                     pubkey: newConnection.walletPubkey,
-                    tags: [],                        
+                    tags: [],
                     content: self.supportedMethods.join(' '),
-                    created_at: Math.floor(Date.now() / 1000)                              
+                    created_at: Math.floor(Date.now() / 1000)
                 }
 
-                NostrClient.publish(
-                    infoEvent,
-                    newConnection.connectionRelays,
-                    false                    
-                )
+                // Fire and forget - publish without waiting
+                ;(async () => {
+                    const rootStore = getRootStore(self)
+                    const keys: NostrKeyPair = (await rootStore.walletStore.getCachedWalletKeys()).NOSTR
+                    NostrClient.publish(
+                        infoEvent,
+                        newConnection.connectionRelays,
+                        keys,
+                        false
+                    )
+                })()
             }
         }),        
         removeConnection(connectionToRemove: NwcConnection) {

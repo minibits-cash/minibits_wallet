@@ -2254,7 +2254,8 @@ const handleClaimTask = async function (params: {
         }
 
         const encryptedToken = claimedToken.token
-        const encodedToken = await NostrClient.decryptNip04(MINIBIT_SERVER_NOSTR_PUBKEY, encryptedToken)
+        const keys = (await walletStore.getCachedWalletKeys()).NOSTR
+        const encodedToken = await NostrClient.decryptNip04(MINIBIT_SERVER_NOSTR_PUBKEY, encryptedToken, keys)
 
         log.debug('[handleClaimTask] decrypted token', {encodedToken})
 
@@ -2427,18 +2428,19 @@ const receiveEventsFromRelaysQueue = async function (): Promise<void> {
     }
 }
 
-const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Promise<WalletTaskResult> {    
+const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Promise<WalletTaskResult> {
     try {
         let directMessageEvent: NostrEvent | UnsignedEvent | undefined = undefined
         let decryptedMessage: string | undefined = undefined
-         
+        const keys = (await walletStore.getCachedWalletKeys()).NOSTR
+
         if (encryptedEvent.kind === EncryptedDirectMessage) {
             directMessageEvent = encryptedEvent
-            decryptedMessage = await NostrClient.decryptNip04(encryptedEvent.pubkey, encryptedEvent.content)
+            decryptedMessage = await NostrClient.decryptNip04(encryptedEvent.pubkey, encryptedEvent.content, keys)
         }
 
         if (encryptedEvent.kind === GiftWrap) {
-            directMessageEvent = await NostrClient.decryptDirectMessageNip17(encryptedEvent)
+            directMessageEvent = await NostrClient.decryptDirectMessageNip17(encryptedEvent, keys)
             decryptedMessage = directMessageEvent.content
         }
 

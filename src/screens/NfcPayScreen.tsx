@@ -117,7 +117,7 @@ const SYNC_STATE_WITH_MINT_TIMEOUT = 10 * 1000
 
 export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const navigation = useNavigation<any>()
-    const { mintsStore, walletStore, proofsStore, transactionsStore } = useStores()
+    const { mintsStore, walletStore, proofsStore, transactionsStore, walletProfileStore } = useStores()
     const unitRef = useRef<MintUnit>('sat')
     const isOnline = useRef<boolean>(true)
 
@@ -601,10 +601,13 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 proofs: decodedTokenToSend.proofs,
             })
         
-            const sentEvent = await NostrClient.encryptAndSendDirectMessageNip17(                
-                pubkey, 
+            const keys = await walletStore.getCachedWalletKeys()
+            const sentEvent = await NostrClient.encryptAndSendDirectMessageNip17(
+                pubkey,
                 messageContent,
-                relays
+                relays,
+                keys.NOSTR,
+                walletProfileStore.nip05
             )
 
             if(!sentEvent) {

@@ -932,10 +932,13 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 })
             }
 
-            const sentEvent = await NostrClient.encryptAndSendDirectMessageNip17(                
-                contactToSendTo.pubkey, 
+            const keys = await walletStore.getCachedWalletKeys()
+            const sentEvent = await NostrClient.encryptAndSendDirectMessageNip17(
+                contactToSendTo.pubkey,
                 messageContent!,
-                relaysToShareTo
+                relaysToShareTo,
+                keys.NOSTR,
+                walletProfileStore.nip05
             )
             
             setIsNostrDMSending(false)

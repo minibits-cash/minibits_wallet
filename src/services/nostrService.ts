@@ -19,7 +19,6 @@ import {NostrKeyPair} from './keyChain'
 import {log} from './logService'
 import AppError, { Err } from '../utils/AppError'
 import { MinibitsClient } from './minibitsService'
-import { rootStoreInstance } from '../models'
 import { WalletTask } from './walletService'
 import { Relay } from 'nostr-tools/relay'
 
@@ -60,8 +59,6 @@ const _searchRelays: string[] = ['wss://relay.nostr.band', 'wss://relay.noswhere
 
 let _pool: any = undefined
 
-const {walletProfileStore, nwcStore, walletStore} = rootStoreInstance
-
 const getRelayPool = function () {
     if(!_pool) {
         _pool = new SimplePool()
@@ -88,12 +85,12 @@ const getAllRelays = function () {
     return [..._minibitsRelays, ..._defaultPublicRelays].map(url => getNormalizedRelayUrl(url))  
 }
 
-const getNostrKeys = async function () {
-    const keys = await walletStore.getCachedWalletKeys()
-    return keys.NOSTR
+export type ReconnectToRelaysOptions = {
+    hasDeviceId: boolean
+    onReconnect?: () => void
 }
 
-const reconnectToRelays = async function () {
+const reconnectToRelays = async function (options: ReconnectToRelaysOptions) {
     const pool = getRelayPool()
     const connections = pool.listConnectionStatus()
 
@@ -101,22 +98,22 @@ const reconnectToRelays = async function () {
 
     let isRefreshSubNeeded: boolean = false
 
-    for (const conn of Array.from(connections)) {        
+    for (const conn of Array.from(connections)) {
         if(conn[1] === false) {
             pool.ensureRelay(conn[0])
             isRefreshSubNeeded = true
         }
-    }  
+    }
 
     // recreate subscriptions if all relays down
     if(isRefreshSubNeeded) {
         log.trace('[reconnectToRelays] Refreshing Nostr subscriptions')
         WalletTask.receiveEventsFromRelaysQueue().catch(e => false)
 
-        if(!walletProfileStore.device) {
-            nwcStore.listenForNwcEvents()
+        if(!options.hasDeviceId && options.onReconnect) {
+            options.onReconnect()
         }
-    }     
+    }
 }
 
 
@@ -191,13 +188,13 @@ const encodeNprofile = function (pubkey: string, relays: string[] = []): string 
 }*/
 
 
-const encryptNip04 = async function (    
-    receiverPubkey: string, 
-    content: string
+const encryptNip04 = async function (
+    receiverPubkey: string,
+    content: string,
+    keys: NostrKeyPair
 ): Promise<string> {
     try {
-        const keys: NostrKeyPair = await getNostrKeys()
-        const encryptedContent = await encrypt(keys.privateKey, receiverPubkey, content)        
+        const encryptedContent = await encrypt(keys.privateKey, receiverPubkey, content)
 
         return encryptedContent
 
@@ -208,11 +205,10 @@ const encryptNip04 = async function (
 
 
 const decryptNip04 = async function(
-    senderPubKey: string,    
-    encryptedContent: string
+    senderPubKey: string,
+    encryptedContent: string,
+    keys: NostrKeyPair
 ): Promise<string> {
-
-    const  keys: NostrKeyPair = await getNostrKeys()
     const decryptedContent = await decrypt(keys.privateKey, senderPubKey, encryptedContent)
 
     log.trace('[decryptNip04]', {decryptedContent})
@@ -224,14 +220,14 @@ const decryptNip04 = async function(
 const encryptAndSendDirectMessageNip17 = async function (
     recipientPublicKey: string,
     message: string,
-    relays: string[]    
+    relays: string[],
+    keys: NostrKeyPair,
+    senderNip05: string
 ) {
-
-    const  keys: NostrKeyPair = await getNostrKeys()
     const directMessageEvent: NostrEventTemplate = {
         created_at: Math.ceil(Date.now() / 1000),
         kind: PrivateDirectMessage,
-        tags: [['p', recipientPublicKey], ['from', walletProfileStore.nip05]],
+        tags: [['p', recipientPublicKey], ['from', senderNip05]],
         content: message,
     }
 
@@ -264,11 +260,10 @@ const encryptAndSendDirectMessageNip17 = async function (
 
 
 const decryptDirectMessageNip17 = async function (
-    wrappedEvent: NostrEvent
-) {    
-    const  keys: NostrKeyPair = await getNostrKeys()
-    
-    // log.trace('[decryptDirectMessageNip59]', {keys}) 
+    wrappedEvent: NostrEvent,
+    keys: NostrKeyPair
+) {
+    // log.trace('[decryptDirectMessageNip59]', {keys})
 
     const decryptedEvent = unwrapEvent(
         wrappedEvent,
@@ -284,12 +279,10 @@ const decryptDirectMessageNip17 = async function (
 const publish = async function (
     event: NostrUnsignedEvent,
     relays: string[],
-    retrievePublishedEvent: boolean = true    
+    keys: NostrKeyPair,
+    retrievePublishedEvent: boolean = true
 ): Promise<NostrEvent | void> {
     try{
-
-        const  keys: NostrKeyPair = await getNostrKeys()
-        
         const privateKeyBytes = hexToBytes(keys.privateKey)
         const finalEvent = finalizeEvent(event, privateKeyBytes)
 
@@ -620,12 +613,11 @@ const findZapRequest = function (message: string): string | undefined {
 
 
 export const NostrClient = { // TODO split helper functions to separate module
-    getRelayPool,        
+    getRelayPool,
     getDefaultRelays,
     getMinibitsRelays,
     getSearchRelays,
     getAllRelays,
-    getNostrKeys,
     reconnectToRelays,
     getNpubkey,
     getHexkey,

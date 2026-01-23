@@ -370,7 +370,10 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 // Real foreground – run your normal logic (e.g., unlock check, etc.)
                 log.trace('[handleAppStateChange] WalletScreen active again')
                 performChecks()
-                NostrClient.reconnectToRelays().catch(e => false)
+                NostrClient.reconnectToRelays({
+                    hasDeviceId: !!walletProfileStore.device,
+                    onReconnect: () => nwcStore.listenForNwcEvents()
+                }).catch(e => false)
             }
         })
     

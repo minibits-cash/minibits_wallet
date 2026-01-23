@@ -262,20 +262,22 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
 }
 
 const _getRemoteData = async function(remoteMessage: FirebaseMessagingTypes.RemoteMessage) {
-   
+
     const {encrypted} = remoteMessage.data!
 
     if (!encrypted) {
-        throw new AppError(Err.VALIDATION_ERROR, 'Unknown remote message data received', {data: remoteMessage.data})            
+        throw new AppError(Err.VALIDATION_ERROR, 'Unknown remote message data received', {data: remoteMessage.data})
     }
 
+    const {walletStore} = rootStoreInstance
+    const keys = (await walletStore.getCachedWalletKeys()).NOSTR
     const serverPubkey = MINIBIT_SERVER_NOSTR_PUBKEY
-    const decrypted = await NostrClient.decryptNip04(serverPubkey, encrypted as string)
+    const decrypted = await NostrClient.decryptNip04(serverPubkey, encrypted as string, keys)
 
     if (!decrypted) {
         throw new AppError(Err.VALIDATION_ERROR, 'Unknown remote message data received', {data: remoteMessage.data})
     }
-    
+
     return JSON.parse(decrypted)
 }
 

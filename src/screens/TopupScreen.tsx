@@ -501,10 +501,13 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
           content = content + `Memo: ${memo}`
         }
 
-        const sentEvent = await NostrClient.encryptAndSendDirectMessageNip17(                
-          receiverPubkey as string, 
+        const keys = await walletStore.getCachedWalletKeys()
+        const sentEvent = await NostrClient.encryptAndSendDirectMessageNip17(
+          receiverPubkey as string,
           content as string,
-          relaysToShareTo
+          relaysToShareTo,
+          keys.NOSTR,
+          walletProfileStore.nip05
         )
 
         setIsNostrDMSending(false)
