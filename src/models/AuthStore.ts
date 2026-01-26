@@ -1,7 +1,6 @@
 import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
 import {JwtTokens, KeyChain, log, MinibitsClient, NostrEvent, NostrKeyPair, NostrUnsignedEvent} from '../services'
 import AppError, { Err } from '../utils/AppError'
-import { MINIBITS_SERVER_API_HOST } from '@env'
 import { finalizeEvent, getEventHash, verifyEvent } from 'nostr-tools/pure'
 import { hexToBytes } from '@noble/hashes/utils'
 import { decodeJwtExpiry } from '../utils/authUtils'

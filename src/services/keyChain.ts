@@ -1,18 +1,21 @@
 import * as _Keychain from 'react-native-keychain'
 import AppError, {Err} from '../utils/AppError'
 import QuickCrypto from 'react-native-quick-crypto'
-import { generateMnemonic as generateNewMnemonic, mnemonicToSeedSync } from "@scure/bip39"
 import { wordlist } from "@scure/bip39/wordlists/english"
+
+import * as bip39 from '@scure/bip39'
+
 import { bytesToHex } from '@noble/hashes/utils'
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
+import { accountFromSeedWords } from 'nostr-tools/nip06'
 import {log} from './logService'
 import { getRandomUsername } from '../utils/usernames'
 
+// Default account index for NIP-06 derivation (future multi-account support)
+const DEFAULT_NOSTR_ACCOUNT_INDEX = 0
+
 
 export enum KeyChainServiceName {  
-  // NOSTR = 'app.minibits.nostr',
-  // SEED = 'app.minibits.seed',
-  // MNEMONIC = 'app.minibits.mnemonic',
   BIOMETRIC_AUTH = 'app.minibits.auth',
   KEYS = 'app.minibits.keys',
   JWT_TOKENS = 'app.minibits.jwt',
@@ -55,28 +58,13 @@ const getSupportedBiometryType = async function () {
 }
 
 
-const generateMnemonic = function () {
-    try {
-        log.trace('[generateMnemonic]', 'start')
-
-        const mnemonic = generateNewMnemonic(wordlist)
-
-        log.trace('[generateMnemonic]', 'New mnemonic created:', {mnemonic})
-
-        return mnemonic
-    } catch (e: any) {
-      throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
-    }
-}
-
-
 const generateNostrKeyPair = function () {
   try {
       const privateKeyBytes = generateSecretKey() // Uint8Array
       const privateKey = bytesToHex(privateKeyBytes)
       const publicKey = getPublicKey(privateKeyBytes)
 
-      log.trace('New Nostr keypair created', {publicKey, privateKey})
+      log.trace('New random Nostr keypair created', {publicKey, privateKey})
 
       return {publicKey, privateKey} as NostrKeyPair
   } catch (e: any) {
@@ -85,17 +73,80 @@ const generateNostrKeyPair = function () {
 }
 
 
-const generateWalletKeys = function () {
+/**
+ * Derive Nostr keypair from mnemonic using NIP-06
+ * Uses BIP-32 derivation path: m/44'/1237'/{accountIndex}'/0/0
+ *
+ * @param mnemonic BIP-39 mnemonic phrase
+ * @param accountIndex Account index for derivation (default 0, for future multi-account support)
+ */
+const deriveNostrKeyPair = function (
+  mnemonic: string,
+  accountIndex: number = DEFAULT_NOSTR_ACCOUNT_INDEX
+): NostrKeyPair {
   try {
-      const mnemonic = generateMnemonic()
-      const seedBytesArray = mnemonicToSeedSync(mnemonic)
+      const { privateKey: privateKeyBytes, publicKey } = accountFromSeedWords(
+        mnemonic,
+        '', // No passphrase
+        accountIndex
+      )
+      const privateKey = bytesToHex(privateKeyBytes)
+
+      log.trace('[deriveNostrKeyPair] Nostr keypair derived from mnemonic', {publicKey, accountIndex})
+
+      return { publicKey, privateKey }
+  } catch (e: any) {
+    throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
+  }
+}
+
+
+/**
+ * Check if the wallet's Nostr keys are derived from the mnemonic (NIP-06)
+ * Returns true if keys match, false if they are legacy random keys
+ *
+ * @param walletKeys The wallet keys to check
+ */
+const areNostrKeysDerived = function (walletKeys: WalletKeys): boolean {
+  try {
+      const { NOSTR, SEED } = walletKeys
+
+      if (!SEED?.mnemonic || !NOSTR?.publicKey) {
+        return false
+      }
+
+      // Derive what the keys should be from the mnemonic
+      const derivedKeys = deriveNostrKeyPair(SEED.mnemonic)
+
+      // Compare with stored keys
+      const isDerived = derivedKeys.publicKey === NOSTR.publicKey
+
+      log.trace('[areNostrKeysDerived]', { isDerived, storedPubkey: NOSTR.publicKey, derivedPubkey: derivedKeys.publicKey })
+
+      return isDerived
+  } catch (e: any) {
+      log.error('[areNostrKeysDerived] Error checking keys', e)
+      return false
+  }
+}
+
+
+const generateWalletKeys = function (accountIndex: number = DEFAULT_NOSTR_ACCOUNT_INDEX) {
+  try {
+      const mnemonic = bip39.generateMnemonic(wordlist)
+      log.trace('[generateMnemonic]', 'New mnemonic created:', {mnemonic})
+
+      const seedBytesArray = bip39.mnemonicToSeedSync(mnemonic)
       const seed = Buffer.from(seedBytesArray).toString('base64')
       log.trace('[generateWalletKeys] Seed generated from mnemonic (base64)', {seed})
+
       const seedHash = QuickCrypto
       .createHash('sha256')
       .update(seedBytesArray)
       .digest('hex')
-      const nostrKeys = generateNostrKeyPair()
+
+      // Derive Nostr keys from mnemonic using NIP-06 (BIP-32 derivation path m/44'/1237'/{account}'/0/0)
+      const nostrKeys = deriveNostrKeyPair(mnemonic, accountIndex)
       const walletId = getRandomUsername()
 
       const walletKeys: WalletKeys = {
@@ -114,11 +165,12 @@ const generateWalletKeys = function () {
       log.trace('[generateWalletKeys] New keys', {walletKeys})
 
       return walletKeys
-      
+
   } catch (e: any) {
     throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
   }
 }
+
 
 /**
  * Save wallet keys in KeyChain/KeyStore
@@ -428,9 +480,9 @@ const removeJwtTokens = async function (): Promise<boolean> {
 
 export const KeyChain = {
     getSupportedBiometryType,
-    
-    generateMnemonic,
     generateNostrKeyPair,
+    deriveNostrKeyPair,
+    areNostrKeysDerived,
     generateWalletKeys,
     saveWalletKeys,
     getWalletKeys,

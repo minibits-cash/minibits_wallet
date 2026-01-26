@@ -48,6 +48,7 @@ export const WalletProfileStoreModel = types
                 
                 if(!hasKeys) {
                     log.debug('[publishToRelays] Profile will not be published to relays, wallet keys not yet available.')
+                    return
                 }
 
                 const {pubkey, name, picture, nip05, lud16} = self
@@ -76,7 +77,7 @@ export const WalletProfileStoreModel = types
                 }
                 
                 const relaysToPublish: string[]  = relaysStore.allUrls
-                const keys: NostrKeyPair = (yield rootStore.walletStore.getCachedWalletKeys() as Promise<any>).NOSTR
+                const keys: NostrKeyPair = (yield KeyChain.getWalletKeys()).NOSTR
 
                 log.debug('[publishToRelays]', 'Publish profile to relays', {profileEvent, relaysToPublish})
 
@@ -90,8 +91,9 @@ export const WalletProfileStoreModel = types
                 
             } catch (e: any) {     
                 // on profile creation / recovery this fails at first as nostr keys are not yet saved  
-                log.warn(e.name, e.message)         
-                return false // silent
+                log.warn(e.name, e.message)
+                return false         
+                // silent
             }                    
         })        
     }))
@@ -106,7 +108,7 @@ export const WalletProfileStoreModel = types
             self.pubkey = pubkey                
             self.walletId = walletId
 
-            yield self.publishToRelays()
+            self.publishToRelays()
         })
     }))   
     .actions(self => ({  
@@ -121,7 +123,7 @@ export const WalletProfileStoreModel = types
                 profileRecord = yield MinibitsClient.createWalletProfile(walletId, seedHash)                
                 self.hydrate(profileRecord)
             
-                log.info('[create]', 'Wallet profile saved in WalletProfileStore', {self})
+                log.info('[create] ', 'Wallet profile saved in WalletProfileStore', {self})
                 return self 
             } catch (e: any) {
                 // Unlikely we might hit the same walletId so we retry with another one
@@ -131,7 +133,7 @@ export const WalletProfileStoreModel = types
                     // attempt to create new unique profile again                    
                     profileRecord = yield MinibitsClient.createWalletProfile(name, seedHash) 
                     
-                    log.error('[create]', 'Profile reset executed to resolve duplicate walletId on the server.', {caller: 'create', walletId, newWalletId: name})
+                    log.error('[create] ', 'Profile reset executed to resolve duplicate walletId on the server.', {caller: 'create', walletId, newWalletId: name})
                     self.hydrate(profileRecord)
 
                     return self
@@ -149,7 +151,7 @@ export const WalletProfileStoreModel = types
                            
             self.hydrate(profileRecord)
             
-            log.debug('[updateName]', 'Wallet name updated in the WalletProfileStore', {self})
+            log.debug('[updateName] ', 'Wallet name updated in the WalletProfileStore', {self})
             return self         
         }),
         updatePicture: flow(function* updatePicture(picture: string) {
@@ -164,7 +166,7 @@ export const WalletProfileStoreModel = types
 
             const publishedEvent = yield self.publishToRelays()
             
-            log.debug('[updatePicture]', 'Wallet picture updated in the WalletProfileStore', {self, publishedEvent})
+            log.debug('[updatePicture] ', 'Wallet picture updated in the WalletProfileStore', {self, publishedEvent})
             return self         
         }),
         updateNip05: flow(function* updateNip05(newPubkey: string, name: string, nip05: string, lud16: string, picture: string, isOwnProfile: boolean) {
@@ -181,35 +183,35 @@ export const WalletProfileStoreModel = types
                 }
             )
 
-            log.trace('[updateNip05]', 'profileRecord', {profileRecord})
+            log.trace('[updateNip05] ', 'profileRecord', {profileRecord})
 
             self.hydrate(profileRecord)
             self.isOwnProfile = isOwnProfile
             
-            log.info('[updateNip05]', 'Wallet nip05 updated in the WalletProfileStore', {self})
+            log.info('[updateNip05] ', 'Wallet nip05 updated in the WalletProfileStore', {self})
             return self         
         }),
-        recover: flow(function* recover(walletId: string, seedHash: string) {
+        recover: flow(function* recover(walletId: string, seedHash: string, newPubkey?: string) {
 
             let profileRecord: WalletProfileRecord = yield MinibitsClient.recoverProfile(
-                walletId, seedHash
-            )            
-            
+                walletId, seedHash, newPubkey
+            )
+
             self.hydrate(profileRecord)
 
-            log.info('[recover]', 'Wallet profile recovered in WalletProfileStore', {self})
-            return self         
+            log.info('[recover] ', 'Wallet profile recovered in WalletProfileStore', {self, pubkeyRotated: !!newPubkey})
+            return self
         }),
-        recoverAddress: flow(function* recover(walletId: string, seedHash: string) {
+        recoverAddress: flow(function* recoverAddress(walletId: string, seedHash: string, newPubkey?: string) {
 
             let profileRecord: WalletProfileRecord = yield MinibitsClient.recoverAddress(
-                walletId, seedHash
-            )            
-            
+                walletId, seedHash, newPubkey
+            )
+
             self.hydrate(profileRecord)
 
-            log.info('[recover]', 'Wallet profile recovered in WalletProfileStore', {self})
-            return self         
+            log.info('[recoverAddress] ', 'Wallet address recovered in WalletProfileStore', {self, pubkeyRotated: !!newPubkey})
+            return self
         }),
         setDevice: flow(function* setDevice(device: string) {  
             try {
@@ -221,7 +223,7 @@ export const WalletProfileStoreModel = types
                 yield MinibitsClient.updateDeviceToken(device) 
                 self.device = device          
             } catch (e: any) {
-                log.error('[setDevice]', e.message)
+                log.error('[setDevice] ', e.message)
             }
         })
     }))

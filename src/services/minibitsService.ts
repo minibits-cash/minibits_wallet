@@ -196,39 +196,45 @@ const updateDeviceToken = async function (deviceToken: string) {
     return walletProfile
 }
 
-// recover profile address, avatar and seed from former profile (if exists, otherwise only seed is linked) to the current one. 
-const recoverProfile = async function (walletId: string, seedHash: string) {    
+// recover profile address, avatar and seedHash from former profile (if exists, otherwise only seedHash is linked) to the current one.
+// newPubkey is the NIP-06 derived pubkey from the recovered mnemonic - server will rotate profile to this pubkey
+const recoverProfile = async function (walletId: string, seedHash: string, newPubkey?: string) {
     const url = MINIBITS_SERVER_API_HOST + '/profile'
-    const method = 'PUT'    
-    
-    const body = {            
+    const method = 'PUT'
+
+    const body: { walletId: string, seedHash: string, newPubkey?: string } = {
         walletId,
-        seedHash        
-    }        
+        seedHash
+    }
+
+    if (newPubkey) {
+        body.newPubkey = newPubkey
+    }
 
     const walletProfile = await fetchApi(url + `/recover`, {
-        method,        
+        method,
         body,
         jwtAuthRequired: true
     }) as WalletProfileRecord
 
-    log.info('[recoverProfile]', `Recovered wallet profile `, {walletAddress: walletProfile.nip05})
+    log.info('[recoverProfile]', `Recovered wallet profile `, {walletAddress: walletProfile.nip05, pubkeyRotated: !!newPubkey})
 
     return walletProfile
 }
 
-// recover address only to the current profile, keep current avatar and seed
-const recoverAddress = async function (walletId: string, seedHash: string) {    
+// recover address only from the profile identified by seedHash to the current profile
+// keep current avatar, seed and nostr keys.
+const recoverAddress = async function (walletId: string, seedHash: string) {
     const url = MINIBITS_SERVER_API_HOST + '/profile'
-    const method = 'PUT'    
-    
-    const body = {
+    const method = 'PUT'
+
+    const body: { walletId: string, seedHash: string } = {
         walletId,
-        seedHash        
-    }        
+        seedHash
+    }
 
     const walletProfile = await fetchApi(url + `/recoverAddress`, {
-        method,        
+        method,
         body,
         jwtAuthRequired: true
     }) as WalletProfileRecord

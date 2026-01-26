@@ -1,6 +1,13 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useEffect, useRef, useState} from 'react'
-import {AppState, LayoutAnimation, Platform, ScrollView, TextStyle, View, ViewStyle, useColorScheme} from 'react-native'
+import React, {FC, useEffect, useLayoutEffect, useRef, useState} from 'react'
+import {AppState, Platform, TextStyle, View, ViewStyle, useColorScheme} from 'react-native'
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    useAnimatedScrollHandler,
+    interpolate,
+    Extrapolation,
+} from 'react-native-reanimated'
 import notifee, { AuthorizationStatus } from '@notifee/react-native'
 import messaging from '@react-native-firebase/messaging'
 import { HotUpdater, getUpdateSource } from '@hot-updater/react-native'
@@ -8,20 +15,16 @@ import {
     HOT_UPDATER_API_KEY,
     HOT_UPDATER_URL,
 } from '@env'
-import {ThemeCode, Themes, colors, spacing, useThemeColor} from '../theme'
-import {ListItem, Screen, Text, Card, NwcIcon, Button, BottomModal, InfoModal, Icon} from '../components'
-import {useHeader} from '../utils/useHeader'
+import {ThemeCode, Themes, colors, spacing, typography, useThemeColor} from '../theme'
+import {ListItem, Screen, Text, Card, NwcIcon, Button, BottomModal, InfoModal, Icon, Header} from '../components'
 import {useStores} from '../models'
 import {translate} from '../i18n'
 import { log } from '../services'
-
-import {Env} from '../utils/envtypes'
-import { round } from '../utils/number'
 import { Currencies, CurrencyCode, availableExchangeCurrencies } from '../services/wallet/currency'
 import { NotificationService } from '../services/notificationService'
 import { SvgXml } from 'react-native-svg'
 import { CurrencySign } from './Wallet/CurrencySign'
-import { CommonActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 
 
@@ -29,7 +32,22 @@ type Props = StaticScreenProps<undefined>
 
 export const SettingsScreen = observer(function SettingsScreen({ route }: Props) {
     const navigation = useNavigation()
-    useHeader({}) // default header component
+    const scrollY = useSharedValue(0)
+    const HEADER_SCROLL_DISTANCE = spacing.screenHeight * 0.07
+
+    useLayoutEffect(() => {
+      navigation.setOptions({
+        headerShown: true,
+        header: () => (
+          <Header
+            titleTx="settingsScreen_title"
+            scrollY={scrollY}
+            scrollDistance={HEADER_SCROLL_DISTANCE}
+          />
+        ),
+      })
+    }, [])
+
     const appState = useRef(AppState.currentState)
     const {
       mintsStore, 
@@ -49,7 +67,6 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
     const [isThemeModalVisible, setIsThemeModalVisible] = useState<boolean>(false)
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
     const [areNotificationsEnabled, setAreNotificationsEnabled] = useState<boolean>(false)
-    const [isHeaderVisible, setIsHeaderVisible] = useState(true)
     const [info, setInfo] = useState('')
 
     useEffect(() => {
@@ -234,10 +251,6 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
       }
     }  
   }
-
-  /* const gotoPreferredUnit = function() {
-    Alert.alert('Preferred unit is set based on your Wallet screen.') 
-  } */
   
 
   const getRateColor = function () {
@@ -289,42 +302,71 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
     toggleThemeModal()  
   }
 
-  const collapseHeader = function () {
-      LayoutAnimation.easeInEaseOut()        
-      setIsHeaderVisible(false)
-      
-  }
-
-  const expandHeader = function () {
-      LayoutAnimation.easeInEaseOut()
-      setIsHeaderVisible(true)
-  }
-
-  /* const isCloseToBottom = function ({layoutMeasurement, contentOffset, contentSize}){
-    return layoutMeasurement.height + contentOffset.y >= contentSize.height - 20
-  }
- 
-  const isCloseToTop = function({layoutMeasurement, contentOffset, contentSize}){
-      return contentOffset.y == 0;
-  } */
 
   const $itemRight = {color: useThemeColor('textDim')}
   const headerBg = useThemeColor('header')
-  const headerTitle = useThemeColor('headerTitle')  
+  const headerTitle = useThemeColor('headerTitle')
   const colorScheme = useColorScheme()
   const defaultThemeColor = colorScheme === 'dark' ? Themes[ThemeCode.DARK]?.color : Themes[ThemeCode.LIGHT]?.color
-    
+
+  // Collapsible header animation
+  const HEADER_MAX_HEIGHT = spacing.screenHeight * 0.15
+  const HEADER_MIN_HEIGHT = spacing.screenHeight * 0.08
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y
+    },
+  })
+
+  const animatedHeaderStyle = useAnimatedStyle(() => {
+    const height = interpolate(
+      scrollY.value,
+      [0, HEADER_SCROLL_DISTANCE],
+      [HEADER_MAX_HEIGHT, HEADER_MIN_HEIGHT],
+      Extrapolation.CLAMP
+    )
+    return { height }
+  })
+
+  const animatedTitleStyle = useAnimatedStyle(() => {
+    const scale = interpolate(
+      scrollY.value,
+      [0, HEADER_SCROLL_DISTANCE],
+      [1, 0.75],
+      Extrapolation.CLAMP
+    )
+    const translateY = interpolate(
+      scrollY.value,
+      [0, HEADER_SCROLL_DISTANCE],
+      [0, -spacing.extraLarge * 1.5],
+      Extrapolation.CLAMP
+    )
+    const opacity = interpolate(
+      scrollY.value,
+      [0, HEADER_SCROLL_DISTANCE * 0.8],
+      [1, 0],
+      Extrapolation.CLAMP
+    )
+    return {
+      transform: [{ scale }, { translateY }],
+      opacity,
+    }
+  })
+
     return (
       <Screen contentContainerStyle={$screen} preset='fixed'>
-          <View style={[isHeaderVisible ? $headerContainer : $headerCollapsed, {backgroundColor: headerBg}]}>
-           <Text
-            preset='heading'
-            tx='settingsScreen_title'
-            style={{color: headerTitle}}
-          />
-        </View>
-        <ScrollView 
+          <Animated.View style={[animatedHeaderStyle, $headerContainer, {backgroundColor: headerBg}]}>
+            <Animated.Text
+              style={[animatedTitleStyle, $headerTitle, {color: headerTitle}]}
+            >
+              {translate('settingsScreen_title')}
+            </Animated.Text>
+        </Animated.View>
+        <Animated.ScrollView
           style={$contentContainer}
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
         >
           <Card
             style={$card}
@@ -526,7 +568,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
               </>
             }
           />
-        </ScrollView>
+        </Animated.ScrollView>
         <BottomModal
           isVisible={isCurrencyModalVisible ? true : false}
           style={{alignItems: 'stretch'}}
@@ -595,17 +637,19 @@ const $screen: ViewStyle = {
 
 }
 
-const $headerContainer: TextStyle = {
+const $headerContainer: ViewStyle = {
   alignItems: 'center',
-  paddingBottom: spacing.medium,
-  height: spacing.screenHeight * 0.15,
+  //justifyContent: 'flex-end',
+  //paddingBottom: spacing.extraLarge * 2 + spacing.medium,
+  //overflow: 'visible',
 }
 
-const $headerCollapsed: TextStyle = {
-  alignItems: 'center',
-  paddingBottom: spacing.medium,
-  height: spacing.screenHeight * 0.08,
+const $headerTitle: TextStyle = {
+  fontSize: spacing.extraLarge,
+  //lineHeight: 44,
+  fontFamily: typography.primary?.medium,
 }
+
 
 const $contentContainer: TextStyle = {
   marginTop: -spacing.extraLarge * 2,

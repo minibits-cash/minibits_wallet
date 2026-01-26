@@ -231,12 +231,15 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
           if(!seedHashRef.current || !seedRef.current) {
             throw new AppError(Err.VALIDATION_ERROR, translate('backupMissingMnemonicOrSeedError'))
           }
-          // create a new walletId and a new Nostr key pair
-          // and keep provided seed
+          // Derive Nostr keys from the recovered mnemonic and keep provided seed
           setIsLoading(true)
           setStatusMessage(translate("recovery_recoveringAddress"))
 
           const keys = await walletStore.getCachedWalletKeys()
+
+          // Derive Nostr keypair from the recovered mnemonic (NIP-06)
+          const nostrKeys = KeyChain.deriveNostrKeyPair(mnemonic)
+
           // Set seed to the provided one
           const seed = {
             seed: Buffer.from(seedRef.current).toString('base64'),
@@ -246,30 +249,37 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
 
           // In case there is a profile linked to provided seedHash,
           // it's address, avatar and seed is recovered to the current profile.
+          // Pass newPubkey so server rotates the profile to the derived pubkey.
           await walletProfileStore.recover(
-              keys.walletId, 
+              keys.walletId,
               seedHashRef.current,
+              nostrKeys.publicKey
           )
 
-          // update seed to the provided one
+          // Update both seed and Nostr keys to derived values
           const keysCopy = { ...keys }
           keysCopy.SEED = seed
+          keysCopy.NOSTR = nostrKeys
 
-          await KeyChain.saveWalletKeys(keysCopy)            
+          await KeyChain.saveWalletKeys(keysCopy)
           walletStore.cleanCachedWalletKeys()
 
+          // Re-authenticate with new derived keys to get fresh JWT tokens
+          await authStore.clearTokens()
+          await authStore.enrollDevice(nostrKeys)
+
           if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
-              await mintsStore.addMint(MINIBITS_MINT_URL)            
+              await mintsStore.addMint(MINIBITS_MINT_URL)
           }
 
           setStatusMessage(translate('recovery_completed'))
-                      
-          // go directly to the wallet (profile hase been rehydrated from the one with the seed)
+
+          // go directly to the wallet (profile has been rehydrated from the one with the seed)
           //@ts-ignore
           navigation.navigate('Tabs')
           await delay(1000)
           setStatusMessage('')
-          setIsLoading(false)       
+          setIsLoading(false)
       } catch (e: any) {
           handleError(e)
       }

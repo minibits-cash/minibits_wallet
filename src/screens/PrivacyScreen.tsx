@@ -16,7 +16,7 @@ import {
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError from '../utils/AppError'
-import { KeyChain, MinibitsClient, } from '../services'
+import { KeyChain, MinibitsClient, log } from '../services'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { StackActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
 import { translate } from '../i18n'
@@ -32,13 +32,30 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
         }
     })
 
-    const {userSettingsStore, walletProfileStore, walletStore} = useStores()
+    const {userSettingsStore, walletProfileStore, walletStore, authStore} = useStores()
     const [info, setInfo] = useState('')
     const [isLoading, setIsLoading] = useState(false)
+    const [statusMessage, setStatusMessage] = useState<string>('')
     const [isLoggerOn, setIsLoggerOn] = useState<boolean>(
         userSettingsStore.isLoggerOn,
     )
-    const [error, setError] = useState<AppError | undefined>()       
+    const [isDerivedKeys, setIsDerivedKeys] = useState<boolean>(false)
+    const [error, setError] = useState<AppError | undefined>()
+
+    // Check if Nostr keys are derived from seed on mount
+    useEffect(() => {
+        const checkDerivedKeys = async () => {
+            try {
+                const keys = await walletStore.getCachedWalletKeys()
+                if (keys) {
+                    setIsDerivedKeys(KeyChain.areNostrKeysDerived(keys))
+                }
+            } catch (e) {
+                log.error('[PrivacyScreen] Error checking derived keys', e)
+            }
+        }
+        checkDerivedKeys()
+    }, [])       
 
     const toggleLoggerSwitch = async () => {
         try {
@@ -47,7 +64,55 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
             )
 
             setIsLoggerOn(result)
-            
+
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
+    const upgradeToNostrDerivedKeys = async () => {
+        setIsLoading(true)
+        setStatusMessage(translate('privacyScreen_upgradingKeys'))
+
+        try {
+            const keys = await walletStore.getCachedWalletKeys()
+            if (!keys || !keys.SEED?.mnemonic) {
+                throw new Error('Wallet keys or mnemonic not available')
+            }
+
+            // Derive Nostr keys from mnemonic using NIP-06
+            const derivedNostrKeys = KeyChain.deriveNostrKeyPair(keys.SEED.mnemonic)
+
+            log.trace('[upgradeToNostrDerivedKeys]', {
+                oldPubkey: keys.NOSTR.publicKey,
+                newPubkey: derivedNostrKeys.publicKey
+            })
+
+            // Update server profile with the new derived pubkey
+            // Uses recover endpoint with same seedHash to atomically rotate pubkey
+            await walletProfileStore.recover(
+                keys.walletId,
+                keys.SEED.seedHash,
+                derivedNostrKeys.publicKey
+            )
+
+            // Update local keys
+            const keysCopy = { ...keys }
+            keysCopy.NOSTR = derivedNostrKeys
+
+            await KeyChain.saveWalletKeys(keysCopy)
+            walletStore.cleanCachedWalletKeys()
+
+            // Re-authenticate with new derived keys to get fresh JWT tokens
+            await authStore.clearTokens()
+            await authStore.enrollDevice(derivedNostrKeys)
+
+            // Update state
+            setIsDerivedKeys(true)
+            setStatusMessage('')
+            setIsLoading(false)
+            setInfo(translate('privacyScreen_derivedKeysDescription'))
+
         } catch (e: any) {
             handleError(e)
         }
@@ -59,16 +124,20 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
     }
 
     const resetProfile = async function() {
-        setIsLoading(true)        
+        setIsLoading(true)
 
         try {
-            // overwrite with new keys
-            const newKeyPair = KeyChain.generateNostrKeyPair()
+            const cachedKeys = await walletStore.getCachedWalletKeys()
+            if (!cachedKeys || !cachedKeys.SEED?.mnemonic) {
+                throw new Error('Wallet keys or mnemonic not available')
+            }
+
+            // Derive Nostr keys from mnemonic (NIP-06) instead of generating random keys
+            const derivedKeyPair = KeyChain.deriveNostrKeyPair(cachedKeys.SEED.mnemonic)
 
             // update Nostr keys
-            const cachedKeys = await walletStore.getCachedWalletKeys()
-            const keys = { ...cachedKeys } // Create a shallow copy to avoid modifying readonly properties
-            keys['NOSTR'] = newKeyPair
+            const keys = { ...cachedKeys }
+            keys['NOSTR'] = derivedKeyPair
 
             await KeyChain.saveWalletKeys(keys)
             walletStore.cleanCachedWalletKeys()
@@ -79,15 +148,23 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
             // get random image
             const pictures = await MinibitsClient.getRandomPictures() // TODO PERF
 
-            // update wallet profile
+            // update wallet profile on server
             await walletProfileStore.updateNip05(
-                newKeyPair.publicKey,                
+                derivedKeyPair.publicKey,
                 name,
                 name + MINIBITS_NIP05_DOMAIN, // nip05
                 name + MINIBITS_NIP05_DOMAIN, // lud16
                 pictures[0],
                 false // isOwnProfile
             )
+
+            // Re-authenticate with derived keys to get fresh JWT tokens
+            await authStore.clearTokens()
+            await authStore.enrollDevice(derivedKeyPair)
+
+            // Update derived keys state
+            setIsDerivedKeys(true)
+
             // @ts-ignore
             navigation.navigate('ContactsNavigator', {
                 screen: 'Profile'
@@ -229,7 +306,46 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
             <Card
                 style={[$card, {marginTop: spacing.medium}]}
                 ContentComponent={
-                <>                    
+                <>
+                    <ListItem
+                        tx="privacyScreen_derivedKeys"
+                        subTx={isDerivedKeys
+                          ? "privacyScreen_derivedKeysDescription"
+                          : "privacyScreen_legacyKeysDescription"
+                        }
+                        leftIcon={'faKey'}
+                        leftIconColor={
+                            isDerivedKeys
+                            ? colors.palette.success200
+                            : iconColor as string
+                        }
+                        leftIconInverse={true}
+                        RightComponent={
+                            isDerivedKeys ? (
+                                <View style={$rightContainer}>
+                                    <Switch
+                                        value={true}
+                                        disabled={true}
+                                    />
+                                </View>
+                            ) : (
+                                <Button
+                                    style={{maxHeight: 10, marginTop: spacing.medium}}
+                                    preset="secondary"
+                                    tx="privacyScreen_upgradeKeys"
+                                    onPress={upgradeToNostrDerivedKeys}
+                                />
+                            )
+                        }
+                        style={$item}
+                    />
+                </>
+                }
+            />
+            <Card
+                style={[$card, {marginTop: spacing.medium}]}
+                ContentComponent={
+                <>
                     <ListItem
                         tx="privacyScreen_logger"
                         subTx="privacyScreen_loggerDescription"
@@ -253,7 +369,7 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
                 </>
                 }
             />
-          {isLoading && <Loading />}
+          {isLoading && <Loading statusMessage={statusMessage} />}
         </ScrollView>
         {/*<BottomModal
             isVisible={isTorModalVisible ? true : false}            

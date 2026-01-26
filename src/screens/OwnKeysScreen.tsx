@@ -24,7 +24,7 @@ type Props = StaticScreenProps<{}>
 export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {    
 
     const navigation = useNavigation()
-    const {walletProfileStore, walletStore, relaysStore} = useStores() 
+    const {walletProfileStore, walletStore, relaysStore, authStore} = useStores() 
 
     useHeader({        
         leftIcon: 'faArrowLeft',
@@ -190,17 +190,17 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
             }
 
             setIsLoading(true)
-            // update wallet profile
-            const updatedProfile = await walletProfileStore.updateNip05(
+            // update wallet profile on server
+            await walletProfileStore.updateNip05(
                 ownProfile.pubkey,
                 ownProfile.name as string,
-                ownProfile.nip05 as string,                
+                ownProfile.nip05 as string,
                 ownProfile.lud16 || '',
                 ownProfile.picture as string,
-                true // isOwnProfile                
+                true // isOwnProfile
             )
 
-            // update Nostr keys
+            // update Nostr keys locally
             const cachedKeys = await walletStore.getCachedWalletKeys()
             const keys = { ...cachedKeys } // Create a shallow copy to avoid modifying readonly properties
             keys['NOSTR'] = ownKeyPair
@@ -208,9 +208,13 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
             await KeyChain.saveWalletKeys(keys)
             walletStore.cleanCachedWalletKeys()
 
+            // Re-authenticate with new keys to get fresh JWT tokens
+            await authStore.clearTokens()
+            await authStore.enrollDevice(ownKeyPair)
+
             setIsLoading(false)
             setIsProfileChangeCompleted(true)
-            
+
         } catch(e: any) {
             handleError(e)
         }

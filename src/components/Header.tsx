@@ -5,12 +5,18 @@ import {
   TouchableOpacity,
   TouchableOpacityProps,
   View,
-  ViewStyle,  
+  ViewStyle,
   StatusBar,
   StatusBarProps,
   ColorValue,
   Platform
 } from "react-native"
+import Animated, {
+  SharedValue,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+} from "react-native-reanimated"
 import { useIsFocused } from '@react-navigation/native'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { translate } from "../i18n"
@@ -140,6 +146,16 @@ export interface HeaderProps {
    * Pass any additional props directly to the StatusBar component.
    */
   StatusBarProps?: StatusBarProps
+  /**
+   * Shared value from scroll position for animated title.
+   * When provided, the title will fade in as the user scrolls.
+   */
+  scrollY?: SharedValue<number>
+  /**
+   * The scroll distance over which the title animation occurs.
+   * Defaults to 60.
+   */
+  scrollDistance?: number
 }
 
 interface HeaderActionProps {
@@ -198,10 +214,26 @@ export function Header(props: HeaderProps) {
     titleStyle: $titleStyleOverride,
     containerStyle: $containerStyleOverride,
     StatusBarProps,
+    scrollY,
+    scrollDistance = 60,
   } = props
 
   const $containerInsets = useSafeAreaInsetsStyle(safeAreaEdges)
   const titleContent = !!TitleActionComponent ? undefined : titleTx ? translate(titleTx, titleTxOptions) : title
+
+  // Animated title opacity - fades in as user scrolls
+  const animatedTitleStyle = useAnimatedStyle(() => {
+    if (!scrollY) {
+      return {}
+    }
+    const opacity = interpolate(
+      scrollY.value,
+      [0, scrollDistance],
+      [0, 1],
+      Extrapolation.CLAMP
+    )
+    return { opacity }
+  })
 
   return (
     <View style={[$container, $containerInsets, { backgroundColor }, $containerStyleOverride]}>
@@ -232,12 +264,13 @@ export function Header(props: HeaderProps) {
             {TitleActionComponent}
             </View>       
         )}
-        {!!titleContent && (            
-            <View
+        {!!titleContent && (
+            <Animated.View
                 style={[
                     titleMode === "center" && $titleWrapperCenter,
                     titleMode === "flex" && $titleWrapperFlex,
                     $titleContainerStyleOverride,
+                    scrollY ? animatedTitleStyle : undefined,
                 ]}
                 pointerEvents="none"
             >
@@ -247,7 +280,7 @@ export function Header(props: HeaderProps) {
                         text={titleContent}
                         style={[$title, $titleStyleOverride]}
                 />
-            </View>            
+            </Animated.View>
         )}
         <HeaderAction
           tx={rightTx}
@@ -315,7 +348,7 @@ const $container: ViewStyle = {
 
 const $title: TextStyle = {
   textAlign: "center",
-  fontFamily: typography.logo.normal,
+  //fontFamily: typography.logo.normal,
   color: 'white'
 }
 
