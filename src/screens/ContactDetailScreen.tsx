@@ -57,6 +57,8 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
             try {
                 if (contact.nip05) {
                     await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey)
+                    const contactInstance = contactsStore.findByPubkey(contact.pubkey)
+                    contactInstance?.refreshPicture()
                 }
                 setSyncStatus('synced')
             } catch (e: any) {
@@ -172,12 +174,14 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
     
     const onSyncPrivateContact = async function () {
         try {
-            if(contact.nip05) {                
+            if(contact.nip05) {
                 await NostrClient.verifyNip05(contact.nip05 as string, contact.pubkey) // throws
-                contact.refreshPicture!()
+                // Get the actual MST model instance from the store to call actions
+                const contactInstance = contactsStore.findByPubkey(contact.pubkey)
+                contactInstance?.refreshPicture()
             }
 
-            toggleContactModal()            
+            toggleContactModal()
             setInfo(translate("syncCompleted"))
             return
         } catch (e: any) {
@@ -185,11 +189,11 @@ export const ContactDetailScreen = observer(function ({ route }: Props) {
             if(Platform.OS === 'ios') {
                 setTimeout(() => {
                     handleError(e)
-                }, 500) 
+                }, 500)
             } else {
                 handleError(e)
             }
-        }        
+        }
     }
 
     const saveToPrivateContacts = async function () {

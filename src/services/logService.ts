@@ -18,7 +18,7 @@ import { Platform } from "react-native"
 import AppError, { Err } from "../utils/AppError"
 
 const { userSettingsStore } = rootStoreInstance
-//
+// 
 
 if (!__DEV__) {
     Sentry.init({
