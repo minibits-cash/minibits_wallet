@@ -352,6 +352,11 @@ export const PrivateContacts = observer(function (props: {
                   }
                   value={newContactName}
                   autoCapitalize="none"
+                  autoComplete='off'
+                  importantForAutofill='no'
+                  autoCorrect={false}
+                  spellCheck={false}
+                  smartInsertDelete={false}
                   keyboardType="email-address"                  
                   maxLength={80}
                   selectTextOnFocus={true}

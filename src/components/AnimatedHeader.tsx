@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { spacing, typography, useThemeColor } from '../theme'
 import { translate, TxKeyPath } from '../i18n'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 
 export interface AnimatedHeaderProps {
   /**
@@ -107,6 +108,7 @@ const $headerContainer: ViewStyle = {
 }
 
 const $headerTitle: TextStyle = {
-  fontSize: spacing.extraLarge,
+  fontSize: verticalScale(32), 
+  lineHeight: verticalScale(44),
   fontFamily: typography.primary?.medium,
 }

@@ -76,7 +76,7 @@ export function Text(props: TextProps) {
 }
 
 export const $sizeStyles = {
-  xxl: { fontSize: verticalScale(36), lineHeight: verticalScale(44) } as TextStyle,
+  xxl: { fontSize: verticalScale(32), lineHeight: verticalScale(44) } as TextStyle,
   xl: { fontSize: verticalScale(24), lineHeight: verticalScale(34) } as TextStyle,
   lg: { fontSize: verticalScale(20), lineHeight: verticalScale(32) } as TextStyle,
   md: { fontSize: verticalScale(18), lineHeight: verticalScale(26) } as TextStyle,

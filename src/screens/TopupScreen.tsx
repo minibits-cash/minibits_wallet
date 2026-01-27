@@ -275,34 +275,27 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       const handlePendingTopupTaskResult = (result: TransactionTaskResult) => {
         log.trace('[handlePendingTopupTaskResult] event handler triggered')
 
-        if (!transactionId) {
-          return
-        }
+        if (!transactionId) return
+        if (result.transaction?.id !== transactionId) return
+        if (result.transaction.status !== TransactionStatus.COMPLETED) return
 
-        // Filter and handle events only for this topup transactionId
-        if (result.transaction?.id === transactionId) {
-          // Show result modal only on completed topup
-          if (result.transaction.status !== TransactionStatus.COMPLETED) {
-            return
-          }
+        log.trace(
+          '[handlePendingTopupTaskResult]',
+          'Invoice has been paid and new proofs received',
+        )
 
-          log.trace(
-            '[handlePendingTopupTaskResult]',
-            'Invoice has been paid and new proofs received',
-          )
+        setResultModalInfo({
+          status: result.transaction.status,
+          message: result.message,
+        })
 
-          setResultModalInfo({
-            status: result.transaction.status,
-            message: result.message,
-          })
-
-          setTransactionStatus(TransactionStatus.COMPLETED)
-          setTransaction(result.transaction)
-          setIsQRModalVisible(false)
-          setIsNostrDMModalVisible(false)
-          setIsWithdrawModalVisible(false)
-          setIsResultModalVisible(true)
-        }
+        setTransactionStatus(TransactionStatus.COMPLETED)
+        setTransaction(result.transaction)
+        setIsQRModalVisible(false)
+        setIsNostrDMModalVisible(false)
+        setIsWithdrawModalVisible(false)
+        setIsResultModalVisible(true)
+        
       }
 
       if(transactionId) {

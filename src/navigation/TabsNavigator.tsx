@@ -37,7 +37,8 @@ import {
   TokenReceiveScreen,
   NwcScreen,
   CashuPaymentRequestScreen,
-  RecoveryOptionsScreen
+  RecoveryOptionsScreen,
+  POSScreen
 } from "../screens"
 import { colors, spacing, typography } from "../theme"
 
@@ -73,7 +74,8 @@ const WalletStack = createNativeStackNavigator({
     NfcPay: NfcPayScreen, 
     Transfer: TransferScreen,
     Topup: TopupScreen,
-    CashuPaymentRequest: CashuPaymentRequestScreen,    
+    CashuPaymentRequest: CashuPaymentRequestScreen,
+    POS: POSScreen,
   }
 })
 

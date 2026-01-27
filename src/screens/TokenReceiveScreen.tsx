@@ -10,10 +10,10 @@ import {colors, spacing, useThemeColor} from '../theme'
 import {log} from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError, { Err } from '../utils/AppError'
-import { Button, Card, ErrorModal, Icon, ListItem, ScanIcon, Screen, Text } from '../components'
+import { Button, Card, ErrorModal, Icon, ListItem, PosIcon, ScanIcon, Screen, StaticHeader, Text } from '../components'
 import { infoMessage } from '../utils/utils'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { SvgXml } from 'react-native-svg'
+import Svg, { SvgXml } from 'react-native-svg'
 import { useStores } from '../models'
 import { Mint } from '../models/Mint'
 import { MintHeader } from './Mints/MintHeader'
@@ -135,10 +135,18 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
         //@ts-ignore
         navigation.navigate('Topup', {
             unit,
-            mintUrl: mint?.mintUrl            
+            mintUrl: mint?.mintUrl
         })
     }
-    
+
+    const gotoPOS = async function () {
+        //@ts-ignore
+        navigation.navigate('POS', {
+            unit,
+            mintUrl: mint?.mintUrl
+        })
+    }
+
     const handleError = function(e: AppError): void {
         setError(e)
     }
@@ -158,13 +166,9 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
                 mint={mint}
                 unit={unit!}                
             />
-            <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
-                <Text
-                    preset="heading"
-                    tx="payCommon_receiveEcash"
-                    style={{color: headerTitle}}                    
-                />                
-            </View> 
+            <StaticHeader 
+                titleTx="payCommon_receiveEcash"             
+            />                           
             <View style={$contentContainer}>            
                 <Card
                     ContentComponent={
@@ -233,27 +237,49 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
                     style={$card}
                     //style={{marginBottom: spacing.medium}}
                 />
-                <Button
-                    tx="tokenReceiveScreen_topupWithLightning"
-                    LeftAccessory={() => (
-                        <Icon
-                        icon='faBolt'
-                        color={hintText}
-                        size={spacing.medium}                  
-                        />
-                    )}
-                    textStyle={{fontSize: 14, color: hintText}}
-                    preset='secondary'
-                    onPress={gotoTopup}
-                    style={{
-                        minHeight: verticalScale(40), 
-                        paddingVertical: verticalScale(spacing.tiny),
-                        marginRight: spacing.tiny,
-                        alignSelf: 'center',
-                        marginTop: spacing.medium
-                    }}                    
-                />
- 
+                <View style={[$buttonContainer, {marginTop: spacing.medium}]}>
+                    <Button
+                        tx="tokenReceiveScreen_topupWithLightning"
+                        LeftAccessory={() => (
+                            <Icon
+                            icon='faBolt'
+                            color={hintText}
+                            size={spacing.medium}                  
+                            />
+                        )}
+                        textStyle={{fontSize: 14, color: hintText}}
+                        preset='secondary'
+                        onPress={gotoTopup}
+                        style={{
+                            minHeight: verticalScale(40), 
+                            paddingVertical: verticalScale(spacing.tiny),
+                            marginRight: spacing.tiny,
+                            alignSelf: 'center',
+                            marginTop: spacing.medium
+                        }}                    
+                    />
+                    <Button
+                        text="POS mode"
+                        LeftAccessory={() => (
+                            <SvgXml
+                                width={spacing.large}
+                                height={spacing.large}
+                                xml={PosIcon}
+                                stroke={hintText}
+                            />
+                        )}
+                        textStyle={{fontSize: 14, color: hintText}}
+                        preset='secondary'
+                        onPress={gotoPOS}
+                        style={{
+                            minHeight: verticalScale(40), 
+                            paddingVertical: verticalScale(spacing.tiny),
+                            marginRight: spacing.tiny,
+                            alignSelf: 'center',
+                            marginTop: spacing.medium
+                        }}                    
+                    />
+                </View>
             </View>
             <View style={$bottomContainer}>
                 <View style={$buttonContainer}>
@@ -287,12 +313,6 @@ const $contentContainer: ViewStyle = {
     marginTop: -spacing.extraLarge * 2,
     padding: spacing.extraSmall,
     flex: 1
-}
-
-const $headerContainer: TextStyle = {
-    alignItems: 'center',
-    paddingBottom: spacing.medium,
-    height: spacing.screenHeight * 0.15,
 }
 
 const $buttonContainer: ViewStyle = {

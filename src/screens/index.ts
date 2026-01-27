@@ -19,6 +19,7 @@ export * from './LightningPayScreen'
 export * from './TokenReceiveScreen'
 export * from './CashuPaymentRequestScreen'
 export * from './NfcPayScreen'
+export * from './POSScreen'
 
 // ContactsNavigator
 export * from './ContactsScreen'

@@ -7,12 +7,11 @@ import { infoMessage } from "../../utils/utils"
 import { Button, Card, Icon, ListItem } from "../../components"
 import QRCode from "react-native-qrcode-svg"
 import Clipboard from "@react-native-clipboard/clipboard"
-import { moderateScale, verticalScale } from "@gocodingnow/rn-size-matters"
+import { verticalScale } from "@gocodingnow/rn-size-matters"
 import { colors, spacing } from "../../theme"
 import { translate, TxKeyPath } from "../../i18n"
 import { log } from "../../services"
 import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts'
-import { isSupported } from '@react-native-firebase/messaging';
 import { NfcService } from '../../services/nfcService';
 
 
