@@ -1,6 +1,10 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useEffect, useState} from 'react'
-import {Switch, TextStyle, View, ViewStyle, ScrollView} from 'react-native'
+import React, {FC, useEffect, useState, useLayoutEffect} from 'react'
+import {Switch, TextStyle, View, ViewStyle} from 'react-native'
+import Animated, {
+  useSharedValue,
+  useAnimatedScrollHandler,
+} from 'react-native-reanimated'
 import {colors, spacing, useThemeColor} from '../theme'
 import {
   ListItem,
@@ -12,8 +16,9 @@ import {
   InfoModal,
   BottomModal,
   Button,
+  Header,
+  AnimatedHeader,
 } from '../components'
-import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError from '../utils/AppError'
 import { KeyChain, MinibitsClient, log } from '../services'
@@ -25,12 +30,23 @@ type Props = StaticScreenProps<undefined>
 
 export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
     const navigation = useNavigation()
-    useHeader({
-        leftIcon: 'faArrowLeft',
-        onLeftPress: () => {
-            navigation.goBack() 
-        }
-    })
+    const scrollY = useSharedValue(0)
+    const HEADER_SCROLL_DISTANCE = spacing.screenHeight * 0.07
+
+    useLayoutEffect(() => {
+      navigation.setOptions({
+        headerShown: true,
+        header: () => (
+          <Header
+            titleTx="privacyScreen_title"
+            leftIcon="faArrowLeft"
+            onLeftPress={() => navigation.goBack()}
+            scrollY={scrollY}
+            scrollDistance={HEADER_SCROLL_DISTANCE}
+          />
+        ),
+      })
+    }, [])
 
     const {userSettingsStore, walletProfileStore, walletStore, authStore} = useStores()
     const [info, setInfo] = useState('')
@@ -180,16 +196,26 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
         setError(e)
     }
     
-    const headerBg = useThemeColor('header')
     const iconColor = useThemeColor('textDim')
-    const headerTitle = useThemeColor('headerTitle') 
+
+    const scrollHandler = useAnimatedScrollHandler({
+      onScroll: (event) => {
+        scrollY.value = event.contentOffset.y
+      },
+    })
 
     return (
       <Screen style={$screen} preset='fixed'>
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" tx="privacyScreen_title" style={{color: headerTitle}} />
-        </View>
-        <ScrollView style={$contentContainer}>
+        <AnimatedHeader
+          titleTx="privacyScreen_title"
+          scrollY={scrollY}
+          scrollDistance={HEADER_SCROLL_DISTANCE}
+        />
+        <Animated.ScrollView
+          style={$contentContainer}
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+        >
             {/*<Card
                 style={[$card, {marginTop: spacing.medium}]}
                 ContentComponent={
@@ -370,7 +396,7 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
                 }
             />
           {isLoading && <Loading statusMessage={statusMessage} />}
-        </ScrollView>
+        </Animated.ScrollView>
         {/*<BottomModal
             isVisible={isTorModalVisible ? true : false}            
             ContentComponent={
@@ -397,12 +423,6 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
   })
 
 const $screen: ViewStyle = {}
-
-const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  paddingBottom: spacing.medium,
-  height: spacing.screenHeight * 0.15,
-}
 
 const $contentContainer: TextStyle = {
   flex: 1,

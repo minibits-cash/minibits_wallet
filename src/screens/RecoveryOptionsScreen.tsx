@@ -1,10 +1,14 @@
 import {observer} from 'mobx-react-lite'
-import React, {useState, useEffect, useRef} from 'react'
-import {Platform, ScrollView, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import React, {useState, useEffect, useRef, useLayoutEffect} from 'react'
+import {Platform, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import Animated, {
+  useSharedValue,
+  useAnimatedScrollHandler,
+} from 'react-native-reanimated'
 import notifee, { AndroidImportance } from '@notifee/react-native'
 import {spacing, useThemeColor, colors} from '../theme'
 import {
-  Button,  
+  Button,
   Card,
   Screen,
   ListItem,
@@ -13,8 +17,9 @@ import {
   InfoModal,
   Loading,
   BottomModal,
+  Header,
+  AnimatedHeader,
 } from '../components'
-import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
 import { useStores } from '../models'
@@ -33,11 +38,24 @@ type Props = StaticScreenProps<undefined>
 
 export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: Props) {
     const navigation = useNavigation()
-    useHeader({
-      leftIcon: 'faArrowLeft',
-      onLeftPress: () => navigation.goBack(),
-    })
-    
+    const scrollY = useSharedValue(0)
+    const HEADER_SCROLL_DISTANCE = spacing.screenHeight * 0.07
+
+    useLayoutEffect(() => {
+      navigation.setOptions({
+        headerShown: true,
+        header: () => (
+          <Header
+            titleTx="recoveryOptionsTitle"
+            leftIcon="faArrowLeft"
+            onLeftPress={() => navigation.goBack()}
+            scrollY={scrollY}
+            scrollDistance={HEADER_SCROLL_DISTANCE}
+          />
+        ),
+      })
+    }, [])
+
     const {mintsStore, proofsStore} = useStores()
 
     const unitRef = useRef<MintUnit>('sat')
@@ -297,22 +315,28 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
       setMintBalanceToRecoverFrom(mintBalancesRef.current[0])
     }
 
-    const headerBg = useThemeColor('header')
     const inputBg = useThemeColor('background')
     const mintsModalBg = useThemeColor('background')
     const inputText = useThemeColor('text')
-  
+
+    const scrollHandler = useAnimatedScrollHandler({
+      onScroll: (event) => {
+        scrollY.value = event.contentOffset.y
+      },
+    })
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-            <Text
-              preset="heading"
-              tx="recoveryOptionsTitle"
-              style={{color: 'white'}}
-            />
-        </View>
-        <ScrollView style={$contentContainer}>
+        <AnimatedHeader
+          titleTx="recoveryOptionsTitle"
+          scrollY={scrollY}
+          scrollDistance={HEADER_SCROLL_DISTANCE}
+        />
+        <Animated.ScrollView
+          style={$contentContainer}
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+        >
           <Card
             style={$card}
             HeadingComponent={
@@ -413,10 +437,10 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
             </>
             }
           />
-          {isLoading && <Loading />}        
+          {isLoading && <Loading />}
           {error && <ErrorModal error={error} />}
-          {info && <InfoModal message={info} />}                    
-        </ScrollView>
+          {info && <InfoModal message={info} />}
+        </Animated.ScrollView>
         <BottomModal
           isVisible={isNotificationModalVisible ? true : false}          
           ContentComponent={
@@ -573,12 +597,6 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
 
 const $screen: ViewStyle = {
   // flex: 1,
-}
-
-const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  paddingBottom: spacing.medium,
-  height: spacing.screenHeight * 0.15,
 }
 
 const $contentContainer: TextStyle = {
