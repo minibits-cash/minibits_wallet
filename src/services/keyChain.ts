@@ -386,6 +386,53 @@ const removeAuthToken = async function (): Promise<boolean> {
 
 
 
+export type AuthResult = {
+  success: boolean
+  shouldExitApp: boolean
+}
+
+
+/**
+ * Authenticate user on app start
+ * Creates auth token on first use, then requires biometric authentication
+ * Returns result object with success status and whether app should exit
+ */
+const authenticateOnAppStart = async function (isAuthOn: boolean): Promise<AuthResult> {
+  try {
+    const authToken = await getOrCreateAuthToken(isAuthOn)
+
+    if (authToken) {
+      log.trace('[authenticateOnAppStart]', 'App start authentication successful')
+      return { success: true, shouldExitApp: false }
+    }
+
+    log.trace('[authenticateOnAppStart]', 'No auth token found')
+    return { success: false, shouldExitApp: false }
+  } catch (e: any) {
+    // Handle specific error codes for user actions
+    if (e && typeof e === 'object') {
+      const errString = JSON.stringify(e)
+      const isBackPressed = errString.includes('code: 10')
+      const isCancelPressed = errString.includes('code: 13')
+      const isIOSCancel = 'code' in e && String(e.code) === '-128'
+
+      if (isBackPressed) {
+        log.trace('[authenticateOnAppStart]', 'User pressed back button')
+        return { success: false, shouldExitApp: true }
+      }
+
+      if (isCancelPressed || isIOSCancel) {
+        log.trace('[authenticateOnAppStart]', 'User cancelled authentication')
+        return { success: false, shouldExitApp: true }
+      }
+    }
+
+    log.warn('[authenticateOnAppStart]', 'Authentication failed', { message: e.message })
+    return { success: false, shouldExitApp: false }
+  }
+}
+
+
 async function updateAuthSettings(isAuthOn: boolean) {
   log.trace('[updateAuthSettings] to', {isAuthOn})
 
@@ -426,7 +473,25 @@ const authenticatePOSMode = async function (): Promise<boolean> {
     log.trace('[authenticatePOSMode]', 'No auth token found')
     return false
   } catch (e: any) {
-    log.trace('[authenticatePOSMode]', 'Authentication cancelled or failed', { message: e.message })
+    // Handle specific error codes for user actions
+    if (e && typeof e === 'object') {
+      const errString = JSON.stringify(e)
+      const isBackPressed = errString.includes('code: 10')
+      const isCancelPressed = errString.includes('code: 13')
+      const isIOSCancel = 'code' in e && String(e.code) === '-128'
+
+      if (isBackPressed) {
+        log.trace('[authenticatePOSMode]', 'User pressed back button')
+        return false
+      }
+
+      if (isCancelPressed || isIOSCancel) {
+        log.trace('[authenticatePOSMode]', 'User cancelled authentication')
+        return false
+      }
+    }
+
+    log.trace('[authenticatePOSMode]', 'Authentication failed', { message: e.message })
     return false
   }
 }
@@ -526,6 +591,7 @@ export const KeyChain = {
     getOrCreateAuthToken,
     removeAuthToken,
     updateAuthSettings,
+    authenticateOnAppStart,
     authenticatePOSMode,
 
     // server JWT tokens

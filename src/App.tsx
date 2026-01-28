@@ -52,23 +52,12 @@ function App() {
 
     // User authentication (biometrics / PIN)
     if (userSettingsStore.isAuthOn) {
-      KeyChain.getOrCreateAuthToken(userSettingsStore.isAuthOn)
-        .then((authToken) => {
-          setIsUserAuthenticated(true)
-          log.trace('[App]', { authToken })
-        })
-        .catch((e: any) => {
-          log.warn('[App]', 'User authentication failed', { message: e.message })
-
-          if (e && typeof e === 'object') {
-            const errString = JSON.stringify(e)
-            const isBackPressed = errString.includes('code: 10')
-            const isCancellPressed = errString.includes('code: 13')
-            const isIOSCancel = 'code' in e && String(e.code) === '-128'
-
-            if (isCancellPressed || isBackPressed || isIOSCancel) {
-              RNExitApp.exitApp()
-            }
+      KeyChain.authenticateOnAppStart(userSettingsStore.isAuthOn)
+        .then((result) => {
+          if (result.success) {
+            setIsUserAuthenticated(true)
+          } else if (result.shouldExitApp) {
+            RNExitApp.exitApp()
           }
         })
     } else {
