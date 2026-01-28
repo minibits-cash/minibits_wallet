@@ -259,7 +259,7 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
                         }}                    
                     />
                     <Button
-                        text="POS mode"
+                        text="Switch to POS mode"
                         LeftAccessory={() => (
                             <SvgXml
                                 width={spacing.large}

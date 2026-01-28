@@ -12,7 +12,9 @@ import {
   ErrorModal,
   InfoModal,
   BottomModal,
+  PosIcon,
 } from '../components'
+import { SvgXml } from 'react-native-svg'
 import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError from '../utils/AppError'
@@ -63,6 +65,7 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
 
                 if(!biometryType) {
                     setInfo('Your device does not support any biometric authentication method.')
+
                     return
                 }
             } 
@@ -71,8 +74,7 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
                 !isBiometricAuthOn,
             )
             
-            setIsBiometricAuthOn(result)
-            setIsLoading(false)
+            setIsBiometricAuthOn(result)            
 
             if (result === true) {
                 setResultMessage(
@@ -86,6 +88,8 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
             toggleAuthModal()
         } catch (e: any) {
             handleError(e)
+        } finally {
+            setIsLoading(false)
         }
     }
 
@@ -93,6 +97,15 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
         try {
             const newValue = !userSettingsStore.isReceiveOnlyFromContactsOn
             userSettingsStore.setIsReceiveOnlyFromContactsOn(newValue)
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
+    const togglePOSAuthSwitch = () => {
+        try {
+            const newValue = !userSettingsStore.isPOSAuthOn
+            userSettingsStore.setIsPOSAuthOn(newValue)
         } catch (e: any) {
             handleError(e)
         }
@@ -139,6 +152,43 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
                         }
                         style={$item}
                     />
+                    {isBiometricAuthOn && (
+                        <ListItem
+                            tx="securityScreen_posAuth"
+                            subTx="securityScreen_posAuthDescription"
+                            LeftComponent={
+                                <View style={[
+                                    $posIconContainer,
+                                    {backgroundColor: userSettingsStore.isPOSAuthOn
+                                        ? colors.palette.success200
+                                        : colors.palette.neutral400}
+                                ]}>
+                                    <SvgXml
+                                        width={spacing.medium}
+                                        height={spacing.medium}
+                                        xml={PosIcon}
+                                        stroke="white"
+                                    />
+                                </View>
+                            }
+                            RightComponent={
+                                <View style={$rightContainer}>
+                                    <Switch
+                                        onValueChange={togglePOSAuthSwitch}
+                                        value={userSettingsStore.isPOSAuthOn}
+                                    />
+                                </View>
+                            }
+                            style={$item}
+                            topSeparator={true}
+                        />
+                    )}
+                </>
+                }
+            />
+            <Card
+                style={[$card, {marginTop: spacing.small}]}
+                ContentComponent={
                     <ListItem
                         text="Receive only from contacts"
                         subText="Only allow receiving funds over Nostr from your contacts to block spam or malicious attempts."
@@ -158,20 +208,7 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
                             </View>
                         }
                         style={$item}
-                        topSeparator={true}
                     />
-                    {/*isBiometricAuthOn && (
-                        <ListItem
-                            tx="securityScreen_biometry"
-                            subTx={biometryType ? 'securityScreen_biometryAvailable' : 'securityScreen_biometryNone'}
-                            leftIcon='faFingerprint'
-                            leftIconColor={colors.palette.iconGreyBlue400}
-                            leftIconInverse={true}
-                            style={$item}
-                            topSeparator={true}
-                        /> 
-                    )*/} 
-                </>
                 }
             />            
           {isLoading && <Loading />}
@@ -233,7 +270,12 @@ const $item: ViewStyle = {
 }
 
 const $rightContainer: ViewStyle = {
-  // padding: spacing.extraSmall,
   alignSelf: 'center',
-  //marginLeft: spacing.small,
+}
+
+const $posIconContainer: ViewStyle = {
+  borderRadius: spacing.small,
+  padding: spacing.extraSmall,
+  marginRight: spacing.medium,
+  alignSelf: 'center',
 }

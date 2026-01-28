@@ -312,6 +312,7 @@
 	"payCommon_withdraw": "Retirar",
 	"pos_exchangeRateUnavailable": "Taxa de câmbio indisponível",
 	"pos_newTransaction": "Nova transação",
+	"pos_scanOrTapToPay": "Escaneie ou toque para pagar",
 	"pos_waitingForPayment": "Aguardando pagamento...",
 	"payerMemo": "Memorando para o pagador",
 	"payWithLightningDesc": "Insira ou cole endereço Lightning, invoice ou código de pagamento LNURL para pagar.",

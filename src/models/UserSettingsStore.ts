@@ -4,17 +4,18 @@ import {LogLevel} from '../services/log/logTypes'
 import { CurrencyCode, MintUnit } from '../services/wallet/currency'
 import { ThemeCode } from '../theme'
 
-export type UserSettings = {    
+export type UserSettings = {
   preferredUnit: MintUnit
-  exchangeCurrency: CurrencyCode 
+  exchangeCurrency: CurrencyCode
   theme: ThemeCode
   nextTheme: ThemeCode
   isOnboarded: boolean
   isAuthOn: boolean
+  isPOSAuthOn: boolean
   isLocalBackupOn: boolean
   isBatchClaimOn: boolean
   isReceiveOnlyFromContactsOn: boolean // allow receiving over Nostr from unknown contacts
-  isLoggerOn: boolean  
+  isLoggerOn: boolean
   logLevel: LogLevel
 }
 
@@ -25,8 +26,9 @@ export const UserSettingsStoreModel = types
         exchangeCurrency: types.optional(types.frozen<CurrencyCode | null>(), CurrencyCode.USD),
         theme: types.optional(types.frozen<ThemeCode>(), ThemeCode.DEFAULT),
         nextTheme: types.optional(types.frozen<ThemeCode>(), ThemeCode.DEFAULT),
-        isOnboarded: types.optional(types.boolean, false),        
-        isAuthOn: types.optional(types.boolean, false),        
+        isOnboarded: types.optional(types.boolean, false),
+        isAuthOn: types.optional(types.boolean, false),
+        isPOSAuthOn: types.optional(types.boolean, false),
         isBatchClaimOn: types.optional(types.boolean, true),
         isReceiveOnlyFromContactsOn: types.optional(types.boolean, false),
         isLoggerOn: types.optional(types.boolean, true),
@@ -58,11 +60,19 @@ export const UserSettingsStoreModel = types
         ) {
             log.trace(`[setIsAuthOn] from ${self.isAuthOn} to ${isAuthOn}`)
             if (self.isAuthOn !== isAuthOn) {
-                yield KeyChain.updateAuthSettings(isAuthOn)                
+                yield KeyChain.updateAuthSettings(isAuthOn)
                 self.isAuthOn = isAuthOn
+                // Auto-disable POS auth when biometric auth is turned off
+                if (!isAuthOn && self.isPOSAuthOn) {
+                    self.isPOSAuthOn = false
+                }
             }
             return isAuthOn
         }),
+        setIsPOSAuthOn: (isPOSAuthOn: boolean) => {
+            self.isPOSAuthOn = isPOSAuthOn
+            return isPOSAuthOn
+        },
         setIsBatchClaimOn: (isBatchClaimOn: boolean) => {            
             self.isBatchClaimOn = isBatchClaimOn            
             return isBatchClaimOn

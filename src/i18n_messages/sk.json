@@ -312,6 +312,7 @@
 	"payCommon_withdraw": "Vyber",
 	"pos_exchangeRateUnavailable": "Výmenný kurz nie je k dispozícii",
 	"pos_newTransaction": "Nová transakcia",
+	"pos_scanOrTapToPay": "Naskenuj alebo tapni",
 	"pos_waitingForPayment": "Čakám na platbu...",
 	"payerMemo": "Poznámka pre príjemcu",
 	"payWithLightningDesc": "Zadaj Lightning adresu, invoice alebo LNURL kód ktorý chceš zaplatiť.",

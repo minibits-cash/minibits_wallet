@@ -20,16 +20,17 @@ export type QRCodeBlockTypes = 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invo
 const ANIMATED_QR_FRAGMENT_LENGTH = 150
 const ANIMATED_QR_INTERVAL = 250
 
-export const QRCodeBlock = function (props: {  
-    qrCodeData: string    
+export const QRCodeBlock = function (props: {
+    qrCodeData: string
     title?: string
     titleTx?: TxKeyPath
     type: QRCodeBlockTypes
     size?: number
+    startNfcOnLoad?: boolean
   }
 ) {
-  
-    const { qrCodeData, title, titleTx, type, size } = props
+
+    const { qrCodeData, title, titleTx, type, size, startNfcOnLoad = false } = props
     const [qrError, setQrError] = useState<Error | undefined>()
     const [encodedV3Token, setEncodedV3Token] = useState<string | undefined>()
     const [decodedToken, setDecodedToken] = useState<Token>()
@@ -50,17 +51,28 @@ export const QRCodeBlock = function (props: {
     useEffect(() => {
       const nfcSupport = async () => {
         try {
+          let isSafe = false
           if (['EncodedV3Token', 'EncodedV4Token', 'Bolt11Invoice', 'PaymentRequest'].includes(type)) {
-            const isSafe = NfcService.isStringSafeForNFC(qrCodeData)
+            isSafe = NfcService.isStringSafeForNFC(qrCodeData)
             setIsStringSafeForNfc(isSafe)
           }
 
           const isSupported = await NfcManager.isSupported()
           const isEnabled = await NfcManager.isEnabled()
-          
+
           setIsNfcSupported(isSupported)
           setIsNfcEnabled(isEnabled)
-          
+
+          // Auto-start NFC if requested and available
+          if (startNfcOnLoad && Platform.OS === 'android' && isSupported && isEnabled && isSafe) {
+            try {
+              await startNFCSimulation()
+              setNfcBroadcast(true)
+            } catch (e: any) {
+              log.error('NFC auto-start failed: ', e.message, {stack: e.stack})
+            }
+          }
+
         } catch (e: any) {}
       }
 
@@ -158,7 +170,7 @@ export const QRCodeBlock = function (props: {
       }
     }
 
-    const switchTokenEncoding = function () {
+    /* const switchTokenEncoding = function () {
       try {
         if(encodedV3Token) {
           setEncodedV3Token(undefined)
@@ -171,7 +183,7 @@ export const QRCodeBlock = function (props: {
       } catch (e: any) {
         handleQrError(e)
       }
-    }
+    }*/
 
     const startAnimatedQRcode = () => setIsAnimating(true)
     const stopAnimatedQRcode = () => setIsAnimating(false)
@@ -218,11 +230,11 @@ export const QRCodeBlock = function (props: {
 
     const toggleNFC = async () => {
       if (nfcBroadcast) {
-        await stopNFCSimulation()
+        // await stopNFCSimulation()
         setNfcBroadcast(prev => !prev)
       } else {
         try {
-          await startNFCSimulation()
+          // await startNFCSimulation()
           setNfcBroadcast(prev => !prev)
         } catch(e: any) {
           log.error('NFC simulation failed to start: ', e.message, {stack: e.stack})
@@ -320,7 +332,7 @@ export const QRCodeBlock = function (props: {
               /> 
             )}
             {/* NFC HCE share button - only on Android */}
-            {Platform.OS === 'android' && isStringSafeForNfc && isNfcSupported && (
+            {true && (
               <Button
                   preset="tertiary"
                   //text={nfcBroadcast ? "NFC active" : "NFC"}
@@ -338,11 +350,9 @@ export const QRCodeBlock = function (props: {
                     fontWeight: nfcBroadcast ? 'bold' : 'normal'
                   }}
                   pressedStyle={{ backgroundColor: colors.light.buttonTertiaryPressed }}
-                  style={{ 
-                    minHeight: verticalScale(40), 
+                  style={{
+                    minHeight: verticalScale(40),
                     paddingVertical: verticalScale(spacing.tiny),
-                    paddingHorizontal: spacing.tiny,
-                    backgroundColor: nfcBroadcast ? colors.palette.success100 : undefined, 
                   }}
               />
             )}

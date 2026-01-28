@@ -389,7 +389,7 @@ const removeAuthToken = async function (): Promise<boolean> {
 async function updateAuthSettings(isAuthOn: boolean) {
   log.trace('[updateAuthSettings] to', {isAuthOn})
 
-  const authToken = await getOrCreateAuthToken(!isAuthOn) // current isAuthOn value 
+  const authToken = await getOrCreateAuthToken(!isAuthOn) // current isAuthOn value
 
   if (authToken) {
     try {
@@ -398,6 +398,36 @@ async function updateAuthSettings(isAuthOn: boolean) {
     } catch (e: any) {
       throw new AppError(Err.KEYCHAIN_ERROR, e.message, e)
     }
+  }
+}
+
+
+/**
+ * Authenticate user when leaving POS mode
+ * Returns true if authentication succeeded, false if cancelled or failed
+ */
+const authenticatePOSMode = async function (): Promise<boolean> {
+  try {
+    const result = await _Keychain.getGenericPassword({
+      service: KeyChainServiceName.BIOMETRIC_AUTH,
+      authenticationPrompt: {
+        title: 'Authentication required',
+        subtitle: '',
+        description: 'Authentication is required to leave the POS mode.',
+        cancel: 'Cancel',
+      }
+    })
+
+    if (result) {
+      log.trace('[authenticatePOSMode]', 'POS mode authentication successful')
+      return true
+    }
+
+    log.trace('[authenticatePOSMode]', 'No auth token found')
+    return false
+  } catch (e: any) {
+    log.trace('[authenticatePOSMode]', 'Authentication cancelled or failed', { message: e.message })
+    return false
   }
 }
 
@@ -496,6 +526,7 @@ export const KeyChain = {
     getOrCreateAuthToken,
     removeAuthToken,
     updateAuthSettings,
+    authenticatePOSMode,
 
     // server JWT tokens
     saveJwtTokens,

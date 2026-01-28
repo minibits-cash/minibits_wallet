@@ -1,9 +1,10 @@
 import { observer } from 'mobx-react-lite'
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import {
   View,
   ViewStyle,
   TextStyle,
+  BackHandler,
 } from 'react-native'
 import Animated, {
   useSharedValue,
@@ -31,6 +32,7 @@ import {
   HANDLE_PENDING_TOPUP_TASK,
   TransactionTaskResult,
   WalletTask,
+  KeyChain,
 } from '../services'
 import { log } from '../services/logService'
 import AppError from '../utils/AppError'
@@ -264,10 +266,36 @@ export const POSScreen = observer(function POSScreen({ route }: Props) {
   }
 
 
-  const gotoWallet = () => {
+  const gotoWallet = useCallback(async () => {
+    // Check if POS mode authentication is required
+    if (userSettingsStore.isAuthOn && userSettingsStore.isPOSAuthOn) {
+      const authenticated = await KeyChain.authenticatePOSMode()
+      if (!authenticated) {
+        // User cancelled or failed authentication, stay on POS screen
+        return
+      }
+    }
     resetState()
     navigation.goBack()
-  }
+  }, [userSettingsStore.isAuthOn, userSettingsStore.isPOSAuthOn, navigation])
+
+  // Handle Android hardware back button with POS authentication
+  useEffect(() => {
+    const onBackPress = () => {
+      if (userSettingsStore.isAuthOn && userSettingsStore.isPOSAuthOn) {
+        // Trigger async authentication
+        gotoWallet()
+        // Return true to prevent default back behavior
+        return true
+      }
+      // Allow default back behavior if POS auth is not enabled
+      return false
+    }
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress)
+
+    return () => subscription.remove()
+  }, [userSettingsStore.isAuthOn, userSettingsStore.isPOSAuthOn, gotoWallet])
 
   const handleError = (e: AppError) => {
     setError(e)
@@ -358,7 +386,7 @@ export const POSScreen = observer(function POSScreen({ route }: Props) {
           <View style={$qrContainer}>
             <QRCodeBlock
               qrCodeData={invoiceToPay}
-              title={`Lightning invoice`}
+              titleTx="pos_scanOrTapToPay"
               type="Bolt11Invoice"
               size={spacing.screenWidth - spacing.large * 4}
             />
@@ -416,7 +444,7 @@ const $screen: ViewStyle = {
 
 const $amountContainer: ViewStyle = {
   alignItems: 'center',
-  paddingVertical: spacing.extraLarge,
+  paddingVertical: spacing.large,
   paddingHorizontal: spacing.medium,
 }
 
