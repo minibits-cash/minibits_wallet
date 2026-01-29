@@ -2722,14 +2722,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cashu/cashu-ts@npm:3.2.2":
-  version: 3.2.2
-  resolution: "@cashu/cashu-ts@npm:3.2.2"
+"@cashu/cashu-ts@npm:3.3.0":
+  version: 3.3.0
+  resolution: "@cashu/cashu-ts@npm:3.3.0"
   dependencies:
     "@noble/curves": ^2.0.1
     "@noble/hashes": ^2.0.1
+    "@scure/base": ^2.0.0
     "@scure/bip32": ^2.0.1
-  checksum: 49516a22f3afbf249c52d0f36a9e6513948b763af94c703a05375b513b0d3f90bb1feaade201214d315f5a26305e182ee00493634519ad9b69c7bd44615de11c
+  checksum: beba7c33347dbd86385b071ad0624178645e86f2479dff91a655563ae1f6b8a730a7856d1b09e9df368bbfcc1e9ba1001c19512967787e41f417fc183537ce9e
   languageName: node
   linkType: hard
 
@@ -5303,15 +5304,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/curves@npm:~1.8.1":
-  version: 1.8.1
-  resolution: "@noble/curves@npm:1.8.1"
-  dependencies:
-    "@noble/hashes": 1.7.1
-  checksum: 4143f1248ed57c1ae46dfef5c692a91383e5830420b9c72d3ff1061aa9ebbf8999297da6d2aed8a9716fef8e6b1f5a45737feeab02abf55ca2a4f514bf9339ec
-  languageName: node
-  linkType: hard
-
 "@noble/hashes@npm:1.3.1":
   version: 1.3.1
   resolution: "@noble/hashes@npm:1.3.1"
@@ -5326,13 +5318,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/hashes@npm:1.7.1, @noble/hashes@npm:^1.3.3, @noble/hashes@npm:~1.7.1":
-  version: 1.7.1
-  resolution: "@noble/hashes@npm:1.7.1"
-  checksum: 4f1b56428a10323feef17e4f437c9093556cb18db06f94d254043fadb69c3da8475f96eb3f8322d41e8670117d7486475a8875e68265c2839f60fd03edd6a616
-  languageName: node
-  linkType: hard
-
 "@noble/hashes@npm:2.0.1, @noble/hashes@npm:^2.0.1":
   version: 2.0.1
   resolution: "@noble/hashes@npm:2.0.1"
@@ -5340,10 +5325,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/hashes@npm:^1.1.5, @noble/hashes@npm:~1.8.0":
+"@noble/hashes@npm:^1.1.5":
   version: 1.8.0
   resolution: "@noble/hashes@npm:1.8.0"
   checksum: c94e98b941963676feaba62475b1ccfa8341e3f572adbb3b684ee38b658df44100187fa0ef4220da580b13f8d27e87d5492623c8a02ecc61f23fb9960c7918f5
+  languageName: node
+  linkType: hard
+
+"@noble/hashes@npm:^1.3.3":
+  version: 1.7.1
+  resolution: "@noble/hashes@npm:1.7.1"
+  checksum: 4f1b56428a10323feef17e4f437c9093556cb18db06f94d254043fadb69c3da8475f96eb3f8322d41e8670117d7486475a8875e68265c2839f60fd03edd6a616
   languageName: node
   linkType: hard
 
@@ -6277,7 +6269,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@scure/base@npm:2.0.0":
+"@scure/base@npm:2.0.0, @scure/base@npm:^2.0.0":
   version: 2.0.0
   resolution: "@scure/base@npm:2.0.0"
   checksum: 15d10f154256f52bb3e02b63cdf93b6df6db3814fa4c61a8bb2d339831aec7859609fb715b93c7fc852755f0fe67fb6411664c06159745711bf38af3b10ab93e
@@ -6291,20 +6283,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@scure/base@npm:~1.2.2":
-  version: 1.2.4
-  resolution: "@scure/base@npm:1.2.4"
-  checksum: db554eb550a1bd17684af9282e1ad751050a13d4add0e83ad61cc496680d7d1c1c1120ca780e72935a293bb59721c20a006a53a5eec6f6b5bdcd702cf27c8cae
-  languageName: node
-  linkType: hard
-
-"@scure/base@npm:~1.2.5":
-  version: 1.2.6
-  resolution: "@scure/base@npm:1.2.6"
-  checksum: 1058cb26d5e4c1c46c9cc0ae0b67cc66d306733baf35d6ebdd8ddaba242b80c3807b726e3b48cb0411bb95ec10d37764969063ea62188f86ae9315df8ea6b325
-  languageName: node
-  linkType: hard
-
 "@scure/bip32@npm:1.3.1":
   version: 1.3.1
   resolution: "@scure/bip32@npm:1.3.1"
@@ -6313,17 +6291,6 @@ __metadata:
     "@noble/hashes": ~1.3.1
     "@scure/base": ~1.1.0
   checksum: 394d65f77a40651eba21a5096da0f4233c3b50d422864751d373fcf142eeedb94a1149f9ab1dbb078086dab2d0bc27e2b1afec8321bf22d4403c7df2fea5bfe2
-  languageName: node
-  linkType: hard
-
-"@scure/bip32@npm:1.6.2":
-  version: 1.6.2
-  resolution: "@scure/bip32@npm:1.6.2"
-  dependencies:
-    "@noble/curves": ~1.8.1
-    "@noble/hashes": ~1.7.1
-    "@scure/base": ~1.2.2
-  checksum: e7586619f8a669e522267ce71a90b2d00c3a91da658f1f50e54072cf9f432ba26d2bb4d3d91a5d06932ab96612b8bd038bc31d885bbc048cebfb6509c4a790fc
   languageName: node
   linkType: hard
 
@@ -6348,13 +6315,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@scure/bip39@npm:1.6.0":
-  version: 1.6.0
-  resolution: "@scure/bip39@npm:1.6.0"
+"@scure/bip39@npm:2.0.1":
+  version: 2.0.1
+  resolution: "@scure/bip39@npm:2.0.1"
   dependencies:
-    "@noble/hashes": ~1.8.0
-    "@scure/base": ~1.2.5
-  checksum: 96d46420780473d6c6c9700254a0eceec60302f61d7f9d7f29024e90c7acff3e8e40a5ee52dfaf104db539a10462e531996aaf9e69f082b8540b0a25870545fc
+    "@noble/hashes": 2.0.1
+    "@scure/base": 2.0.0
+  checksum: 87604ba9523844d13be006253b52cfdbf998d93973deefdbf8cbe4fe4b98151682ac75d318483733a3164cda04634ef41dd98589d7156465b6f91ad4b6bb2c62
   languageName: node
   linkType: hard
 
@@ -14466,7 +14433,7 @@ __metadata:
     "@babel/plugin-proposal-export-namespace-from": ^7.18.9
     "@babel/preset-env": ^7.25.3
     "@babel/runtime": ^7.25.0
-    "@cashu/cashu-ts": 3.2.2
+    "@cashu/cashu-ts": 3.3.0
     "@fortawesome/fontawesome-svg-core": ^7.1.0
     "@fortawesome/free-brands-svg-icons": ^7.1.0
     "@fortawesome/free-regular-svg-icons": ^7.1.0
@@ -14495,8 +14462,8 @@ __metadata:
     "@react-navigation/native": ^7.1.18
     "@react-navigation/native-stack": ^7.3.27
     "@react-navigation/stack": ^7.4.9
-    "@scure/bip32": 1.6.2
-    "@scure/bip39": 1.6.0
+    "@scure/bip32": ^2.0.1
+    "@scure/bip39": 2.0.1
     "@sentry/cli": ^2.56.0
     "@sentry/react-native": ^7.7.0
     "@tsconfig/react-native": ^3.0.7

@@ -198,12 +198,11 @@ const updateDeviceToken = async function (deviceToken: string) {
 
 // recover profile address, avatar and seedHash from former profile (if exists, otherwise only seedHash is linked) to the current one.
 // newPubkey is the NIP-06 derived pubkey from the recovered mnemonic - server will rotate profile to this pubkey
-const recoverProfile = async function (walletId: string, seedHash: string, newPubkey?: string) {
+const recoverProfile = async function (seedHash: string, newPubkey?: string) {
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'
 
-    const body: { walletId: string, seedHash: string, newPubkey?: string } = {
-        walletId,
+    const body: { seedHash: string, newPubkey?: string } = {        
         seedHash
     }
 
@@ -224,12 +223,11 @@ const recoverProfile = async function (walletId: string, seedHash: string, newPu
 
 // recover address only from the profile identified by seedHash to the current profile
 // keep current avatar, seed and nostr keys.
-const recoverAddress = async function (walletId: string, seedHash: string) {
+const recoverAddress = async function (seedHash: string) {
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'
 
-    const body: { walletId: string, seedHash: string } = {
-        walletId,
+    const body: { seedHash: string } = {        
         seedHash
     }
 
@@ -239,7 +237,7 @@ const recoverAddress = async function (walletId: string, seedHash: string) {
         jwtAuthRequired: true
     }) as WalletProfileRecord
 
-    log.info('[recoverAddress]', `Recovered wallet address`, {seedHash, walletId})
+    log.info('[recoverAddress]', `Recovered wallet address`, {seedHash, nip05: walletProfile.nip05})
 
     return walletProfile
 }
@@ -330,12 +328,11 @@ const checkDonationPaid = async function (paymentHash: string) {
 }
 
 
-const createClaim = async function (walletId: string, seedHash: string, batchFrom?: number) {    
+const createClaim = async function (seedHash: string, batchFrom?: number) {    
     const url = MINIBITS_SERVER_API_HOST + '/claim' 
     const method = 'POST'    
     
-    const body = {
-        walletId,
+    const body = {        
         seedHash,        
         batchFrom
     }

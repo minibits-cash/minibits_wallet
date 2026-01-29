@@ -139,7 +139,7 @@ export function BottomModal(props: ModalProps) {
   const insets = useSafeAreaInsets()
 
   const $innerContainerStyle = [    
-    $innerContainerBase, { backgroundColor: useThemeColor('card'), paddingBottom: insets.bottom + 20 }, $containerStyleOverride   
+    $innerContainerBase, { backgroundColor: useThemeColor('card'), paddingBottom: insets.bottom + (Platform.OS === 'ios' ? 40 : 20) }, $containerStyleOverride   
   ]
   
   const isHeadingPresent = !!(HeadingComponent || heading || headingTx)

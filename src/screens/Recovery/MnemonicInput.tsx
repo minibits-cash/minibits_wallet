@@ -30,6 +30,7 @@ export const MnemonicInput = forwardRef<TextInput, MnemonicInputProps>((props, m
             .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width chars
             .replace(/\s+/g, ' ') // Normalize whitespace
             .trim()
+            .toLowerCase()
     }
 
     const onPaste = async function () {
@@ -47,7 +48,7 @@ export const MnemonicInput = forwardRef<TextInput, MnemonicInputProps>((props, m
     }
 
     const onMnemonicChange = (text: string) => {
-        setMnemonic(cleanMnemonic(text))
+        setMnemonic(text)
     }
 
     const numIconColor = useThemeColor('textDim')

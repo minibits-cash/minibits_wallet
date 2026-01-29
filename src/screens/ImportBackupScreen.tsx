@@ -250,8 +250,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
           // In case there is a profile linked to provided seedHash,
           // it's address, avatar and seed is recovered to the current profile.
           // Pass newPubkey so server rotates the profile to the derived pubkey.
-          await walletProfileStore.recover(
-              keys.walletId,
+          await walletProfileStore.recover(              
               seedHashRef.current,
               nostrKeys.publicKey
           )

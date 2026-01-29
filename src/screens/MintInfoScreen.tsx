@@ -99,13 +99,15 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
 
         log.trace('useEffect', { mintUrl: route.params.mintUrl })
 
-        setIsLoading(true)
+        //setIsLoading(true)
         const mint = mintsStore.findByUrl(route.params.mintUrl)
 
         if (mint) {
+          setMintInfo(mint.mintInfo as GetInfoResponse | undefined)
           setMint(mint)
           const info: GetInfoResponse = await walletStore.getMintInfo(mint.mintUrl)
           mint.setStatus(MintStatus.ONLINE)
+          mint.setMintInfo(info)
           if(info.name && info.name !== mint.shortname) {
             await mint.setShortname()
           }
@@ -114,7 +116,7 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
           throw new AppError(Err.VALIDATION_ERROR, 'Could not find mint', { mintUrl: route.params.mintUrl })
         }
 
-        setIsLoading(false)
+        //setIsLoading(false)
       } catch (e: any) {
         if (route.params.mintUrl) {
           const mint = mintsStore.findByUrl(route.params.mintUrl)

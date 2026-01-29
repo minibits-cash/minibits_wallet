@@ -11,6 +11,7 @@ import {
   CheckStateEnum,
   GetKeysetsResponse,
   GetKeysResponse,
+  GetInfoResponse,
   MintQuoteBolt11Response,
   type ProofState,
   type OperationCounters,
@@ -27,6 +28,7 @@ import { Proof } from './Proof'
 import { InFlightRequest, Mint } from './Mint'
 import { getRootStore } from './helpers/getRootStore'
 import { Transaction } from './Transaction'
+import { keys } from 'mobx'
 // 
 
 /* 
@@ -202,8 +204,10 @@ export const WalletStoreModel = types
         const keys: WalletKeys = yield self.getCachedWalletKeys()
         return keys.SEED.seedHash
       }),
-      getMint: flow(function* getMint(mintUrl: string) {    
+      getMint: flow(function* getMint(mintUrl: string) {
         const mint = self.mints.find(m => m.mintUrl === mintUrl)
+
+        log.trace('[WalletStore.getMint]', {cachedMint: !!mint})
 
         if (mint) {
           return mint as CashuMint
@@ -215,28 +219,38 @@ export const WalletStoreModel = types
         // create cashu-ts mint instance
         const newMint = new CashuMint(mintUrl)
 
-        // get fresh keysets
-        const {keysets} = yield newMint.getKeySets()        
+        // get fresh keysets - returns all keysets, both active and inactive
+        const {keysets} = yield newMint.getKeySets()
 
-        // get persisted mint model from wallet state        
-        const mintInstance = self.getMintModelInstance(mintUrl)        
+        // get persisted mint model from wallet state
+        const mintInstance = self.getMintModelInstance(mintUrl)
 
         // skip checks if this is new mint being added
         if(mintInstance) {
           const newKeysets = keysets.filter((freshKeyset: MintKeyset) => {
             return !mintInstance.keysets!.some((keyset: MintKeyset) => keyset.id === freshKeyset.id)
           })
-      
+
           if(newKeysets.length > 0) {
-            // if we heve new keysets, get and sync new keys
-            const {keysets: keys} = yield newMint.getKeys()
+            // if we have new keysets, get and sync new keys
+            // this, for perf reasons, returns ONLY active keys so
+            // mintInstance can not be directly used to restore from inactive keysets
+            const {keysets: keys} = yield newMint.getKeys() as Promise<GetKeysResponse>
             mintInstance.refreshKeys!(keys)
           }
-      
+
           // sync wallet state with fresh keysets, active statuses and keys
-          mintInstance.refreshKeysets!(keysets)          
+          mintInstance.refreshKeysets!(keysets)
+
+          // fetch and cache mintInfo if not already cached
+          const {mintInfo} = mintInstance
+          const now = Math.floor(Date.now() / 1000)
+          if(!mintInfo || now - mintInfo.time > 3600) {
+            const info: GetInfoResponse = yield newMint.getInfo()
+            mintInstance.setMintInfo!(info)
+          }
         }
-      
+
         // store cashu-ts mint instance in memory
         self.mints.push(newMint)
 
@@ -267,10 +281,12 @@ export const WalletStoreModel = types
         let walletKeys: MintKeys
         if(options && options.keysetId) {
 
+          //log.warn(mintInstance.keys)
+
           const requestedKeys = mintInstance.keys!.find((k: MintKeys) => k.id === options.keysetId)
 
           if(!requestedKeys) {
-            throw new AppError(Err.NOTFOUND_ERROR, 'Mint has no keys with provided keyset id, refresh mint settings.', {
+            throw new AppError(Err.NOTFOUND_ERROR, 'Mint has no active keys with provided keyset id, refresh mint settings.', {
               mintUrl, 
               keysetId: options.keysetId
             })
@@ -294,7 +310,7 @@ export const WalletStoreModel = types
           const activeKeys = mintInstance.keys!.find((k: MintKeys) => k.id === activeKeyset.id)
 
           if(!activeKeys) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Wallet has not any keys for the selected unit, refresh mint settings.', {
+            throw new AppError(Err.VALIDATION_ERROR, 'Wallet has no active keys for the selected unit, refresh mint settings.', {
               mintUrl, 
               unit,
               activeKeysetId: activeKeyset.id
@@ -317,17 +333,15 @@ export const WalletStoreModel = types
           }
           
           const seed = yield self.getCachedSeed()
-          
+
           const newSeedWallet = new CashuWallet(cashuMint, {
             unit,
             keys: mintInstance.keys,
             keysets: mintInstance.keysets,
-            keysetId: walletKeys.id,                   
+            mintInfo: mintInstance.mintInfo,
+            keysetId: walletKeys.id,
             bip39seed: seed
           })
-
-          // Load uptodate mint info to wallet.mintInfo (NUTS support etc)
-          yield newSeedWallet.loadMint()
 
           self.seedWallets.push(newSeedWallet)
 
@@ -350,7 +364,8 @@ export const WalletStoreModel = types
           unit,
           keys: mintInstance.keys,
           keysets: mintInstance.keysets,
-          keysetId: walletKeys.id,   
+          mintInfo: mintInstance.mintInfo,
+          keysetId: walletKeys.id,
           bip39seed: undefined
         })
         
@@ -1075,47 +1090,96 @@ export const WalletStoreModel = types
             indexFrom: number,
             indexTo: number,
             keysetId: string
+            unit: MintUnit
             }
         ) {
             try {
-              log.trace('[restore]', {mintUrl, options})
-              const {indexFrom, indexTo, keysetId} = options
-              // need special wallet instance to pass seed and keysetId directly
-              const cashuMint = yield self.getMint(mintUrl)
+              // PERF: Start restore timing
+              const perfTotal = performance.now()
+              log.info('[PERF][WalletStore.restore] ====== START ======')
 
-              // get uptodate mint model from wallet state
+              log.trace('[restore]', {mintUrl, options})
+              const {indexFrom, indexTo, keysetId, unit} = options
+
+              // PERF: Time wallet creation
+              const perfWalletCreate = performance.now()
+
+              // Get mint model instance for keysets metadata
               const mintInstance = self.getMintModelInstance(mintUrl)
+
               if(!mintInstance) {
-                throw new AppError(Err.NOTFOUND_ERROR, 'Mint not found in the wallet state.', {
-                  mintUrl
-                })
+                  throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
               }
 
-              const seedWallet = new CashuWallet(cashuMint, {
-                  //unit: 'sat', // just use default unit as we restore by keyset
-                  keys: mintInstance.keys,
-                  keysets: mintInstance.keysets,
+              // Check if the requested keyset is inactive
+              const requestedKeyset = mintInstance.keysets?.find(k => k.id === keysetId)
+              const isInactiveKeyset = requestedKeyset && !requestedKeyset.active
+
+              // Create separate CashuMint and CashuWallet instances for restore operation
+              // to avoid polluting the main wallet state with inactive keyset data
+              const cashuMint = new CashuMint(mintUrl)
+              let cashuWallet: CashuWallet
+
+              if (isInactiveKeyset) {
+                // For inactive keysets, create wallet without binding to the inactive keyset
+                // (which would fail in finishInit), then manually load keys and rebind
+                log.trace('[WalletStore.restore]', 'Creating wallet for inactive keyset', {keysetId})
+
+                // Create wallet WITHOUT keysetId - it will bind to cheapest active keyset
+                cashuWallet = new CashuWallet(cashuMint, {
+                  unit,
+                  bip39seed: seed
+                })
+
+                // Load mint info - succeeds because wallet is bound to active keyset
+                yield cashuWallet.loadMint()
+
+                // Fetch and set keys for the inactive keyset
+                log.trace('[WalletStore.restore]', 'Loading keys for inactive keyset', {keysetId})
+                const {keysets: fetchedKeys} = yield cashuMint.getKeys(keysetId) as Promise<GetKeysResponse>
+                if (fetchedKeys && fetchedKeys.length > 0) {
+                  const inactiveKeyset = cashuWallet.keyChain.getKeyset(keysetId)
+                  inactiveKeyset.keys = fetchedKeys[0].keys
+                }
+
+                // Rebind to the inactive keyset now that it has keys
+                cashuWallet.bindKeyset(keysetId)
+              } else {
+                // For active keysets, create wallet with keysetId directly
+                log.trace('[WalletStore.restore]', 'Creating wallet for active keyset', {keysetId})
+
+                cashuWallet = new CashuWallet(cashuMint, {
+                  unit,
                   keysetId,
                   bip39seed: seed
-              })
+                })
 
-              yield seedWallet.loadMint()
-      
-              const count = Math.abs(indexTo - indexFrom)          
-              
-              const {proofs} = yield seedWallet.restore(            
+                yield cashuWallet.loadMint()
+              }
+
+              log.info('[PERF][WalletStore.restore] CashuWallet created:', { ms: (performance.now() - perfWalletCreate).toFixed(2) })
+
+              const count = Math.abs(indexTo - indexFrom)
+              log.info('[PERF][WalletStore.restore] About to restore', { indexFrom, count, keysetId })
+
+              // PERF: Time the actual restore call (this is the main operation)
+              const perfRestore = performance.now()
+              const {proofs} = yield cashuWallet.restore(
                   indexFrom,
                   count,
                   {keysetId}
               )
-              
-          
+              log.info('[PERF][WalletStore.restore] seedWallet.restore() (cashu-ts):', { ms: (performance.now() - perfRestore).toFixed(2), proofsFound: proofs.length })
+
+              log.info('[PERF][WalletStore.restore] ====== END ======')
+              log.info('[PERF][WalletStore.restore] Total:', { ms: (performance.now() - perfTotal).toFixed(2) })
+
               log.info('[restore]', 'Number of recovered proofs', {proofs: proofs.length})
-          
+
               return {
-                  proofs: proofs || [] as Proof[]            
+                  proofs: proofs || [] as Proof[]
               }
-            } catch (e: any) {        
+            } catch (e: any) {
                 throw new AppError(Err.MINT_ERROR, CashuUtils.isObj(e.message) ? JSON.stringify(e.message) : e.message, {mintUrl})
             }
         }),

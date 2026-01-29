@@ -1,7 +1,7 @@
-diff --git a/node_modules/@cashu/cashu-ts/node_modules/@scure/bip32/index.js b/node_modules/@cashu/cashu-ts/node_modules/@scure/bip32/index.js
-index 935277b..6a76a8c 100644
---- a/node_modules/@cashu/cashu-ts/node_modules/@scure/bip32/index.js
-+++ b/node_modules/@cashu/cashu-ts/node_modules/@scure/bip32/index.js
+diff --git a/node_modules/@scure/bip32/index.js b/node_modules/@scure/bip32/index.js
+index 935277b..361161a 100644
+--- a/node_modules/@scure/bip32/index.js
++++ b/node_modules/@scure/bip32/index.js
 @@ -23,6 +23,7 @@ import { ripemd160 } from '@noble/hashes/legacy.js';
  import { sha256, sha512 } from '@noble/hashes/sha2.js';
  import { abytes, concatBytes, createView } from '@noble/hashes/utils.js';
@@ -10,24 +10,22 @@ index 935277b..6a76a8c 100644
  const Point = secp.Point;
  const { Fn } = Point;
  const base58check = createBase58check(sha256);
-@@ -87,7 +88,9 @@ export class HDKey {
+@@ -87,7 +88,8 @@ export class HDKey {
              throw new Error('HDKey: seed length must be between 128 and 512 bits; 256 bits is advised, got ' +
                  seed.length);
          }
 -        const I = hmac(sha512, MASTER_SECRET, seed);
-+        // const I = hmac(sha512, MASTER_SECRET, seed);
-+        console.log('[bip32 v2.0.1 fromMasterSeed] Using quickCrypto HMAC');
++        //const I = hmac(sha512, MASTER_SECRET, seed);
 +        const I = new Uint8Array(quickCrypto.createHmac('sha512', MASTER_SECRET).update(seed).digest());
          const privateKey = I.slice(0, 32);
          const chainCode = I.slice(32);
          return new HDKey({ versions, chainCode, privateKey });
-@@ -206,7 +209,9 @@ export class HDKey {
+@@ -206,7 +208,8 @@ export class HDKey {
              // Normal child: serP(point(kpar)) || ser32(index)
              data = concatBytes(this._publicKey, data);
          }
 -        const I = hmac(sha512, this.chainCode, data);
-+        // const I = hmac(sha512, this.chainCode, data);
-+        console.log('[bip32 v2.0.1 deriveChild] Using quickCrypto HMAC');
++        //const I = hmac(sha512, this.chainCode, data);
 +        const I = new Uint8Array(quickCrypto.createHmac('sha512', this.chainCode).update(data).digest());
          const childTweak = I.slice(0, 32);
          const chainCode = I.slice(32);

@@ -2212,7 +2212,6 @@ const handleClaimQueue = async function (): Promise<void> {
 
     // Based on user setting, ask for batched token if more then 5 payments are waiting to be claimed
     const claimedTokens = await MinibitsClient.createClaim(
-        keys.walletId,
         keys.SEED.seedHash,         
         isBatchClaimOn ? 5 : undefined
     )

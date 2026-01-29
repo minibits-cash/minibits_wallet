@@ -268,8 +268,9 @@ export const MintModel = types
         hostname: types.maybe(types.string),
         shortname: types.maybe(types.string),
         units: types.array(types.frozen<MintUnit>()),
-        keysets: types.array(types.frozen<CashuMintKeyset>()),   
-        keys: types.array(types.frozen<CashuMintKeys>()),        
+        keysets: types.array(types.frozen<CashuMintKeyset>()),
+        keys: types.array(types.frozen<CashuMintKeys>()),
+        mintInfo: types.maybe(types.frozen<GetInfoResponse & {time: number}>()),
         proofsCounters: types.array(MintProofsCounterModel),
         color: types.optional(types.string, colors.palette.iconBlue200),
         status: types.optional(types.frozen<MintStatus>(), MintStatus.ONLINE),
@@ -388,6 +389,9 @@ export const MintModel = types
         },
         keysetExists(keyset: CashuMintKeyset): boolean {
             return self.keysets.some(k => k.id === keyset.id)
+        },
+        keysExist(keysetId: string): boolean {
+            return self.keys.some(k => k.id === keysetId)
         }
     }))
     .actions(self => ({
@@ -505,10 +509,14 @@ export const MintModel = types
                 self.initKeyset(keyset, allKeysetIds)
             }
         },
-        refreshKeys(freshKeys: CashuMintKeys[]) {            
+        refreshKeys(freshKeys: CashuMintKeys[]) {
             for (const key of freshKeys) {
-                self.initKeys(key)                
+                self.initKeys(key)
             }
+        },
+        setMintInfo(info: GetInfoResponse & {time: number}) {
+            self.mintInfo = info
+            log.trace('[setMintInfo]', {mintUrl: self.mintUrl})
         },
         getProofsCounterByKeysetId(keysetId: string) {                        
             const counter = self.proofsCounters.find(p => p.keyset === keysetId)

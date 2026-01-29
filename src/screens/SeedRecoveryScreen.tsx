@@ -146,6 +146,18 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
         }
     }
 
+
+    const onKeysetIdSelect = function(keyset: MintKeyset) {
+        if(!selectedMintUrl) {
+            setInfo(translate("recovery_selectMintFrom"))
+            return
+        }
+
+        setSelectedKeyset(keyset)
+        setStartIndex(0)
+        setEndIndex(RESTORE_INDEX_INTERVAL)
+    }
+
     const toggleIndexModal = () => {
         setIsIndexModalVisible(previousState => !previousState)
     }
@@ -187,47 +199,61 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
         let pendingTransaction: Transaction | undefined = undefined
         let recoveredMint = mintsStore.findByUrl(selectedMintUrl as string)
 
+        // PERF: Start total recovery timing
+        const perfStart = performance.now()
+        log.info('[PERF] ====== RECOVERY ROUND START ======')
+        log.info('[PERF] Interval:', { startIndex, endIndex, count: endIndex - startIndex })
+
         try {
             if(!seedHashRef.current || !seedRef.current) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Could not get seed')
             }
 
-            if(!recoveredMint) {                
+            if(!recoveredMint) {
               setInfo(translate("recovery_noMintSelected"))
               return
             }
 
-            if(!selectedKeyset) {                
+            if(!selectedKeyset) {
               setInfo(translate("recovery_noKeysetSelected"))
               return
             }
-            
+
             setStatusMessage(translate("recovery_restoringFromParam", { hostname: recoveredMint.hostname }))
             log.info('[restore]', `Restoring from ${recoveredMint.hostname}...`)
-            
+
+            // PERF: Time the restore call
+            const restoreStart = performance.now()
             const { proofs } = await walletStore.restore(
-                recoveredMint.mintUrl, 
+                recoveredMint.mintUrl,
                 seedRef.current,
                 {
-                    indexFrom: startIndex, 
-                    indexTo: endIndex,                    
-                    keysetId: selectedKeyset.id as string
-                }                
+                    indexFrom: startIndex,
+                    indexTo: endIndex,
+                    keysetId: selectedKeyset.id as string,
+                    unit: selectedKeyset.unit as MintUnit
+                }
             )
+            const restoreEnd = performance.now()
+            log.info('[PERF] walletStore.restore() total:', { ms: (restoreEnd - restoreStart).toFixed(2), proofsFound: proofs.length })
 
-            //log.debug('[restore]', `Restored proofs`, proofs.length)                
+            //log.debug('[restore]', `Restored proofs`, proofs.length)
             setStatusMessage(translate("recovery_foundProofsAmount", { amount: proofs.length }))
             
             if (proofs.length > 0) {
                 // need to move counter by whole interval to avoid duplicate _B!!!
-                const proofsCounter = recoveredMint.getProofsCounterByKeysetId(selectedKeyset.id)                
+                const proofsCounter = recoveredMint.getProofsCounterByKeysetId(selectedKeyset.id)
                 proofsCounter?.increaseProofsCounter(Math.abs(endIndex - startIndex))
-                
+
+                // PERF: Time the proof states check
+                const statesStart = performance.now()
                 const proofStates = await walletStore.getProofsStatesFromMint(
                     recoveredMint.mintUrl,
                     selectedKeyset.unit as MintUnit,
                     proofs as Proof[],
                 )
+                const statesEnd = performance.now()
+                log.info('[PERF] getProofsStatesFromMint():', { ms: (statesEnd - statesStart).toFixed(2) })
 
                 log.debug('[restore]', `Spent and pending proofs`, {spent: proofStates.SPENT.length, pending: proofStates.PENDING.length})
 
@@ -383,10 +409,15 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
         }
         
 
+        // PERF: Total recovery round timing
+        const perfEnd = performance.now()
+        log.info('[PERF] ====== RECOVERY ROUND END ======')
+        log.info('[PERF] Total round time:', { ms: (perfEnd - perfStart).toFixed(2) })
+
         setLastRecoveredAmount(recoveredAmount)
         setTotalRecoveredAmount(prevTotalRecoveredAmount => prevTotalRecoveredAmount + recoveredAmount)
         setStartIndex(startIndex + RESTORE_INDEX_INTERVAL)
-        setEndIndex(endIndex + RESTORE_INDEX_INTERVAL)       
+        setEndIndex(endIndex + RESTORE_INDEX_INTERVAL)
         setStatusMessage(undefined)
         setIsLoading(false)
 
@@ -448,8 +479,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
             // In case there is a profile linked to provided seedHash,
             // it's address, avatar and seed is recovered to the current profile.
             // Pass newPubkey so server rotates the profile to the derived pubkey.
-            await walletProfileStore.recover(
-                keys.walletId,
+            await walletProfileStore.recover(                
                 seedHashRef.current,
                 nostrKeys.publicKey
             )
@@ -684,11 +714,7 @@ return (
                         <Button
                             key={index}
                             preset={selectedKeyset?.id === item.id ? 'default' : 'secondary'}
-                            onPress={() => {
-                                setSelectedKeyset(item)
-                                setStartIndex(0)
-                                setEndIndex(RESTORE_INDEX_INTERVAL)
-                            }}
+                            onPress={() => onKeysetIdSelect(item)}
                             text={`${item.id} (${item.unit})`}
                             style={{minWidth: scale(80), margin: spacing.extraSmall}}
                             textStyle={$sizeStyles.xxs}

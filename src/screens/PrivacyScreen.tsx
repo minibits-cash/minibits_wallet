@@ -106,8 +106,7 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
 
             // Update server profile with the new derived pubkey
             // Uses recover endpoint with same seedHash to atomically rotate pubkey
-            await walletProfileStore.recover(
-                keys.walletId,
+            await walletProfileStore.recover(                
                 keys.SEED.seedHash,
                 derivedNostrKeys.publicKey
             )
