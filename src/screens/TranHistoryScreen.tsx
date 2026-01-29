@@ -62,6 +62,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
     const [expiredDbCount, setExpiredDbCount] = useState<number>(0)
     const [erroredDbCount, setErroredDbCount] = useState<number>(0)
     const [revertedDbCount, setRevertedDbCount] = useState<number>(0)
+    const [incomingPendingDbCount, setIncomingPendingDbCount] = useState<number>(0)
     const [isAll, setIsAll] = useState<boolean>(false)
     const [pendingIsAll, setPendingIsAll] = useState<boolean>(false)
 
@@ -71,11 +72,12 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
             const countByStatus = Database.getTransactionsCount()            
             
             log.trace('Database transaction counts', {countByStatus})
-            
+
             setPendingDbCount(countByStatus[TransactionStatus.PENDING] || 0)
             setExpiredDbCount(countByStatus[TransactionStatus.EXPIRED] || 0)
             setErroredDbCount(countByStatus[TransactionStatus.ERROR] || 0)
             setRevertedDbCount(countByStatus[TransactionStatus.REVERTED] || 0)
+            setIncomingPendingDbCount(Database.getIncomingPendingCount())
             setTotalDbCount(countByStatus.total)
 
             // Preload transactions to model in case they are not there
@@ -204,18 +206,38 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
         try {
             toggleDeleteModal()
             setIsLoading(true)
-            transactionsStore.deleteByStatus(status)            
+            transactionsStore.deleteByStatus(status)
             const countByStatus = Database.getTransactionsCount()
 
             setPendingDbCount(countByStatus[TransactionStatus.PENDING] || 0)
             setExpiredDbCount(countByStatus[TransactionStatus.EXPIRED] || 0)
             setErroredDbCount(countByStatus[TransactionStatus.ERROR] || 0)
             setRevertedDbCount(countByStatus[TransactionStatus.REVERTED] || 0)
-            setTotalDbCount(countByStatus.total)           
+            setIncomingPendingDbCount(Database.getIncomingPendingCount())
+            setTotalDbCount(countByStatus.total)
             setIsLoading(false)
         } catch (e: any) {
             handleError(e)
-        }        
+        }
+    }
+
+    const onDeleteIncomingPending = function () {
+        try {
+            toggleDeleteModal()
+            setIsLoading(true)
+            transactionsStore.deleteIncomingPending()
+            const countByStatus = Database.getTransactionsCount()
+
+            setPendingDbCount(countByStatus[TransactionStatus.PENDING] || 0)
+            setExpiredDbCount(countByStatus[TransactionStatus.EXPIRED] || 0)
+            setErroredDbCount(countByStatus[TransactionStatus.ERROR] || 0)
+            setRevertedDbCount(countByStatus[TransactionStatus.REVERTED] || 0)
+            setIncomingPendingDbCount(Database.getIncomingPendingCount())
+            setTotalDbCount(countByStatus.total)
+            setIsLoading(false)
+        } catch (e: any) {
+            handleError(e)
+        }
     }
 
     const handleError = function (e: AppError): void {
@@ -358,9 +380,18 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
         </View>
         <BottomModal
           isVisible={isDeleteModalVisible ? true : false}
-          style={{alignItems: 'stretch'}}            
+          style={{alignItems: 'stretch'}}
           ContentComponent={
             <>
+                <ListItem
+                    tx="tranHistory_deleteIncomingPending"
+                    subText={translate("tranHistory_deleteIncomingPendingDesc", {
+                      count: incomingPendingDbCount
+                    })}
+                    leftIcon='faArrowDown'
+                    onPress={onDeleteIncomingPending}
+                    bottomSeparator={true}
+                />
                 <ListItem
                     tx="tranHistory_deleteExpired"
                     subText={translate("tranHistory_deleteExpiredDesc", {

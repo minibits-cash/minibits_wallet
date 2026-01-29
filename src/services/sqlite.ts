@@ -788,10 +788,10 @@ const deleteTransactionsByStatus = function (status: TransactionStatus) {
     try {
       const query = `
         DELETE FROM transactions
-        WHERE status = ?  
+        WHERE status = ?
       `
       const params = [status]
-  
+
       const db = getInstance()
       const {rows} = db.execute(query, params)
 
@@ -806,6 +806,53 @@ const deleteTransactionsByStatus = function (status: TransactionStatus) {
         e.message,
       )
     }
+}
+
+
+const getIncomingPendingCount = function () {
+  try {
+    const query = `
+      SELECT COUNT(*) AS total
+      FROM transactions
+      WHERE status = 'PENDING' AND type IN ('RECEIVE', 'RECEIVE_BY_PAYMENT_REQUEST')
+    `
+
+    const db = getInstance()
+    const {rows} = db.execute(query)
+
+    return rows?.item(0)['total'] as number
+
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not get incoming pending count.',
+      e.message,
+    )
+  }
+}
+
+
+const deleteIncomingPending = function () {
+  try {
+    const query = `
+      DELETE FROM transactions
+      WHERE status = 'PENDING' AND type IN ('RECEIVE', 'RECEIVE_BY_PAYMENT_REQUEST')
+    `
+
+    const db = getInstance()
+    const {rows} = db.execute(query)
+
+    log.debug('[deleteIncomingPending]', 'Pending incoming transactions were deleted')
+
+    return rows
+
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not delete incoming pending transactions.',
+      e.message,
+    )
+  }
 }
 
 
@@ -1093,18 +1140,20 @@ export const Database = {
   getPendingTopupsCount,
   getPendingTransfers,
   getPendingTransfersCount,
-  addTransactionAsync,  
+  addTransactionAsync,
   updateTransaction,
   expireAllAfterRecovery,
   updateStatusesAsync,
   deleteTransactionsByStatus,
   deleteTransactionById,
+  getIncomingPendingCount,
+  deleteIncomingPending,
   getPendingAmount,
   addOrUpdateProof,
-  addOrUpdateProofs,  
+  addOrUpdateProofs,
   updateProofsMintUrl,
   removeAllProofs,
   getProofById,
   getProofs,
-  getProofsByTransaction,  
+  getProofsByTransaction,
 }

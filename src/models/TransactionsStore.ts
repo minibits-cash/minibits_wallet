@@ -10,6 +10,7 @@ import {
     TransactionModel,
     Transaction,
     TransactionStatus,
+    TransactionType,
 } from './Transaction'
 import { Database } from '../services'
 import { log } from '../services/logService'
@@ -260,6 +261,27 @@ export const TransactionsStoreModel = types
             }
 
             return Database.deleteTransactionsByStatus(status)
+        },
+
+        deleteIncomingPending() {
+            const toDelete: number[] = []
+
+            self.transactionsMap.forEach((tx, key) => {
+                const isPendingIncoming = tx.status === TransactionStatus.PENDING &&
+                    (tx.type === TransactionType.RECEIVE || tx.type === TransactionType.RECEIVE_BY_PAYMENT_REQUEST)
+
+                if (isPendingIncoming) {
+                    toDelete.push(tx.id)
+                    self.transactionsMap.delete(key as string)
+                }
+            })
+
+            if (toDelete.length > 0) {
+                self.history.replace(self.history.filter(t => !toDelete.includes(t.id)))
+                self.recentByUnit.replace(self.recentByUnit.filter(t => !toDelete.includes(t.id)))
+            }
+
+            return Database.deleteIncomingPending()
         },
 
     }))
