@@ -332,7 +332,7 @@ export const QRCodeBlock = function (props: {
               /> 
             )}
             {/* NFC HCE share button - only on Android */}
-            {true && (
+            {Platform.OS === 'android' && isStringSafeForNfc && isNfcSupported && (
               <Button
                   preset="tertiary"
                   //text={nfcBroadcast ? "NFC active" : "NFC"}

@@ -312,6 +312,7 @@
 	"pos_exchangeRateUnavailable": "Tipo de cambio no disponible",
 	"pos_newTransaction": "Nueva transacción",
 	"pos_scanOrTapToPay": "Escanea o toca para pagar",
+	"pos_scanToPay": "Escanea para pagar",
 	"pos_waitingForPayment": "Esperando el pago...",
 	"payerMemo": "Memo para el pagador",
 	"payWithLightningDesc": "Ingrese o pegue la dirección Lightning, la factura o el código de pago LNURL al que desea pagar.",

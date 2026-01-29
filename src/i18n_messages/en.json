@@ -313,6 +313,7 @@
 	"pos_exchangeRateUnavailable": "Exchange rate unavailable",
 	"pos_newTransaction": "New transaction",
 	"pos_scanOrTapToPay": "Scan or tap to pay",
+	"pos_scanToPay": "Scan to pay",
 	"pos_waitingForPayment": "Waiting for payment...",
 	"payerMemo": "Memo for the payer",
 	"payWithLightningDesc": "Enter or paste Lightning address, invoice or LNURL pay code you want to pay to.",

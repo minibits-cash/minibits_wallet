@@ -5,6 +5,7 @@ import {
   ViewStyle,
   TextStyle,
   BackHandler,
+  Platform,
 } from 'react-native'
 import Animated, {
   useSharedValue,
@@ -386,9 +387,10 @@ export const POSScreen = observer(function POSScreen({ route }: Props) {
           <View style={$qrContainer}>
             <QRCodeBlock
               qrCodeData={invoiceToPay}
-              titleTx="pos_scanOrTapToPay"
+              titleTx={Platform.OS === 'android' ? "pos_scanOrTapToPay" : "pos_scanToPay"}
               type="Bolt11Invoice"
               size={spacing.screenWidth - spacing.large * 4}
+              startNfcOnLoad={true}
             />
             <Button
               text={translate('commonCancel')}
