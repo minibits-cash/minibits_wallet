@@ -396,7 +396,7 @@ export const POSScreen = observer(function POSScreen({ route }: Props) {
               text={translate('commonCancel')}
               preset="secondary"
               onPress={resetState}
-              style={{ marginTop: spacing.medium, minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny) }}  
+              style={{ marginTop: spacing.large, minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny) }}  
             />
           </View>
         )}
@@ -423,7 +423,7 @@ export const POSScreen = observer(function POSScreen({ route }: Props) {
                 text={translate('pos_newTransaction')}
                 preset="default"
                 onPress={resetState}
-                style={[$buttonSend, { marginTop: spacing.large }]}
+                style={[$buttonSend, { marginBottom: spacing.extraLarge * 2}]}
               />
             </View>
           </View>

@@ -38,7 +38,8 @@ import {
   NwcScreen,
   CashuPaymentRequestScreen,
   RecoveryOptionsScreen,
-  POSScreen
+  SeedRecoveryOptionsScreen,
+  //POSScreen
 } from "../screens"
 import { colors, spacing, typography } from "../theme"
 
@@ -75,7 +76,7 @@ const WalletStack = createNativeStackNavigator({
     Transfer: TransferScreen,
     Topup: TopupScreen,
     CashuPaymentRequest: CashuPaymentRequestScreen,
-    POS: POSScreen,
+    //POS: POSScreen,
   }
 })
 
@@ -145,7 +146,8 @@ const SettingsStack = createNativeStackNavigator({
     ExportBackup: ExportBackupScreen,
     Developer: DeveloperScreen,
     Relays: RelaysScreen,
-    Nwc: NwcScreen,    
+    Nwc: NwcScreen,
+    SeedRecoveryOptions: SeedRecoveryOptionsScreen,  
   }
 })
 

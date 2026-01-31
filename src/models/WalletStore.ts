@@ -28,8 +28,7 @@ import { Proof } from './Proof'
 import { InFlightRequest, Mint } from './Mint'
 import { getRootStore } from './helpers/getRootStore'
 import { Transaction } from './Transaction'
-import { keys } from 'mobx'
-// 
+// refresh
 
 /* 
    Not persisted, in-memory only model of the cashu-ts wallet instances and wallet keys persisted in the device secure store.
@@ -247,7 +246,7 @@ export const WalletStoreModel = types
           const now = Math.floor(Date.now() / 1000)
           if(!mintInfo || now - mintInfo.time > 3600) {
             const info: GetInfoResponse = yield newMint.getInfo()
-            mintInstance.setMintInfo!(info)
+            mintInstance.setMintInfo!(info as GetInfoResponse & {time: number})
           }
         }
 

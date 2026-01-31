@@ -105,7 +105,7 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
         if (mint) {
           setMintInfo(mint.mintInfo as GetInfoResponse | undefined)
           setMint(mint)
-          const info: GetInfoResponse = await walletStore.getMintInfo(mint.mintUrl)
+          const info: GetInfoResponse & {time: number} = await walletStore.getMintInfo(mint.mintUrl)
           mint.setStatus(MintStatus.ONLINE)
           mint.setMintInfo(info)
           if(info.name && info.name !== mint.shortname) {

@@ -11,11 +11,11 @@ import Config from "../config"
 import {
   WelcomeScreen,
   SeedRecoveryScreen,
-  MintsScreen,
-  RecoveryOptionsScreen,  
+  MintsScreen, 
   SeedRecoveryOptionsScreen,
   ImportBackupScreen,
-  RecoverWalletAddressScreen
+  RecoverWalletAddressScreen,
+  POSScreen
 } from "../screens"
 import { rootStoreInstance } from "../models"
 import {  TabsNavigator  } from "./TabsNavigator"
@@ -40,11 +40,12 @@ const RootStack = createNativeStackNavigator({
   },
   screens: {
     Welcome: WelcomeScreen,    
-    SeedRecoveryOptions: SeedRecoveryOptionsScreen,
+    
     SeedRecovery: SeedRecoveryScreen,
     ImportBackup: ImportBackupScreen,
     RecoverWalletAddress: RecoverWalletAddressScreen,   
     Mints: MintsScreen,
+    POS: POSScreen,
     Tabs: TabsNavigator,
   }
 })
