@@ -230,18 +230,17 @@ export const QRCodeBlock = function (props: {
 
     const toggleNFC = async () => {
       if (nfcBroadcast) {
-        // await stopNFCSimulation()
+        await stopNFCSimulation()
         setNfcBroadcast(prev => !prev)
       } else {
         try {
-          // await startNFCSimulation()
+          await startNFCSimulation()
           setNfcBroadcast(prev => !prev)
         } catch(e: any) {
           log.error('NFC simulation failed to start: ', e.message, {stack: e.stack})
           infoMessage(e.message)
         }
-      }
-      
+      }      
     }
 
     const qrCodeSize = size || spacing.screenWidth - spacing.large * 2
