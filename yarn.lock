@@ -14503,7 +14503,6 @@ __metadata:
     react-native-flash-message: ^0.4.2
     react-native-gesture-handler: ^2.28.0
     react-native-hce: ^0.3.0
-    react-native-indicators: ^0.17.0
     react-native-json-tree: ^1.5.0
     react-native-keychain: ^10.0.0
     react-native-localize: ^3.5.2
@@ -15948,7 +15947,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prop-types@npm:^15.5.10, prop-types@npm:^15.7.2, prop-types@npm:^15.8.0, prop-types@npm:^15.8.1":
+"prop-types@npm:^15.7.2, prop-types@npm:^15.8.0, prop-types@npm:^15.8.1":
   version: 15.8.1
   resolution: "prop-types@npm:15.8.1"
   dependencies:
@@ -16404,18 +16403,6 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: b00492b21caa1c5bde1eb2b6ecf251318b6cdc4726fa9cfe90cbac7d0b2ca887ea678ec5f8e31f006983b31a04f2dbb86425355ad6d38c05b609bcfbbd2cbdbd
-  languageName: node
-  linkType: hard
-
-"react-native-indicators@npm:^0.17.0":
-  version: 0.17.0
-  resolution: "react-native-indicators@npm:0.17.0"
-  dependencies:
-    prop-types: ^15.5.10
-  peerDependencies:
-    react: "*"
-    react-native: "*"
-  checksum: 69d0d485b6a4d81f2daaa98ca9029d0ed760470a5ae9c5cce2b81132224b5116ea9bd6829c6bc0d7b0203db4c43e876020005122c306f1a5734c4629c4bb7933
   languageName: node
   linkType: hard
 

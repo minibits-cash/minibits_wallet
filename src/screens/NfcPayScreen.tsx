@@ -1,35 +1,27 @@
-import React, { FC, useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
     ViewStyle,
     View,
     TextStyle,
-    Alert,
-    ColorValue,
-    Platform,
 } from 'react-native'
-import {
-    PulseIndicator,
-    WaveIndicator,
-  } from 'react-native-indicators'
-import { PaymentRequest as CashuPaymentRequest, MeltQuoteResponse, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken } from '@cashu/cashu-ts'
-import NfcManager, { NfcTech, Ndef, NfcEvents, TagEvent } from 'react-native-nfc-manager'
+import { PaymentRequest as CashuPaymentRequest, MeltQuoteBolt11Response, MeltQuoteResponse, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken } from '@cashu/cashu-ts'
+import NfcManager, { Ndef, NfcEvents } from 'react-native-nfc-manager'
 import { colors, spacing, typography, useThemeColor } from '../theme'
 import EventEmitter from '../utils/eventEmitter'
 import { log } from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError, { Err } from '../utils/AppError'
 import { AmountInput, BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, ScanIcon, Screen, Text } from '../components'
-import { infoMessage } from '../utils/utils'
 import { SvgXml } from 'react-native-svg'
 import { formatCurrency, getCurrency, MintUnit, MintUnits } from '../services/wallet/currency'
 import { useStores } from '../models'
 import { MintHeader } from './Mints/MintHeader'
-import { verticalScale } from '@gocodingnow/rn-size-matters'
+import { moderateScale } from '@gocodingnow/rn-size-matters'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { translate } from '../i18n'
 import { StackActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
 import { observer } from 'mobx-react-lite'
-import { Mint, MintBalance } from '../models/Mint'
+import { MintBalance } from '../models/Mint'
 import { MinibitsClient, NostrClient, SYNC_STATE_WITH_MINT_TASK, SyncStateTaskResult, TransactionTaskResult, WalletTask } from '../services'
 import { Transaction, TransactionStatus } from '../models/Transaction'
 import { Proof } from '../models/Proof'
@@ -42,72 +34,17 @@ import { LIGHTNING_FEE_PERCENT, MIN_LIGHTNING_FEE } from '../models/NwcStore'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import Animated, {
     useSharedValue,
-    withRepeat,
     withTiming,
     useAnimatedStyle,
+    withRepeat,
     Easing,
   } from 'react-native-reanimated';
 import { NfcService } from '../services/nfcService'
 import { TranItem } from './TranDetailScreen'
 import { ProfilePointer } from 'nostr-tools/nip19'
-import { Contact } from '../models/Contact'
-//import Animated from 'react-native-reanimated'
+import { NfcIcon } from '../components/NfcIcon'
+import FastImage from 'react-native-fast-image'
 
-const ContactlessIcon = (color: ColorValue | string) => `<?xml version="1.0" encoding="utf-8"?>
-<svg  viewBox="-5 0 35 35" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path 
-    d="M16.3 19.5002C17.4 17.2002 18 14.7002 18 12.0002C18 9.30024 17.4 6.70024 16.3 4.50024M12.7 17.8003C13.5 16.0003 14 14.0003 14 12.0003C14 10.0003 13.5 7.90034 12.7 6.10034M9.1001 16.1001C9.7001 14.8001 10.0001 13.4001 10.0001 12.0001C10.0001 10.6001 9.7001 9.10015 9.1001 7.90015M5.5 14.3003C5.8 13.6003 6 12.8003 6 12.0003C6 11.2003 5.8 10.3003 5.5 9.60034" 
-    stroke="${String(color)}" 
-    stroke-width="2" 
-    stroke-linecap="round" 
-    stroke-linejoin="round"/>
-</svg>`
-
-
-interface PulsingContactlessIconProps {
-  isNfcEnabled: boolean;
-}
-
-export const PulsingContactlessIcon: React.FC<PulsingContactlessIconProps> = ({
-  isNfcEnabled,
-}) => {
-  const scale = useSharedValue(1);
-
-  // Start/stop pulse based on isNfcEnabled
-  useEffect(() => {
-    if (isNfcEnabled) {
-      scale.value = withRepeat(
-        withTiming(1.22, {
-          duration: 1200,
-          easing: Easing.out(Easing.quad),
-        }),
-        -1, // infinite
-        true // reverse (so it goes 1 → 1.22 → 1 → 1.22...)
-      );
-    } else {
-      scale.value = withTiming(1, { duration: 300 });
-    }
-  }, [isNfcEnabled, scale]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const color = isNfcEnabled
-    ? colors.palette.success200
-    : colors.palette.neutral400
-
-  return (
-    <Animated.View style={[animatedStyle, { alignSelf: 'center' }]}>
-      <SvgXml
-        xml={ContactlessIcon(color)}
-        width={150}
-        height={150}
-        style={{ marginVertical: 24 }} // or your spacing.large
-      />
-    </Animated.View>
-  );
-};
 
 type Props = StaticScreenProps<{
     unit: MintUnit
@@ -131,7 +68,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     // const [encodedInvoice, setEncodedInvoice] = useState<string>('')
     const [invoice, setInvoice] = useState<DecodedLightningInvoice | undefined>()    
     const [invoiceExpiry, setInvoiceExpiry] = useState<Date | undefined>()           
-    const [meltQuote, setMeltQuote] = useState<MeltQuoteResponse | undefined>() 
+    const [meltQuote, setMeltQuote] = useState<MeltQuoteBolt11Response | undefined>() 
     const [memo, setMemo] = useState('')
     const [mintBalanceToSendFrom, setMintBalanceToSendFrom] = useState<MintBalance | undefined>()
 
@@ -144,14 +81,12 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
     const [isResultModalVisible, setIsResultModalVisible] = useState(false)
     // NFC state
-    const [isNfcEnabled, setIsNfcEnabled] = useState(false)
-    const [isNfcSupported, setIsNfcSupported] = useState(false)
+    const [isNfcEnabled, setIsNfcEnabled] = useState(false)    
     const [isProcessing, setIsProcessing] = useState(false)
     const [isPaid, setIsPaid] = useState(false)
     const [isError, setIsError] = useState(false)
     const [nfcInfo, setNfcInfo] = useState<string | undefined>()
-    const [readNfcData, setReadNfcData] = useState<string | undefined>()
-    const [mint, setMint] = useState<Mint | undefined>()
+    //const [readNfcData, setReadNfcData] = useState<string | undefined>()
 
     const [error, setError] = useState<AppError | undefined>()
     const [info, setInfo] = useState<string>('')
@@ -161,8 +96,21 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         const initNfc = async () => {
             try {
                 const supported = await NfcService.init() // runs NfcManager.start()
-                setIsNfcSupported(supported)
                 log.trace({isInternetReachable})
+
+                const balance = proofsStore.getMintBalanceWithMaxBalance(unitRef.current)
+                
+                if (balance) {
+                    setMintBalanceToSendFrom(balance)
+                }
+
+                /*setNfcInfo('Hold your device close to the NFC reader.')
+                setIsNfcEnabled(true)
+                return
+
+                const tx = transactionsStore.findById(1)
+                setTransaction(tx || undefined)
+                setAmountToPay(formatDisplayAmount(tx?.amount || 0, unitRef.current))*/
 
                 if (!supported) {
                     setNfcInfo('NFC is not supported on this device')
@@ -405,7 +353,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
             log.info('NFC tag decoded', { decoded })
 
-            setReadNfcData(decoded)
+            //setReadNfcData(decoded)
             await handleIncomingData(decoded)
 
         } catch (e: any) {
@@ -493,6 +441,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             })
         }
 
+        // re-set selected mint balance if default is not accepted by this PR
         setMintBalanceToSendFrom(selectedBalance)
         setAmountToPay(formatDisplayAmount(requiredAmount, unit))
         
@@ -564,8 +513,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             log.trace('[NfcScreen] handleSendTaskResult: Write completed.')
             setNfcInfo('Ecash token sent successfully.')
             setIsPaid(true)
-            expandHeader()
-
+            
             // Show explanatory modal immediately when offline
             if (!isOnline.current) {
                 setResultModalInfo({
@@ -650,7 +598,6 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
         setNfcInfo('Ecash token sent successfully.')
         setIsPaid(true)
-        expandHeader()
     }
         
 
@@ -662,6 +609,10 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             throw new AppError(Err.NOTFOUND_ERROR, translate('commonOfflinePretty'), {
                 message: 'Can not use Lightning payment method while offline.'
             })
+        }
+
+        if(!mintBalanceToSendFrom) {
+            throw new AppError(Err.NOTFOUND_ERROR, 'No mint balance selected for payment')
         }
 
         log.trace('[handleLightningInvoice] decoding invoice')
@@ -676,9 +627,11 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         const expiresAt = addSeconds(new Date((timestamp as number) * 1000), expiry as number)
         const feeReserve = Math.max(MIN_LIGHTNING_FEE, Math.round(invoiceAmount * LIGHTNING_FEE_PERCENT / 100))
         const totalRequired = invoiceAmount + feeReserve
-        const balances = proofsStore.getMintBalancesWithEnoughBalance(totalRequired, unitRef.current)
+        // const balances = proofsStore.getMintBalancesWithEnoughBalance(totalRequired, unitRef.current)
+
+        const availableBalance = mintBalanceToSendFrom.balances[unitRef.current] || 0
     
-        if (balances.length === 0) {
+        if (availableBalance < totalRequired) {
             throw new AppError(Err.NOTFOUND_ERROR, 'Not enough funds', {
                 message: translate('transferScreen_insufficientFunds', {
                     currency: getCurrency(unitRef.current).code,
@@ -687,15 +640,15 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             })
         }
     
-        const selectedBalance = balances[0]
-        setMintBalanceToSendFrom(selectedBalance)
+        // const selectedBalance = balances[0]
+        // setMintBalanceToSendFrom(selectedBalance)
     
         let msgQuote = 'Creating Lightning payment quote...'
         log.trace('[handleLightningInvoice]', msgQuote)
         setNfcInfo(msgQuote)
 
         const quote = await walletStore.createLightningMeltQuote(
-            selectedBalance.mintUrl,
+            mintBalanceToSendFrom.mintUrl,
             unitRef.current,
             encodedInvoice
         )
@@ -711,7 +664,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         setNfcInfo('Paying Lightning invoice...')
 
         const result = await WalletTask.transferQueueAwaitable(
-            selectedBalance,
+            mintBalanceToSendFrom,
             quote.amount,
             unitRef.current,
             quote,
@@ -754,7 +707,6 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                     title: status === TransactionStatus.COMPLETED ? 'Payment sent!' : undefined,
                 });
                 setIsPaid(true)
-                expandHeader()
                 setNfcInfo(transaction.memo || 'Lightning payment settled.')
             }
         } else {
@@ -807,7 +759,6 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                     title: status === TransactionStatus.COMPLETED ? 'Ecash received!' : undefined,
                 });
                 setIsPaid(true)
-                expandHeader()
                 setNfcInfo(transaction.memo || 'Receive over NFC completed.')
                 setAmountToReceive(formatDisplayAmount(transaction.amount, transaction.unit))
             }
@@ -925,44 +876,46 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
     const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
 
-    const headerHeight = useSharedValue(spacing.screenHeight * 0.15); // Initial height
-    const collapseHeader = () => {
-        headerHeight.value = spacing.screenHeight * 0.15
-    }
-    
-    const expandHeader = () => {
-        headerHeight.value = spacing.screenHeight * 0.20
-    }
 
-    const animatedHeader = useAnimatedStyle(() => {
-        return {
-            height: withTiming(headerHeight.value, { duration: 300 }),
-            // opacity: withTiming(isVisible.value ? 1 : 0, { duration: 300 }),
-        }
-    })
 
     // Theme
     const hintText = useThemeColor('textDim')
-    const headerBg = useThemeColor('header')
+    const headerBg = useThemeColor('background')
     const headerTitle = useThemeColor('headerTitle')
     const scanIcon = useThemeColor('text')
     const nfcText = useThemeColor('text')
     const indicatorStandby = colors.palette.primary400
-    const indicatorProcessing = useThemeColor('button') 
+    const indicatorProcessing = useThemeColor('button')
+
+    // Metallic card colors - subtle gradient effect via borders
+    const isLightTheme = headerBg === colors.light.background
+    const metalHighlight = isLightTheme ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.12)'
+    const metalShadow = isLightTheme ? 'rgba(0, 0, 0, 0.15)' : 'rgba(0, 0, 0, 0.5)'
+    const metalBase = isLightTheme ? colors.palette.neutral200 : colors.palette.neutral700
+    const metalShineTop = isLightTheme ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.08)'
+    const metalShineBottom = isLightTheme ? 'rgba(255, 255, 255, 0)' : 'rgba(255, 255, 255, 0)' 
 
     return (
         <Screen preset="fixed" contentContainerStyle={$screen}>
-            <MintHeader mint={mint} unit={unitRef.current} />
-            <Animated.View style={[animatedHeader, $headerContainer, {backgroundColor: headerBg}]}>
-                <View style={{}}>
+            <MintHeader
+                mint={undefined}
+                unit={unitRef.current}
+                onBackPress={gotoWallet}
+                textColor={nfcText as string}
+                backgroundColor={headerBg as string}
+                leftIconColor={nfcText as string}
+            />
+            <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
                     {!isOnline.current && !isPaid && ( 
+                        <>
                         <Text
                             tx="commonOffline"
                             style={$warning}
                             size="xxs"
-                        />    
+                        />
+                        </>    
                     )}
-                    {isPaid && (
+                    {isPaid ? (
                         <AmountInput
                             //ref={amountInputRef}                                               
                             value={`${amountToPay || amountToReceive}`}                    
@@ -970,9 +923,41 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                             unit={unitRef.current}
                             editable={false}
                         />
+                    ) : (
+                        <>
+                            <View
+                                style={{
+                                    alignSelf: 'center',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: moderateScale(80),
+                                    height: moderateScale(80),
+                                    backgroundColor:isProcessing ? indicatorProcessing : isNfcEnabled ? indicatorStandby : hintText,
+                                    borderRadius: moderateScale(80) / 2,
+                                    marginVertical: spacing.medium,                                    
+                                }}
+                            >
+                                <PulsingContactlessIcon 
+                                    isNfcEnabled={isNfcEnabled}
+                                    size={moderateScale(40)}
+                                />
+                            </View>
+                            <Text
+                                text={nfcInfo}
+                                style={{
+                                    textAlign: 'center',
+                                    marginBottom: spacing.medium,
+                                    paddingHorizontal: spacing.medium,
+                                    //fontFamily: typography.code,
+                                    color: isProcessing ? indicatorProcessing : isNfcEnabled ? indicatorStandby : hintText,
+                                }}
+                                preset='heading'
+                                size='md'
+                            />
+                        </>
+
                     )}
-                </View>
-            </Animated.View>
+            </View>
             <View style={$contentContainer}>
                 {isPaid && transaction ? (
                     <Card
@@ -1007,63 +992,98 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                         }
                     />
                 ) : (
-                    <Card
-                        HeadingComponent={<Icon icon='faNfcSymbol' size={spacing.medium} containerStyle={{alignSelf: 'center'}}/>}
-                        ContentComponent={
-                        <>
-                            {isProcessing ? (
-                                <WaveIndicator 
-                                    color={indicatorProcessing} 
-                                    size={verticalScale(120)}
-                                    animating={resultModalInfo ? false : true}
-                                    animationDuration={2000}
-                                />
-                            ) : isNfcEnabled ? (
-                            
-                                <PulseIndicator 
-                                    color={indicatorStandby} 
-                                    size={verticalScale(120)}
-                                    animating={resultModalInfo ? false : true}
-                                    hidesWhenStopped={false}
-                                    animationDuration={2000}
-                                />
-                                    
-                            ) : (
-                                <PulseIndicator 
-                                    color={hintText} 
-                                    size={verticalScale(120)}
-                                    animating={false}
-                                    useNativeDriver={true}
-                                    hidesWhenStopped={false}
-                                    //animationDuration={2000}
-                                />
-                            )}
-                            
-                        </>
-                    }
-                    FooterComponent={
-                        <Text
-                                text={
-                                    nfcInfo ? nfcInfo : ''
-                                }
-                                style={{
-                                    textAlign: 'center',
-                                    marginBottom: spacing.medium,
-                                    //fontFamily: typography.code,
-                                    color: isProcessing ? indicatorProcessing : isNfcEnabled ? nfcText : hintText,
-                                    fontSize: 18,
-                                    
-                                }}
-                        />
-                    }
-                    style={{height: spacing.screenHeight * 0.3}}
-                />
-                )}
-                
+                    <>
+                    {mintBalanceToSendFrom && (() => {
+                        const mint = mintsStore.findByUrl(mintBalanceToSendFrom.mintUrl)
+                        const balance = mintBalanceToSendFrom.balances[unitRef.current] || 0
+                        const currency = getCurrency(unitRef.current)
+                        const formattedBalance = formatCurrency(balance, currency.code)
 
+                        return (
+                            <View style={[
+                                $mintCardOuter,
+                                {
+                                    backgroundColor: metalBase,
+                                    borderTopColor: metalHighlight,
+                                    borderLeftColor: metalHighlight,
+                                    borderBottomColor: metalShadow,
+                                    borderRightColor: metalShadow,
+                                }
+                            ]}>
+                                {/* Metallic shine overlay */}
+                                <View
+                                    style={[
+                                        $metalShine,
+                                        {
+                                            backgroundColor: metalShineTop,
+                                            borderColor: metalShineBottom,
+                                        }
+                                    ]}
+                                    pointerEvents="none"
+                                />
+                                <Card
+                                    ContentComponent={
+                                        <View style={$cardContent}>
+                                            <View style={$cardTopRow}>
+                                                {mint?.mintInfo?.icon_url ? (
+                                                    <FastImage
+                                                        style={{
+                                                            width: moderateScale(28),
+                                                            height: moderateScale(28),
+                                                            borderRadius: moderateScale(14),
+                                                        }}
+                                                        source={{ uri: mint.mintInfo.icon_url }}
+                                                        resizeMode={FastImage.resizeMode.contain}
+                                                    />
+                                                ) : (
+                                                    <View style={[$mintIconFallback, { backgroundColor: mint?.color || colors.palette.primary300 }]} />
+                                                )}
+                                                <Text
+                                                    text={mint?.shortname || 'Mint'}
+                                                    style={{ color: nfcText, marginLeft: spacing.small }}
+                                                    size="xs"
+                                                />
+                                            </View>
+                                            <View style={$cardBalanceRow}>
+                                                <Text
+                                                    text={formattedBalance}
+                                                    style={{
+                                                        fontFamily: typography.code?.normal,
+                                                        color: nfcText,
+                                                        fontSize: moderateScale(28),
+                                                    }}
+                                                />
+                                                <Text
+                                                    text={currency.code}
+                                                    style={{
+                                                        color: hintText,
+                                                        marginLeft: spacing.extraSmall,
+                                                        alignSelf: 'flex-end',
+                                                        marginBottom: spacing.tiny,
+                                                    }}
+                                                    size="xs"
+                                                />
+                                            </View>
+                                            <View style={$cardBottomRow}>
+                                                <Text
+                                                    text={mint?.hostname || mintBalanceToSendFrom.mintUrl}
+                                                    style={{ color: hintText }}
+                                                    size="xxs"
+                                                    numberOfLines={1}
+                                                />
+                                            </View>
+                                        </View>
+                                    }
+                                    style={$mintCard}
+                                />
+                            </View>
+                        )
+                    })()}
+                    </>
+                )} 
                 <View style={$bottomContainer}>
                     <View style={$buttonContainer}>
-                        {!isProcessing && (<Button
+                        {!isProcessing && !isPaid && (<Button
                             preset='tertiary'                                    
                             LeftAccessory={() => (
                                 <SvgXml 
@@ -1077,7 +1097,21 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                             onPress={gotoScan}
                             //style={{backgroundColor: scanButtonColor}}
                             text='Scan QR instead'
-                        />)} 
+                        />)}
+                        {isPaid && (<Button
+                            preset='tertiary'                                    
+                            LeftAccessory={() => (
+                                <Icon
+                                    icon="faXmark"
+                                    size={spacing.medium}
+                                    color={scanIcon as string}
+                                    style={{marginHorizontal: spacing.extraSmall}}
+                                />
+                            )}
+                            onPress={gotoWallet}
+                            //style={{backgroundColor: scanButtonColor}}
+                            text='Close'
+                        />)}  
                     </View>
                 </View>
             </View>
@@ -1172,11 +1206,59 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     )
 })
 
+interface PulsingContactlessIconProps {
+  isNfcEnabled: boolean;
+  size?: number;
+}
 
-const $screen: ViewStyle = { flex: 1 }
-const $contentContainer: ViewStyle = { flex: 1, marginTop: -spacing.extraLarge * 2, padding: spacing.extraSmall }
-const $headerContainer: TextStyle = { alignItems: 'center', paddingBottom: spacing.medium, height: spacing.screenHeight * 0.15 }
-const $buttonContainer: ViewStyle = { marginTop: spacing.large, flexDirection: 'row', alignSelf: 'center' }
+export const PulsingContactlessIcon: React.FC<PulsingContactlessIconProps> = ({
+    isNfcEnabled,
+    size,
+}) => {
+  const scale = useSharedValue(1);
+
+  // Start/stop pulse based on nfcBroadcast
+  useEffect(() => {
+    if (isNfcEnabled) {
+      scale.value = withRepeat(
+        withTiming(1.15, {
+          duration: 1000,
+          easing: Easing.out(Easing.quad),
+        }),
+        -1, // infinite
+        true // reverse (so it goes 1 → 1.22 → 1 → 1.22...)
+      );
+    } else {
+      scale.value = withTiming(1, { duration: 300 });
+    }
+  }, [isNfcEnabled, scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const color = isNfcEnabled
+    ? colors.palette.success300
+    : colors.light.text
+
+  return (
+    <Animated.View style={[animatedStyle, { alignSelf: 'center' }]}>
+      <SvgXml
+        width={size || spacing.medium}
+        height={size || spacing.medium}
+        xml={NfcIcon}
+        stroke={'white'}
+        fill={'white'}
+      />
+    </Animated.View>
+  );
+};
+
+
+const $screen: ViewStyle = { }
+const $contentContainer: ViewStyle = { flex: 1, padding: spacing.extraSmall }
+const $headerContainer: TextStyle = { alignItems: 'center', paddingVertical: spacing.medium,}
+const $buttonContainer: ViewStyle = { flex: 1, marginTop: spacing.large, flexDirection: 'row', alignSelf: 'center' }
 const $bottomContainer: ViewStyle = {
     position: 'absolute',
     bottom: 0,
@@ -1188,8 +1270,62 @@ const $bottomContainer: ViewStyle = {
     alignSelf: 'stretch',
 }
 const $warning: TextStyle = {
+    position: 'absolute',
+    top: 0,
     backgroundColor: colors.palette.orange400,
     borderRadius: spacing.extraSmall,
     paddingHorizontal: spacing.tiny,
-    marginTop: spacing.medium
+    alignSelf: 'center',
+    zIndex: 1,
+    marginVertical: spacing.small,
+}
+const $mintCardOuter: ViewStyle = {
+    marginHorizontal: spacing.small,
+    borderRadius: spacing.medium + 2,
+    borderWidth: 1.5,
+    shadowColor: colors.palette.neutral900,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    overflow: 'hidden',
+}
+const $metalShine: ViewStyle = {
+    position: 'absolute',
+    top: -50,
+    left: -50,
+    width: '150%',
+    height: '70%',
+    borderBottomWidth: 1,
+    transform: [{ rotate: '-15deg' }],
+}
+const $mintCard: ViewStyle = {
+    height: spacing.screenHeight * 0.25,
+    borderRadius: spacing.medium,
+    padding: spacing.medium,
+    backgroundColor: 'transparent',
+    shadowOpacity: 0,
+    elevation: 0,
+}
+const $cardContent: ViewStyle = {
+    marginVertical: spacing.small,
+    flex: 1,
+    justifyContent: 'space-between',
+}
+const $cardTopRow: ViewStyle = {
+    flexDirection: 'row',
+    alignItems: 'center',
+}
+const $mintIconFallback: ViewStyle = {
+    width: moderateScale(28),
+    height: moderateScale(28),
+    borderRadius: moderateScale(14),
+}
+const $cardBalanceRow: ViewStyle = {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: spacing.medium,
+}
+const $cardBottomRow: ViewStyle = {
+    marginTop: spacing.small,
 }

@@ -13,6 +13,9 @@ import { translate, TxKeyPath } from "../../i18n"
 import { log } from "../../services"
 import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts'
 import { NfcService } from '../../services/nfcService';
+import { SvgXml } from 'react-native-svg';
+import { NfcIcon } from '../../components/NfcIcon';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
 
 export type QRCodeBlockTypes = 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC' | 'PUBKEY' | 'PaymentRequest'
@@ -203,44 +206,63 @@ export const QRCodeBlock = function (props: {
 
     // NFC Functions
     const startNFCSimulation = async () => {
-        const dataToBroadcast = encodedV3Token || qrCodeData
-        const tag = new NFCTagType4({
-          type: NFCTagType4NDEFContentType.Text,
-          content: dataToBroadcast,
-          writable: false,
-        })
-        const session = await HCESession.getInstance()
-        session.setApplication(tag)
-        await session.setEnabled(true)
-        log.trace('[startNFCSimulation] Session enabled')
-        simulationRef.current = session
+      const dataToBroadcast = encodedV3Token || qrCodeData
+      log.trace('[startNFCSimulation] Starting with data length:', dataToBroadcast.length)
+
+      const tag = new NFCTagType4({
+        type: NFCTagType4NDEFContentType.Text,
+        content: dataToBroadcast,
+        writable: false,
+      })
+
+      const session = await HCESession.getInstance()
+      if (!session) {
+        throw new Error('Failed to get HCE session instance')
+      }
+
+      session.setApplication(tag)
+      await session.setEnabled(true)
+      simulationRef.current = session
+      log.trace('[startNFCSimulation] Session enabled')
     }
 
     const stopNFCSimulation = async () => {
-      if (simulationRef.current) {
-        try {
-          await simulationRef.current.setEnabled(false)
-          log.trace('[stopNFCSimulation] Session closed')
-        } catch (error) {
-          console.warn('Failed to terminate NFC session:', error)
-        }
+      if (!simulationRef.current) {
+        log.trace('[stopNFCSimulation] No active session to stop')
+        return
+      }
+
+      try {
+        await simulationRef.current.setEnabled(false)
+        log.trace('[stopNFCSimulation] Session closed')
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : 'Unknown error'
+        log.warn('[stopNFCSimulation] Failed to terminate session:', message)
+      } finally {
         simulationRef.current = null
       }
     }
 
     const toggleNFC = async () => {
       if (nfcBroadcast) {
-        await stopNFCSimulation()
-        setNfcBroadcast(prev => !prev)
+        try {
+          await stopNFCSimulation()
+        } catch (e: unknown) {
+          const message = e instanceof Error ? e.message : 'Failed to stop NFC'
+          log.error('[toggleNFC] Stop failed:', message)
+        } finally {
+          setNfcBroadcast(false)
+        }
       } else {
         try {
-          await startNFCSimulation()
-          setNfcBroadcast(prev => !prev)
-        } catch(e: any) {
-          log.error('NFC simulation failed to start: ', e.message, {stack: e.stack})
-          infoMessage(e.message)
+          //await startNFCSimulation()
+          setNfcBroadcast(true)
+        } catch (e: unknown) {
+          const message = e instanceof Error ? e.message : 'Failed to start NFC'
+          log.error('[toggleNFC] Start failed:', message, e instanceof Error ? { stack: e.stack } : {})
+          infoMessage(message)
         }
-      }      
+      }
     }
 
     const qrCodeSize = size || spacing.screenWidth - spacing.large * 2
@@ -308,17 +330,6 @@ export const QRCodeBlock = function (props: {
                 pressedStyle={{backgroundColor: colors.light.buttonTertiaryPressed}}
                 style={{ minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny) }}  
             />
-            {/*type === 'EncodedV4Token' && keysetFormat === 'hex' && !isAnimating && (
-              <Button
-                  preset="tertiary" 
-                  tx={encodedV3Token ? "qrCodeNewFormatButton" : "qrCodeOldFormatButton"}
-                  onPress={switchTokenEncoding}
-                  LeftAccessory={() => <Icon icon='faMoneyBill1' size={spacing.small} color={colors.light.text}/>}
-                  textStyle={{color: colors.light.text, fontSize: 14}}
-                  pressedStyle={{backgroundColor: colors.light.buttonTertiaryPressed}}
-                  style={{ minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny) }}  
-              /> 
-            )*/}
             {type === 'EncodedV4Token' && !isQRCodeError && (
               <Button
                   preset="tertiary" 
@@ -334,20 +345,12 @@ export const QRCodeBlock = function (props: {
             {Platform.OS === 'android' && isStringSafeForNfc && isNfcSupported && (
               <Button
                   preset="tertiary"
-                  //text={nfcBroadcast ? "NFC active" : "NFC"}
                   onPress={isNfcEnabled ? toggleNFC : () => Alert.alert('Enable NFC in device settings')}
                   LeftAccessory={() => (
-                    <Icon 
-                      icon='faNfcSymbol' 
-                      size={spacing.medium} 
-                      color={nfcBroadcast ? colors.palette.success300 : colors.light.text}
+                    <PulsingContactlessIcon 
+                      nfcBroadcast={nfcBroadcast} 
                     />
                   )}
-                  textStyle={{ 
-                    color: nfcBroadcast ? colors.palette.success300 : colors.light.text, 
-                    fontSize: 14,
-                    fontWeight: nfcBroadcast ? 'bold' : 'normal'
-                  }}
                   pressedStyle={{ backgroundColor: colors.light.buttonTertiaryPressed }}
                   style={{
                     minHeight: verticalScale(40),
@@ -360,6 +363,52 @@ export const QRCodeBlock = function (props: {
       />
     )
 }
+
+interface PulsingContactlessIconProps {
+  nfcBroadcast: boolean;
+}
+
+export const PulsingContactlessIcon: React.FC<PulsingContactlessIconProps> = ({
+  nfcBroadcast,
+}) => {
+  const scale = useSharedValue(1);
+
+  // Start/stop pulse based on nfcBroadcast
+  useEffect(() => {
+    if (nfcBroadcast) {
+      scale.value = withRepeat(
+        withTiming(1.25, {
+          duration: 1000,
+          easing: Easing.out(Easing.quad),
+        }),
+        -1, // infinite
+        true // reverse (so it goes 1 → 1.22 → 1 → 1.22...)
+      );
+    } else {
+      scale.value = withTiming(1, { duration: 300 });
+    }
+  }, [nfcBroadcast, scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const color = nfcBroadcast
+    ? colors.palette.success300
+    : colors.light.text
+
+  return (
+    <Animated.View style={[animatedStyle, { alignSelf: 'center' }]}>
+      <SvgXml
+        width={spacing.medium}
+        height={spacing.medium}
+        xml={NfcIcon}
+        stroke={color}
+        fill={color}
+      />
+    </Animated.View>
+  );
+};
 
 const $qrCodeContainer: ViewStyle = {
   alignItems: 'center',

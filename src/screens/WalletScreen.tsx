@@ -55,6 +55,7 @@ import { LeftProfileHeader } from './ContactsScreen'
 import { getUnixTime } from 'date-fns/getUnixTime'
 import FastImage from 'react-native-fast-image'
 import { HotUpdater, getUpdateSource } from '@hot-updater/react-native'
+import { NfcIcon } from '../components/NfcIcon'
 
 const MINT_CHECK_INTERVAL = 60
 
@@ -700,7 +701,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 />}                
                 TitleActionComponent={<HeaderTitle />}               
                 RightActionComponent={
-                <View style={{justifyContent: 'flex-end', flexDirection: 'row'}}>
+                <View style={{justifyContent: 'flex-end', flexDirection: 'row', alignItems: 'center'}}>
                     {pendingCount > 0 && (
                         <Pressable 
                             style={{flexDirection: 'row', alignItems:'center', marginRight: spacing.small}}
@@ -714,7 +715,13 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                             style={{marginRight: spacing.medium}}
                             onPress={gotoNfcPay}
                     >
-                        <Icon icon='faNfcSymbol' color={headerTitleColor}/>
+                        <SvgXml
+                            width={spacing.medium}
+                            height={spacing.medium}
+                            xml={NfcIcon}
+                            stroke={headerTitleColor}
+                            fill={headerTitleColor}
+                        />
                     </Pressable>
                 </View>
                 }                
