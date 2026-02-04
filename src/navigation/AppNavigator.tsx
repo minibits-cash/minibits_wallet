@@ -15,7 +15,8 @@ import {
   SeedRecoveryOptionsScreen,
   ImportBackupScreen,
   RecoverWalletAddressScreen,
-  POSScreen
+  POSScreen,
+  NfcPayScreen
 } from "../screens"
 import { rootStoreInstance } from "../models"
 import {  TabsNavigator  } from "./TabsNavigator"
@@ -46,6 +47,7 @@ const RootStack = createNativeStackNavigator({
     RecoverWalletAddress: RecoverWalletAddressScreen,   
     Mints: MintsScreen,
     POS: POSScreen,
+    NfcPay: NfcPayScreen,
     Tabs: TabsNavigator,
   }
 })

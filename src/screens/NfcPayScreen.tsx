@@ -611,7 +611,18 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             })
         }
 
-        if(!mintBalanceToSendFrom) {
+        // Get balance from state, or fetch directly from store if state not yet updated
+        // (React state updates are async, so mintBalanceToSendFrom may be undefined
+        // if NFC tag is read immediately after component mount)
+        let balanceToUse = mintBalanceToSendFrom
+        if (!balanceToUse) {
+            balanceToUse = proofsStore.getMintBalanceWithMaxBalance(unitRef.current)
+            if (balanceToUse) {
+                setMintBalanceToSendFrom(balanceToUse)
+            }
+        }
+
+        if(!balanceToUse) {
             throw new AppError(Err.NOTFOUND_ERROR, 'No mint balance selected for payment')
         }
 
@@ -629,7 +640,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         const totalRequired = invoiceAmount + feeReserve
         // const balances = proofsStore.getMintBalancesWithEnoughBalance(totalRequired, unitRef.current)
 
-        const availableBalance = mintBalanceToSendFrom.balances[unitRef.current] || 0
+        const availableBalance = balanceToUse.balances[unitRef.current] || 0
     
         if (availableBalance < totalRequired) {
             throw new AppError(Err.NOTFOUND_ERROR, 'Not enough funds', {
@@ -648,7 +659,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         setNfcInfo(msgQuote)
 
         const quote = await walletStore.createLightningMeltQuote(
-            mintBalanceToSendFrom.mintUrl,
+            balanceToUse.mintUrl,
             unitRef.current,
             encodedInvoice
         )
@@ -664,7 +675,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         setNfcInfo('Paying Lightning invoice...')
 
         const result = await WalletTask.transferQueueAwaitable(
-            mintBalanceToSendFrom,
+            balanceToUse,
             quote.amount,
             unitRef.current,
             quote,
@@ -948,11 +959,12 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                                     textAlign: 'center',
                                     marginBottom: spacing.medium,
                                     paddingHorizontal: spacing.medium,
-                                    //fontFamily: typography.code,
                                     color: isProcessing ? indicatorProcessing : isNfcEnabled ? indicatorStandby : hintText,
+                                    //minHeight: moderateScale(52),
                                 }}
                                 preset='heading'
                                 size='md'
+                                //numberOfLines={2}
                             />
                         </>
 
@@ -1266,8 +1278,8 @@ const $bottomContainer: ViewStyle = {
     right: 0,
     flex: 1,
     justifyContent: 'flex-end',
-    marginBottom: spacing.medium,
-    alignSelf: 'stretch',
+    marginBottom: spacing.extraLarge * 3,
+    //alignSelf: 'stretch',
 }
 const $warning: TextStyle = {
     position: 'absolute',

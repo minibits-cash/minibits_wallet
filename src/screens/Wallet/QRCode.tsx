@@ -255,7 +255,7 @@ export const QRCodeBlock = function (props: {
         }
       } else {
         try {
-          //await startNFCSimulation()
+          await startNFCSimulation()
           setNfcBroadcast(true)
         } catch (e: unknown) {
           const message = e instanceof Error ? e.message : 'Failed to start NFC'

@@ -712,7 +712,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                         </Pressable>
                     )}
                     <Pressable 
-                            style={{marginRight: spacing.medium}}
+                            style={{paddingRight: spacing.large}}
                             onPress={gotoNfcPay}
                     >
                         <SvgXml
