@@ -28,7 +28,7 @@ import { Proof } from './Proof'
 import { InFlightRequest, Mint } from './Mint'
 import { getRootStore } from './helpers/getRootStore'
 import { Transaction } from './Transaction'
-// refresh
+// 
 
 /* 
    Not persisted, in-memory only model of the cashu-ts wallet instances and wallet keys persisted in the device secure store.
@@ -546,7 +546,7 @@ export const WalletStoreModel = types
                 throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
             }
 
-            const cashuWallet = yield self.getWallet(
+            const cashuWallet: CashuWallet = yield self.getWallet(
                 mintUrl, 
                 unit, 
                 {
@@ -588,7 +588,7 @@ export const WalletStoreModel = types
 
             try {
 
-                const {keep, send} = yield cashuWallet.swap(
+                const {keep, send} = yield cashuWallet.send(
                   sendParams.amount,
                   sendParams.proofs,
                   {
@@ -616,9 +616,11 @@ export const WalletStoreModel = types
                 log.trace(`[WalletStore.send] ${keep.length} returnedProofs`, {keep})
                 log.trace(`[WalletStore.send] ${send.length} proofsToSend`, {send})
 
-                const totalAmountToSendFrom: number = CashuUtils.getProofsAmount(proofsToSendFrom)
+                const proofsToSendFromAmount: number = CashuUtils.getProofsAmount(proofsToSendFrom)
                 const returnedAmount: number = CashuUtils.getProofsAmount(keep)
-                const swapFeePaid = totalAmountToSendFrom - amountToSend - returnedAmount
+                const swapFeePaid = proofsToSendFromAmount - amountToSend - returnedAmount
+
+                log.debug('[WalletStore.send] Amounts after swap', {proofsToSendFromAmount, amountToSend, returnedAmount, swapFeePaid})
 
                 return {
                     returnedProofs: keep as CashuProof[],

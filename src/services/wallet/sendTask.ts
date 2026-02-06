@@ -415,9 +415,19 @@ export const sendFromMintSync = async function (
                 isPending: false,
                 isSpent: false
             })
+
+            // Filter out any proofs that were returned unchanged by the mint (optimization)
+            // to avoid marking them as spent when they should remain spendable
+            const returnedSecrets = new Set(returnedProofs.map(p => p.secret))
+            const actuallySpentProofs = proofsToSendFrom.filter(p => !returnedSecrets.has(p.secret))
+
+            log.trace('[sendFromMintSync] after swap: move proofsToSendFrom to spent', {
+                inputCount: proofsToSendFrom.length,
+                returnedUnchangedCount: proofsToSendFrom.length - actuallySpentProofs.length,
+                actuallySpentCount: actuallySpentProofs.length
+            })
             
-            log.trace('[sendFromMintSync] after swap: move proofsToSendFrom to spent')            
-            proofsStore.addOrUpdate(proofsToSendFrom, {
+            proofsStore.addOrUpdate(actuallySpentProofs, {
                 mintUrl,
                 unit,
                 tId: transactionId,
