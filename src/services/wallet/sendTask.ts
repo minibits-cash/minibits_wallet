@@ -416,8 +416,8 @@ export const sendFromMintSync = async function (
                 isSpent: false
             })
 
-            // Filter out any proofs that were returned unchanged by the mint (optimization)
-            // to avoid marking them as spent when they should remain spendable
+            // !!! Filter out any proofs that were returned unchanged by the cashu-ts optimization
+            // to avoid marking them as spent when they should remain spendable !!!
             const returnedSecrets = new Set(returnedProofs.map(p => p.secret))
             const actuallySpentProofs = proofsToSendFrom.filter(p => !returnedSecrets.has(p.secret))
 

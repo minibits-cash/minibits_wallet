@@ -660,7 +660,7 @@ const swapAllTask = async function (): Promise<WalletTaskResult> {
     const errors: string[] = []
     // Do not create a pending transaction above mint's spent sync (check) limit as it becomes stuck pending
     // As well keep tokens reasonably sized so that a device can keep related transaction in the state / load it from DB
-    const maxBatchSize = 2
+    const maxBatchSize = MAX_SWAP_INPUT_SIZE
     
     for (const mint of mintsStore.allMints) {     
 

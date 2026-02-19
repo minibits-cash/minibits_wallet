@@ -221,7 +221,6 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
               contacts: [], 
               publicPubkey: undefined, 
               selectedContact: undefined, 
-              receivedEventIds: [], 
               lastPendingReceivedCheck: undefined
           }            
 
