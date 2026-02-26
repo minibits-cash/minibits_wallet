@@ -63,7 +63,7 @@ const readNdefTag = async () => {
 const writeNdefMessage = async (text: string) => {
     try {
         log.trace('[writeNdefMessage] start') // no more requestTechnology, it requires second tap then
-        const bytes = Ndef.encodeMessage([Ndef.textRecord('en', text)])
+        const bytes = Ndef.encodeMessage([Ndef.textRecord(text)])
         await NfcManager.ndefHandler.writeNdefMessage(bytes)
         log.trace('[writeNdefMessage] write completed')
         await NfcManager.cancelTechnologyRequest().catch(() => {}) // close session
