@@ -93,53 +93,30 @@ export const PrivateContacts = observer(function (props: {
         try {
 
             let newContact: Contact | undefined = undefined
+            let nostrProfile: NostrProfile | undefined = undefined
             
             if (isExternalDomain) {
                 // validate and get profile data from nip05 server + relays
-
-                const profile = await NostrClient.getNormalizedNostrProfile(newContactName, relaysStore.allPublicUrls) as NostrProfile
-
-                log.trace('[saveNewContact]', 'Server profile', profile)
-
-                const {pubkey, npub, name, picture, nip05, lud16} = profile
-
-                newContact = {
-                    type: ContactType.PRIVATE,
-                    pubkey,
-                    npub,
-                    name,
-                    picture,
-                    nip05,
-                    lud16,
-                    isExternalDomain,
-                } as Contact
-
+                nostrProfile = await NostrClient.getNormalizedNostrProfile(newContactName, relaysStore.allPublicUrls) as NostrProfile
             } else {
-                // do it with single api call for minibts.cash profiles                
-                const profileRecord = await MinibitsClient.getWalletProfileByNip05(newContactName + MINIBITS_NIP05_DOMAIN)
+                // replaced insecure getWalletProfileByNip05 call
+                nostrProfile = await NostrClient.getNormalizedNostrProfile(newContactName, NostrClient.getMinibitsRelays()) as NostrProfile
+            }
 
-                if(!profileRecord) {
-                    warningMessage(translate("contactsScreen_privateContacts_profileNotFound", { 
-                      name: newContactName + MINIBITS_NIP05_DOMAIN 
-                    }))
-                    setIsLoading(false)
-                    return
-                }
+            log.trace('[saveNewContact]', 'Nostr profile', nostrProfile)
 
-                const npub = NostrClient.getNpubkey(profileRecord.pubkey)
-                const {pubkey, nip05, name, avatar: picture} = profileRecord
+            const {pubkey, npub, name, picture, nip05, lud16} = nostrProfile
 
-                newContact = {
-                    type: ContactType.PRIVATE,
-                    pubkey,
-                    npub,
-                    nip05,
-                    lud16: nip05, // minibits addresses are both nostr and lightning addresses
-                    name,
-                    picture,
-                    isExternalDomain
-                } as Contact
-            }        
+            newContact = {
+                type: ContactType.PRIVATE,
+                pubkey,
+                npub,
+                name,
+                picture,
+                nip05,
+                lud16,
+                isExternalDomain,
+            } as Contact       
             
             contactsStore.addContact(newContact)
 

@@ -4,7 +4,7 @@ import {Text as RNText, TextStyle, View, ViewStyle, TextInput, ScrollView } from
 import {colors, spacing, typography, useThemeColor} from '../../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
-import { MinibitsClient} from '../../services'
+import { MinibitsClient, NostrClient} from '../../services'
 import AppError, { Err } from '../../utils/AppError'
 import {log} from '../../services/logService'
 import { TransactionStatus } from '../../models/Transaction'
@@ -160,7 +160,8 @@ export const OwnName = observer(function (props: {pubkey: string}) {
         }
 
         try {            
-            const profileExists = await MinibitsClient.getWalletProfileByNip05(ownName + MINIBITS_NIP05_DOMAIN)
+            //const profileExists = await MinibitsClient.getWalletProfileByNip05(ownName + MINIBITS_NIP05_DOMAIN)
+            const profileExists = await NostrClient.getNip05Record(ownName + MINIBITS_NIP05_DOMAIN) // throws if not found
 
             if(profileExists) {
                 setInfo(translate("contactsScreen_ownName_profileExists"))

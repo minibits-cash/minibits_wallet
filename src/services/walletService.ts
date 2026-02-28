@@ -2494,11 +2494,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
             && userSettingsStore.isReceiveOnlyFromContactsOn === false
         ) {
 
-            const serverProfile = await MinibitsClient.getWalletProfileByNip05(sentFrom)
-
-            if(serverProfile.pubkey !== sentFromPubkey) {
-                throw new AppError(Err.UNAUTHORIZED_ERROR, 'Sender pubkey does not match the one on the Minibits server.', {sentFrom, sentFromPubkey, serverProfile})
-            }
+            const serverProfile = await MinibitsClient.getWalletProfile(sentFromPubkey)
 
             log.info('[handleReceivedEventTask]', 'Event sent from Minibits server user, adding to contacts...', {sentFrom, sentFromPubkey})
             
