@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import FlashMessage from "react-native-flash-message"
 import {  
   SafeAreaProvider,
@@ -14,9 +14,8 @@ import {KeyChain, WalletKeys} from './services'
 import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
 import {log} from './services'
-import AppError, { Err } from './utils/AppError'
-import { Image, TextStyle, View } from 'react-native'
-import { spacing, typography } from './theme'
+import { Image, Pressable, Text as RNText, TextStyle, View } from 'react-native'
+import { colors, spacing, typography } from './theme'
 import { displayName } from '../app.json'
 import { Text } from './components/Text'
 import useIsInternetReachable from './utils/useIsInternetReachable'
@@ -35,6 +34,8 @@ function App() {
 
   const [isUserAuthenticated, setIsUserAuthenticated] = useState(false)
   const [isDeviceAuthenticated, setIsDeviceAuthenticated] = useState(false)
+  const [isAuthLocked, setIsAuthLocked] = useState(false)
+  const isAuthInProgressRef = useRef(false)
 
   const isInternetReachable = useIsInternetReachable() // boolean | null
   const [isNetworkChecked, setIsNetworkChecked] = useState(false)
@@ -46,20 +47,51 @@ function App() {
     }
   }, [isInternetReachable])
 
+  const attemptAuth = useCallback(async () => {
+    if (isAuthInProgressRef.current) {
+      log.trace('[App] attemptAuth skipped, auth already in progress')
+      return
+    }
+
+    isAuthInProgressRef.current = true
+
+    try {
+      const isAuthEnabled = userSettingsStore.isAuthOn
+      log.trace('[App] attemptAuth called')
+
+      const result = await KeyChain.authenticateOnAppStart(isAuthEnabled)
+      log.trace('[App] attemptAuth result:', { success: result.success, shouldExitApp: result.shouldExitApp })
+
+      if (result.success) {
+        setIsUserAuthenticated(true)
+        setIsAuthLocked(false)
+        return
+      }
+
+      if (result.shouldExitApp) {
+        RNExitApp.exitApp()
+        return
+      }
+
+      log.trace('[App] attemptAuth failed, locking app')
+      setIsAuthLocked(true)
+    } catch (e: any) {
+      log.error('[App] attemptAuth caught error', { message: e.message })
+      setIsAuthLocked(true)
+    } finally {
+      isAuthInProgressRef.current = false
+    }
+  }, [userSettingsStore])
+
   // === Only safe, always-run startup logic inside useInitialRootStore ===
   const { rehydrated } = useInitialRootStore(() => {
     log.trace('[App]', 'Root store rehydrated')
 
     // User authentication (biometrics / PIN)
     if (userSettingsStore.isAuthOn) {
-      KeyChain.authenticateOnAppStart(userSettingsStore.isAuthOn)
-        .then((result) => {
-          if (result.success) {
-            setIsUserAuthenticated(true)
-          } else if (result.shouldExitApp) {
-            RNExitApp.exitApp()
-          }
-        })
+      // Keep UI in locked mode until authentication succeeds.
+      setIsAuthLocked(true)
+      attemptAuth()
     } else {
       setIsUserAuthenticated(true)
     }
@@ -72,7 +104,6 @@ function App() {
     // Reset relay statuses
     relaysStore.resetStatuses()
   })
-
 
   useEffect(() => {
     if (
@@ -126,19 +157,41 @@ function App() {
     rehydrated
   ])
 
-  // Show splash screen until fully ready
+  // Splash / Locked screen
   if (
     !rehydrated ||
     !isUserAuthenticated ||
-    !isDeviceAuthenticated
+    !isDeviceAuthenticated ||
+    isAuthLocked
   ) {
     return (
-      <ErrorBoundary catchErrors={Config.catchErrors}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text text={displayName} style={$title} />
-          <Image source={require('../android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png')} />
-        </View>
-      </ErrorBoundary>
+      <View style={{flex: 1}}>
+        <ErrorBoundary catchErrors={Config.catchErrors}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text text={displayName} style={$title} />
+            <Image source={require('../android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png')} />
+          </View>
+        </ErrorBoundary>
+        {isAuthLocked && (
+          <View style={{alignItems: 'center', paddingHorizontal: spacing.large, paddingBottom: 60}}>
+            <RNText style={{color: colors.palette.neutral400, fontSize: 14, textAlign: 'center', marginBottom: spacing.large}}>
+              Minibits is locked. Authentication is required to continue.
+            </RNText>
+            <Pressable
+              style={{backgroundColor: colors.palette.accent400, paddingVertical: spacing.small, paddingHorizontal: spacing.extraLarge, borderRadius: spacing.small, marginBottom: spacing.medium, minWidth: 200, alignItems: 'center'}}
+              onPress={attemptAuth}
+            >
+              <RNText style={{color: 'white', fontSize: 16, fontWeight: '600'}}>Authenticate</RNText>
+            </Pressable>
+            <Pressable
+              style={{paddingVertical: spacing.small, paddingHorizontal: spacing.extraLarge, minWidth: 200, alignItems: 'center'}}
+              onPress={() => RNExitApp.exitApp()}
+            >
+              <RNText style={{color: colors.palette.neutral400, fontSize: 16}}>Close app</RNText>
+            </Pressable>
+          </View>
+        )}
+      </View>
     )
   }
 
