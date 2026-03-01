@@ -1,16 +1,14 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useEffect, useState} from 'react'
+import React, {useState} from 'react'
 import {ScrollView, Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {
-  Icon,
   ListItem,
   Screen,
   Text,
   Card,
   Loading,
   ErrorModal,
-  InfoModal,
   BottomModal,
   PosIcon,
 } from '../components'
@@ -19,9 +17,6 @@ import {useHeader} from '../utils/useHeader'
 import {useStores} from '../models'
 import AppError from '../utils/AppError'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
-import { KeyChain } from '../services'
-import { BIOMETRY_TYPE } from 'react-native-keychain'
-import { log } from '../services/logService'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 type Props = StaticScreenProps<undefined>
@@ -34,41 +29,18 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
     })
 
     const {userSettingsStore} = useStores()
-    const [info, setInfo] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [isBiometricAuthOn, setIsBiometricAuthOn] = useState<boolean>(
         userSettingsStore.isAuthOn,
     )
-    const [biometryType, setBiometryType] = useState<BIOMETRY_TYPE | null>(null)
     const [error, setError] = useState<AppError | undefined>()
     const [isAuthModalVisible, setIsAuthModalVisible] = useState<boolean>(false)
     const [resultMessage, setResultMessage] = useState<string>()
-
-    useEffect(() => {
-        const getBiometry = async () => {
-            const biometry: BIOMETRY_TYPE | null = await KeyChain.getSupportedBiometryType()
-            log.trace('[getBiometry]', {biometry, isAuthOn: userSettingsStore.isAuthOn})
-            setBiometryType(biometry)
-        }
-        
-        getBiometry()        
-        return () => {}
-    }, [])
 
 
     const toggleBiometricAuthSwitch = async () => {
         try {
             setIsLoading(true)
-            // check device has biometric support - disabled for testing
-             if(!isBiometricAuthOn) {
-                const biometryType = await KeyChain.getSupportedBiometryType()
-
-                if(!biometryType) {
-                    setInfo('Your device does not support any biometric authentication method.')
-
-                    return
-                }
-            } 
 
             const result = await userSettingsStore.setIsAuthOn(
                 !isBiometricAuthOn,
@@ -78,13 +50,13 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
 
             if (result === true) {
                 setResultMessage(
-                    'Biometric authentication to access the wallet has been turned on.',
+                    'Authentication to access the wallet has been turned on.',
                 )
                 toggleAuthModal()
                 return
             }
 
-            setResultMessage('Biometric authentication has been disabled.')
+            setResultMessage('Authentication has been disabled.')
             toggleAuthModal()
         } catch (e: any) {
             handleError(e)
@@ -233,7 +205,6 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
             onBackdropPress={toggleAuthModal}
         />        
         {error && <ErrorModal error={error} />}
-        {info && <InfoModal message={info} />}      
       </Screen>
     )
   })

@@ -344,7 +344,8 @@ const saveAuthToken = async function (
 const getAuthToken = async function (isAuthOn: boolean): Promise<string | undefined> {
   try {    
       const result = await _Keychain.getGenericPassword({
-          service: KeyChainServiceName.BIOMETRIC_AUTH, 
+          service: KeyChainServiceName.BIOMETRIC_AUTH,
+          accessControl: isAuthOn ? _Keychain.ACCESS_CONTROL.BIOMETRY_ANY_OR_DEVICE_PASSCODE : undefined,
           authenticationPrompt: isAuthOn ? {
               title: 'Please authenticate',
               subtitle: '',
@@ -391,6 +392,39 @@ export type AuthResult = {
   shouldExitApp: boolean
 }
 
+const getAuthErrorContext = (e: any) => {
+  const codeCandidates = [
+    e?.code,
+    e?.params?.code,
+    e?.params?.error?.code,
+    e?.params?.cause?.code,
+  ]
+    .filter((value) => value !== undefined && value !== null)
+    .map((value) => String(value))
+
+  const serialized = `${e?.message ?? ''} ${JSON.stringify(e)}`
+
+  const isBackPressed =
+    codeCandidates.includes('10') ||
+    /"code"\s*:\s*10|code:\s*10/.test(serialized)
+
+  const isCancelPressed =
+    codeCandidates.includes('13') ||
+    /"code"\s*:\s*13|code:\s*13/.test(serialized)
+
+  const isIOSCancel = codeCandidates.includes('-128')
+  const isCryptoFailed = serialized.includes('E_CRYPTO_FAILED')
+
+  return {
+    codeCandidates,
+    serialized,
+    isBackPressed,
+    isCancelPressed,
+    isIOSCancel,
+    isCryptoFailed,
+  }
+}
+
 
 /**
  * Authenticate user on app start
@@ -407,28 +441,32 @@ const authenticateOnAppStart = async function (isAuthOn: boolean): Promise<AuthR
     }
 
     log.trace('[authenticateOnAppStart]', 'No auth token found')
-    return { success: false, shouldExitApp: false }
+    return { success: false, shouldExitApp: true }
   } catch (e: any) {
     // Handle specific error codes for user actions
-    if (e && typeof e === 'object') {
-      const errString = JSON.stringify(e)
-      const isBackPressed = errString.includes('code: 10')
-      const isCancelPressed = errString.includes('code: 13')
-      const isIOSCancel = 'code' in e && String(e.code) === '-128'
+    const authErrorContext = getAuthErrorContext(e)
 
-      if (isBackPressed) {
-        log.trace('[authenticateOnAppStart]', 'User pressed back button')
-        return { success: false, shouldExitApp: true }
-      }
+    log.warn('[authenticateOnAppStart]', 'Auth error caught', { 
+      message: e.message, 
+      code: e.code, 
+      name: e.name,
+      params: e.params,
+      stringified: authErrorContext.serialized,
+      codeCandidates: authErrorContext.codeCandidates,
+    })
 
-      if (isCancelPressed || isIOSCancel) {
-        log.trace('[authenticateOnAppStart]', 'User cancelled authentication')
-        return { success: false, shouldExitApp: true }
-      }
+    if (authErrorContext.isBackPressed) {
+      log.trace('[authenticateOnAppStart]', 'User pressed back button')
+      return { success: false, shouldExitApp: false }
+    }
+
+    if (authErrorContext.isCancelPressed || authErrorContext.isIOSCancel || authErrorContext.isCryptoFailed) {
+      log.trace('[authenticateOnAppStart]', 'User cancelled authentication')
+      return { success: false, shouldExitApp: false }
     }
 
     log.warn('[authenticateOnAppStart]', 'Authentication failed', { message: e.message })
-    return { success: false, shouldExitApp: false }
+    return { success: false, shouldExitApp: true }
   }
 }
 
@@ -457,6 +495,7 @@ const authenticatePOSMode = async function (): Promise<boolean> {
   try {
     const result = await _Keychain.getGenericPassword({
       service: KeyChainServiceName.BIOMETRIC_AUTH,
+      accessControl: _Keychain.ACCESS_CONTROL.BIOMETRY_ANY_OR_DEVICE_PASSCODE,
       authenticationPrompt: {
         title: 'Authentication required',
         subtitle: '',
@@ -474,21 +513,16 @@ const authenticatePOSMode = async function (): Promise<boolean> {
     return false
   } catch (e: any) {
     // Handle specific error codes for user actions
-    if (e && typeof e === 'object') {
-      const errString = JSON.stringify(e)
-      const isBackPressed = errString.includes('code: 10')
-      const isCancelPressed = errString.includes('code: 13')
-      const isIOSCancel = 'code' in e && String(e.code) === '-128'
+    const authErrorContext = getAuthErrorContext(e)
 
-      if (isBackPressed) {
-        log.trace('[authenticatePOSMode]', 'User pressed back button')
-        return false
-      }
+    if (authErrorContext.isBackPressed) {
+      log.trace('[authenticatePOSMode]', 'User pressed back button')
+      return false
+    }
 
-      if (isCancelPressed || isIOSCancel) {
-        log.trace('[authenticatePOSMode]', 'User cancelled authentication')
-        return false
-      }
+    if (authErrorContext.isCancelPressed || authErrorContext.isIOSCancel || authErrorContext.isCryptoFailed) {
+      log.trace('[authenticatePOSMode]', 'User cancelled authentication')
+      return false
     }
 
     log.trace('[authenticatePOSMode]', 'Authentication failed', { message: e.message })
