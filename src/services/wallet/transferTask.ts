@@ -337,12 +337,11 @@ export const transferTask = async function (
         let recovered: number = 0
 
         if (transaction) { 
+            meltQuoteCheck = await walletStore.checkLightningMeltQuote(mintUrl, meltQuote.quote)
+            taskResult.meltQuote = meltQuoteCheck     
             
             if (proofsToMeltFrom.length > 0) {               
-                
-                meltQuoteCheck = await walletStore.checkLightningMeltQuote(mintUrl, meltQuote.quote)
-                taskResult.meltQuote = meltQuoteCheck                
-                
+                                
                 // --- PAID ---
                 if(meltQuoteCheck.state === MeltQuoteState.PAID) {
 
@@ -440,6 +439,12 @@ export const transferTask = async function (
                     data: JSON.stringify(transactionData),
                 })
             } else {
+                transactionData.push({
+                    status: TransactionStatus.ERROR,                    
+                    error: WalletUtils.formatError(e),
+                    createdAt: new Date()
+                })
+
                 transaction.update({
                     status: TransactionStatus.ERROR,
                     data: JSON.stringify(transactionData),
