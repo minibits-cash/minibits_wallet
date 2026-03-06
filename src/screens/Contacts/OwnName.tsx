@@ -160,7 +160,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
         }
 
         try {            
-            //const profileExists = await MinibitsClient.getWalletProfileByNip05(ownName + MINIBITS_NIP05_DOMAIN)
+            // Replaced getWalletProfileByNip05 API call
             const profileExists = await NostrClient.getNip05Record(ownName + MINIBITS_NIP05_DOMAIN) // throws if not found
 
             if(profileExists) {

@@ -243,11 +243,11 @@ const recoverAddress = async function (seedHash: string) {
 }
 
 // TODO remove 
-const getWalletProfile = async function (pubkey: string) {    
+/*const getWalletProfile = async function (pubkey: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile' 
     const method = 'GET'    
 
-    const walletProfile = await fetchApi(url + `/${pubkey}`, {
+    const walletProfile = await fetchApi(url, {
         method,
         jwtAuthRequired: true    
     }) as WalletProfileRecord
@@ -270,7 +270,7 @@ const getWalletProfileByNip05 = async function (nip05: string) {
     log.trace('[getWalletProfileByNip05]', `Got response`, walletProfile?.walletId || null)
 
     return walletProfile
-}
+} */
 
 
 const getWalletProfileBySeedHash = async function (seedHash: string) {    
@@ -453,15 +453,13 @@ export const MinibitsClient = {
     verifyAuthChallenge,
     refreshTokens,
     logout,
-    getWalletProfile,
     createWalletProfile,
     updateWalletProfile,
     updateWalletProfileNip05,
     updateDeviceToken,
     recoverProfile,
     recoverAddress,   
-    getRandomPictures,  
-    getWalletProfileByNip05,
+    getRandomPictures, 
     getWalletProfileBySeedHash,
     createDonation,
     checkDonationPaid,

@@ -99,8 +99,8 @@ export const PrivateContacts = observer(function (props: {
                 // validate and get profile data from nip05 server + relays
                 nostrProfile = await NostrClient.getNormalizedNostrProfile(newContactName, relaysStore.allPublicUrls) as NostrProfile
             } else {
-                // replaced insecure getWalletProfileByNip05 call
-                nostrProfile = await NostrClient.getNormalizedNostrProfile(newContactName, NostrClient.getMinibitsRelays()) as NostrProfile
+                // replaced getWalletProfileByNip05 API call
+                nostrProfile = await NostrClient.getNormalizedNostrProfile(newContactName + MINIBITS_NIP05_DOMAIN, NostrClient.getMinibitsRelays()) as NostrProfile
             }
 
             log.trace('[saveNewContact]', 'Nostr profile', nostrProfile)

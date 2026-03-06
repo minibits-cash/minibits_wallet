@@ -2494,21 +2494,31 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
             && userSettingsStore.isReceiveOnlyFromContactsOn === false
         ) {
 
-            const serverProfile = await MinibitsClient.getWalletProfile(sentFromPubkey)
+          try {
+            // replaced getWalletProfile API call
+            const nostrProfile = await NostrClient.getProfileFromRelays(sentFromPubkey, NostrClient.getMinibitsRelays())
+            
+            
+            if(nostrProfile) {
+              log.info('[handleReceivedEventTask]', 'Event sent from Minibits server user, adding to contacts...', {sentFrom, sentFromPubkey})
 
-            log.info('[handleReceivedEventTask]', 'Event sent from Minibits server user, adding to contacts...', {sentFrom, sentFromPubkey})
+              const {nip05, lud16, name, picture} = nostrProfile
+              contactFrom = {                        
+                  pubkey: sentFromPubkey,
+                  npub: sentFromNpub,
+                  nip05,
+                  lud16,
+                  name,
+                  picture,
+                  isExternalDomain: false                       
+              } as Contact
             
-            contactFrom = {                        
-                pubkey: sentFromPubkey,
-                npub: sentFromNpub,
-                nip05: serverProfile.nip05,
-                lud16: serverProfile.lud16,
-                name: serverProfile.name,
-                picture: serverProfile.avatar,
-                isExternalDomain: false                       
-            } as Contact
-            
-            contactsStore.addContact(contactFrom)  
+              contactsStore.addContact(contactFrom)  
+            }
+          } catch(e: any) {
+            log.error('[handleReceivedEventTask]', 'Failed to get sender profile from Minibits server, skipping adding to contacts...', {sentFrom, sentFromPubkey, message: e.message})
+          }
+
         }
          
         
