@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {useEffect, useRef, useState} from 'react'
-import {FlatList, Image, InteractionManager, LayoutAnimation, Platform, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
+import {FlatList, Image, LayoutAnimation, Platform, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import { Metadata, Contacts } from 'nostr-tools/kinds'
 import Clipboard from '@react-native-clipboard/clipboard'
@@ -93,9 +93,7 @@ export const PublicContacts = observer(function (props: {
             relaysStore.addDefaultRelays()
         }
 
-        InteractionManager.runAfterInteractions(async () => {        
-            subscribeToOwnProfileAndPubkeys()
-        })
+        subscribeToOwnProfileAndPubkeys()
     }, [])
 
 
@@ -104,10 +102,8 @@ export const PublicContacts = observer(function (props: {
             return
         }
         log.trace('Reloading...')        
-        InteractionManager.runAfterInteractions(async () => {        
-            subscribeToOwnProfileAndPubkeys()
-            setShouldReload(false)
-        })
+        subscribeToOwnProfileAndPubkeys()
+        setShouldReload(false)
         
     }, [shouldReload])
 
@@ -205,11 +201,8 @@ export const PublicContacts = observer(function (props: {
             setIsLoading(false)
         }
 
-        InteractionManager.runAfterInteractions(async () => { 
-            loadProfiles()
-        })
+        loadProfiles()
 
-        
     }, [followingPubkeys])
 
     

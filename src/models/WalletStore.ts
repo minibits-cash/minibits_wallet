@@ -28,7 +28,7 @@ import { Proof } from './Proof'
 import { InFlightRequest, Mint } from './Mint'
 import { getRootStore } from './helpers/getRootStore'
 import { Transaction } from './Transaction'
-// refresh
+// refresh refresh
 
 /* 
    Not persisted, in-memory only model of the cashu-ts wallet instances and wallet keys persisted in the device secure store.
@@ -1105,58 +1105,17 @@ export const WalletStoreModel = types
               // PERF: Time wallet creation
               const perfWalletCreate = performance.now()
 
-              // Get mint model instance for keysets metadata
-              const mintInstance = self.getMintModelInstance(mintUrl)
-
-              if(!mintInstance) {
-                  throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
-              }
-
-              // Check if the requested keyset is inactive
-              const requestedKeyset = mintInstance.keysets?.find(k => k.id === keysetId)
-              const isInactiveKeyset = requestedKeyset && !requestedKeyset.active
-
               // Create separate CashuMint and CashuWallet instances for restore operation
-              // to avoid polluting the main wallet state with inactive keyset data
+              // to avoid polluting the main wallet state with inactive keyset data.
+              // cashu-ts 3.4.1+ supports restore from inactive keysets natively.
               const cashuMint = new CashuMint(mintUrl)
-              let cashuWallet: CashuWallet
+              const cashuWallet = new CashuWallet(cashuMint, {
+                unit,
+                keysetId,
+                bip39seed: seed
+              })
 
-              if (isInactiveKeyset) {
-                // For inactive keysets, create wallet without binding to the inactive keyset
-                // (which would fail in finishInit), then manually load keys and rebind
-                log.trace('[WalletStore.restore]', 'Creating wallet for inactive keyset', {keysetId})
-
-                // Create wallet WITHOUT keysetId - it will bind to cheapest active keyset
-                cashuWallet = new CashuWallet(cashuMint, {
-                  unit,
-                  bip39seed: seed
-                })
-
-                // Load mint info - succeeds because wallet is bound to active keyset
-                yield cashuWallet.loadMint()
-
-                // Fetch and set keys for the inactive keyset
-                log.trace('[WalletStore.restore]', 'Loading keys for inactive keyset', {keysetId})
-                const {keysets: fetchedKeys} = yield cashuMint.getKeys(keysetId) as Promise<GetKeysResponse>
-                if (fetchedKeys && fetchedKeys.length > 0) {
-                  const inactiveKeyset = cashuWallet.keyChain.getKeyset(keysetId)
-                  inactiveKeyset.keys = fetchedKeys[0].keys
-                }
-
-                // Rebind to the inactive keyset now that it has keys
-                cashuWallet.bindKeyset(keysetId)
-              } else {
-                // For active keysets, create wallet with keysetId directly
-                log.trace('[WalletStore.restore]', 'Creating wallet for active keyset', {keysetId})
-
-                cashuWallet = new CashuWallet(cashuMint, {
-                  unit,
-                  keysetId,
-                  bip39seed: seed
-                })
-
-                yield cashuWallet.loadMint()
-              }
+              yield cashuWallet.loadMint()
 
               log.info('[PERF][WalletStore.restore] CashuWallet created:', { ms: (performance.now() - perfWalletCreate).toFixed(2) })
 

@@ -4,7 +4,6 @@ import {
   TextStyle,
   View,
   ViewStyle,
-  InteractionManager,
   FlatList,
 } from 'react-native'
 import {spacing} from '../../theme'
@@ -36,23 +35,13 @@ export const RandomName = observer(function (props: {pubkey: string}) {
   const [error, setError] = useState<AppError | undefined>()
 
   useEffect(() => {
-    const load = async () => {
-      setIsLoading(true)
-      InteractionManager.runAfterInteractions(async () => {
-        let i = 0
-        let names = []
-        while (i < 8) {
-          const name = getRandomUsername()
-          names.push(name)
-          i++
-        }
-
-        setRandomNames(names)
-        setIsLoading(false)
-      })
-    }
-    load()
-    return () => {}
+    setIsLoading(true)
+    const timer = setTimeout(() => {
+      const names = Array.from({length: 8}, () => getRandomUsername())
+      setRandomNames(names)
+      setIsLoading(false)
+    }, 0)
+    return () => clearTimeout(timer)
   }, [])
 
   const confirmSelectedName = async function () {
