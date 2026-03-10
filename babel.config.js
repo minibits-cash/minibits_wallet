@@ -12,7 +12,7 @@ module.exports = {
           },
       ],    
       ['module:react-native-dotenv'],
-      'react-native-reanimated/plugin',
+      'react-native-worklets/plugin',
       '@babel/plugin-proposal-export-namespace-from',
       'hot-updater/babel-plugin',
   ],

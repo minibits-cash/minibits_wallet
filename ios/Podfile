@@ -8,6 +8,10 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
+# Workaround: react-native-firebase references legacy React headers not exposed
+# in RN 0.84's precompiled iOS binaries. Build RN core from source instead.
+ENV['RCT_USE_PREBUILT_RNCORE'] = '0'
+
 linkage = ENV['USE_FRAMEWORKS']
 if linkage != nil
   Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
@@ -19,6 +23,14 @@ target 'minibits_wallet' do
   # Minibts - firebase start
   use_frameworks! :linkage => :static
   $RNFirebaseAsStaticFramework = true
+  # RCT-Folly and its transitive deps are no longer in the CocoaPods specs repo
+  # — point to the local podspecs shipped with react-native (needed by react-native-exit-app)
+  pod 'RCT-Folly',        :podspec => '../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec'
+  pod 'boost',            :podspec => '../node_modules/react-native/third-party-podspecs/boost.podspec'
+  pod 'DoubleConversion',  :podspec => '../node_modules/react-native/third-party-podspecs/DoubleConversion.podspec'
+  pod 'glog',             :podspec => '../node_modules/react-native/third-party-podspecs/glog.podspec'
+  pod 'fast_float',       :podspec => '../node_modules/react-native/third-party-podspecs/fast_float.podspec'
+  pod 'fmt',              :podspec => '../node_modules/react-native/third-party-podspecs/fmt.podspec'
   # Minibits - firebase end
   use_react_native!(
     :path => config[:reactNativePath],
