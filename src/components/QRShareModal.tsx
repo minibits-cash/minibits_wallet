@@ -47,7 +47,7 @@ export const QRShareModal = (props: QRShareModalProps) => {
       isVisible={isVisible}
       ContentComponent={
         <> 
-          {shareModalTx || shareModalTitle && (
+          {(shareModalTx || shareModalTitle) && (
             <Text
               tx={shareModalTx}
               text={shareModalTitle}            

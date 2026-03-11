@@ -228,7 +228,7 @@ export function Header(props: HeaderProps) {
     }
     const opacity = interpolate(
       scrollY.value,
-      [0, scrollDistance],
+      [scrollDistance * 0.5, scrollDistance],
       [0, 1],
       Extrapolation.CLAMP
     )

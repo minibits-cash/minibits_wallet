@@ -31,7 +31,7 @@ type Props = StaticScreenProps<undefined>
 export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
     const navigation = useNavigation()
     const scrollY = useSharedValue(0)
-    const HEADER_SCROLL_DISTANCE = spacing.screenHeight * 0.07
+    const HEADER_SCROLL_DISTANCE = spacing.screenHeight * 0.15
 
     useLayoutEffect(() => {
       navigation.setOptions({
@@ -205,16 +205,15 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
 
     return (
       <Screen style={$screen} preset='fixed'>
-        <AnimatedHeader
-          titleTx="privacyScreen_title"
-          scrollY={scrollY}
-          scrollDistance={HEADER_SCROLL_DISTANCE}
-        />
         <Animated.ScrollView
           style={$contentContainer}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
         >
+          <AnimatedHeader
+            titleTx="privacyScreen_title"
+            scrollY={scrollY}
+          />
             {/*<Card
                 style={[$card, {marginTop: spacing.medium}]}
                 ContentComponent={
@@ -288,7 +287,7 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
                 }
             />*/}
             <Card
-                style={[$card, {marginTop: spacing.medium}]}
+                style={[$card, {marginTop: -spacing.extraLarge * 2}]}
                 ContentComponent={
                 <>                    
                     <ListItem
@@ -425,13 +424,14 @@ const $screen: ViewStyle = {}
 
 const $contentContainer: TextStyle = {
   flex: 1,
-  marginTop: -spacing.extraLarge * 2,
-  padding: spacing.extraSmall,
+  // marginTop: -spacing.extraLarge * 2,
+  // padding: spacing.extraSmall,
   // alignItems: 'center',
 }
 
 const $card: ViewStyle = {
   marginBottom: 0,
+  marginHorizontal: spacing.small,
 }
 
 const $bottomModal: ViewStyle = {

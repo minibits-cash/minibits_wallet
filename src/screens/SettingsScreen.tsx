@@ -31,7 +31,7 @@ type Props = StaticScreenProps<undefined>
 export const SettingsScreen = observer(function SettingsScreen({ route }: Props) {
     const navigation = useNavigation()
     const scrollY = useSharedValue(0)
-    const HEADER_SCROLL_DISTANCE = spacing.screenHeight * 0.07
+    const HEADER_SCROLL_DISTANCE = spacing.screenHeight * 0.15
 
     useLayoutEffect(() => {
       navigation.setOptions({
@@ -315,18 +315,17 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
 
     return (
       <Screen contentContainerStyle={$screen} preset='fixed'>
-        <AnimatedHeader
-          titleTx="settingsScreen_title"
-          scrollY={scrollY}
-          scrollDistance={HEADER_SCROLL_DISTANCE}
-        />
         <Animated.ScrollView
           style={$contentContainer}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
         >
+          <AnimatedHeader
+            titleTx="settingsScreen_title"
+            scrollY={scrollY}
+          />
           <Card
-            style={$card}
+            style={[$card, {marginTop: -spacing.extraLarge * 2}]}
             ContentComponent={
               <>
                 <ListItem
@@ -595,12 +594,13 @@ const $screen: ViewStyle = {
 }
 
 const $contentContainer: TextStyle = {
-  marginTop: -spacing.extraLarge * 2,
-  padding: spacing.extraSmall,
+  //marginTop: -spacing.extraLarge * 2,
+  //padding: spacing.extraSmall,
   
 }
 
 const $card: ViewStyle = {
+  marginHorizontal: spacing.small,
     //paddingVertical: 0,
 }
 

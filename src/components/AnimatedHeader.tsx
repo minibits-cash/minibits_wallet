@@ -1,5 +1,5 @@
 import React from 'react'
-import { TextStyle, ViewStyle } from 'react-native'
+import { TextStyle, View, ViewStyle } from 'react-native'
 import Animated, {
   SharedValue,
   useAnimatedStyle,
@@ -24,91 +24,57 @@ export interface AnimatedHeaderProps {
    */
   scrollY: SharedValue<number>
   /**
-   * The scroll distance over which the animation occurs.
-   * Defaults to spacing.screenHeight * 0.07
-   */
-  scrollDistance?: number
-  /**
-   * Maximum header height when not scrolled.
+   * Header height. Title fades out over the first half of this distance.
    * Defaults to spacing.screenHeight * 0.15
    */
   maxHeight?: number
-  /**
-   * Minimum header height when fully scrolled.
-   * Defaults to spacing.screenHeight * 0.08
-   */
-  minHeight?: number
 }
 
 /**
- * AnimatedHeader component that provides a collapsible header with animated title.
- * Use with Animated.ScrollView and useAnimatedScrollHandler to track scroll position.
+ * AnimatedHeader component with a large title that fades as the user scrolls.
+ * Place this as the first child inside an Animated.ScrollView so that it scrolls
+ * away naturally — no height animation means no layout jitter.
  */
 export function AnimatedHeader(props: AnimatedHeaderProps) {
   const {
     title,
     titleTx,
     scrollY,
-    scrollDistance = spacing.screenHeight * 0.07,
     maxHeight = spacing.screenHeight * 0.15,
-    minHeight = spacing.screenHeight * 0.08,
   } = props
 
   const headerBg = useThemeColor('header')
   const headerTitleColor = useThemeColor('headerTitle')
 
-  const animatedHeaderStyle = useAnimatedStyle(() => {
-    const height = interpolate(
-      scrollY.value,
-      [0, scrollDistance],
-      [maxHeight, minHeight],
-      Extrapolation.CLAMP
-    )
-    return { height }
-  })
-
   const animatedTitleStyle = useAnimatedStyle(() => {
-    const scale = interpolate(
-      scrollY.value,
-      [0, scrollDistance],
-      [1, 0.75],
-      Extrapolation.CLAMP
-    )
-    const translateY = interpolate(
-      scrollY.value,
-      [0, scrollDistance],
-      [0, -spacing.extraLarge * 1.5],
-      Extrapolation.CLAMP
-    )
     const opacity = interpolate(
       scrollY.value,
-      [0, scrollDistance * 0.8],
+      [0, maxHeight * 0.5],
       [1, 0],
       Extrapolation.CLAMP
     )
-    return {
-      transform: [{ scale }, { translateY }],
-      opacity,
-    }
+    return { opacity }
   })
 
   const titleContent = titleTx ? translate(titleTx) : title
 
   return (
-    <Animated.View style={[animatedHeaderStyle, $headerContainer, { backgroundColor: headerBg }]}>
+    <View style={[$headerContainer, { height: maxHeight, backgroundColor: headerBg }]}>
       <Animated.Text style={[animatedTitleStyle, $headerTitle, { color: headerTitleColor }]}>
         {titleContent}
       </Animated.Text>
-    </Animated.View>
+    </View>
   )
 }
 
 const $headerContainer: ViewStyle = {
   alignItems: 'center',
+  justifyContent: 'center',
 }
 
 const $headerTitle: TextStyle = {
-  fontSize: verticalScale(32), 
+  fontSize: verticalScale(32),
   lineHeight: verticalScale(44),
   fontFamily: typography.primary?.medium,
+  marginBottom: spacing.extraLarge * 2,
 }

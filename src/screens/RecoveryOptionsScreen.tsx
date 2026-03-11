@@ -39,7 +39,7 @@ type Props = StaticScreenProps<undefined>
 export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: Props) {
     const navigation = useNavigation()
     const scrollY = useSharedValue(0)
-    const HEADER_SCROLL_DISTANCE = spacing.screenHeight * 0.07
+    const HEADER_SCROLL_DISTANCE = spacing.screenHeight * 0.15
 
     useLayoutEffect(() => {
       navigation.setOptions({
@@ -327,18 +327,18 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
 
     return (
       <Screen preset="fixed" contentContainerStyle={$screen}>
-        <AnimatedHeader
-          titleTx="recoveryOptionsTitle"
-          scrollY={scrollY}
-          scrollDistance={HEADER_SCROLL_DISTANCE}
-        />
         <Animated.ScrollView
           style={$contentContainer}
+          //contentContainerStyle={{ paddingBottom: HEADER_SCROLL_DISTANCE }}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
         >
+          <AnimatedHeader
+            titleTx="recoveryOptionsTitle"
+            scrollY={scrollY}
+          />
           <Card
-            style={$card}
+            style={[$card, {marginTop: -spacing.extraLarge * 2}]}
             HeadingComponent={
               <ListItem
                 tx="seedRecoveryOptions"
@@ -601,8 +601,8 @@ const $screen: ViewStyle = {
 
 const $contentContainer: TextStyle = {
   //flex: 1,
-  marginTop: -spacing.extraLarge * 2,
-  padding: spacing.extraSmall,
+  // marginTop: -spacing.extraLarge * 2,
+  // padding: spacing.extraSmall,
   // alignItems: 'center',
 }
 
@@ -641,6 +641,7 @@ const $quoteInput: TextStyle = {
 
 const $card: ViewStyle = {
   marginBottom: spacing.small,
+  marginHorizontal: spacing.small,
 }
 
 const $rightContainer: ViewStyle = {

@@ -196,7 +196,7 @@ function App() {
             ? require('../android/app/src/main/res/mipmap-xxhdpi/ic_launcher_golden.png')
             : require('../android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png')} />
         </View>
-        <Text text={displayName} style={[$title]} />
+        <Text text={displayName} style={[$title, {paddingBottom: isAppLocked ? spacing.tiny : spacing.extraLarge}]} />
         <View style={{
           paddingHorizontal: spacing.large,
           paddingBottom: spacing.extraLarge,

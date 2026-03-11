@@ -120,9 +120,9 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                 log.trace('[initFilter] toggleShowPendingOnly ')
                 toggleShowPendingOnly()
                 //@ts-ignore
-                /* navigation.setParams({
+                navigation.setParams({
                     showPending: undefined,    
-                })*/
+                })
             }
     }, [])
                
@@ -349,7 +349,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                             ) : (
                                 <Button
                                     preset="secondary"
-                                    onPress={addTransactionsToList}
+                                    onPress={showPendingOnly ? addPendingTransactionsToList : addTransactionsToList}
                                     tx="tranHistory_viewMore"
                                     style={{minHeight: 25, paddingVertical: spacing.tiny}}
                                     textStyle={{fontSize: 14}}
