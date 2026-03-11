@@ -184,7 +184,7 @@ function App() {
       (splashTheme === ThemeCode.DEFAULT && colorScheme === 'light')
     const isGolden = splashTheme === ThemeCode.GOLDEN
     const splashBg = isLight ? colors.palette.neutral200 : colors.palette.neutral700
-    const splashTextColor = isLight ? colors.palette.neutral800 : colors.palette.neutral100
+    //const splashTextColor = isLight ? colors.palette.neutral800 : colors.palette.neutral100
 
     log.trace('[App] Rendering splash/auth screen', {isAppLocked})
 
@@ -196,26 +196,24 @@ function App() {
             ? require('../android/app/src/main/res/mipmap-xxhdpi/ic_launcher_golden.png')
             : require('../android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png')} />
         </View>
-        <Text text={displayName} style={[$title, {color: splashTextColor}]} />
+        <Text text={displayName} style={[$title]} />
         <View style={{
           paddingHorizontal: spacing.large,
-          marginBottom: spacing.extraLarge,
+          paddingBottom: spacing.extraLarge,
         }}>
           
           {isAppLocked && (
             <>
-              <Text size='md' style={{textAlign: 'center', color: splashTextColor}}>
-                Minibits is locked. Authentication is required to continue.
-              </Text>
+              <Text size='md' tx='appLocked_message' style={{textAlign: 'center'}} />
               <Button
                 preset='default'
-                text='Authenticate'
+                tx='appLocked_authenticate'
                 onPress={attemptUserAuthentication}
                 style={{marginVertical: spacing.large, alignSelf: 'center'}}
               />
               <Button
                 preset='tertiary'
-                text='Exit'
+                tx='appLocked_exit'
                 onPress={() => RNExitApp.exitApp()}
                 style={{alignSelf: 'center'}}
               />
