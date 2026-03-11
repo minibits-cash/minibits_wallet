@@ -34,29 +34,35 @@ export const ROOT_STORAGE_KEY = 'minibits-root-storage'
 
 export async function setupRootStore(rootStore: RootStore) {
     let restoredState: any
-    let _disposer: IDisposer
+    let _disposer: IDisposer | undefined
     // let latestSnapshot: any
+
+    // Guards the onSnapshot installation below. If applySnapshot throws, rootStore
+    // stays at empty defaults. Installing the listener in that state would save those
+    // defaults back to MMKV on the first mutation, silently overwriting valid data.
+    let snapshotApplied = false
 
     try {
         // load the last known state from storage
         const start = performance.now()
-        restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}        
-        const mmkvLoaded = performance.now()        
-        const dataSize = Buffer.byteLength(JSON.stringify(restoredState), 'utf8')        
-        
+        restoredState = MMKVStorage.load(ROOT_STORAGE_KEY) || {}
+        const mmkvLoaded = performance.now()
+        const dataSize = Buffer.byteLength(JSON.stringify(restoredState), 'utf8')
+
         // log.trace({restoredState})
-        log.trace(`Loading ${dataSize.toLocaleString()} bytes of state from MMKV took ${(mmkvLoaded - start).toLocaleString()} ms.`, {caller: 'setupRootStore'})        
-        
+        log.trace(`Loading ${dataSize.toLocaleString()} bytes of state from MMKV took ${(mmkvLoaded - start).toLocaleString()} ms.`, {caller: 'setupRootStore'})
+
         // temp dirty migration of proofStore from array to map
-        if(restoredState?.proofsStore?.proofs && Array.isArray(restoredState.proofsStore.proofs)) {           
+        if(restoredState?.proofsStore?.proofs && Array.isArray(restoredState.proofsStore.proofs)) {
             restoredState.proofsStore.proofs = {}
         }
 
-        applySnapshot(rootStore, restoredState)        
-        
+        applySnapshot(rootStore, restoredState)
+        snapshotApplied = true
+
         const stateHydrated = performance.now()
         log.trace(`Hydrating rooStoreModel took ${stateHydrated - mmkvLoaded} ms.`, {caller: 'setupRootStore'})
-        
+
         const {proofsStore, walletProfileStore, authStore, userSettingsStore, transactionsStore} = rootStore
 
         if(walletProfileStore.walletId) {
@@ -72,34 +78,40 @@ export async function setupRootStore(rootStore: RootStore) {
         await proofsStore.loadProofsFromDatabase()
         // hydrate last transactions from database
         await transactionsStore.loadRecentFromDatabase()
-        
+
         const proofsLoaded = performance.now()
         log.trace(`Loading proofs and transactions from DB and hydrating took ${proofsLoaded - stateHydrated} ms.`, {
             caller: 'setupRootStore'
         })
-        
-    } catch (e: any) {        
+
+    } catch (e: any) {
         log.error(Err.STORAGE_ERROR, {message: e.message, params: e.params, caller: 'setupRootStore'})
     }
 
     // stop tracking state changes if we've already setup
     if (_disposer) {
         _disposer()
-    }  
+    }
 
-    _disposer = onSnapshot(rootStore, snapshot => {       
-        MMKVStorage.save(ROOT_STORAGE_KEY, snapshot)        
-    })
+    if (snapshotApplied) {
+        _disposer = onSnapshot(rootStore, snapshot => {
+            MMKVStorage.save(ROOT_STORAGE_KEY, snapshot)
+        })
+    } else {
+        log.error('[setupRootStore]', 'State restore failed — skipping onSnapshot to preserve MMKV data', {caller: 'setupRootStore'})
+    }
 
     // run migrations if needed, needs to be after onSnapshot to be persisted
-    try {    
-        log.info(`RootStore loaded from MMKV, version is: ${rootStore.version}`, {caller: 'setupRootStore'})      
+    if (snapshotApplied) {
+        try {
+            log.info(`RootStore loaded from MMKV, version is: ${rootStore.version}`, {caller: 'setupRootStore'})
 
-        if(rootStore.version < rootStoreModelVersion) {
-            await _runMigrations(rootStore)
-        }    
-    } catch (e: any) {    
-        log.error(Err.STORAGE_ERROR, e.message)
+            if(rootStore.version < rootStoreModelVersion) {
+                await _runMigrations(rootStore)
+            }
+        } catch (e: any) {
+            log.error(Err.STORAGE_ERROR, e.message)
+        }
     }
 
     const unsubscribe = () => {

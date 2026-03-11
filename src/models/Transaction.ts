@@ -72,13 +72,13 @@ export const TransactionModel = types
         },
         update(fields: Partial<Transaction>) {
             // log.trace('[update]', {fields})
-            // Update multiple fields in database with a single query
-            const updatedTransaction = Database.updateTransaction(self.id, fields)            
-
             if (!isAlive(self)) {
-                log.error('[update]', 'Transaction instance is not alive, aborting state update', { id: self.id })
+                log.error('[update]', 'Transaction instance is not alive, aborting update')
                 return
             }
+
+            // Update multiple fields in database with a single query
+            const updatedTransaction = Database.updateTransaction(self.id, fields)
 
             // Update the model to keep store in sync
             Object.keys(updatedTransaction).forEach(key => {

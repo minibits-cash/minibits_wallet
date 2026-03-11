@@ -125,7 +125,7 @@ export const MintProofsCounterModel = types
 
         removeInFlightRequest(transactionId: number) {
             if (!isAlive(self)) {
-                log.error('[removeInFlightRequest]', 'ProofsCounter is not alive', { keyset: self.keyset })
+                log.error('[removeInFlightRequest]', 'ProofsCounter is not alive')
                 return
             }
             const key = transactionId.toString()
@@ -137,7 +137,7 @@ export const MintProofsCounterModel = types
 
         clearAllInFlightRequests() {
             if (!isAlive(self)) {
-                log.error('[clearAllInFlightRequests]', 'ProofsCounter is not alive', { keyset: self.keyset })
+                log.error('[clearAllInFlightRequests]', 'ProofsCounter is not alive')
                 return
             }
             const count = self.inFlightRequests.size
@@ -176,7 +176,7 @@ export const MintProofsCounterModel = types
 
         removeMeltCounterValue(transactionId: number) {
             if (!isAlive(self)) {
-                log.error('[removeMeltCounterValue]', 'ProofsCounter is not alive', { keyset: self.keyset })
+                log.error('[removeMeltCounterValue]', 'ProofsCounter is not alive')
                 return
             }
 
@@ -189,7 +189,7 @@ export const MintProofsCounterModel = types
 
         clearAllMeltCounterValues() {
             if (!isAlive(self)) {
-                log.error('[clearAllMeltCounterValues]', 'ProofsCounter is not alive', { keyset: self.keyset })
+                log.error('[clearAllMeltCounterValues]', 'ProofsCounter is not alive')
                 return
             }
 
@@ -369,7 +369,7 @@ export const MintModel = types
             const index = self.proofsCounters.findIndex(p => p.keyset === counter.keyset)
 
             if(index !== -1) {
-                self.proofsCounters.splice(index, 0)
+                self.proofsCounters.splice(index, 1)
                 self.proofsCounters = cast(self.proofsCounters)
             }
         },
@@ -567,18 +567,19 @@ export const MintModel = types
 
             try {
                 const cashuMint = new CashuMint(self.mintUrl)
-                const info: GetInfoResponse = yield cashuMint.getInfo()                
+                const info: GetInfoResponse = yield cashuMint.getInfo()
 
                 if(info.name.length > 0) {
-                    shortname = info.name                    
+                    shortname = info.name
                 }
-
-                self.shortname = shortname
-                
             } catch (e: any) {
                 log.warn('[setShortname]', {error: e.message})
-                self.shortname = shortname
             }
+
+            // Mint may have been removed while the network call was in flight
+            if (!isAlive(self)) return
+
+            self.shortname = shortname
         }),
         setRandomColor() {
             self.color = getRandomIconColor()
@@ -636,11 +637,8 @@ export const MintModel = types
             const counters = self.proofsCounters.filter(c => c.inFlightRequests && c.inFlightRequests.size > 0)                       
             return counters || []
         },
-        get allInFlightRequests() {            
-            const requests = self.proofsCounters // Get all counters as an array
-                .flatMap((counter) => counter.inFlightRequests) // Combine all `inFlightRequests` arrays  
-                
-            return requests
+        get allInFlightRequests() {
+            return self.proofsCounters.flatMap((counter) => counter.allInFlightRequests)
         },
         get balances(): MintBalance | undefined {
             const mintBalance: MintBalance | undefined = getRootStore(self).proofsStore.getMintBalance(self.mintUrl)

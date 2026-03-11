@@ -220,8 +220,8 @@ import {
                 proofsByKeyset.set(proof.id, (proofsByKeyset.get(proof.id) || []).concat(proofNode))
             }
     
-            // Update counters only for non-pending proofs
-            if (!isPending) {
+            // Update counters only for newly received, spendable proofs
+            if (!isPending && !isSpent) {
                 for (const [keysetId, proofs] of proofsByKeyset) {
                     const counter = mintInstance.getProofsCounterByKeysetId(keysetId)
                     counter?.increaseProofsCounter(proofs.length)
@@ -238,17 +238,15 @@ import {
 
         // Only call this when proofs are locally pending (ecash send, melt prepare, etc.)
         // Does NOT touch pendingByMintSecrets
-        moveToPending(proofs: Proof[]) {            
-            Database.addOrUpdateProofs(proofs, true, false)
+        moveToPending(proofs: Proof[]) {
+            const liveProofs = proofs.filter(p => isAlive(p))
+            if (liveProofs.length === 0) return
 
-            for (const p of proofs) { 
-              if (!isAlive(p)) {
-                log.error('[moveToPending]', 'Proof instance is not alive, aborting state update', { secret: p.secret })
-                continue
-              }
+            Database.addOrUpdateProofs(liveProofs, true, false)
 
+            for (const p of liveProofs) {
                 p.isPending = true
-                p.isSpent = false                
+                p.isSpent = false
             }
         },
 
@@ -270,35 +268,31 @@ import {
         },
 
         moveToSpent(proofs: Proof[]) {
-            Database.addOrUpdateProofs(proofs, false, true)
+            const liveProofs = proofs.filter(p => isAlive(p))
+            if (liveProofs.length === 0) return
 
-            for (const p of proofs) {
-              if (!isAlive(p)) {
-                log.error('[moveToSpent]', 'Proof instance is not alive, aborting state update', { secret: p.secret })
-                continue
-              }
+            Database.addOrUpdateProofs(liveProofs, false, true)
 
-              p.isPending = false
-              p.isSpent = true                
+            for (const p of liveProofs) {
+                p.isPending = false
+                p.isSpent = true
             }
             // Automatically clean if any were in mint-pending list
-            const secrets = new Set(proofs.map(p => p.secret))
+            const secrets = new Set(liveProofs.map(p => p.secret))
             self.pendingByMintSecrets.replace(
-              self.pendingByMintSecrets.filter(s => !secrets.has(s))
+                self.pendingByMintSecrets.filter(s => !secrets.has(s))
             )
         },
 
         revertToSpendable(proofs: Proof[]) {
-            Database.addOrUpdateProofs(proofs, false, false)
+            const liveProofs = proofs.filter(p => isAlive(p))
+            if (liveProofs.length === 0) return
 
-            for (const p of proofs) {
-              if (!isAlive(p)) {
-                log.error('[revertToSpendable]', 'Proof instance is not alive, aborting state update', { secret: p.secret })
-                continue
-              }
+            Database.addOrUpdateProofs(liveProofs, false, false)
 
-              p.isPending = false
-              p.isSpent = false
+            for (const p of liveProofs) {
+                p.isPending = false
+                p.isSpent = false
             }
         },
 
