@@ -349,7 +349,7 @@ export const OwnName = observer(function (props: {pubkey: string}) {
                                     <RNText style={$supportText}>                            
                                         <Text
                                             text='Minibits'
-                                            style={{fontFamily: 'Gluten-Regular', fontSize: 18}}
+                                            style={{fontFamily: 'HammersmithOne-Regular', fontSize: 18}}
                                         />{' '}
                                         <Text tx="contactsScreen_ownName_donationSubtext" />
                                     </RNText>                                    

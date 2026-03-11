@@ -1,5 +1,5 @@
-import { rootStoreInstance, useStores } from '../models'
 import {ThemeCode, colors} from '../theme'
+import { MMKVStorage } from '../services'
 import {
   ColorSchemeName,
   useColorScheme as _useColorScheme,
@@ -16,12 +16,13 @@ export default function useColorScheme(): NonNullable<ColorSchemeName> {
 export function useThemeColor(
   colorName: keyof typeof colors.light & keyof typeof colors.dark & keyof typeof colors.golden,
 ) {
-  const { userSettingsStore } = rootStoreInstance
-  
-  if(userSettingsStore.theme === ThemeCode.DEFAULT) {
+  // loadTheme() returns an in-memory cached value after first read — O(1), no MMKV overhead
+  const theme = MMKVStorage.loadTheme()
+
+  if(theme === ThemeCode.DEFAULT) {
     const colorScheme = useColorScheme()
     return colors[colorScheme][colorName] as ColorValue
   }
 
-  return colors[userSettingsStore.theme][colorName] as ColorValue  
+  return colors[theme][colorName] as ColorValue
 }

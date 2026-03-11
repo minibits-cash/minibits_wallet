@@ -7,7 +7,6 @@ import { ThemeCode } from '../theme'
 export type UserSettings = {
   preferredUnit: MintUnit
   exchangeCurrency: CurrencyCode
-  theme: ThemeCode
   nextTheme: ThemeCode
   isOnboarded: boolean
   isAuthOn: boolean
@@ -24,7 +23,6 @@ export const UserSettingsStoreModel = types
     .props({        
         preferredUnit: types.optional(types.frozen<MintUnit>(), 'sat'),
         exchangeCurrency: types.optional(types.frozen<CurrencyCode | null>(), CurrencyCode.USD),
-        theme: types.optional(types.frozen<ThemeCode>(), ThemeCode.DEFAULT),
         nextTheme: types.optional(types.frozen<ThemeCode>(), ThemeCode.DEFAULT),
         isOnboarded: types.optional(types.boolean, false),
         isAuthOn: types.optional(types.boolean, false),
@@ -43,11 +41,7 @@ export const UserSettingsStoreModel = types
             self.exchangeCurrency = exchangeCurrency            
             return exchangeCurrency
         },
-        setTheme: (theme: ThemeCode) => {            
-            self.theme = theme            
-            return theme
-        },
-        setNextTheme: (theme: ThemeCode) => {            
+        setNextTheme: (theme: ThemeCode) => {
             self.nextTheme = theme
             return theme
         },

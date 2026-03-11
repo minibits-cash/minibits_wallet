@@ -13,10 +13,11 @@ import {
     HOT_UPDATER_URL,
 } from '@env'
 import {ThemeCode, Themes, colors, spacing, useThemeColor} from '../theme'
+import { changeIcon } from 'react-native-change-icon'
 import {ListItem, Screen, Text, Card, NwcIcon, Button, BottomModal, InfoModal, Icon, Header, AnimatedHeader} from '../components'
 import {useStores} from '../models'
 import {translate} from '../i18n'
-import { log } from '../services'
+import { MMKVStorage, log } from '../services'
 import { Currencies, CurrencyCode, availableExchangeCurrencies } from '../services/wallet/currency'
 import { NotificationService } from '../services/notificationService'
 import { SvgXml } from 'react-native-svg'
@@ -57,7 +58,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
 
     const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
     const [updateDescription, setUpdateDescription] = useState<string>('')
-    const [currentTheme, setCurrentTheme] = useState<ThemeCode>(userSettingsStore.theme)    
+    const [currentTheme, setCurrentTheme] = useState<ThemeCode>(MMKVStorage.loadTheme())
     
     const [updateSize, setUpdateSize] = useState<string>('')
     const [isCurrencyModalVisible, setIsCurrencyModalVisible] = useState<boolean>(false)
@@ -286,17 +287,19 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
     toggleCurrencyModal()  
   }
 
-  const onSelectTheme = async function(theme: ThemeCode) {    
+  const onSelectTheme = async function(theme: ThemeCode) {
     if(currentTheme !== theme) {
-      try {        
+      try {
         userSettingsStore.setNextTheme(theme)
         setCurrentTheme(theme)
         setInfo(translate('settingsScreen_restartTheme'))
+        const targetIcon = theme === ThemeCode.GOLDEN ? 'Golden' : 'Default'
+        await changeIcon(targetIcon)
       } catch (e: any) {
         log.warn('[onSelectTheme]', e.message)
       }
     }
-    toggleThemeModal()  
+    toggleThemeModal()
   }
 
 

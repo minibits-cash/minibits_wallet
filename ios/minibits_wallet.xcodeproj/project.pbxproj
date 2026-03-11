@@ -13,7 +13,7 @@
 		902F38392D92C792005DB998 /* OpenSSL.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 902F38382D92C792005DB998 /* OpenSSL.xcframework */; };
 		9044DC252D95937D00F918A6 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 9044DC242D95937D00F918A6 /* GoogleService-Info.plist */; };
 		A1B9A6F7058C4F12AB677FD4 /* nostr.png in Resources */ = {isa = PBXBuildFile; fileRef = AB8A46AD84194C2583FF9193 /* nostr.png */; };
-		C3AB98FDBCF446F99A4EA648 /* Gluten-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 6DA8A3418B7A4B348B67B9E7 /* Gluten-Regular.ttf */; };
+		A2E4F8C1D3B547A890123456 /* HammersmithOne-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B3D7A2E5F1C648B9A0234567 /* HammersmithOne-Regular.ttf */; };
 		CD7DC745CFA9F47C2D6FFA1D /* Pods_minibits_wallet.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4ACC08249CA13DFDBBBD7A8B /* Pods_minibits_wallet.framework */; };
 		D610B97F2318E8AB9D0962D2 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
@@ -26,7 +26,7 @@
 		3B4392A12AC88292D35C810B /* Pods-minibits_wallet.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-minibits_wallet.debug.xcconfig"; path = "Target Support Files/Pods-minibits_wallet/Pods-minibits_wallet.debug.xcconfig"; sourceTree = "<group>"; };
 		4ACC08249CA13DFDBBBD7A8B /* Pods_minibits_wallet.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_minibits_wallet.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		5709B34CF0A7D63546082F79 /* Pods-minibits_wallet.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-minibits_wallet.release.xcconfig"; path = "Target Support Files/Pods-minibits_wallet/Pods-minibits_wallet.release.xcconfig"; sourceTree = "<group>"; };
-		6DA8A3418B7A4B348B67B9E7 /* Gluten-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Gluten-Regular.ttf"; path = "../assets/fonts/Gluten-Regular.ttf"; sourceTree = "<group>"; };
+		B3D7A2E5F1C648B9A0234567 /* HammersmithOne-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "HammersmithOne-Regular.ttf"; path = "../assets/fonts/HammersmithOne-Regular.ttf"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = minibits_wallet/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = minibits_wallet/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		902F38382D92C792005DB998 /* OpenSSL.xcframework */ = {isa = PBXFileReference; expectedSignature = "AppleDeveloperProgram:67RAULRX93:Marcin Krzyzanowski"; lastKnownFileType = wrapper.xcframework; name = OpenSSL.xcframework; path = "Pods/OpenSSL-Universal/OpenSSL.xcframework"; sourceTree = "<group>"; };
@@ -75,7 +75,7 @@
 		4B24E47762034A51AEE63594 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				6DA8A3418B7A4B348B67B9E7 /* Gluten-Regular.ttf */,
+				B3D7A2E5F1C648B9A0234567 /* HammersmithOne-Regular.ttf */,
 				AB8A46AD84194C2583FF9193 /* nostr.png */,
 			);
 			name = Resources;
@@ -186,7 +186,7 @@
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				D610B97F2318E8AB9D0962D2 /* PrivacyInfo.xcprivacy in Resources */,
-				C3AB98FDBCF446F99A4EA648 /* Gluten-Regular.ttf in Resources */,
+				A2E4F8C1D3B547A890123456 /* HammersmithOne-Regular.ttf in Resources */,
 				A1B9A6F7058C4F12AB677FD4 /* nostr.png in Resources */,
 				9044DC252D95937D00F918A6 /* GoogleService-Info.plist in Resources */,
 			);

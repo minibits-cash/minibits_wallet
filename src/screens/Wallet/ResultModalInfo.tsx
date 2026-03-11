@@ -66,7 +66,7 @@ export const ResultModalInfo = function(props: {
 
   const $iconContainer: ViewStyle = {
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'center',    
     width: 120,
     height: 120,
   }

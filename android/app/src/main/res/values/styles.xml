@@ -4,6 +4,10 @@
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <!-- Customize your theme here. -->
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <!-- Fixed dark window background shown before React Native renders its first frame.
+             Matches the dark app themes (DEFAULT/DARK/GOLDEN). For LIGHT theme, the JS
+             splash view overrides this immediately on first render. -->
+        <item name="android:windowBackground">#2e2e2e</item>
     </style>
 
 </resources>

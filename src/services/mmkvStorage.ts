@@ -1,6 +1,7 @@
 import {MMKV} from 'react-native-mmkv'
 import {log} from './logService'
 import AppError, {Err} from '../utils/AppError'
+import { ThemeCode } from '../theme'
 
 const STORAGE_KEY = 'storage-v1'
 let _storage: MMKV | undefined
@@ -154,7 +155,32 @@ const clearAll = function (): void {
   }
 }
 
-export const MMKVStorage = {  
+const THEME_STORAGE_KEY = 'theme'
+let _cachedTheme: ThemeCode | undefined
+
+const loadTheme = function (): ThemeCode {
+  if (_cachedTheme !== undefined) return _cachedTheme
+  try {
+    const storage = getInstance()
+    _cachedTheme = (storage.getString(THEME_STORAGE_KEY) as ThemeCode) ?? ThemeCode.DEFAULT
+    return _cachedTheme
+  } catch (e: any) {
+    return ThemeCode.DEFAULT
+  }
+}
+
+const saveTheme = function (theme: ThemeCode): boolean {
+  try {
+    _cachedTheme = theme
+    const storage = getInstance()
+    storage.set(THEME_STORAGE_KEY, theme)
+    return true
+  } catch (e: any) {
+    throw new AppError(Err.DATABASE_ERROR, e.message)
+  }
+}
+
+export const MMKVStorage = {
   loadString,
   saveString,
   saveNumber,
@@ -163,4 +189,6 @@ export const MMKVStorage = {
   save,
   remove,
   clearAll,
+  loadTheme,
+  saveTheme,
 }

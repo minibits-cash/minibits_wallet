@@ -26,8 +26,8 @@ const fonts = {
     // Android only font.
     normal: 'monospace',
   },
-  gluten: {
-    normal: 'Gluten-Regular',
+  hammersmithOne: {
+    normal: 'HammersmithOne-Regular',
   }
 }
 
@@ -54,5 +54,5 @@ export const typography = {
    * Lets get fancy with a monospace font!
    */
   code: Platform.select({ios: fonts.courier, android: fonts.monospace}),
-  logo: fonts.gluten,
+  logo: fonts.hammersmithOne,
 }

@@ -51,7 +51,7 @@
 		<true/>
 		<key>UIAppFonts</key>
 		<array>
-			<string>Gluten-Regular.ttf</string>
+			<string>HammersmithOne-Regular.ttf</string>
 		</array>
 		<key>UIBackgroundModes</key>
 		<array>
@@ -78,5 +78,23 @@
 		<false/>
 		<key>HOT_UPDATER_FINGERPRINT_HASH</key>
 		<string>98c1f26187f02f38ddef1fcb75384246a1c5fa03</string>
+		<key>CFBundleIcons</key>
+		<dict>
+			<key>CFBundlePrimaryIcon</key>
+			<dict>
+				<key>CFBundleIconName</key>
+				<string>AppIcon</string>
+			</dict>
+			<key>CFBundleAlternateIcons</key>
+			<dict>
+				<key>Golden</key>
+				<dict>
+					<key>CFBundleIconName</key>
+					<string>AppIconGolden</string>
+					<key>UIPrerenderedIcon</key>
+					<false/>
+				</dict>
+			</dict>
+		</dict>
 	</dict>
 </plist>

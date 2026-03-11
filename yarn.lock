@@ -14669,6 +14669,7 @@ __metadata:
     react-native: 0.84.0
     react-native-animated-pagination-dots: ^0.1.73
     react-native-camera-kit: 17.0.1
+    react-native-change-icon: ^3.0.0
     react-native-clean-project: ^4.0.3
     react-native-dotenv: ^3.4.11
     react-native-exit-app: ^2.0.0
@@ -16496,6 +16497,16 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 40940bbbbd24192f7e8ee4826d77662e7a21b18ad4cfcb77bb860dd75594da33793b3835050de65b2a82f4e0b356e662d6a1ef54e030b34da96975157cff4502
+  languageName: node
+  linkType: hard
+
+"react-native-change-icon@npm:^3.0.0":
+  version: 3.2.0
+  resolution: "react-native-change-icon@npm:3.2.0"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: d361e9e06fbd2969d85373b5e07531aa4af6a6472ede16928cd3afb0cf6bad6871a9bfa5022b5959ce50787aeb6664eea13e09cd8471ce97067cf7735ed6a20b
   languageName: node
   linkType: hard
 

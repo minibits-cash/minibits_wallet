@@ -1,27 +1,32 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import FlashMessage from "react-native-flash-message"
-import {  
+import {
   SafeAreaProvider,
 } from 'react-native-safe-area-context'
 import {
-    setSizeMattersBaseHeight, 
+    setSizeMattersBaseHeight,
     setSizeMattersBaseWidth
 } from '@gocodingnow/rn-size-matters'
 import RNExitApp from 'react-native-exit-app'
+import { changeIcon } from 'react-native-change-icon'
 import {AppNavigator} from './navigation'
 import {useInitialRootStore, useStores} from './models'
 import {KeyChain, WalletKeys} from './services'
 import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
 import {log} from './services'
-import { Image, Pressable, Text as RNText, TextStyle, View } from 'react-native'
-import { colors, spacing, typography } from './theme'
+import { Image, TextStyle, View } from 'react-native'
+import { ThemeCode, colors, spacing, typography } from './theme'
+import useColorScheme from './theme/useThemeColor'
 import { displayName } from '../app.json'
 import { Text } from './components/Text'
 import useIsInternetReachable from './utils/useIsInternetReachable'
+import { MMKVStorage } from './services'
+import { Button, Screen } from './components'
 
 setSizeMattersBaseWidth(375)
 setSizeMattersBaseHeight(812)
+
 
 function App() {
   const {
@@ -32,9 +37,11 @@ function App() {
     walletProfileStore
   } = useStores()
 
+  const colorScheme = useColorScheme()
+
   const [isUserAuthenticated, setIsUserAuthenticated] = useState(false)
   const [isDeviceAuthenticated, setIsDeviceAuthenticated] = useState(false)
-  const [isAuthLocked, setIsAuthLocked] = useState(false)
+  const [isAppLocked, setIsAppLocked] = useState(false)
   const isAuthInProgressRef = useRef(false)
 
   const isInternetReachable = useIsInternetReachable() // boolean | null
@@ -47,37 +54,40 @@ function App() {
     }
   }, [isInternetReachable])
 
-  const attemptAuth = useCallback(async () => {
+  const attemptUserAuthentication = useCallback(async () => {
     if (isAuthInProgressRef.current) {
-      log.trace('[App] attemptAuth skipped, auth already in progress')
+      log.trace('[App] attemptUserAuthentication skipped, auth already in progress')
       return
     }
 
     isAuthInProgressRef.current = true
 
     try {
-      const isAuthEnabled = userSettingsStore.isAuthOn
-      log.trace('[App] attemptAuth called')
+      const {isAuthOn} = userSettingsStore
+      log.trace('[App] attemptUserAuthentication called', {isAuthOn})
 
-      const result = await KeyChain.authenticateOnAppStart(isAuthEnabled)
-      log.trace('[App] attemptAuth result:', { success: result.success, shouldExitApp: result.shouldExitApp })
+      const result = await KeyChain.authenticateOnAppStart(isAuthOn)
+      log.trace('[App] attemptUserAuthentication result:', { success: result.success, shouldExitApp: result.shouldExitApp })
 
       if (result.success) {
         setIsUserAuthenticated(true)
-        setIsAuthLocked(false)
+        setIsAppLocked(false)
         return
-      }
+      }      
 
       if (result.shouldExitApp) {
+        // Fix: show locked UI before exiting so the user isn't stuck on a
+        // blank splash if exitApp() has any delay or fails silently.
+        setIsAppLocked(true)
         RNExitApp.exitApp()
         return
       }
 
-      log.trace('[App] attemptAuth failed, locking app')
-      setIsAuthLocked(true)
+      log.trace('[App] attemptUserAuthentication failed, locking app')
+      setIsAppLocked(true)
     } catch (e: any) {
-      log.error('[App] attemptAuth caught error', { message: e.message })
-      setIsAuthLocked(true)
+      log.error('[App] attemptUserAuthentication caught error', { message: e.message })
+      setIsAppLocked(true)
     } finally {
       isAuthInProgressRef.current = false
     }
@@ -89,17 +99,22 @@ function App() {
 
     // User authentication (biometrics / PIN)
     if (userSettingsStore.isAuthOn) {
-      // Keep UI in locked mode until authentication succeeds.
-      setIsAuthLocked(true)
-      attemptAuth()
+      // Keep UI in locked mode until authentication succeeds.      
+      attemptUserAuthentication()
     } else {
       setIsUserAuthenticated(true)
     }
 
-    // Theme sync
-    if (userSettingsStore.theme !== userSettingsStore.nextTheme) {
-      userSettingsStore.setTheme(userSettingsStore.nextTheme)
+    // Theme sync — apply queued theme on startup and persist to dedicated MMKV key
+    const appliedTheme = MMKVStorage.loadTheme()
+    if (appliedTheme !== userSettingsStore.nextTheme) {
+      MMKVStorage.saveTheme(userSettingsStore.nextTheme)
     }
+
+    // Icon sync — keeps launcher icon in sync with the applied theme.
+    // Handles upgrades from versions before icon switching existed.
+    const targetIcon = MMKVStorage.loadTheme() === ThemeCode.GOLDEN ? 'Golden' : 'Default'
+    changeIcon(targetIcon).catch(() => {})
 
     // Reset relay statuses
     relaysStore.resetStatuses()
@@ -108,7 +123,7 @@ function App() {
   useEffect(() => {
     if (
       isInternetReachable === null ||
-      isDeviceAuthenticated || 
+      isDeviceAuthenticated ||
       !rehydrated
     ) {
       log.trace('[App] Not yet ready for device auth check')
@@ -130,10 +145,10 @@ function App() {
           try {
             const walletKeys: WalletKeys = await walletStore.getCachedWalletKeys()
             const deviceId = walletProfileStore.device
-  
+
             await authStore.clearTokens()
             await authStore.enrollDevice(walletKeys.NOSTR, deviceId)
-  
+
             log.trace('[App] Device re-enrollment successful')
           } catch (e: any) {
             log.error('[App] Device re-enrollment failed', { message: e.message })
@@ -146,7 +161,7 @@ function App() {
         log.trace('[App] Network is online and refresh token valid → device authenticated')
         setIsDeviceAuthenticated(true)
       }
-      
+
     } else {
       // Confirmed offline → skip re-enrollment, proceed safely
       log.trace('[App] Network confirmed offline → skipping refresh token check, device authenticated')
@@ -162,36 +177,53 @@ function App() {
     !rehydrated ||
     !isUserAuthenticated ||
     !isDeviceAuthenticated ||
-    isAuthLocked
+    isAppLocked
   ) {
+    const splashTheme = MMKVStorage.loadTheme()
+    const isLight = splashTheme === ThemeCode.LIGHT ||
+      (splashTheme === ThemeCode.DEFAULT && colorScheme === 'light')
+    const isGolden = splashTheme === ThemeCode.GOLDEN
+    const splashBg = isLight ? colors.palette.neutral200 : colors.palette.neutral700
+    const splashTextColor = isLight ? colors.palette.neutral800 : colors.palette.neutral100
+
+    log.trace('[App] Rendering splash/auth screen', {isAppLocked})
+
     return (
-      <View style={{flex: 1}}>
-        <ErrorBoundary catchErrors={Config.catchErrors}>
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text text={displayName} style={$title} />
-            <Image source={require('../android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png')} />
-          </View>
-        </ErrorBoundary>
-        {isAuthLocked && (
-          <View style={{alignItems: 'center', paddingHorizontal: spacing.large, paddingBottom: 60}}>
-            <RNText style={{color: colors.palette.neutral400, fontSize: 14, textAlign: 'center', marginBottom: spacing.large}}>
-              Minibits is locked. Authentication is required to continue.
-            </RNText>
-            <Pressable
-              style={{backgroundColor: colors.palette.accent400, paddingVertical: spacing.small, paddingHorizontal: spacing.extraLarge, borderRadius: spacing.small, marginBottom: spacing.medium, minWidth: 200, alignItems: 'center'}}
-              onPress={attemptAuth}
-            >
-              <RNText style={{color: 'white', fontSize: 16, fontWeight: '600'}}>Authenticate</RNText>
-            </Pressable>
-            <Pressable
-              style={{paddingVertical: spacing.small, paddingHorizontal: spacing.extraLarge, minWidth: 200, alignItems: 'center'}}
-              onPress={() => RNExitApp.exitApp()}
-            >
-              <RNText style={{color: colors.palette.neutral400, fontSize: 16}}>Close app</RNText>
-            </Pressable>
-          </View>
-        )}
-      </View>
+      <SafeAreaProvider>
+      <Screen preset='fixed' backgroundColor={splashBg} safeAreaEdges={['top', 'bottom']}>
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+          <Image source={isGolden
+            ? require('../android/app/src/main/res/mipmap-xxhdpi/ic_launcher_golden.png')
+            : require('../android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png')} />
+        </View>
+        <Text text={displayName} style={[$title, {color: splashTextColor}]} />
+        <View style={{
+          paddingHorizontal: spacing.large,
+          marginBottom: spacing.extraLarge,
+        }}>
+          
+          {isAppLocked && (
+            <>
+              <Text size='md' style={{textAlign: 'center', color: splashTextColor}}>
+                Minibits is locked. Authentication is required to continue.
+              </Text>
+              <Button
+                preset='default'
+                text='Authenticate'
+                onPress={attemptUserAuthentication}
+                style={{marginVertical: spacing.large, alignSelf: 'center'}}
+              />
+              <Button
+                preset='tertiary'
+                text='Exit'
+                onPress={() => RNExitApp.exitApp()}
+                style={{alignSelf: 'center'}}
+              />
+            </>
+          )}
+        </View>
+      </Screen>
+      </SafeAreaProvider>
     )
   }
 
@@ -209,7 +241,6 @@ const $title: TextStyle = {
   textAlign: "center",
   fontFamily: typography.logo.normal,
   fontSize: spacing.large,
-  color: 'white'
 }
 
 export default App

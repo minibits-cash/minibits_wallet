@@ -446,14 +446,7 @@ const authenticateOnAppStart = async function (isAuthOn: boolean): Promise<AuthR
     // Handle specific error codes for user actions
     const authErrorContext = getAuthErrorContext(e)
 
-    log.warn('[authenticateOnAppStart]', 'Auth error caught', { 
-      message: e.message, 
-      code: e.code, 
-      name: e.name,
-      params: e.params,
-      stringified: authErrorContext.serialized,
-      codeCandidates: authErrorContext.codeCandidates,
-    })
+    log.warn('[authenticateOnAppStart]', 'Auth error caught',{authErrorContext})
 
     if (authErrorContext.isBackPressed) {
       log.trace('[authenticateOnAppStart]', 'User pressed back button')

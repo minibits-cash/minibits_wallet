@@ -1434,6 +1434,8 @@ PODS:
     - React-RCTFBReactNativeSpec
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
+  - react-native-change-icon (3.2.0):
+    - React
   - react-native-hce (0.3.0):
     - React
   - react-native-mmkv (3.3.3):
@@ -2444,6 +2446,7 @@ DEPENDENCIES:
   - React-logger (from `../node_modules/react-native/ReactCommon/logger`)
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
+  - react-native-change-icon (from `../node_modules/react-native-change-icon`)
   - react-native-hce (from `../node_modules/react-native-hce`)
   - react-native-mmkv (from `../node_modules/react-native-mmkv`)
   - "react-native-netinfo (from `../node_modules/@react-native-community/netinfo`)"
@@ -2614,6 +2617,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   React-microtasksnativemodule:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
+  react-native-change-icon:
+    :path: "../node_modules/react-native-change-icon"
   react-native-hce:
     :path: "../node_modules/react-native-hce"
   react-native-mmkv:
@@ -2790,6 +2795,7 @@ SPEC CHECKSUMS:
   React-logger: dd3e5f78709d5b029336be395a67bbcdc775e2ed
   React-Mapbuffer: 2bdeed9ba58c94ac99a2711a3a722d2d5b3a8a81
   React-microtasksnativemodule: d1acdc86b1b2ee5622af4950f3908f2155eddfcf
+  react-native-change-icon: af3d0eb3ffee2ab3c584d12a68c29f89b7108cf8
   react-native-hce: ad5462e792d84e87924308dda1ee516757f1c0eb
   react-native-mmkv: 07f0ae0bd7e8d458077e1750c502ba67975b3702
   react-native-netinfo: cec9c4e86083cb5b6aba0e0711f563e2fbbff187

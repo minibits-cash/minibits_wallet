@@ -18,6 +18,7 @@ import {useStores} from '../models'
 import AppError from '../utils/AppError'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { KeyChain } from '../services'
 
 type Props = StaticScreenProps<undefined>
 
@@ -41,6 +42,9 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
     const toggleBiometricAuthSwitch = async () => {
         try {
             setIsLoading(true)
+
+            // require auth to turn on or off
+            await KeyChain.getOrCreateAuthToken(isBiometricAuthOn)
 
             const result = await userSettingsStore.setIsAuthOn(
                 !isBiometricAuthOn,
@@ -198,8 +202,8 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
                     title={
                         isBiometricAuthOn ? 'Authentication is on' : 'Authentication is off'
                     }
-                    message={resultMessage as string}
-                />
+                    message={resultMessage as string}                    
+                />                
             }
             onBackButtonPress={toggleAuthModal}
             onBackdropPress={toggleAuthModal}
@@ -229,8 +233,8 @@ const $card: ViewStyle = {
 }
 
 const $bottomModal: ViewStyle = {
-  flex: 1,
-  alignItems: 'center',
+  // flex: 1,
+  // alignItems: 'center',
   paddingVertical: spacing.large,
   paddingHorizontal: spacing.small,
 }
