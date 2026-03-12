@@ -8,7 +8,6 @@ import {
   ViewStyle,
   KeyboardAvoidingView,
   Platform,
-  StatusBar, 
 } from "react-native"
 import { colors, useThemeColor, spacing } from "../theme"
 import { Text, TextProps } from "./Text"
@@ -113,7 +112,8 @@ export function BottomModal(props: ModalProps) {
     isVisible = true,    
     onBackdropPress,
     onBackButtonPress,
-    backdropOpacity = Platform.OS === 'ios' ? 0.25 : 0, 
+    //backdropOpacity = Platform.OS === 'ios' ? 0.25 : 0,
+    backdropOpacity = 0.25, 
     content,
     contentTx,
     contentTxOptions,
@@ -169,30 +169,32 @@ export function BottomModal(props: ModalProps) {
 
   return (
     <View>   
-      <Modal      
+      <Modal
         isVisible={isVisible}
-        // statusBarTranslucent={true}  // makes the modal hide behind the keyboard if open
-        
-        avoidKeyboard={true}     
+        statusBarTranslucent={Platform.OS === 'android'}
+        avoidKeyboard={Platform.OS === 'ios'}
         onBackdropPress={onBackdropPress}
         onBackButtonPress={onBackButtonPress}
         backdropOpacity={backdropOpacity}
         useNativeDriverForBackdrop={true}
         hideModalContentWhileAnimating={true}
         useNativeDriver={true}
-        
+
         style={[$outerContainerBase, $containerStyleOverride]}
         {...otherProps}
       >
-      
-      <View        
+
+      <KeyboardAvoidingView
+        behavior="position"
+        enabled={Platform.OS === 'android'}
+        keyboardVerticalOffset={0}
+        style={{ width: '100%' }}
+      >
+      <View
         style={[
-          $innerContainerBase, 
-          $innerContainerStyle, 
-          // keyboard.state.value === KeyboardState.OPEN ? // does not work
-          // { marginBottom: keyboard.height.value } : 
-          //{}
-        ]}      
+          $innerContainerBase,
+          $innerContainerStyle,
+        ]}
       >
 
           {HeadingComponent ||
@@ -233,8 +235,9 @@ export function BottomModal(props: ModalProps) {
             />
           ))}
       </View>
+      </KeyboardAvoidingView>
     </Modal>
-    </View>    
+    </View>
   )
 }
 
