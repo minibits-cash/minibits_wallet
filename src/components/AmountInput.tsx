@@ -214,17 +214,17 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
     }, [focused, topScale, bottomScale])
 
     const defaultTopStyle: TextStyle = {
-      margin: 0,
+      marginTop: spacing.small,
       padding: 0,
-      fontSize: verticalScale(48),
-      fontFamily: typography.primary?.medium,
+      fontSize: verticalScale(56),
+      fontFamily: typography.fonts.hammersmithOne.normal,
       textAlign: "center",
       color: amountInputColor,
     }
 
     const animatedTopStyle = useAnimatedStyle(() => ({
       transform: [{ scale: topScale.value }],
-      fontSize: 48 * topScale.value,
+      fontSize: 56 * topScale.value,
     }))
 
 
@@ -232,7 +232,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
       margin: 0,
       padding: 0,
       fontSize: spacing.medium,
-      fontFamily: typography.primary?.medium,
+      fontFamily: typography.fonts.hammersmithOne.normal,
       color: convertedAmountColor,      
     }
 

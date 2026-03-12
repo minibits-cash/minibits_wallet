@@ -15,7 +15,7 @@ import {
 import {moderateScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
 import { TabBar, TabView } from 'react-native-tab-view'
-import {useThemeColor, spacing, colors} from '../theme'
+import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
   Button,
   Icon,
@@ -951,7 +951,7 @@ const UnitBalanceBlock = observer(function (props: {
                 <CurrencyAmount
                     amount={getConvertedBalance() ?? 0}
                     currencyCode={unitBalance.unit === 'sat' ? userSettingsStore.exchangeCurrency : CurrencyCode.SAT}
-                    symbolStyle={{color: convertedBalanceColor, marginTop: spacing.tiny, fontSize: verticalScale(10)}}
+                    symbolStyle={{color: convertedBalanceColor}}
                     amountStyle={{color: convertedBalanceColor}}                        
                     size='small'             
                 />
@@ -1197,8 +1197,9 @@ const $card: ViewStyle = {
 
 
 const $unitBalance: TextStyle = {
-    fontSize: verticalScale(48),
-    lineHeight: verticalScale(48)
+    fontSize: verticalScale(56),
+    lineHeight: verticalScale(56),
+    fontFamily: typography.fonts.hammersmithOne.normal,
 }
 
 

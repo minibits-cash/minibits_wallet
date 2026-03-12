@@ -39,16 +39,15 @@ export const CurrencyAmount = observer(function (props: {
         <View
             style={[{                
                 paddingHorizontal: spacing.tiny,
-
                 flexDirection: 'row',                
             }, containerStyle || {}]}
         >
             <Text         
                 style={[$symbol, {
                     color: symbolColor,
-                    fontSize: size && spacing[size] * 0.6 || spacing.small * 0.6,
+                    fontSize: size && spacing[size] * 0.7 || spacing.small * 0.7,
                     fontFamily: typography.primary?.light,
-                    // lineHeight: size && spacing[size] * 1 || spacing.small * 1
+                    //lineHeight: size && spacing[size] * 0.6 || spacing.small * 0.6
     
                 }, symbolStyle || {}]}            
                 text={currencySymbol}
@@ -57,11 +56,11 @@ export const CurrencyAmount = observer(function (props: {
             <Text 
                 style={[$amount, {
                     color: amountColor,
-                    fontSize: props.size && spacing[props.size] * 1.2 || spacing.small * 1.2,
-                    lineHeight: size && spacing[size] * 1.2 || spacing.small * 1.2,
+                    fontSize: props.size && spacing[props.size] * 1.3 || spacing.small * 1.3,
+                    //lineHeight: size && spacing[size] * 1 || spacing.small * 1,
                     //borderColor: 'red',
                     //borderWidth: 1,
-                    paddingTop: size && spacing[size] * 0.2 || spacing.small * 0.2,
+                    //paddingTop: size && spacing[size] * 0.2 || spacing.small * 0.2,
                 }, amountStyle || {}]} 
                 text={`${(formatCurrency(amount, currencyCode2))}`}               
             />
@@ -78,7 +77,7 @@ export const CurrencyAmount = observer(function (props: {
 
   const $amount: TextStyle = {
     // fontSize: verticalScale(20),
-    fontFamily: typography.primary?.medium,    
+    fontFamily: typography.fonts?.hammersmithOne.normal,    
     alignSelf: 'center',
     // marginLeft: spacing.extraSmall
   }

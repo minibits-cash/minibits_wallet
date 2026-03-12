@@ -8,9 +8,10 @@ import { Button, Card, Icon, ListItem } from "../../components"
 import QRCode from "react-native-qrcode-svg"
 import Clipboard from "@react-native-clipboard/clipboard"
 import { verticalScale } from "@gocodingnow/rn-size-matters"
-import { colors, spacing } from "../../theme"
+import { colors, spacing, ThemeCode } from "../../theme"
 import { translate, TxKeyPath } from "../../i18n"
 import { log } from "../../services"
+import { MMKVStorage } from "../../services/mmkvStorage"
 import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts'
 import { NfcService } from '../../services/nfcService';
 import { SvgXml } from 'react-native-svg';
@@ -266,6 +267,10 @@ export const QRCodeBlock = function (props: {
     }
 
     const qrCodeSize = size || spacing.screenWidth - spacing.large * 2
+    const isGoldenTheme = MMKVStorage.loadTheme() === ThemeCode.GOLDEN
+    const qrLogo = isGoldenTheme
+      ? require('../../../android/app/src/main/res/mipmap-xhdpi/ic_launcher_golden.png')
+      : require('../../../android/app/src/main/res/mipmap-xhdpi/ic_launcher.png')
       
     return (
       <Card
@@ -296,14 +301,19 @@ export const QRCodeBlock = function (props: {
             ) : (
               <>
               {isAnimating ? (
-                <QRCode 
-                  size={qrCodeSize} value={qrCodeChunk} 
+                <QRCode
+                  size={qrCodeSize} value={qrCodeChunk}
                   onError={handleQrError}
                 />
               ) : (
-                <QRCode 
-                    size={qrCodeSize} value={encodedV3Token || qrCodeData} 
+                <QRCode
+                    size={qrCodeSize} value={encodedV3Token || qrCodeData}
                     onError={switchToAnimatedQRcodeOnError}
+                    logo={qrLogo}
+                    logoSize={qrCodeSize * 0.12}
+                    logoBackgroundColor='white'
+                    logoMargin={spacing.tiny}
+                    logoBorderRadius={spacing.small}
                 />
               )}
               </>

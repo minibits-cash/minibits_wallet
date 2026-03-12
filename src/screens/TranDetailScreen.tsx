@@ -250,11 +250,11 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                 justifyContent: 'space-around', 
                 paddingBottom: spacing.huge
               }]}
-            >              
+            >
               <Text
                   preset="heading"
                   text={getFormattedAmount()}
-                  style={[$tranAmount, {color: headerTitle}]}
+                  style={[$tranAmount, {color: headerTitle, fontFamily: typography.fonts?.hammersmithOne.normal}]}
               />
               {transaction.status !== TransactionStatus.COMPLETED && (
                   <View
