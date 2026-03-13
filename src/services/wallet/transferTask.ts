@@ -440,7 +440,7 @@ export const transferTask = async function (
                 })
             } else {
                 transactionData.push({
-                    status: TransactionStatus.ERROR,                    
+                    status: TransactionStatus.ERROR,
                     error: WalletUtils.formatError(e),
                     createdAt: new Date()
                 })
@@ -449,6 +449,8 @@ export const transferTask = async function (
                     status: TransactionStatus.ERROR,
                     data: JSON.stringify(transactionData),
                 })
+
+                taskResult.error = WalletUtils.formatError(e)
             }
         }
 

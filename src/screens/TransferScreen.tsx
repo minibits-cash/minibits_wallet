@@ -708,8 +708,8 @@ const handleTransferTaskResult = async (result: TransactionTaskResult) => {
         }
       } else {
         // Success path
-        if (isInvoiceDonation && donationForName) {
-          // Update profile donation counter
+        if (isInvoiceDonation && donationForName &&
+            (status === TransactionStatus.COMPLETED || status === TransactionStatus.RECOVERED)) {
           await walletProfileStore.updateName(donationForName);
 
           setResultModalInfo({
