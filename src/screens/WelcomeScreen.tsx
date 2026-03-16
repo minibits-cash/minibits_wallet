@@ -206,7 +206,7 @@ export const WelcomeScreen = function ({ route }: Props) {
             </View>
             <Text
                 tx={item.tx as TxKeyPath}
-                style={{paddingHorizontal: spacing.small, color: 'white'}}
+                style={{flex: 1, paddingHorizontal: spacing.small, color: 'white'}}
                 preset="default"
             />
         </View>
@@ -225,7 +225,7 @@ export const WelcomeScreen = function ({ route }: Props) {
             >
                 {PAGES.map((page) => (
                     <View key={page.key}>
-                    <View style={{alignItems: 'center'}}>
+                    <View>
                         <Text
                             tx={page.heading as TxKeyPath}                            
                             preset="subheading"
@@ -258,13 +258,6 @@ export const WelcomeScreen = function ({ route }: Props) {
                                 preset='secondary'
                                 tx="welcomeScreen_lastPageConfirmButton"
                             />
-                            {/*<Button 
-                                onPress={gotoRecovery}
-                                preset='tertiary'
-                                tx="welcomeScreen_lastPageRecoverLostWalletButton"
-                                LeftAccessory={() => {return<Icon icon='faHeartPulse'/>}}
-                                style={{marginTop: spacing.medium}}
-                            />*/}
                         </ScrollView>
                     )} 
                     </View>               
@@ -310,7 +303,9 @@ const $container: ViewStyle = {
 }
 
 const $listContainer: ViewStyle = {
-    maxHeight: spacing.screenHeight * 0.38,    
+    maxHeight: spacing.screenHeight * 0.38,
+    alignSelf: 'stretch',
+    paddingRight: spacing.medium,
 }
 
 const $listItem: ViewStyle = {
@@ -332,7 +327,10 @@ const $buttonContainer: ViewStyle = {
 
 const $welcomeHeading: TextStyle = {
   marginBottom: spacing.medium,
-  color: 'white',  
+  color: 'white',
+  alignSelf: 'center',
+  borderColor: 'white',
+  borderWidth: 1,
 }
 
 const $welcomeIntro: TextStyle = {
