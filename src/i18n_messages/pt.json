@@ -733,7 +733,7 @@
 	"welcomeScreen_page1_intro": "Minibits é carteira ecash e Lightning focada em facilidade e segurança. Ecash é token assinado emitido por custodiantes chamados mints.",
 	"welcomeScreen_page2_bullet1": "Minibits fornece endereço Lightning gratuito que permite transferências ecash via Nostr.",
 	"welcomeScreen_page2_bullet2": "Suporte de primeira classe para enviar/receber zaps no Nostr, incluindo Nostr Wallet Connect.",
-	"welcomeScreen_page2_bullet3": "Notificações push criptografadas em tempo real e suporte para ecash emitido em outras moedas.",
+	"welcomeScreen_page2_bullet3": "Notificações push criptografadas em tempo real e NFC suporte.",
 	"welcomeScreen_page2_final": "Minibits é software livre e de código aberto. Encontre-nos no GitHub para roteiro e contribuições.",
 	"welcomeScreen_page2_heading": "Por que Minibits?",
 	"welcomeScreen_page2_intro": "Minibits explora como ecash pode ajudar pessoas a usar Bitcoin oferecendo onboarding sem atrito, taxas baixas, facilidade e privacidade forte.",

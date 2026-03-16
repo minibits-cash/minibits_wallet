@@ -1,12 +1,14 @@
 // import { observer } from "mobx-react-lite"
-import React, {FC, useRef, useState} from 'react'
+import React, {FC, useLayoutEffect, useRef, useState} from 'react'
 import {
   TextStyle,
   View,
   ViewStyle,
   FlatList,
   Animated,
-  ScrollView
+  ScrollView,
+  Linking,
+  Pressable,
 } from 'react-native'
 import PagerView, { PagerViewOnPageScrollEventData } from 'react-native-pager-view'
 import {
@@ -16,7 +18,6 @@ import {
 // import { isRTL } from "../i18n"
 import {useStores} from '../models'
 import {spacing, colors, useThemeColor} from '../theme'
-import {useHeader} from '../utils/useHeader'
 import {
   Button,
   ErrorModal,
@@ -76,12 +77,11 @@ type Props = StaticScreenProps<undefined>
 
 export const WelcomeScreen = function ({ route }: Props) {
     const navigation = useNavigation()
-    const headerBg = useThemeColor('header')  
+    const headerBg = useThemeColor('header')
 
-    useHeader({
-      backgroundColor: headerBg,
-      //StatusBarProps: {barStyle: 'dark-content'},
-    })
+    useLayoutEffect(() => {
+      navigation.setOptions({ headerShown: false })
+    }, [])
 
     const {
       authStore,
@@ -219,7 +219,7 @@ export const WelcomeScreen = function ({ route }: Props) {
                 testID="pager-view"
                 initialPage={0}
                 ref={ref}
-                style={{flex: 1}}
+                style={{flex: 1, marginTop: 80}}
                 // onPageSelected={onPageSelected}
                 onPageScroll={onPageScroll}
             >
@@ -227,7 +227,7 @@ export const WelcomeScreen = function ({ route }: Props) {
                     <View key={page.key}>
                     <View>
                         <Text
-                            tx={page.heading as TxKeyPath}                            
+                            tx={page.heading as TxKeyPath}
                             preset="subheading"
                             style={$welcomeHeading}
                         />
@@ -258,6 +258,12 @@ export const WelcomeScreen = function ({ route }: Props) {
                                 preset='secondary'
                                 tx="welcomeScreen_lastPageConfirmButton"
                             />
+                            <View style={{flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center'}}>
+                                <Text size='xs' preset='formHelper' style={$tc} text={'By continuing you agree with the full '} />
+                                <Pressable onPress={() => Linking.openURL('https://minibits.cash/terms')}>
+                                    <Text size='xs' preset='formHelper' style={$tcLink} text={'Minibits Terms'} />
+                                </Pressable>
+                            </View>
                         </ScrollView>
                     )} 
                     </View>               
@@ -322,15 +328,14 @@ const $itemIcon: ViewStyle = {
 const $buttonContainer: ViewStyle = {    
     alignSelf: 'center',
     marginTop: spacing.large,
-    paddingHorizontal: spacing.large,    
+      
 }
+
 
 const $welcomeHeading: TextStyle = {
   marginBottom: spacing.medium,
   color: 'white',
   alignSelf: 'center',
-  borderColor: 'white',
-  borderWidth: 1,
 }
 
 const $welcomeIntro: TextStyle = {
@@ -341,4 +346,15 @@ const $welcomeIntro: TextStyle = {
 const $welcomeFinal: TextStyle = {
     marginTop: spacing.large,
     color: 'white',
-  }
+}
+
+const $tc: TextStyle = {
+  marginTop: spacing.medium,
+  color: 'white',
+}
+
+const $tcLink: TextStyle = {
+  marginTop: spacing.medium,
+  color: 'white',
+  textDecorationLine: 'underline',
+}

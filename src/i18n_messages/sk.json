@@ -733,7 +733,7 @@
 	"welcomeScreen_page1_intro": "Minibits je peňaženka pre elektronické peniaze a Lightning, ktorá sa zameriava na jednoduché používanie a bezpečnosť. Ecash je digitálne podpísaný token vydaný správcami známymi ako mints.",
 	"welcomeScreen_page2_bullet1": "Minibits poskytuje bezplatnú Lightning adresu, ktorá tiež umožňuje okamžité prevody hotovosti cez Nostr.",
 	"welcomeScreen_page2_bullet2": "Prvotriedna podpora pre odosielanie a prijímanie zapov na Nostre, vrátane Nostr Wallet Connect.",
-	"welcomeScreen_page2_bullet3": "Šifrované push notifikácie v reálnom čase a podpora pre e-hotovosť vydanú v iných menách ako Bitcoin.",
+	"welcomeScreen_page2_bullet3": "Šifrované push notifikácie a podpora platieb cez NFC.",
 	"welcomeScreen_page2_final": "Minibits je bezplatný softvér s otvoreným zdrojovým kódom. Náš plán a príspevky nájdete na GitHub.",
 	"welcomeScreen_page2_heading": "Prečo Minibity?",
 	"welcomeScreen_page2_intro": "Cieľom Minibits je preskúmať, ako môžu elektronické peniaze pomôcť ľuďom používať Bitcoin tým, že ponúkajú bezproblémový onboarding, nízke poplatky, jednoduché používanie a silné súkromie.",
