@@ -313,7 +313,6 @@ const $subTextStyle: TextStyle = {
   flexGrow: 1,
   flexShrink: 1,  
   paddingBottom: spacing.extraSmall,
-  fontFamily: typography.light,
 }
 
 const $touchableStyle: ViewStyle = {

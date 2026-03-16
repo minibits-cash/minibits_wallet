@@ -258,14 +258,14 @@ export const NwcScreen = observer(function NwcScreen(_props) {
                     LeftAccessory={() => (
                         <Icon
                             icon='faPlus'
-                            size={spacing.large}
+                            size={spacing.medium}
                             color={mainButtonIcon}
                         />
                     )}
                     onPress={gotoAdd}                        
-                    style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonNew]}
+                    //style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonNew]}
                     preset='tertiary'
-                    tx='nwcScreen_addConnection'
+                    tx='buttonAdd'
                 />
                 ) : ( 
                     <Text

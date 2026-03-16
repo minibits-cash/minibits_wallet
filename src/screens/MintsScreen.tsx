@@ -300,7 +300,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
     return (
       <Screen preset='fixed' contentContainerStyle={$screen}>
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text preset="heading" tx="manageMints" style={{color: headerTitle, fontFamily: typography.light}} />
+          <Text preset="heading" tx="manageMints" style={{color: headerTitle, fontFamily: typography.primary?.medium}} />
         </View>
         <ScrollView style={$contentContainer}>
             <Card

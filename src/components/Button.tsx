@@ -160,7 +160,7 @@ const $baseViewStyle: ViewStyle = {
 const $baseTextStyle: TextStyle = {
   fontSize: verticalScale(16),
   lineHeight: verticalScale(20),
-  fontFamily: typography.light,
+  fontFamily: typography.primary?.light,
   textAlign: "center",
   flexShrink: 1,
   flexGrow: 0,

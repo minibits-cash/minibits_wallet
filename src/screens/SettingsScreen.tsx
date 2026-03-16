@@ -557,7 +557,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
         />
         <BottomModal
           isVisible={isThemeModalVisible ? true : false}
-          style={{alignItems: 'stretch', padding: spacing.small}}
+          style={{alignItems: 'stretch'}}
           ContentComponent={  
             <>
             {[ThemeCode.DEFAULT, ThemeCode.DARK, ThemeCode.LIGHT, ThemeCode.GOLDEN].map(code => 

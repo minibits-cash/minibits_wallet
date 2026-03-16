@@ -40,27 +40,19 @@ export const typography = {
    * The primary font. Used in most places.
    */
   primary: Platform.select({
-    ios: fonts.hammersmithOne,
-    android: fonts.hammersmithOne,
+    ios: fonts.helveticaNeue,
+    android: fonts.sansSerif,
   }),
   /**
    * An alternate font used for perhaps titles and stuff.
    */
   secondary: Platform.select({
-    ios: fonts.hammersmithOne,
-    android: fonts.hammersmithOne,
+    ios: fonts.helveticaNeue,
+    android: fonts.sansSerif,
   }),
   /**
    * Lets get fancy with a monospace font!
    */
   code: Platform.select({ios: fonts.courier, android: fonts.monospace}),
-  thin: Platform.select({
-    ios: fonts.helveticaNeue.thin,
-    android: fonts.sansSerif.thin,
-  }),
-  light: Platform.select({
-    ios: fonts.helveticaNeue.light,
-    android: fonts.sansSerif.light,
-  }),
   logo: fonts.hammersmithOne,
 }

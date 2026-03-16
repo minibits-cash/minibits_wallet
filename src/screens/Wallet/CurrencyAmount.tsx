@@ -46,7 +46,7 @@ export const CurrencyAmount = observer(function (props: {
                 style={[$symbol, {
                     color: symbolColor,
                     fontSize: size && spacing[size] * 0.7 || spacing.small * 0.7,
-                    fontFamily: typography.light,
+                    fontFamily: typography.primary?.light,
                     //lineHeight: size && spacing[size] * 0.7 || spacing.small * 0.7
     
                 }, symbolStyle || {}]}            
