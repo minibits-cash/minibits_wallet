@@ -75,6 +75,6 @@ const $headerContainer: ViewStyle = {
 const $headerTitle: TextStyle = {
   fontSize: verticalScale(32),
   lineHeight: verticalScale(44),
-  fontFamily: typography.primary?.medium,
+  fontFamily: typography.light,
   marginBottom: spacing.extraLarge * 2,
 }

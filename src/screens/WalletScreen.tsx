@@ -942,9 +942,9 @@ const UnitBalanceBlock = observer(function (props: {
                 mintUnit={unitBalance.unit}
                 symbolStyle={{display: 'none'}}
                 amountStyle={[$unitBalance, {color: balanceColor}]}
-                containerStyle={{marginTop: spacing.small}}
+                containerStyle={{marginTop: spacing.large}}
             />
-            <View style={{height: verticalScale(40)}}>            
+            <View style={{height: verticalScale(25)}}>            
             {walletStore.exchangeRate 
             && (userSettingsStore.exchangeCurrency === getCurrency(unitBalance.unit).code || unitBalance.unit === 'sat')            
             && ( 

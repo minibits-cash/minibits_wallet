@@ -14668,7 +14668,7 @@ __metadata:
     react: 19.2.3
     react-native: 0.84.0
     react-native-animated-pagination-dots: ^0.1.73
-    react-native-camera-kit: 17.0.1
+    react-native-camera-kit: 16.2.1
     react-native-change-icon: ^3.0.0
     react-native-clean-project: ^4.0.3
     react-native-dotenv: ^3.4.11
@@ -16490,13 +16490,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-camera-kit@npm:17.0.1":
-  version: 17.0.1
-  resolution: "react-native-camera-kit@npm:17.0.1"
+"react-native-camera-kit@npm:16.2.1":
+  version: 16.2.1
+  resolution: "react-native-camera-kit@npm:16.2.1"
   peerDependencies:
     react: "*"
     react-native: "*"
-  checksum: 40940bbbbd24192f7e8ee4826d77662e7a21b18ad4cfcb77bb860dd75594da33793b3835050de65b2a82f4e0b356e662d6a1ef54e030b34da96975157cff4502
+  checksum: fda3c197052e26f95cbabfe891c5df249f2764f94e132f5a4956cfd68741b15350b9e746533bf64c3eac648df1759fc99be23e64875deed45c1dc93ccfdac45e
   languageName: node
   linkType: hard
 

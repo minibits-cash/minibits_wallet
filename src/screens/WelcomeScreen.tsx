@@ -30,7 +30,7 @@ import {TxKeyPath, translate} from '../i18n'
 import AppError from '../utils/AppError'
 import { MINIBITS_MINT_URL } from '@env'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { KeyChain } from '../services'
+import { KeyChain, log, WalletKeys } from '../services'
 import { delay } from '../utils/utils'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
@@ -106,35 +106,39 @@ export const WelcomeScreen = function ({ route }: Props) {
             return
           }         
           
-          setIsLoading(true)          
+          setIsLoading(true)
+          setStatusMessage(translate('welcomeScreen_creatingKeys'))
+          
+          // check if keys already exist (if onboarding is repeated or if iOS did not wipe keys?)
+          let keys = await KeyChain.getWalletKeys()
 
-          if(!await KeyChain.hasWalletKeys()) {
-            setStatusMessage(translate('welcomeScreen_creatingKeys'))
+          if(!keys) {
+            const newKeys = KeyChain.generateWalletKeys()
 
-            const keys = KeyChain.generateWalletKeys()            
-
-            setStatusMessage(translate('welcomeScreen_creatingProfile'))   
-            
-            // First, enroll device for JWT authentication then create profile
-            try {
-              await authStore.logout()
-            } catch (e: any) {}
-
-            await authStore.enrollDevice(
-              keys.NOSTR,
-              walletProfileStore.device
-            )
-            
-            await walletProfileStore.create(              
-              keys.walletId, 
-              keys.SEED.seedHash
-            )
-            
             // save keys after successful profile creation
-            await KeyChain.saveWalletKeys(keys)
-            walletStore.cleanCachedWalletKeys()
-          }
+            await KeyChain.saveWalletKeys(newKeys)
+            walletStore.cleanCachedWalletKeys()   
+            keys = newKeys
+          }       
 
+          setStatusMessage(translate('welcomeScreen_creatingProfile'))   
+          
+          // First, enroll device for JWT authentication then create profile
+          try {
+            await authStore.logout()
+          } catch (e: any) {}
+
+          await authStore.enrollDevice(
+            keys.NOSTR,
+            walletProfileStore.device
+          )
+          
+          // idempotent if keys and profile exists on the server
+          await walletProfileStore.create(              
+            keys.walletId, 
+            keys.SEED.seedHash
+          )
+        
           if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
             await mintsStore.addMint(MINIBITS_MINT_URL)            
           }

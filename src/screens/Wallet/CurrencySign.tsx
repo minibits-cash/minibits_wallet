@@ -47,7 +47,7 @@ export const CurrencySign = function(props: {
             style={[{
                 color: textColor,
                 fontSize: props.size && spacing[props.size] || spacing.small,
-                fontFamily: typography.primary?.light,
+                fontFamily: typography.light,
                 lineHeight: props.size && spacing[props.size] * 1.5 || spacing.small * 1.5
 
             }, textStyle || {}]}

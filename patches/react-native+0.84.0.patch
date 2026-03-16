@@ -1,0 +1,20 @@
+diff --git a/node_modules/react-native/third-party-podspecs/RCT-Folly.podspec b/node_modules/react-native/third-party-podspecs/RCT-Folly.podspec
+index 8df5864..0d914be 100644
+--- a/node_modules/react-native/third-party-podspecs/RCT-Folly.podspec
++++ b/node_modules/react-native/third-party-podspecs/RCT-Folly.podspec
+@@ -72,6 +72,7 @@ Pod::Spec.new do |spec|
+                       'folly/net/*.h',
+                       'folly/net/detail/*.h',
+                       'folly/portability/*.h',
++                      'folly/synchronization/*.h',
+                       'folly/system/*.h',
+ 
+   # workaround for https://github.com/facebook/react-native/issues/14326
+@@ -91,6 +92,7 @@ Pod::Spec.new do |spec|
+                         'folly/net/*.h',
+                         'folly/net/detail/*.h',
+                         'folly/portability/*.h',
++                        'folly/synchronization/*.h',
+                         'folly/system/*.h',
+   spec.libraries           = "c++abi" # NOTE Apple-only: Keep c++abi here due to https://github.com/react-native-community/releases/issues/251
+   spec.pod_target_xcconfig = { "USE_HEADERMAP" => "NO",

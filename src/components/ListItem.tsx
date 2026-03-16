@@ -10,7 +10,7 @@ import {
   View,
   ViewStyle,
 } from "react-native"
-import { useThemeColor, spacing } from "../theme"
+import { useThemeColor, spacing, typography } from "../theme"
 import { Icon, IconTypes } from "./Icon"
 import { Text, TextProps } from "./Text"
 
@@ -313,6 +313,7 @@ const $subTextStyle: TextStyle = {
   flexGrow: 1,
   flexShrink: 1,  
   paddingBottom: spacing.extraSmall,
+  fontFamily: typography.light,
 }
 
 const $touchableStyle: ViewStyle = {

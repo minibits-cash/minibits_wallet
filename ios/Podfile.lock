@@ -1968,7 +1968,7 @@ PODS:
     - React-perflogger (= 0.84.0)
     - React-utils (= 0.84.0)
     - ReactNativeDependencies
-  - ReactNativeCameraKit (17.0.1):
+  - ReactNativeCameraKit (16.2.1):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2758,7 +2758,7 @@ SPEC CHECKSUMS:
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   OpenSSL-Universal: 6082b0bf950e5636fe0d78def171184e2b3899c2
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
-  RCT-Folly: 846fda9475e61ec7bcbf8a3fe81edfcaeb090669
+  RCT-Folly: 7449e39d08a22c7cfc6bbfc9f140168c61c5869d
   RCTDeprecation: 8ae59687fd548d481aa5ce8014ac7cd9b47e7316
   RCTRequired: d711b3887891fab6a77c6b9cdc49a3d8b171e36a
   RCTSwiftUI: 96986e49a4fdc2c2103929dee2641e1b57edf33d
@@ -2790,7 +2790,7 @@ SPEC CHECKSUMS:
   React-jsinspectorcdp: 84092b2afb8be60cd184832c757a8e8019f16384
   React-jsinspectornetwork: 3537aa4e90d7c5fba4fe2b4a4f9ccf7f4ec32f48
   React-jsinspectortracing: 4bc2046417f5cd1fa0789a4943dc4a3ec90413e3
-  React-jsitooling: ead6180fa39d8dbfee3c2a1211ec37dbe45554fe
+  React-jsitooling: fb0d3dc02875aac8099d741bbae2209e26a832d1
   React-jsitracing: fa7587d28b386c312a0c862cd3f4d1d4f69948ee
   React-logger: dd3e5f78709d5b029336be395a67bbcdc775e2ed
   React-Mapbuffer: 2bdeed9ba58c94ac99a2711a3a722d2d5b3a8a81
@@ -2837,7 +2837,7 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: 6b7e8d8d974ed13fb66698d82c30c5e70c1f7d3a
   ReactCodegen: b411483ad988ff21fe9e7fb1c5851169f52afabb
   ReactCommon: 3c00047ec244a06c7deaa6ae59cc8aa305fa3f6a
-  ReactNativeCameraKit: 5d844feee3a7d6b0069b3165b138eb73a343a1fd
+  ReactNativeCameraKit: aca16005874ca639a422fe90a9d6626d9ff1ae21
   ReactNativeDependencies: 019be871bc55e933ba5469d1497b05a7201f0b16
   RNCClipboard: d73fd4b2ac59e792596e7cd615b6321d577c1a2b
   RNExitApp: a2fd7923ab37b9166704fdc488622a48dcd372a2
@@ -2848,11 +2848,11 @@ SPEC CHECKSUMS:
   RNKeychain: 1fdd8401d8c8d05da80a9e1843d837ccfb947ea2
   RNLocalize: 17220985af7688b1dc3125d8aa14bcf904d730d6
   RNNotifee: 5e3b271e8ea7456a36eec994085543c9adca9168
-  RNReanimated: 1aa31141cdf34d502d2e59670a019e9dbfc63c75
+  RNReanimated: 00cb3d8876d5092758efd06f37e30f8e7d6653ca
   RNScreens: 82c4bb10e5a71fb2ae904e2fe5141d28720806d1
   RNSentry: d0b2aee30a7988272b64c6aaf0893b6dc320692b
   RNSVG: c235766fc27d2f5fd74e6944343a5cae7e39ce1c
-  RNWorklets: 7564836a83bc44a6ab3231cf9b9e4697d148b379
+  RNWorklets: 9629f9f7042c6f46a9b60e5a7b46163a11b9bac6
   SDWebImage: a7f831e1a65eb5e285e3fb046a23fcfbf08e696d
   SDWebImageWebPCoder: 908b83b6adda48effe7667cd2b7f78c897e5111d
   Sentry: c643eb180df401dd8c734c5036ddd9dd9218daa6

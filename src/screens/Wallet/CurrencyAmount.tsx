@@ -38,7 +38,7 @@ export const CurrencyAmount = observer(function (props: {
     return (
         <View
             style={[{                
-                paddingHorizontal: spacing.tiny,
+                padding: spacing.tiny,
                 flexDirection: 'row',                
             }, containerStyle || {}]}
         >
@@ -46,8 +46,8 @@ export const CurrencyAmount = observer(function (props: {
                 style={[$symbol, {
                     color: symbolColor,
                     fontSize: size && spacing[size] * 0.7 || spacing.small * 0.7,
-                    fontFamily: typography.primary?.light,
-                    //lineHeight: size && spacing[size] * 0.6 || spacing.small * 0.6
+                    fontFamily: typography.light,
+                    //lineHeight: size && spacing[size] * 0.7 || spacing.small * 0.7
     
                 }, symbolStyle || {}]}            
                 text={currencySymbol}
@@ -57,7 +57,7 @@ export const CurrencyAmount = observer(function (props: {
                 style={[$amount, {
                     color: amountColor,
                     fontSize: props.size && spacing[props.size] * 1.3 || spacing.small * 1.3,
-                    //lineHeight: size && spacing[size] * 1 || spacing.small * 1,
+                    lineHeight: size && spacing[size] * 1.31 || spacing.small * 1.31,
                     //borderColor: 'red',
                     //borderWidth: 1,
                     //paddingTop: size && spacing[size] * 0.2 || spacing.small * 0.2,

@@ -12,7 +12,7 @@ import {
     HOT_UPDATER_API_KEY,
     HOT_UPDATER_URL,
 } from '@env'
-import {ThemeCode, Themes, colors, spacing, useThemeColor} from '../theme'
+import {ThemeCode, Themes, colors, spacing, typography, useThemeColor} from '../theme'
 import { changeIcon } from 'react-native-change-icon'
 import {ListItem, Screen, Text, Card, NwcIcon, Button, BottomModal, InfoModal, Icon, Header, AnimatedHeader} from '../components'
 import {useStores} from '../models'
@@ -303,7 +303,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
   }
 
 
-  const $itemRight = {color: useThemeColor('textDim')}
+  const $itemRight = {color: useThemeColor('textDim'), fontFamily: typography.light} as TextStyle
   const colorScheme = useColorScheme()
   const defaultThemeColor = colorScheme === 'dark' ? Themes[ThemeCode.DARK]?.color : Themes[ThemeCode.LIGHT]?.color
 

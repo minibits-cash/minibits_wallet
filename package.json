@@ -59,7 +59,7 @@
     "react": "19.2.3",
     "react-native": "0.84.0",
     "react-native-animated-pagination-dots": "^0.1.73",
-    "react-native-camera-kit": "17.0.1",
+    "react-native-camera-kit": "16.2.1",
     "react-native-change-icon": "^3.0.0",
     "react-native-exit-app": "^2.0.0",
     "react-native-fast-image": "^8.6.3",

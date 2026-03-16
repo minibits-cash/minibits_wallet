@@ -93,12 +93,24 @@ const initNotifications = async () => {
     if(!enabled) return    
 
     await messaging().registerDeviceForRemoteMessages()
+
+    if (Platform.OS === 'ios') {
+        let apnsToken = await messaging().getAPNSToken()
+        let retries = 0
+        while (!apnsToken && retries < 5) {
+            await delay(1000)
+            apnsToken = await messaging().getAPNSToken()
+            retries++
+        }
+        log.trace(`[initNotifications] APNS token: ${apnsToken}`)
+        if (!apnsToken) {
+            log.warn('[initNotifications] No APNS token available (simulator?), skipping FCM token fetch.')
+            return
+        }
+    }
+
     const deviceToken = await messaging().getToken()
     log.trace(`[initNotifications] Device token: ${deviceToken}`)
-    if(Platform.OS === 'ios') {
-        const apnsToken = await messaging().getAPNSToken()
-        log.trace(`[initNotifications] APNS token: ${apnsToken}`)        
-    }
     
     const {walletProfileStore} = rootStoreInstance
     if(deviceToken && deviceToken !== walletProfileStore.device) {
