@@ -165,7 +165,7 @@
 	"errorScreen_reset": "REINICIAR APLICACIÓN",
 	"errorScreen_title": "¡Algo salió mal!",
 	"exportBackup": "Exportar copia de seguridad",
-	"exportBackupCopyBackup": "Copia de seguridad",
+	"exportBackupCopyBackup": "Exportar copia de seguridad",
 	"exportBackupCopyOrphanedProofs": "Copiar pruebas huérfanas",
 	"exportBackupEcashProofs": "Comprobantes de efectivo electrónico",
 	"exportBackupMints": "mints",

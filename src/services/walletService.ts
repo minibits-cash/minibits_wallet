@@ -55,6 +55,7 @@ export const TASK_QUEUE_TIMEOUT = 30 * 1000
 
 export const TEST_TASK = 'testTask'
 export const SWAP_ALL_TASK = 'swapAllTask'
+export const SWAP_DENOMINATION_TASK = 'swapDenominationTask'
 export const SYNC_STATE_WITH_ALL_MINTS_TASK = 'syncStateWithAllMintsTask'
 export const SYNC_STATE_WITH_MINT_TASK = 'syncStateWithMintTask'
 export const HANDLE_NWC_REQUEST_TASK = 'handleNwcRequestTask'
@@ -126,6 +127,7 @@ type WalletTaskService = {
       draftTransactionId?: number
   ) => Promise<TransactionTaskResult>
     swapAllQueue: () => Promise<void>
+    swapByDenominationQueue: (denomination: number) => Promise<void>
     topupQueueAwaitable: (
       mintBalanceToTopup: MintBalance,
       amountToTopup: number,
@@ -747,12 +749,129 @@ const swapAllTask = async function (): Promise<WalletTaskResult> {
         }
     }
 
-    return {    
-        taskFunction: SWAP_ALL_TASK,           
+    return {
+        taskFunction: SWAP_ALL_TASK,
         message: `Proofs optimization completed with ${errors.length} errors. Proofs number went from ${initialProofsCount} to ${finalProofsCount}`,
         initialProofsCount,
         finalProofsCount,
-        errors,            
+        errors,
+    }
+}
+
+
+/*
+ * swapByDenominationTask swaps only proofs with the given denomination (amount) across all mints.
+ * Used by OptimizeEcashScreen to consolidate one denomination at a time.
+ */
+
+const swapByDenominationQueue = async function (denomination: number): Promise<void> {
+    const now = new Date().getTime()
+    return SyncQueue.addPrioritizedTask(
+        `swapDenominationTask-${denomination}-${now}`,
+        async () => await swapByDenominationTask(denomination)
+    )
+}
+
+const swapByDenominationTask = async function (denomination: number): Promise<WalletTaskResult> {
+    log.trace('[swapByDenominationTask] start', {denomination})
+
+    if (mintsStore.mintCount === 0) {
+        return {
+            taskFunction: SWAP_DENOMINATION_TASK,
+            message: 'No mints to swap with.',
+        }
+    }
+
+    let initialProofsCount = 0
+    let finalProofsCount = 0
+    const errors: string[] = []
+    const maxBatchSize = MAX_SWAP_INPUT_SIZE
+
+    for (const mint of mintsStore.allMints) {
+        for (const unit of mint.units) {
+            const allProofs = proofsStore.getByMint(mint.mintUrl, { isPending: false, unit, ascending: true })
+            const proofsToOptimize = allProofs.filter(p => p.amount === denomination)
+
+            if (proofsToOptimize.length === 0) {
+                continue
+            }
+
+            initialProofsCount += proofsToOptimize.length
+            const mintBalance = mint.balances
+
+            if (proofsToOptimize.length > maxBatchSize) {
+                let index = 0
+                for (let i = 0; i < proofsToOptimize.length; i += maxBatchSize) {
+                    index++
+                    const batch = proofsToOptimize.slice(i, i + maxBatchSize)
+                    const batchAmount = CashuUtils.getProofsAmount(batch)
+
+                    const sendResult = await sendTask(
+                        mintBalance!,
+                        batchAmount,
+                        unit,
+                        `Optimize denomination ${denomination} #${index}`,
+                        batch
+                    )
+
+                    const encodedTokenToReceive: string = sendResult.encodedTokenToSend
+                    const tokenToReceive = getDecodedToken(encodedTokenToReceive)
+                    const tokenAmount = CashuUtils.getProofsAmount(tokenToReceive.proofs)
+
+                    const receiveResult = await receiveBatchTask(
+                        tokenToReceive,
+                        tokenAmount,
+                        tokenToReceive.memo as string,
+                        encodedTokenToReceive
+                    )
+
+                    await syncStateWithMintTask({ proofsToSync: batch, mintUrl: mint.mintUrl, isPending: true })
+
+                    if (receiveResult.receivedProofsCount && receiveResult.receivedProofsCount > 0) {
+                        finalProofsCount += receiveResult.receivedProofsCount
+                    }
+                    if (receiveResult.error) {
+                        errors.push(receiveResult.error.message)
+                    }
+                }
+            } else {
+                const proofsAmount = CashuUtils.getProofsAmount(proofsToOptimize)
+
+                const sendResult = await sendTask(
+                    mintBalance!,
+                    proofsAmount,
+                    unit,
+                    `Optimize denomination ${denomination}`,
+                    proofsToOptimize
+                )
+
+                const encodedTokenToReceive: string = sendResult.encodedTokenToSend
+                const tokenToReceive = getDecodedToken(encodedTokenToReceive)
+                const tokenAmount = CashuUtils.getProofsAmount(tokenToReceive.proofs)
+
+                const receiveResult = await receiveBatchTask(
+                    tokenToReceive,
+                    tokenAmount,
+                    tokenToReceive.memo as string,
+                    encodedTokenToReceive
+                )
+
+                if (receiveResult.receivedProofsCount && receiveResult.receivedProofsCount > 0) {
+                    finalProofsCount += receiveResult.receivedProofsCount
+                }
+                if (receiveResult.error) {
+                    errors.push(receiveResult.error.message)
+                }
+            }
+        }
+    }
+
+    return {
+        taskFunction: SWAP_DENOMINATION_TASK,
+        message: `Denomination ${denomination} optimization completed with ${errors.length} errors. Proofs went from ${initialProofsCount} to ${finalProofsCount}`,
+        initialProofsCount,
+        finalProofsCount,
+        errors,
     }
 }
 
@@ -2991,7 +3110,8 @@ export const WalletTask: WalletTaskService = {
     receiveOfflinePrepareQueueAwaitable,
     receiveOfflineCompleteQueueAwaitable, 
     sendQueueAwaitable,
-    swapAllQueue,   
+    swapAllQueue,
+    swapByDenominationQueue,
     transferQueueAwaitable,      
     topupQueueAwaitable,
     cashuPaymentRequestQueueAwaitable,

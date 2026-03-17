@@ -166,7 +166,7 @@
 	"errorScreen_reset": "RESET APP",
 	"errorScreen_title": "Something went wrong!",
 	"exportBackup": "Export backup",
-	"exportBackupCopyBackup": "Copy backup",
+	"exportBackupCopyBackup": "Export backup",
 	"exportBackupCopyOrphanedProofs": "Copy orphaned proofs",
 	"exportBackupEcashProofs": "Ecash proofs",
 	"exportBackupMints": "Mints",

@@ -4,9 +4,8 @@ import {
   ViewStyle,
   View,
   Switch,
-  Alert,
-  Platform,
   ScrollView,
+  Share,
 } from 'react-native'
 import notifee, { AndroidImportance } from '@notifee/react-native'
 import {useThemeColor, spacing, typography, colors} from '../theme'
@@ -28,7 +27,6 @@ import {log} from '../services/logService'
 import AppError from '../utils/AppError'
 import { Proof } from '../models/Proof'
 import { useStores } from '../models'
-import EventEmitter from '../utils/eventEmitter'
 import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { translate } from '../i18n'
@@ -36,8 +34,6 @@ import { ProofsStoreSnapshot } from '../models/ProofsStore'
 import { getSnapshot } from 'mobx-state-tree'
 import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { MintsStoreSnapshot } from '../models/MintsStore'
-import { NotificationService, SWAP_ALL_TASK, TASK_QUEUE_CHANNEL_ID, TASK_QUEUE_CHANNEL_NAME, WalletTask, WalletTaskResult } from '../services'
-import { TransactionStatus } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts'
@@ -64,16 +60,11 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
   const [error, setError] = useState<AppError | undefined>()
   const [orphanedProofs, setOrphanedProofs] = useState<Proof[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [isSwapAllSentToQueue, setIsSwapAllSentToQueue] = useState<boolean>(false)
   const [totalProofsCount, setTotalProofsCount] = useState<number>(0)
   const [isEcashInBackup, setIsEcashInBackup] = useState(true)
   const [isMintsInBackup, setIsMintsInBackup] = useState(true)
   const [isContactsInBackup, setIsContactsInBackup] = useState(true)
-  const [isResultModalVisible, setIsResultModalVisible] = useState(false)
-  const [isNotificationModalVisible, setIsNotificationModalVisible] = useState(false) 
-  const [resultModalInfo, setResultModalInfo] = useState<
-    {status: TransactionStatus; title?: string, message: string} | undefined
-  >()
+  const [isNotificationModalVisible, setIsNotificationModalVisible] = useState(false)
   
   
   useEffect(() => {
@@ -104,105 +95,24 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
 
 
 
-  useEffect(() => {
-    // runs for every receive in a batch
-    const handleSwapAllTaskResult = async (result: WalletTaskResult) => {
-      if(!isSwapAllSentToQueue) {
-        return
-      }
-
-      setIsLoading(false)
-      setResultModalInfo({
-        status: result.errors.length > 0 ? TransactionStatus.ERROR : TransactionStatus.COMPLETED,
-        message: result.message
-      })
-
-      if(result.finalProofsCount && result.finalProofsCount > 0) {
-        setTotalProofsCount(result.finalProofsCount)
-      }
-      
-      setIsResultModalVisible(true)
-    }
-    
-    if(isSwapAllSentToQueue) {
-      EventEmitter.on(`ev_${SWAP_ALL_TASK}_result`, handleSwapAllTaskResult)      
-    }
-
-    return () => {
-      EventEmitter.off(`ev_${SWAP_ALL_TASK}_result`, handleSwapAllTaskResult)               
-    }
-
-  }, [isSwapAllSentToQueue])
-
-
   const openNotificationSettings = async function() {
-    await notifee.openNotificationSettings()        
+    await notifee.openNotificationSettings()
   }
-  
-  const toggleResultModal = async () => {
-      setIsResultModalVisible(previousState => !previousState)
-      await WalletTask.syncStateWithAllMintsQueueAwaitable({isPending: true})
-  }     
   
   const toggleNotificationModal = () =>
     setIsNotificationModalVisible(previousState => !previousState)
 
-
   const toggleBackupEcashSwitch = () =>
       setIsEcashInBackup(previousState => !previousState)
 
-  
   const toggleBackupMintsSwitch = () =>
       setIsMintsInBackup(previousState => !previousState)
 
-  
   const toggleBackupContanctsSwitch = () =>
       setIsContactsInBackup(previousState => !previousState)
 
 
-  const optimizeProofAmountsStart = async function () {
-    const enabled = await NotificationService.areNotificationsEnabled()
-
-    if(!enabled) {
-      toggleNotificationModal()
-      return
-    }
-
-    Alert.alert(
-      'Optimize ecash proofs',
-      'Do you want to swap your wallet ecash for proofs with optimal denominations? The size of your backup will decrease.',
-      [
-        {
-          text: translate('commonCancel'),
-          style: 'cancel',
-          onPress: () => { /* Action canceled */ },
-        },
-        {
-          text: translate('commonConfirm'),
-          onPress: async () => {
-            // Moves all wallet proofs to pending in transactions 
-            // split by mints and by units and in offline mode.
-            // Supports batching in case proofs count is above limit.
-            
-            setIsLoading(true)
-            setIsSwapAllSentToQueue(true)             
-
-            if(Platform.OS === 'android') {
-              await NotificationService.createTaskNotification(
-                'Optimizing ecash proofs denominations...',
-                {task: SWAP_ALL_TASK}
-              )
-            } else {
-              // iOS does not support fg notifications with long running tasks
-              WalletTask.swapAllQueue()
-            } 
-          }
-        }
-      ]
-    )
-  }
-  
-  const copyBackup = function () {
+  const copyBackup = async function () {
       try {     
           setIsLoading(true)  
 
@@ -268,11 +178,14 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
           
           const base64Encoded = prefix + version + base64Data
 
-          Clipboard.setString(base64Encoded)
-          setIsLoading(false)  
+          await Share.share({
+            title: 'minibits-backup.txt',
+            message: base64Encoded,
+          })
+          setIsLoading(false)
 
       } catch (e: any) {
-          setInfo(`Could not encode and copy wallet backup: ${e.message}`)
+          setInfo(`Could not encode and export wallet backup: ${e.message}`)
           setIsLoading(false)  
       }
   }
@@ -414,7 +327,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
                         {proofsStore.proofsCount > OPTIMIZE_FROM_PROOFS_COUNT && (
                           <Button
                             preset='secondary'
-                            onPress={optimizeProofAmountsStart}
+                            onPress={() => navigation.navigate('OptimizeEcash')}
                             textStyle={{lineHeight: verticalScale(16), fontSize: verticalScale(14)}}
                             style={{minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny)}}
                             text={'Optimize'}
@@ -514,50 +427,6 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
             </View>
         )}            
       </View>
-      <BottomModal
-        isVisible={isResultModalVisible ? true : false}          
-        ContentComponent={
-          <>
-            {resultModalInfo?.status === TransactionStatus.COMPLETED && (
-              <>
-                <ResultModalInfo
-                  icon={'faCheckCircle'}
-                  iconColor={colors.palette.success200}
-                  title={resultModalInfo.title || translate('commonSuccess')}
-                  message={resultModalInfo?.message}
-                />
-                <View style={$buttonContainer}>
-                  <Button
-                    preset="secondary"
-                    tx='commonClose'
-                    onPress={toggleResultModal}
-                  />
-                </View>
-              </>
-            )}              
-            {(resultModalInfo?.status === TransactionStatus.ERROR ||
-              resultModalInfo?.status === TransactionStatus.BLOCKED) && (
-              <>
-                <ResultModalInfo
-                  icon="faTriangleExclamation"
-                  iconColor={colors.palette.focus300}
-                  title={resultModalInfo?.title as string || translate('transactionCommon_receiveFailed')}
-                  message={resultModalInfo?.message as string}
-                />
-                <View style={$buttonContainer}>
-                  <Button
-                      preset="secondary"
-                      tx={'commonClose'}
-                      onPress={toggleResultModal}
-                  />                      
-                </View>
-              </>
-            )}
-          </>
-        }
-        onBackButtonPress={toggleResultModal}
-        onBackdropPress={toggleResultModal}
-      />
       <BottomModal
         isVisible={isNotificationModalVisible ? true : false}          
         ContentComponent={

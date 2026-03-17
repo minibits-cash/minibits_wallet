@@ -166,7 +166,7 @@
 	"errorScreen_reset": "RESET APP",
 	"errorScreen_title": "Niečo sa pokazilo!",
 	"exportBackup": "Exportovať zálohu",
-	"exportBackupCopyBackup": "Kopírovať zálohu",
+	"exportBackupCopyBackup": "Exportovať zálohu",
 	"exportBackupCopyOrphanedProofs": "Kopírovať osirelé dôkazy",
 	"exportBackupEcashProofs": "Ecash dôkazy",
 	"exportBackupMints": "Minty",

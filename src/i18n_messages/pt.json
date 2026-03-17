@@ -166,7 +166,7 @@
 	"errorScreen_reset": "REINICIAR APLICATIVO",
 	"errorScreen_title": "Algo deu errado!",
 	"exportBackup": "Exportar backup",
-	"exportBackupCopyBackup": "Copiar backup",
+	"exportBackupCopyBackup": "Exportar backup",
 	"exportBackupCopyOrphanedProofs": "Copiar proofs órfãos",
 	"exportBackupEcashProofs": "Proofs de ecash",
 	"exportBackupMints": "Mints",

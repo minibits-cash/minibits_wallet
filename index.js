@@ -9,10 +9,11 @@ import messaging from '@react-native-firebase/messaging'
 import {AppRegistry} from 'react-native'
 import { rootStoreInstance, setupRootStore } from './src/models'
 import {
-  WalletTask, 
-  NotificationService, 
-  SWAP_ALL_TASK, 
-  TEST_TASK, 
+  WalletTask,
+  NotificationService,
+  SWAP_ALL_TASK,
+  SWAP_DENOMINATION_TASK,
+  TEST_TASK,
   SYNC_STATE_WITH_ALL_MINTS_TASK,
   HANDLE_NWC_REQUEST_TASK
 } from './src/services'
@@ -64,6 +65,12 @@ notifee.registerForegroundService(async (notification) => {
         log.debug(`[registerForegroundService] Submitting task ${SWAP_ALL_TASK} to the queue.`)
 
         WalletTask.swapAllQueue()
+      }
+
+      if(notification.data.task === SWAP_DENOMINATION_TASK) {
+        log.debug(`[registerForegroundService] Submitting task ${SWAP_DENOMINATION_TASK} to the queue.`)
+
+        WalletTask.swapByDenominationQueue(notification.data.data)
       }
 
 

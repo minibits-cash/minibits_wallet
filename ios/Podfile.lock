@@ -1482,7 +1482,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - react-native-pager-view (6.9.1):
+  - react-native-pager-view (8.0.0):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -1502,6 +1502,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
+    - SwiftUIIntrospect (~> 1.0)
     - Yoga
   - react-native-quick-crypto (0.7.17):
     - hermes-engine
@@ -2398,6 +2399,7 @@ PODS:
   - SWCompression/Zlib (4.8.6):
     - BitByteData (~> 2.0)
     - SWCompression/Deflate
+  - SwiftUIIntrospect (1.3.0)
   - Yoga (0.0.0)
 
 DEPENDENCIES:
@@ -2526,6 +2528,7 @@ SPEC REPOS:
     - SDWebImageWebPCoder
     - Sentry
     - SWCompression
+    - SwiftUIIntrospect
 
 EXTERNAL SOURCES:
   boost:
@@ -2800,7 +2803,7 @@ SPEC CHECKSUMS:
   react-native-mmkv: 07f0ae0bd7e8d458077e1750c502ba67975b3702
   react-native-netinfo: cec9c4e86083cb5b6aba0e0711f563e2fbbff187
   react-native-nfc-manager: eaf239774290388173427ee5110126de3c869cc3
-  react-native-pager-view: 48ec6423bd63b7a5021b21baa257c6ee38930e5d
+  react-native-pager-view: 3940c389055f6b9b1d2559a73725765f9fdf61bc
   react-native-quick-crypto: 5f2867e0c2c910d0a9f6c86b1be29c9e2d80522f
   react-native-quick-sqlite: 422218c3d135e3184e6a2b440b51edfb16d2ebd0
   react-native-safe-area-context: f660c52c843d3a1801ee62f0f336b17ea5fd9b7a
@@ -2857,6 +2860,7 @@ SPEC CHECKSUMS:
   SDWebImageWebPCoder: 908b83b6adda48effe7667cd2b7f78c897e5111d
   Sentry: c643eb180df401dd8c734c5036ddd9dd9218daa6
   SWCompression: 9379873ad5e9f25b31db88c441649b59a4c2bab7
+  SwiftUIIntrospect: fee9aa07293ee280373a591e1824e8ddc869ba5d
   Yoga: e72e7f14bfa5278868f138a38b3186ce2e063bbf
 
 PODFILE CHECKSUM: e77951ce3c24463d20fa7e3bf0952994b496ddc5

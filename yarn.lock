@@ -14684,7 +14684,7 @@ __metadata:
     react-native-mmkv: ^3.3.3
     react-native-modal: ^14.0.0-rc.1
     react-native-nfc-manager: "revtel/react-native-nfc-manager#v4.0.0-beta.7"
-    react-native-pager-view: ^6.9.1
+    react-native-pager-view: ^8.0.0
     react-native-qrcode-svg: ^6.3.15
     react-native-quick-crypto: ^0.7.17
     react-native-quick-sqlite: 8.2.7
@@ -16687,13 +16687,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-pager-view@npm:^6.9.1":
-  version: 6.9.1
-  resolution: "react-native-pager-view@npm:6.9.1"
+"react-native-pager-view@npm:^8.0.0":
+  version: 8.0.0
+  resolution: "react-native-pager-view@npm:8.0.0"
   peerDependencies:
     react: "*"
     react-native: "*"
-  checksum: 64f4f1b05173217ee5bb288c6c1e396ceaf686fd1ef9458a6ab9c9da44e5ee76c2a091e95b756c78bbcddd30caf37965ef37e0eabe54331f385fdcb87b5d5ab6
+  checksum: b2a9d5b6bebd84d46a8460a900ddd58da60dff1bdaa31f3f4c53ed9609d134d006064bdd522808464622950e7ad1256eae28641346c4617f2ddf3217c1dfd11e
   languageName: node
   linkType: hard
 
