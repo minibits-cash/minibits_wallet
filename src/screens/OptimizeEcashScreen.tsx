@@ -28,7 +28,7 @@ import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {StaticScreenProps, useNavigation} from '@react-navigation/native'
 
-const OPTIMIZE_DENOMINATION_THRESHOLD = 1
+const OPTIMIZE_DENOMINATION_THRESHOLD = 5
 
 type Props = StaticScreenProps<undefined>
 
@@ -148,14 +148,16 @@ export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
               {denominationCounts.length === 0 ? (
                 <ListItem text="No ecash proofs found." />
               ) : (
-                denominationCounts.map(({denomination, count}) => (
+                denominationCounts.map(({denomination, count}, index) => (
                   <ListItem
                     key={denomination}
-                    text={`${denomination} sat`}
-                    subText={`Count: ${count}`}
+                    text={`${denomination}`}
+                    leftIcon='faMoneyBill1'
+                    //subText={`Count: ${count}`}
                     RightComponent={
-                      count > OPTIMIZE_DENOMINATION_THRESHOLD ? (
-                        <View style={$rightContainer}>
+                      <View style={$rightContainer}>
+                        <Text preset="formHelper" text={`${count}x`} style={{color: hint, marginRight: spacing.small}} />
+                      {count > OPTIMIZE_DENOMINATION_THRESHOLD ? (
                           <Button
                             preset="secondary"
                             text="Optimize"
@@ -163,9 +165,11 @@ export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
                             textStyle={{lineHeight: verticalScale(16), fontSize: verticalScale(14)}}
                             style={{minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny)}}
                           />
-                        </View>
-                      ) : undefined
+                        
+                      ) : undefined}
+                      </View>
                     }
+                    bottomSeparator={index !== denominationCounts.length - 1 ? true : false}
                   />
                 ))
               )}
@@ -272,6 +276,7 @@ const $rightContainer: ViewStyle = {
   marginLeft: spacing.tiny,
   marginRight: -10,
   flexDirection: 'row',
+  alignItems: 'center',
 }
 
 const $hintContainer: ViewStyle = {

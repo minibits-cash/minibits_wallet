@@ -36,11 +36,10 @@ import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { MintsStoreSnapshot } from '../models/MintsStore'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
-import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts'
-import { minibitsPngIcon } from '../components/MinibitsIcon'
+import { Token, getEncodedToken } from '@cashu/cashu-ts'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-const OPTIMIZE_FROM_PROOFS_COUNT = 4
+const OPTIMIZE_FROM_PROOFS_COUNT = 10
 type Props = StaticScreenProps<undefined>
 
 export const ExportBackupScreen = function ExportBackup({ route }: Props) {
@@ -329,7 +328,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
                             preset='secondary'
                             onPress={() => navigation.navigate('OptimizeEcash')}
                             textStyle={{lineHeight: verticalScale(16), fontSize: verticalScale(14)}}
-                            style={{minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny)}}
+                            style={{minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny), marginRight: spacing.tiny, marginTop: -spacing.tiny}}
                             text={'Optimize'}
                           />
                         )}
@@ -501,7 +500,8 @@ const $rightContainer: ViewStyle = {
   // alignSelf: 'center',
   marginLeft: spacing.tiny,
   marginRight: -10,
-  flexDirection: 'row'
+  flexDirection: 'row',
+  alignItems: 'center',
 }
 
 const $bottomContainer: ViewStyle = { 
