@@ -7,7 +7,6 @@ import {
   View,
   ViewStyle,
   StatusBar,
-  StatusBarProps,
   ColorValue,
   Platform
 } from "react-native"
@@ -143,10 +142,6 @@ export interface HeaderProps {
    */
   safeAreaEdges?: ExtendedEdge[]
   /**
-   * Pass any additional props directly to the StatusBar component.
-   */
-  StatusBarProps?: StatusBarProps
-  /**
    * Shared value from scroll position for animated title.
    * When provided, the title will fade in as the user scrolls.
    */
@@ -170,11 +165,12 @@ interface HeaderActionProps {
 }
 
 
-/* Needed to keep status bar styles on navigation tabs */
-function FocusAwareStatusBar(props: StatusBarProps) {
-  const isFocused = useIsFocused();
-
-  return isFocused ? <StatusBar translucent={true} {...props} /> : null;
+/* Keeps status bar style in sync with navigation focus — only applies when this screen is active.
+   Uses React Native's StatusBar (status bar only) so it does not override the nav bar icon style
+   managed by the root SystemBars in AppNavigator. */
+function FocusAwareStatusBar() {
+  const isFocused = useIsFocused()
+  return isFocused ? <StatusBar translucent barStyle="light-content" /> : null
 }
 
 /**
@@ -213,7 +209,6 @@ export function Header(props: HeaderProps) {
     style: $styleOverride,
     titleStyle: $titleStyleOverride,
     containerStyle: $containerStyleOverride,
-    StatusBarProps,
     scrollY,
     scrollDistance = 60,
   } = props
@@ -237,10 +232,7 @@ export function Header(props: HeaderProps) {
 
   return (
     <View style={[$container, $containerInsets, { backgroundColor }, $containerStyleOverride]}>
-      <FocusAwareStatusBar            
-        barStyle = 'light-content'
-        {...StatusBarProps}         
-      />
+      <FocusAwareStatusBar />
       <View style={[$wrapper, $styleOverride]}>
         <HeaderAction
           tx={leftTx}

@@ -1,6 +1,6 @@
 {
   "name": "minibits_wallet",
-  "version": "0.4.0-beta.1",
+  "version": "0.4.0-beta.2",
   "private": true,
   "scripts": {
     "android:clean": "cd android && ./gradlew clean",
@@ -61,6 +61,7 @@
     "react-native-animated-pagination-dots": "^0.1.73",
     "react-native-camera-kit": "16.2.1",
     "react-native-change-icon": "^3.0.0",
+    "react-native-edge-to-edge": "^1.8.1",
     "react-native-exit-app": "^2.0.0",
     "react-native-fast-image": "^8.6.3",
     "react-native-flash-message": "^0.4.2",

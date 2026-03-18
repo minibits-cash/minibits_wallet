@@ -128,7 +128,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             try {
                 const updateInfo = await HotUpdater.checkForUpdate({
                     source: getUpdateSource(HOT_UPDATER_URL, {
-                        updateStrategy: "appVersion",
+                        updateStrategy: "fingerprint",
                     }),
                     requestHeaders: {
                         Authorization: `Bearer ${HOT_UPDATER_API_KEY}`,

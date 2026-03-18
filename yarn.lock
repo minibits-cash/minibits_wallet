@@ -14672,6 +14672,7 @@ __metadata:
     react-native-change-icon: ^3.0.0
     react-native-clean-project: ^4.0.3
     react-native-dotenv: ^3.4.11
+    react-native-edge-to-edge: ^1.8.1
     react-native-exit-app: ^2.0.0
     react-native-fast-image: ^8.6.3
     react-native-flash-message: ^0.4.2
@@ -16527,6 +16528,16 @@ __metadata:
   peerDependencies:
     "@babel/runtime": ^7.20.6
   checksum: 3ebac2c2ed79dd7e4920fd3fc2da9187413b7190231618e4858b46c47833677838b96d531afe7bd5c4b0a60454dba40cb8708722210df5d522e30aefbf41da05
+  languageName: node
+  linkType: hard
+
+"react-native-edge-to-edge@npm:^1.8.1":
+  version: 1.8.1
+  resolution: "react-native-edge-to-edge@npm:1.8.1"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 712081dffc84c8c65cae99732b3ecb7cae2c4dfa49c18855a317a27370be96f87397f628c8d174a8819a383eb83a5011e6785a8040aaedb15b14baf1083ba882
   languageName: node
   linkType: hard
 

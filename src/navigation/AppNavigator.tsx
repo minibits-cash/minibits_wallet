@@ -1,8 +1,8 @@
-import {  
+import {
   createStaticNavigation,
   DarkTheme,
-  DefaultTheme,  
-  StaticParamList,  
+  DefaultTheme,
+  StaticParamList,
 } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import { observer } from "mobx-react-lite"
@@ -11,7 +11,7 @@ import Config from "../config"
 import {
   WelcomeScreen,
   SeedRecoveryScreen,
-  MintsScreen, 
+  MintsScreen,
   SeedRecoveryOptionsScreen,
   ImportBackupScreen,
   RecoverWalletAddressScreen,
@@ -21,8 +21,10 @@ import {
 import { rootStoreInstance } from "../models"
 import {  TabsNavigator  } from "./TabsNavigator"
 import { navigationRef, useBackButtonHandler } from "./navigationUtilities"
-import { useThemeColor } from "../theme"
+import { ThemeCode, useThemeColor } from "../theme"
 import useColorScheme from "../theme/useThemeColor"
+import { MMKVStorage } from "../services"
+import { SystemBars } from "react-native-edge-to-edge"
 
 
 /**
@@ -65,7 +67,12 @@ export const AppNavigator = observer(function AppNavigator() {
 
     useBackButtonHandler((routeName) => exitRoutes.includes(routeName))  
     
-    const dark = useColorScheme() === 'dark' ? true : false
+    const colorScheme = useColorScheme()
+    const dark = colorScheme === 'dark'
+    const theme = MMKVStorage.loadTheme()
+    const isLightTheme = theme === ThemeCode.LIGHT ||
+      (theme === ThemeCode.DEFAULT && colorScheme === 'light')
+
     const background = useThemeColor('background') as string
     const primary = useThemeColor('tabActiveIcon') as string
     const card = useThemeColor('background') as string
@@ -90,10 +97,13 @@ export const AppNavigator = observer(function AppNavigator() {
     }
 
     return (
-        <Navigation
-            // @ts-ignore
-            ref={navigationRef}
-            theme={NavigationTheme} 
-        />
+        <>
+            <SystemBars style={isLightTheme ? "dark" : "light"} />
+            <Navigation
+                // @ts-ignore
+                ref={navigationRef}
+                theme={NavigationTheme}
+            />
+        </>
     )
 })

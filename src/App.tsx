@@ -16,6 +16,7 @@ import {ErrorBoundary} from './screens/ErrorScreen/ErrorBoundary'
 import Config from './config'
 import {log} from './services'
 import { Image, TextStyle, View } from 'react-native'
+import { SystemBars } from 'react-native-edge-to-edge'
 import { ThemeCode, colors, spacing, typography } from './theme'
 import useColorScheme from './theme/useThemeColor'
 import { displayName } from '../app.json'
@@ -190,6 +191,7 @@ function App() {
 
     return (
       <SafeAreaProvider>
+      <SystemBars style={isLight ? 'dark' : 'light'} />
       <Screen preset='fixed' backgroundColor={splashBg} safeAreaEdges={['top', 'bottom']}>
         <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
           <Image source={isGolden

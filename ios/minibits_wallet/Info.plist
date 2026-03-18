@@ -44,9 +44,9 @@
 		<key>NFCReaderUsageDescription</key>
 		<string>This app uses NFC to pay on supported POS</string>
 		<key>com.apple.developer.nfc.readersession.iso7816.select-identifiers</key>
-			<array>
+		<array>
 			<string>D2760000850101</string>
-			</array>
+		</array>
 		<key>RCTNewArchEnabled</key>
 		<true/>
 		<key>UIAppFonts</key>
@@ -77,7 +77,7 @@
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
 		<key>HOT_UPDATER_FINGERPRINT_HASH</key>
-		<string>98c1f26187f02f38ddef1fcb75384246a1c5fa03</string>
+		<string>52a90c95e5a8b3d48b60c5a12a638832479c59ae</string>
 		<key>CFBundleIcons</key>
 		<dict>
 			<key>CFBundlePrimaryIcon</key>
