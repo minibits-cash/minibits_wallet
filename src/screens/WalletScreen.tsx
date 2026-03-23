@@ -942,7 +942,7 @@ const UnitBalanceBlock = observer(function (props: {
                 mintUnit={unitBalance.unit}
                 symbolStyle={{display: 'none'}}
                 amountStyle={[$unitBalance, {color: balanceColor}]}
-                containerStyle={{marginTop: spacing.large}}
+                containerStyle={{marginTop: spacing.small}}
             />
             <>            
             {walletStore.exchangeRate 
@@ -954,7 +954,7 @@ const UnitBalanceBlock = observer(function (props: {
                     symbolStyle={{color: convertedBalanceColor}}
                     amountStyle={{color: convertedBalanceColor}}                        
                     size='small'
-                    containerStyle={{marginVertical: -spacing.small}}             
+                    containerStyle={{marginVertical: -spacing.tiny}}             
                 />
             )}
             </>
@@ -1200,7 +1200,8 @@ const $card: ViewStyle = {
 const $unitBalance: TextStyle = {
     fontSize: verticalScale(56),
     lineHeight: verticalScale(56),
-    fontFamily: typography.fonts.hammersmithOne.normal,
+    fontFamily: typography.primary?.bold,
+    fontWeight: 'bold', // android
 }
 
 

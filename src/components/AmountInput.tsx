@@ -214,10 +214,11 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
     }, [focused, topScale, bottomScale])
 
     const defaultTopStyle: TextStyle = {
-      marginTop: spacing.small,
+      //marginTop: spacing.small,
       padding: 0,
       fontSize: verticalScale(56),
-      fontFamily: typography.fonts.hammersmithOne.normal,
+      fontFamily: typography.primary?.bold,
+      fontWeight: 'bold', // android
       textAlign: "center",
       color: amountInputColor,
     }
@@ -230,9 +231,11 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
 
     const defaultBottomStyle: TextStyle = {
       margin: 0,
+      marginBottom: spacing.tiny,
       padding: 0,
       fontSize: spacing.medium,
-      fontFamily: typography.fonts.hammersmithOne.normal,
+      fontFamily: typography.primary?.bold,
+      fontWeight: 'bold', // android
       color: convertedAmountColor,      
     }
 

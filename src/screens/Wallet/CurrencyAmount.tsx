@@ -77,7 +77,7 @@ export const CurrencyAmount = observer(function (props: {
 
   const $amount: TextStyle = {
     // fontSize: verticalScale(20),
-    fontFamily: typography.fonts?.hammersmithOne.normal,    
+    fontFamily: typography.primary?.medium,    
     alignSelf: 'center',
     // marginLeft: spacing.extraSmall
   }

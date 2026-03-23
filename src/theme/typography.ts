@@ -10,17 +10,20 @@ const fonts = {
     light: 'HelveticaNeue-Light',
     normal: 'Helvetica Neue',
     medium: 'HelveticaNeue-Medium',
+    bold: 'HelveticaNeue-Bold',
   },
   courier: {
     // iOS only font.
     normal: 'Courier',
   },
   sansSerif: {
-    // Android only font.
+    // Android only font. Bold is achieved via fontWeight: 'bold' / '700' in styles,
+    // not a separate family name — 'sans-serif-bold' does not work on modern Android.
     thin: 'sans-serif-thin',
     light: 'sans-serif-light',
     normal: 'sans-serif',
     medium: 'sans-serif-medium',
+    bold: 'sans-serif',  // use fontWeight: 'bold' alongside this
   },
   monospace: {
     // Android only font.
