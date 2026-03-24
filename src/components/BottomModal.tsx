@@ -23,7 +23,8 @@ interface ModalProps extends ViewProps {
   top?: number
   onBackdropPress?: any
   onBackButtonPress?: any
-  backdropOpacity?: number  
+  onModalHide?: () => void
+  backdropOpacity?: number
   /**
    * The heading text to display if not using `headingTx`.
    */
@@ -109,11 +110,12 @@ interface ModalProps extends ViewProps {
  */
 export function BottomModal(props: ModalProps) {
   const {
-    isVisible = true,    
+    isVisible = true,
     onBackdropPress,
     onBackButtonPress,
+    onModalHide,
     //backdropOpacity = Platform.OS === 'ios' ? 0.25 : 0,
-    backdropOpacity = 0.25, 
+    backdropOpacity = 0.25,
     content,
     contentTx,
     contentTxOptions,
@@ -175,6 +177,7 @@ export function BottomModal(props: ModalProps) {
         avoidKeyboard={Platform.OS === 'ios'}
         onBackdropPress={onBackdropPress}
         onBackButtonPress={onBackButtonPress}
+        onModalHide={onModalHide}
         backdropOpacity={backdropOpacity}
         useNativeDriverForBackdrop={true}
         hideModalContentWhileAnimating={true}

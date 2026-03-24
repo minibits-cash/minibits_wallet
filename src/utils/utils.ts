@@ -27,39 +27,24 @@ export const getImageSource = function(img: string) {
 
 
 export const infoMessage = function(message: string, description?: string) {
-    const backgroundColor = colors.palette.success300
+    const backgroundColor = colors.palette.neutral500
     const textColor = 'white'
     
     return showMessage({
         message,
-        description,        
+        description,
+        duration: 3000,          
         backgroundColor,
         color: textColor,
         style: {
-            minHeight: spacing.screenHeight * 0.15, 
-            borderTopLeftRadius: spacing.medium, 
-            borderTopRightRadius: spacing.medium
+            minHeight: spacing.screenHeight * 0.05, 
+            borderRadius: spacing.medium,             
+            margin: spacing.large,
+            marginBottom: spacing.large * 4,
         },        
     })
 }
 
-
-export const warningMessage = function(message: string, description?: string) {
-    const backgroundColor = colors.palette.accent500
-    
-    return showMessage({
-        message,
-        description,
-        duration: 3000,     
-        backgroundColor,
-        color: 'white',
-        style: {
-            minHeight: spacing.screenHeight * 0.15, 
-            borderTopLeftRadius: spacing.medium, 
-            borderTopRightRadius: spacing.medium
-        },        
-    })
-}
 
 export const generateId = function (lengthInBytes: number) {        
         const random = QuickCrypto.randomBytes(lengthInBytes)

@@ -219,11 +219,8 @@ export const PublicContactsNew = observer(function (props: {
             setFollowingProfiles(following)
             setIsLoading(false)
         }
-
-        InteractionManager.runAfterInteractions(async () => { 
-            loadProfiles()
-        })
-
+        
+        loadProfiles()
         
     }, [followingPubkeys])
 

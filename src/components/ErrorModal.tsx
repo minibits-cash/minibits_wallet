@@ -8,6 +8,7 @@ import JSONTree from 'react-native-json-tree'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { useStores } from '../models'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type ErrorModalProps = {
     error: AppError 
@@ -58,22 +59,23 @@ export const ErrorModal: FC<ErrorModalProps> = function ({ error }) {
     }
 
     const bg = useThemeColor('error')
+    const insets = useSafeAreaInsets()
 
     return (
         <BottomModal
             isVisible={isErrorVisible}
             onBackdropPress={onClose}
-            onBackButtonPress={onClose}            
+            onBackButtonPress={onClose}
+            style={{ marginBottom: Platform.OS === 'android' ? -(insets.top + insets.bottom) : 0 }}            
             ContentComponent={
-            <>                
+            <View>                
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.small }}>
                     <Icon icon="faTriangleExclamation" size={spacing.large} color={bg} />
                     <Text style={{ marginLeft: spacing.small }}>{error.name}</Text>                
                 </View>
                 <ScrollView 
-                    style={{ 
-                        //height: spacing.screenHeight * 0.1,                       
-                        maxHeight: spacing.screenHeight * 0.07,                        
+                    style={{     
+                        maxHeight: spacing.screenHeight * 0.1,                        
                     }}>
                     <Text style={{ marginBottom: spacing.small }}>{error.message}</Text>
                 </ScrollView>
@@ -147,7 +149,7 @@ export const ErrorModal: FC<ErrorModalProps> = function ({ error }) {
                     </>
                 )}
                 
-            </>
+            </View>
             }
         />
     )

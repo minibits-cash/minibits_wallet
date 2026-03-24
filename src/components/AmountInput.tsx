@@ -59,7 +59,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
     const [hasBottomAmountFocusedOnce, setHasBottomAmountFocusedOnce] = useState(false)
     const [hasBeenFirstTimeConverted, setHasBeenFirstTimeConverted] = useState<boolean>(false)
 
-    const amountInputColor = useThemeColor("amountInput")
+    const focusedInputColor = useThemeColor("amountInput")
     const convertedAmountColor = useThemeColor("headerSubTitle")
     const symbolColor = useThemeColor("headerSubTitle")
 
@@ -220,7 +220,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
       fontFamily: typography.primary?.bold,
       fontWeight: 'bold', // android
       textAlign: "center",
-      color: amountInputColor,
+      color: focusedInputColor,
     }
 
     const animatedTopStyle = useAnimatedStyle(() => ({
@@ -273,7 +273,12 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
           onEndEditing={onAmountEndEditing}
           onFocus={handleTopFocus}
           onBlur={handleTopBlur}
-          style={[defaultTopStyle, style, animatedTopStyle]}
+          style={[
+            defaultTopStyle, 
+            style, 
+            animatedTopStyle, 
+            { color: focused === 'top' ? focusedInputColor : convertedAmountColor }
+          ]}
           maxLength={9}
           keyboardType="decimal-pad"
           returnKeyType="done"
@@ -307,6 +312,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
               style,
               { color: convertedAmountColor },
               animatedBottomStyle,
+              { color: focused === 'bottom' ? focusedInputColor : convertedAmountColor }
             ]}
             maxLength={9}
             keyboardType="decimal-pad"

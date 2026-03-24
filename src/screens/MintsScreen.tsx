@@ -49,6 +49,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
     const [selectedMint, setSelectedMint] = useState<Mint | undefined>()
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
+    const [pendingError, setPendingError] = useState<AppError | undefined>()
     const [isLoading, setIsLoading] = useState(false)
     const [isAddMintVisible, setIsAddMintVisible] = useState(false)
     const [isMintMenuVisible, setIsMintMenuVisible] = useState(false)
@@ -119,7 +120,11 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
             setInfo(translate('mintsScreen_mintAdded'))
         } catch (e: any) {
             setMintUrl('')
-            handleError(e)
+            if (Platform.OS === 'ios') {
+                setPendingError(e)
+            } else {
+                handleError(e)
+            }
         } finally {
             setMintUrl('')
             setIsLoading(false)            
@@ -425,6 +430,12 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
         />
         <BottomModal
           isVisible={isAddMintVisible ? true : false}
+          onModalHide={() => {
+            if (pendingError) {
+              handleError(pendingError)
+              setPendingError(undefined)
+            }
+          }}
           ContentComponent={
             <View style={$bottomModal}>            
                 <Text

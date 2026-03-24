@@ -1,23 +1,21 @@
 import {observer} from 'mobx-react-lite'
 import React, {useEffect, useRef, useState} from 'react'
-import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {FlatList, Platform, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {colors, spacing, useThemeColor} from '../../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
-import { MinibitsClient, NostrClient, NostrProfile } from '../../services'
+import { NostrClient, NostrProfile } from '../../services'
 import AppError, { Err } from '../../utils/AppError'
 import {MINIBITS_NIP05_DOMAIN} from '@env'
 import { log } from '../../services/logService'
 import { ContactListItem } from './ContactListItem'
 import { Contact, ContactType } from '../../models/Contact'
-import { StackNavigationProp } from '@react-navigation/stack'
 import { ReceiveOption } from '../ReceiveScreen'
 import { SendOption } from '../SendScreen'
-import { infoMessage, warningMessage } from '../../utils/utils'
 import { IncomingDataType, IncomingParser } from '../../services/incomingParser'
 import { translate } from '../../i18n'
-import { RouteProp, useNavigation } from '@react-navigation/native'
+import { useNavigation } from '@react-navigation/native'
 import { toJS } from 'mobx'
 import { TransferOption } from '../TransferScreen'
 
@@ -32,11 +30,12 @@ export const PrivateContacts = observer(function (props: {
     const contactNameInputRef = useRef<TextInput>(null)
  
     const [info, setInfo] = useState('')
-    const [newContactName, setNewContactName] = useState<string>('')    
-    const [isLoading, setIsLoading] = useState(false) 
-    const [isExternalDomain, setIsExternalDomain] = useState(false)        
-    const [isNewContactModalVisible, setIsNewContactModalVisible] = useState(false)            
+    const [newContactName, setNewContactName] = useState<string>('')
+    const [isLoading, setIsLoading] = useState(false)
+    const [isExternalDomain, setIsExternalDomain] = useState(false)
+    const [isNewContactModalVisible, setIsNewContactModalVisible] = useState(false)
     const [error, setError] = useState<AppError | undefined>()
+    const [pendingError, setPendingError] = useState<AppError | undefined>()
    
     useEffect(() => {        
         const { paymentOption } = props        
@@ -127,7 +126,11 @@ export const PrivateContacts = observer(function (props: {
         } catch(e: any) {
             setNewContactName('')
             setIsExternalDomain(false)
-            handleError(e)
+            if (Platform.OS === 'ios') {
+                setPendingError(e)
+            } else {
+                handleError(e)
+            }
         }
     }
 
@@ -308,6 +311,12 @@ export const PrivateContacts = observer(function (props: {
         </View>       
         <BottomModal
           isVisible={isNewContactModalVisible ? true : false}
+          onModalHide={() => {
+            if (pendingError) {
+              handleError(pendingError)
+              setPendingError(undefined)
+            }
+          }}
           ContentComponent={
             <View style={$newContainer}>
               <Text tx="contactsScreen_newTitle" preset="subheading" />
