@@ -1307,25 +1307,29 @@ const syncStateWithMintTask = async function (
     const revertedTxIds: number[] = []
   
     try {
-      if (proofsToSync.length === 0) {
+      // Filter out proof nodes that were removed from the MST between the time
+      // the task was queued and when it actually runs (e.g. revertTask ran first).
+      const aliveProofs = proofsToSync.filter(p => isAlive(p))
+
+      if (aliveProofs.length === 0) {
         const message = `No ${isPending ? 'pending ' : ''}proofs to sync with mint`
         log.trace('[syncStateWithMintTask]', message)
-        return { 
-            taskFunction: SYNC_STATE_WITH_MINT_TASK, 
-            mintUrl, 
-            message, 
-            transactionStateUpdates, 
-            completedTransactionIds: [], 
-            errorTransactionIds: [], 
-            revertedTransactionIds: [] 
+        return {
+            taskFunction: SYNC_STATE_WITH_MINT_TASK,
+            mintUrl,
+            message,
+            transactionStateUpdates,
+            completedTransactionIds: [],
+            errorTransactionIds: [],
+            revertedTransactionIds: []
         }
       }
-  
+
       // 1. Ask mint what it thinks about these proofs
       const statesFromMint = await walletStore.getProofsStatesFromMint(
         mintUrl,
         mint?.units?.[0] ?? 'sat',
-        proofsToSync
+        aliveProofs
       )
   
       if (mint) mint.setStatus(MintStatus.ONLINE)
@@ -1366,7 +1370,7 @@ const syncStateWithMintTask = async function (
       // 1. Proofs now SPENT at mint → transaction succeeded
       // ─────────────────────────────────────────────────────────────
       if (secrets.spent.size > 0) {
-        const spentProofs = proofsToSync.filter(p => secrets.spent.has(p.secret))
+        const spentProofs = aliveProofs.filter(p => secrets.spent.has(p.secret))
         const spentByTx = groupByTId(spentProofs)
         proofsStore.moveToSpent(spentProofs) // sets isSpent = true, isPending = false + clean if they were in pendingByMintSecrets
   
@@ -1395,7 +1399,7 @@ const syncStateWithMintTask = async function (
   
             // If we were checking pending proofs, move unspent ones back
             if (isPending) {
-              const stillUnspent = proofsToSync.filter(p => secrets.unspent.has(p.secret))
+              const stillUnspent = aliveProofs.filter(p => secrets.unspent.has(p.secret))
               proofsStore.revertToSpendable(stillUnspent)
             }
           } else if (tx.status !== TransactionStatus.REVERTED) {
@@ -1454,7 +1458,7 @@ const syncStateWithMintTask = async function (
       // 2. Proofs still PENDING at mint → keep pending in wallet
       // ─────────────────────────────────────────────────────────────
       if (secrets.pending.size > 0) {
-        const newPendingProofs = proofsToSync.filter(p => secrets.pending.has(p.secret) && !proofsStore.pendingByMintSecrets.includes(p.secret))
+        const newPendingProofs = aliveProofs.filter(p => secrets.pending.has(p.secret) && !proofsStore.pendingByMintSecrets.includes(p.secret))
   
         if (newPendingProofs.length > 0) {
           proofsStore.registerAsPendingAtMint(newPendingProofs)
@@ -1540,7 +1544,7 @@ const syncStateWithMintTask = async function (
       return {
         taskFunction: SYNC_STATE_WITH_MINT_TASK,
         mintUrl,
-        message: `Sync completed for ${proofsToSync.length} ${isPending ? 'pending ' : ''}proofs`,
+        message: `Sync completed for ${aliveProofs.length} ${isPending ? 'pending ' : ''}proofs`,
         transactionStateUpdates,
         completedTransactionIds: completedTxIds,
         errorTransactionIds: errorTxIds,

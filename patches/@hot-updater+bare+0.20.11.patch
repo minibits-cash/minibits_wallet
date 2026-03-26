@@ -1,0 +1,13 @@
+diff --git a/node_modules/@hot-updater/bare/dist/index.cjs b/node_modules/@hot-updater/bare/dist/index.cjs
+index 2476539..bc47c39 100644
+--- a/node_modules/@hot-updater/bare/dist/index.cjs
++++ b/node_modules/@hot-updater/bare/dist/index.cjs
+@@ -6528,6 +6528,8 @@ async function getHermesCommand(cwd) {
+ 	if (fileExists(bundledHermesEngine)) return bundledHermesEngine;
+ 	const hermesEngine = path.default.join("node_modules", "hermes-engine", getHermesOSBin(), getHermesOSExe());
+ 	if (fileExists(hermesEngine)) return hermesEngine;
++	const hermesCompiler = path.default.join("node_modules", "hermes-compiler", "hermesc", getHermesOSBin(), getHermesOSExe());
++	if (fileExists(hermesCompiler)) return hermesCompiler;
+ 	return path.default.join("node_modules", "hermesvm", getHermesOSBin(), "hermes");
+ }
+ /**

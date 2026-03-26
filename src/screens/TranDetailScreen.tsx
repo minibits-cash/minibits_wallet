@@ -56,8 +56,6 @@ import { CommonActions, StaticScreenProps, useFocusEffect, useNavigation } from 
 import { QRCodeBlock } from './Wallet/QRCode'
 import { MintListItem } from './Mints/MintListItem'
 import { Token, getDecodedToken } from '@cashu/cashu-ts'
-import { RECEIVE_OFFLINE_COMPLETE_TASK, RECEIVE_TASK } from '../services/wallet/receiveTask'
-import { REVERT_TASK } from '../services/wallet/revertTask'
 import FastImage from 'react-native-fast-image'
 import { MintHeader } from './Mints/MintHeader'
 import { TransferOption } from './TransferScreen'
