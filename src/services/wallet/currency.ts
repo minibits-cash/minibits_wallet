@@ -2,6 +2,7 @@ import numbro from 'numbro'
 import { BtcIcon, EurIcon, UsdIcon, CadIcon, GbpIcon } from '../../components'
 import AppError, { Err } from '../../utils/AppError'
 import { ExchangeRate } from '../../models/WalletStore'
+import { ChfIcon } from '../../components/ChfIcon'
 
 
 export type MintUnit = typeof MintUnits[number]
@@ -11,7 +12,7 @@ export const MintUnits = ['btc', 'sat', 'msat', 'usd', 'eur'] as const
 export enum CurrencyCode {
     BTC = 'BTC', SAT = 'SAT', MSAT = 'MSAT', EUR = 'EUR', GBP = 'GBP', 
     CZK = 'CZK', USD = 'USD', PLN = 'PLN', HUF = 'HUF', RON = 'RON',
-    CAD = 'CAD'
+    CAD = 'CAD', CHF = 'CHF', JPY = 'JPY', AUD = 'AUD', SEK = 'SEK', NOK = 'NOK',
 }
 
 export type MintUnitCurrencyPair = {
@@ -19,7 +20,7 @@ export type MintUnitCurrencyPair = {
 }
 
 /** add any currency codes you want to allow the user to select as "reference currency" in the app settings, here: */
-export const availableExchangeCurrencies = [CurrencyCode.USD, CurrencyCode.EUR, CurrencyCode.CAD, CurrencyCode.GBP] as const;
+export const availableExchangeCurrencies = [CurrencyCode.USD, CurrencyCode.EUR, CurrencyCode.CAD, CurrencyCode.GBP, CurrencyCode.CHF] as const;
 
 export const MintUnitCurrencyPairs: MintUnitCurrencyPair = {
   btc:CurrencyCode.BTC, sat:CurrencyCode.SAT, msat:CurrencyCode.MSAT, eur:CurrencyCode.EUR, usd:CurrencyCode.USD,
@@ -124,6 +125,14 @@ export const Currencies: CurrencyList = {
         title: 'Canadian Dollar',
         code: CurrencyCode.CAD,
         icon: CadIcon,
+        precision: 100,
+        mantissa: 2,
+    },
+    CHF: {
+        symbol: 'CHF',
+        title: 'Swiss franc',
+        code: CurrencyCode.CHF,
+        icon: ChfIcon,
         precision: 100,
         mantissa: 2,
     },
