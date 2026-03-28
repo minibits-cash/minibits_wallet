@@ -441,13 +441,18 @@ const createLocalNotification = async function (title: string, body: string, lar
               largeIcon,
               pressAction: {
                 id: 'default',
+                // Must point to the real Java class, not an activity-alias. The LAUNCHER
+                // intent is on .MainActivityDefault (alias), so notifee's default path via
+                // getLaunchIntentForPackage() returns the alias name. Class.forName() on an
+                // alias throws ClassNotFoundException and the tap silently does nothing.
+                launchActivity: 'com.minibits_wallet.MainActivity',
               },
             },
             ios: {
                 categoryId: DEFAULT_CHANNEL_ID,
             },
         })
-        
+
         return notificationId
     } else {
         const notificationId = await notifee.displayNotification({
@@ -458,7 +463,9 @@ const createLocalNotification = async function (title: string, body: string, lar
               color: colors.palette.success200,
               pressAction: {
                 id: 'default',
-              },         
+                // See comment above — alias name breaks Class.forName() inside notifee.
+                launchActivity: 'com.minibits_wallet.MainActivity',
+              },
             },
             ios: {
                 categoryId: DEFAULT_CHANNEL_ID,
