@@ -121,7 +121,7 @@ export const Currencies: CurrencyList = {
         mantissa: 2,
     },
     CAD: {
-        symbol: 'CAD',
+        symbol: 'CA$',
         title: 'Canadian Dollar',
         code: CurrencyCode.CAD,
         icon: CadIcon,
@@ -129,7 +129,7 @@ export const Currencies: CurrencyList = {
         mantissa: 2,
     },
     CHF: {
-        symbol: 'CHF',
+        symbol: '₣',
         title: 'Swiss franc',
         code: CurrencyCode.CHF,
         icon: ChfIcon,
