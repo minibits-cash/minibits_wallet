@@ -1,5 +1,9 @@
 ![feature_sharp](https://minibits.cash/img/top_banner_minibits.jpg)
 
+# Minibits Wallet
+
+Minibits is an ecash and Lightning wallet exploring how ₿-backed ecash can enable instant, cheap, and private value transfer. Ecash is issued by mints and backed by Bitcoin via the [Cashu](https://cashu.space) protocol and Lightning Network. Ecash is cash-like yet digital token with cheap and instant transfers and high privacy guarantees.
+
 
 # Disclaimer
 
@@ -10,10 +14,6 @@
 - The ecash stored in the wallet is issued by the mint. You trust the mint to back it with bitcoin until you transfer your holdings to another bitcoin lightning wallet.
 - The Cashu protocol that the wallet implements has not yet received extensive review or testing.
 
-
-# Minibits Wallet
-
-Minibits is an ecash and Lightning wallet exploring how ₿-backed ecash can enable instant, cheap, and private value transfer. Ecash is issued by mints and backed by Bitcoin via the [Cashu](https://cashu.space) protocol and Lightning Network. Ecash is cash-like yet digital token with cheap and instant transfers and high privacy guarantees.
 
 ## Roadmap
 
