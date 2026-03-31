@@ -1434,8 +1434,27 @@ PODS:
     - React-RCTFBReactNativeSpec
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
-  - react-native-change-icon (3.2.0):
-    - React
+  - react-native-change-icon (5.0.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - react-native-hce (0.3.0):
     - React
   - react-native-mmkv (3.3.3):
@@ -2798,7 +2817,7 @@ SPEC CHECKSUMS:
   React-logger: dd3e5f78709d5b029336be395a67bbcdc775e2ed
   React-Mapbuffer: 2bdeed9ba58c94ac99a2711a3a722d2d5b3a8a81
   React-microtasksnativemodule: d1acdc86b1b2ee5622af4950f3908f2155eddfcf
-  react-native-change-icon: af3d0eb3ffee2ab3c584d12a68c29f89b7108cf8
+  react-native-change-icon: e31dde9eb902eaadde0be4ce716a3bd94342ad8b
   react-native-hce: ad5462e792d84e87924308dda1ee516757f1c0eb
   react-native-mmkv: 07f0ae0bd7e8d458077e1750c502ba67975b3702
   react-native-netinfo: cec9c4e86083cb5b6aba0e0711f563e2fbbff187
