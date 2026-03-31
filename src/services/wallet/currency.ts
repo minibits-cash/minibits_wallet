@@ -2,6 +2,7 @@ import numbro from 'numbro'
 import { BtcIcon, EurIcon, UsdIcon, CadIcon, GbpIcon, ChfIcon } from '../../components'
 import AppError, { Err } from '../../utils/AppError'
 import { ExchangeRate } from '../../models/WalletStore'
+import { ChfIcon } from '../../components/ChfIcon'
 
 
 export type MintUnit = typeof MintUnits[number]
@@ -120,7 +121,7 @@ export const Currencies: CurrencyList = {
         mantissa: 2,
     },
     CAD: {
-        symbol: 'CAD',
+        symbol: 'CA$',
         title: 'Canadian Dollar',
         code: CurrencyCode.CAD,
         icon: CadIcon,

@@ -25,7 +25,7 @@ import {useHeader} from '../utils/useHeader'
 import {rootStoreInstance, useStores} from '../models'
 import {translate} from '../i18n'
 import AppError from '../utils/AppError'
-import {Database, KeyChain} from '../services'
+import {Database, KeyChain, NotificationService} from '../services'
 import {MMKVStorage} from '../services'
 import { LogLevel } from '../services/log/logTypes'
 import { getSnapshot } from 'mobx-state-tree'
@@ -34,7 +34,6 @@ import RNExitApp from 'react-native-exit-app'
 import { TransactionStatus } from '../models/Transaction'
 import { maxTransactionsInHistory } from '../models/TransactionsStore'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
-// refresh refresh
 
 type Props = StaticScreenProps<undefined>
 
@@ -269,6 +268,17 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
       )
     }
 
+    const sendTestNotification = async function () {
+        try {
+            await NotificationService.createLocalNotification(
+                'Test notification',
+                'Verify that app can display notifications and opens correctly on tap.',
+            )
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
     const handleError = function (e: AppError): void {
       setIsLoading(false)
       setError(e)
@@ -340,10 +350,22 @@ Sentry id: ${walletProfileStore.walletId}
                   subTx="developerScreen_resyncTransactionsDescription"
                   leftIcon='faRotate'
                   leftIconColor={colors.palette.blue200}
-                  leftIconInverse={true}                  
-                  style={$item}                  
+                  leftIconInverse={true}
+                  style={$item}
+                  bottomSeparator={Platform.OS === 'android'}
                   onPress={syncTransactionsFromDb}
-                /> 
+                />
+                {Platform.OS === 'android' && (
+                  <ListItem
+                    text='Test notification'
+                    subText='Verify that app can display notifications and opens correctly on tap.'
+                    leftIcon='faEnvelope'
+                    leftIconColor={colors.palette.iconGreen300}
+                    leftIconInverse={true}
+                    style={$item}
+                    onPress={sendTestNotification}
+                  />
+                )}
               </>
             }
           />

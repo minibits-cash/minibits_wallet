@@ -447,7 +447,7 @@ const createLocalNotification = async function (title: string, body: string, lar
                 categoryId: DEFAULT_CHANNEL_ID,
             },
         })
-        
+
         return notificationId
     } else {
         const notificationId = await notifee.displayNotification({
@@ -458,7 +458,7 @@ const createLocalNotification = async function (title: string, body: string, lar
               color: colors.palette.success200,
               pressAction: {
                 id: 'default',
-              },         
+              },
             },
             ios: {
                 categoryId: DEFAULT_CHANNEL_ID,
