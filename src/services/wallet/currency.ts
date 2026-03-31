@@ -1,5 +1,5 @@
 import numbro from 'numbro'
-import { BtcIcon, EurIcon, UsdIcon, CadIcon, GbpIcon } from '../../components'
+import { BtcIcon, EurIcon, UsdIcon, CadIcon, GbpIcon, ChfIcon } from '../../components'
 import AppError, { Err } from '../../utils/AppError'
 import { ExchangeRate } from '../../models/WalletStore'
 import { ChfIcon } from '../../components/ChfIcon'
@@ -12,7 +12,7 @@ export const MintUnits = ['btc', 'sat', 'msat', 'usd', 'eur'] as const
 export enum CurrencyCode {
     BTC = 'BTC', SAT = 'SAT', MSAT = 'MSAT', EUR = 'EUR', GBP = 'GBP', 
     CZK = 'CZK', USD = 'USD', PLN = 'PLN', HUF = 'HUF', RON = 'RON',
-    CAD = 'CAD', CHF = 'CHF', JPY = 'JPY', AUD = 'AUD', SEK = 'SEK', NOK = 'NOK',
+    CAD = 'CAD', CHF = 'CHF'
 }
 
 export type MintUnitCurrencyPair = {
@@ -129,8 +129,8 @@ export const Currencies: CurrencyList = {
         mantissa: 2,
     },
     CHF: {
-        symbol: '₣',
-        title: 'Swiss franc',
+        symbol: 'CHF',
+        title: 'Swiss Franc',
         code: CurrencyCode.CHF,
         icon: ChfIcon,
         precision: 100,
