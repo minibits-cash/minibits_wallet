@@ -1,5 +1,5 @@
 import numbro from 'numbro'
-import { BtcIcon, EurIcon, UsdIcon, CadIcon, GbpIcon, ChfIcon } from '../../components'
+import { BtcIcon, EurIcon, UsdIcon, CadIcon, GbpIcon } from '../../components'
 import AppError, { Err } from '../../utils/AppError'
 import { ExchangeRate } from '../../models/WalletStore'
 import { ChfIcon } from '../../components/ChfIcon'
