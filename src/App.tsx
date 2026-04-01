@@ -115,7 +115,8 @@ function App() {
     // Icon sync — keeps launcher icon in sync with the applied theme.
     // Handles upgrades from versions before icon switching existed.
     const targetIcon = MMKVStorage.loadTheme() === ThemeCode.GOLDEN ? 'Golden' : 'Default'
-    changeIcon(targetIcon).catch(() => {})
+    // ios does not work w/o a patch
+    try { changeIcon(targetIcon).catch(() => {}) } catch (_) {}
 
     // Reset relay statuses
     relaysStore.resetStatuses()
