@@ -33,7 +33,7 @@ export const InfoModal: FC<InfoModalProps> = function ({ message }) {
             isVisible={isInfoVisible}
             onBackdropPress={() => onClose()}
             onBackButtonPress={() => onClose()}
-            style={{ marginBottom: Platform.OS === 'android' ? -(insets.top + insets.bottom) : 0 }}   
+            // style={{ marginBottom: Platform.OS === 'android' ? -(insets.top + insets.bottom) : 0 }}   
             ContentComponent={                
                 <View style={{ padding: spacing.small, flexDirection: 'row', alignItems: 'center', marginRight: spacing.medium}}>
                     <Icon icon="faInfoCircle" size={spacing.large} color={iconColor} />
