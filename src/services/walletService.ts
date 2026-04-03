@@ -856,6 +856,8 @@ const swapByDenominationTask = async function (denomination: number): Promise<Wa
                     encodedTokenToReceive
                 )
 
+                await syncStateWithMintTask({ proofsToSync: proofsToOptimize, mintUrl: mint.mintUrl, isPending: true })
+
                 if (receiveResult.receivedProofsCount && receiveResult.receivedProofsCount > 0) {
                     finalProofsCount += receiveResult.receivedProofsCount
                 }
