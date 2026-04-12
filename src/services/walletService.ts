@@ -15,7 +15,7 @@ import {CashuProof, CashuUtils} from './cashu/cashuUtils'
 import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance, MintStatus} from '../models/Mint'
-import {MeltQuoteBaseResponse, MeltQuoteBolt11Response, MeltQuoteResponse, MeltQuoteState, MintQuoteState, PaymentRequestPayload, Token, getDecodedToken, getEncodedToken} from '@cashu/cashu-ts'
+import {MeltQuoteBaseResponse, MeltQuoteBolt11Response, MeltQuoteResponse, MeltQuoteState, MintQuoteState, PaymentRequestPayload, Token, getDecodedToken, getEncodedToken, getTokenMetadata} from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
@@ -692,7 +692,9 @@ const swapAllTask = async function (): Promise<WalletTaskResult> {
                     )
 
                     const encodedTokenToReceive: string = sendResult.encodedTokenToSend
-                    const tokenToReceive = getDecodedToken(encodedTokenToReceive)              
+
+                    // keysetsV2 support
+                    const tokenToReceive = getDecodedToken(encodedTokenToReceive, mint.keysetIds)            
                     const tokenAmount = CashuUtils.getProofsAmount(tokenToReceive.proofs)
 
                     const receiveResult = await receiveBatchTask(
@@ -727,7 +729,7 @@ const swapAllTask = async function (): Promise<WalletTaskResult> {
                 )
 
                 const encodedTokenToReceive: string = sendResult.encodedTokenToSend
-                const tokenToReceive = getDecodedToken(encodedTokenToReceive)              
+                const tokenToReceive = getDecodedToken(encodedTokenToReceive, mint.keysetIds)             
                 const tokenAmount = CashuUtils.getProofsAmount(tokenToReceive.proofs)
 
                 const receiveResult = await receiveBatchTask(
@@ -815,7 +817,7 @@ const swapByDenominationTask = async function (denomination: number): Promise<Wa
                     )
 
                     const encodedTokenToReceive: string = sendResult.encodedTokenToSend
-                    const tokenToReceive = getDecodedToken(encodedTokenToReceive)
+                    const tokenToReceive = getDecodedToken(encodedTokenToReceive, mint.keysetIds) 
                     const tokenAmount = CashuUtils.getProofsAmount(tokenToReceive.proofs)
 
                     const receiveResult = await receiveBatchTask(
@@ -846,7 +848,7 @@ const swapByDenominationTask = async function (denomination: number): Promise<Wa
                 )
 
                 const encodedTokenToReceive: string = sendResult.encodedTokenToSend
-                const tokenToReceive = getDecodedToken(encodedTokenToReceive)
+                const tokenToReceive = getDecodedToken(encodedTokenToReceive, mint.keysetIds)
                 const tokenAmount = CashuUtils.getProofsAmount(tokenToReceive.proofs)
 
                 const receiveResult = await receiveBatchTask(
@@ -2383,7 +2385,16 @@ const handleClaimTask = async function (params: {
 
         log.debug('[handleClaimTask] decrypted token', {encodedToken})
 
-        decoded = getDecodedToken(encodedToken)
+        // keysetsV2 support
+        const tokenInfo = getTokenMetadata(encodedToken)
+        const mintKeysetIds = mintsStore.findByUrl(tokenInfo.mint)?.keysetIds
+        if(!mintKeysetIds || mintKeysetIds.length === 0) {
+            throw new AppError(Err.NOTFOUND_ERROR, 'Missing keysetIds in the wallet state', {
+                mintUrl: tokenInfo.mint
+            })
+        }
+        
+        decoded = getDecodedToken(encodedToken, mintKeysetIds)
         const amountToReceive = CashuUtils.getProofsAmount(decoded.proofs)
         const memo = decoded.memo || 'Received to Lightning address'
 
@@ -2685,17 +2696,19 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
         //
         if(incoming.type === IncomingDataType.CASHU) {
 
-            const decoded = getDecodedToken(incoming.encoded)
-            const amountToReceive = CashuUtils.getProofsAmount(decoded.proofs)        
-            const memo = decoded.memo || 'Received over Nostr'
+            // keysetsV2 support
+            const tokenInfo = getTokenMetadata(incoming.encoded)
+            const amountToReceive = tokenInfo.amount      
+            const memo = tokenInfo.memo || 'Received over Nostr'
+            const {unit, mint: mintUrl} = tokenInfo
 
             // do not allow to receive automatically from unknown mints
-            if(!mintsStore.mintExists(decoded.mint)) {
+            if(!mintsStore.mintExists(mintUrl)) {
                 let message = 'Receiving ecash token over Nostr from unknown mint is not allowed.'
 
                 const transactionData: TransactionData[] = []  
                 let transaction: Transaction | undefined = undefined
-                const {unit, mint} = decoded
+                
 
                 transactionData.push({
                     status: TransactionStatus.ERROR,
@@ -2711,7 +2724,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                     unit: unit as MintUnit,
                     data: JSON.stringify(transactionData),
                     memo,
-                    mint,            
+                    mint: mintUrl,            
                     status: TransactionStatus.DRAFT,
                 }
         
@@ -2720,12 +2733,21 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
 
                 await _sendErrorReceiveNotification(
                     amountToReceive,
-                    decoded.unit as MintUnit,
-                    decoded.mint              
+                    unit as MintUnit,
+                    mintUrl             
                 )
 
-                throw new AppError(Err.VALIDATION_ERROR, message, {decoded})  
+                throw new AppError(Err.VALIDATION_ERROR, message, {tokenInfo})  
             }
+
+            const mintKeysetIds = mintsStore.findByUrl(mintUrl)?.keysetIds
+            if(!mintKeysetIds || mintKeysetIds.length === 0) {
+                throw new AppError(Err.NOTFOUND_ERROR, 'Missing keysetIds in the wallet state', {
+                    mintUrl: tokenInfo.mint
+                })
+            }
+            
+            const decoded = getDecodedToken(incoming.encoded, mintKeysetIds)
 
             const {transaction, receivedAmount} = await receiveTask(
                 decoded,

@@ -16,10 +16,6 @@ import {
     Mint as CashuMint,
     GetKeysetsResponse,
     GetKeysResponse,
-    MintActiveKeys,
-    MintAllKeysets,
-    type MintKeys as CashuMintKeys, 
-    type MintKeyset as CashuMintKeyset
   } from '@cashu/cashu-ts'
 
 import { MintUnit } from '../services/wallet/currency'

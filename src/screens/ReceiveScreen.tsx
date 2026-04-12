@@ -35,7 +35,7 @@ import { round, toNumber } from '../utils/number'
 import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
 import { translate } from '../i18n'
-import { Token, getDecodedToken } from '@cashu/cashu-ts'
+import { Token, getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
 import { RECEIVE_OFFLINE_PREPARE_TASK, RECEIVE_TASK } from '../services/wallet/receiveTask'
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 
@@ -134,8 +134,18 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
       try {
         //@ts-ignore
         navigation.setParams({encodedToken: undefined})
+
+        // keysetsV2 support
+        const tokenInfo = getTokenMetadata(encoded)
+        const mintKeysetIds = mintsStore.findByUrl(tokenInfo.mint)?.keysetIds
+        if(!mintKeysetIds || mintKeysetIds.length === 0) {
+            throw new AppError(Err.NOTFOUND_ERROR, 'Missing keysetIds in the wallet state', {
+                mintUrl: tokenInfo.mint
+            })
+        }
         
-        const decoded = getDecodedToken(encoded)
+        const decoded = getDecodedToken(encoded, mintKeysetIds)
+        
         const tokenAmount = CashuUtils.getProofsAmount(decoded.proofs)
         const isLocked = CashuUtils.isTokenP2PKLocked(decoded)
         let isLockedToWallet = false        

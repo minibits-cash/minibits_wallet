@@ -12,11 +12,13 @@ import { colors, spacing, ThemeCode } from "../../theme"
 import { translate, TxKeyPath } from "../../i18n"
 import { log } from "../../services"
 import { MMKVStorage } from "../../services/mmkvStorage"
-import { Token, getDecodedToken, getEncodedToken } from '@cashu/cashu-ts'
+import { Token, getDecodedToken, getEncodedToken, getTokenMetadata } from '@cashu/cashu-ts'
 import { NfcService } from '../../services/nfcService';
 import { SvgXml } from 'react-native-svg';
 import { NfcIcon } from '../../components/NfcIcon';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import { useStores } from '../../models';
+import AppError, { Err } from '../../utils/AppError';
 
 
 export type QRCodeBlockTypes = 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC' | 'PUBKEY' | 'PaymentRequest'
@@ -35,6 +37,8 @@ export const QRCodeBlock = function (props: {
 ) {
 
     const { qrCodeData, title, titleTx, type, size, startNfcOnLoad = false } = props
+    const {mintsStore} = useStores()
+    
     const [qrError, setQrError] = useState<Error | undefined>()
     const [encodedV3Token, setEncodedV3Token] = useState<string | undefined>()
     const [decodedToken, setDecodedToken] = useState<Token>()
@@ -100,10 +104,20 @@ export const QRCodeBlock = function (props: {
     useEffect(() => {
       const detectKeysetFormat = () => {
         if(type === 'EncodedV4Token') {
-          const decoded = getDecodedToken(qrCodeData)
+
+          // keysetsV2 support
+          const tokenInfo = getTokenMetadata(qrCodeData)
+          const mintKeysetIds = mintsStore.findByUrl(tokenInfo.mint)?.keysetIds
+          if(!mintKeysetIds || mintKeysetIds.length === 0) {
+              throw new AppError(Err.NOTFOUND_ERROR, 'Missing keysetIds in the wallet state', {
+                  mintUrl: tokenInfo.mint
+              })
+          }
+          
+          const decoded = getDecodedToken(qrCodeData, mintKeysetIds)
           setDecodedToken(decoded)
           
-          if(decoded.proofs[0].id.startsWith('00')) {
+          if(decoded.proofs[0].id.startsWith('00') || decoded.proofs[0].id.startsWith('01')) {
             setKeysetFormat('hex')            
           } else {
             try {

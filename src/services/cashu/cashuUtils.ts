@@ -4,10 +4,11 @@ import type {
   Proof as CashuProof,
   PaymentRequest as CashuPaymentRequest,
   PaymentRequestPayload,
+  TokenMetadata,
 } from '@cashu/cashu-ts'
 import { bytesToHex } from '@noble/hashes/utils'
 import AppError, {Err} from '../../utils/AppError'
-import { getDecodedToken } from '@cashu/cashu-ts'
+import { getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
 import {Proof} from '../../models/Proof'
 import { log } from '../logService'
 import { decodePaymentRequest } from '@cashu/cashu-ts'
@@ -87,10 +88,10 @@ const extractEncodedCashuToken = function (maybeToken: string): string {
     log.trace('[extractEncodedCashuToken] Extract token from', {maybeToken})
     
     let encodedToken: string | undefined = undefined
-    let decoded: Token | undefined = undefined
+    let tokenInfo: TokenMetadata | undefined = undefined
     
     if (maybeToken && CASHU_TOKEN_PREFIXES.some(pref => maybeToken.startsWith(pref))) {
-        decoded = getDecodedToken(maybeToken) // throws
+        tokenInfo = getTokenMetadata(maybeToken) // throws
         return maybeToken
     }
 
@@ -105,7 +106,7 @@ const extractEncodedCashuToken = function (maybeToken: string): string {
 
     // try to decode
     if(encodedToken) {
-        decoded = getDecodedToken(encodedToken) // throws
+        tokenInfo = getTokenMetadata(encodedToken) // throws
         return encodedToken
     }
     

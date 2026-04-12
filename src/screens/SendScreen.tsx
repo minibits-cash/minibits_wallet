@@ -52,7 +52,7 @@ import { QRCodeBlock } from './Wallet/QRCode'
 import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
 import { MemoInputCard } from '../components/MemoInputCard'
-import { PaymentRequest as CashuPaymentRequest, PaymentRequestTransport, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken } from '@cashu/cashu-ts'
+import { PaymentRequest as CashuPaymentRequest, PaymentRequestTransport, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
 import { ProfilePointer } from 'nostr-tools/nip19'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import FastImage from 'react-native-fast-image'
@@ -922,7 +922,16 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     throw new AppError(Err.VALIDATION_ERROR, 'Missing payment request to pay.')
                 }
 
-                const decodedTokenToSend = getDecodedToken(encodedTokenToSend)
+                // keysetsV2 support
+                const tokenInfo = getTokenMetadata(encodedTokenToSend)
+                const mintKeysetIds = mintsStore.findByUrl(tokenInfo.mint)?.keysetIds
+                if(!mintKeysetIds || mintKeysetIds.length === 0) {
+                    throw new AppError(Err.NOTFOUND_ERROR, 'Missing keysetIds in the wallet state', {
+                        mintUrl: tokenInfo.mint
+                    })
+                }
+                
+                const decodedTokenToSend = getDecodedToken(encodedTokenToSend, mintKeysetIds)
                 
                 messageContent = JSON.stringify({
                     id: decodedCashuPaymentRequest.id,
@@ -1004,7 +1013,16 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
             setIsPostSending(true)
 
-            const decodedTokenToSend = getDecodedToken(encodedTokenToSend)
+            // keysetsV2 support
+            const tokenInfo = getTokenMetadata(encodedTokenToSend)
+            const mintKeysetIds = mintsStore.findByUrl(tokenInfo.mint)?.keysetIds
+            if(!mintKeysetIds || mintKeysetIds.length === 0) {
+                throw new AppError(Err.NOTFOUND_ERROR, 'Missing keysetIds in the wallet state', {
+                    mintUrl: tokenInfo.mint
+                })
+            }
+            
+            const decodedTokenToSend = getDecodedToken(encodedTokenToSend, mintKeysetIds)
 
             const payload = {
                 id: decodedCashuPaymentRequest.id,

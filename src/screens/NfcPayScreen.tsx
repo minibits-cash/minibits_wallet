@@ -4,7 +4,7 @@ import {
     View,
     TextStyle,
 } from 'react-native'
-import { PaymentRequest as CashuPaymentRequest, MeltQuoteBolt11Response, MeltQuoteResponse, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken } from '@cashu/cashu-ts'
+import { PaymentRequest as CashuPaymentRequest, MeltQuoteBolt11Response, MeltQuoteResponse, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
 import NfcManager, { Ndef, NfcEvents } from 'react-native-nfc-manager'
 import { colors, spacing, typography, useThemeColor } from '../theme'
 import EventEmitter from '../utils/eventEmitter'
@@ -530,7 +530,16 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
         // Check for NOSTR transport first
         const nostrTransport = transports.find(t => t.type === PaymentRequestTransportType.NOSTR)
-        const decodedTokenToSend = getDecodedToken(encodedTokenToSend)
+        
+        // keysetsV2 support
+        const mintKeysetIds = mintsStore.findByUrl(result.mintUrl)?.keysetIds
+        if(!mintKeysetIds || mintKeysetIds.length === 0) {
+            throw new AppError(Err.NOTFOUND_ERROR, 'Missing keysetIds in the wallet state, payment failed', {
+                mintUrl: result.mintUrl
+            })
+        }
+
+        const decodedTokenToSend = getDecodedToken(encodedTokenToSend, mintKeysetIds)
 
         if (nostrTransport) {
             const decoded = NostrClient.decodeNprofile(nostrTransport.target)
@@ -732,8 +741,18 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
 
     const handleCashuToken = async function (encodedToken: string) {
+
+        // keysetsV2 support
+        const tokenInfo = getTokenMetadata(encodedToken)
+        const mintKeysetIds = mintsStore.findByUrl(tokenInfo.mint)?.keysetIds
+        if(!mintKeysetIds || mintKeysetIds.length === 0) {
+            throw new AppError(Err.NOTFOUND_ERROR, 'Missing keysetIds in the wallet state, payment failed', {
+                mintUrl: tokenInfo.mint
+            })
+        }
+
+        const decoded = getDecodedToken(encodedToken, mintKeysetIds)
         
-        const decoded = getDecodedToken(encodedToken)
         const amount = CashuUtils.getProofsAmount(decoded.proofs)        
         const memo = decoded.memo || 'Received over NFC'
         const result = await WalletTask.receiveQueueAwaitable(

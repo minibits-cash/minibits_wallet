@@ -645,8 +645,16 @@ const ReceiveInfoBlock = function (props: {
         
         setIsLoading(true)     
 
-        try {    
-            const tokenToRetry = getDecodedToken(transaction.inputToken)              
+        try {
+            // keysetsV2 support
+            const mintKeysetIds = mintsStore.findByUrl(transaction.mint)?.keysetIds
+            if(!mintKeysetIds || mintKeysetIds.length === 0) {
+                throw new AppError(Err.NOTFOUND_ERROR, 'Missing keysetIds in the wallet state', {
+                    mintUrl: transaction.mint
+                })
+            }
+            
+            const tokenToRetry = getDecodedToken(transaction.inputToken, mintKeysetIds)             
             const amountToReceive = CashuUtils.getProofsAmount(tokenToRetry.proofs)
             const memo = tokenToRetry.memo || ''
 

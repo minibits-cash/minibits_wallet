@@ -296,8 +296,16 @@ export const receiveOfflineCompleteTask = async function (
         if (!transaction.inputToken) {
             throw new AppError(Err.VALIDATION_ERROR, 'Could not find ecash token to redeem', {caller: 'receiveOfflineComplete'})
         }
+
+        // keysetsV2 support
+        const mintKeysetIds = mintsStore.findByUrl(transaction.mint)?.keysetIds
+        if(!mintKeysetIds || mintKeysetIds.length === 0) {
+            throw new AppError(Err.NOTFOUND_ERROR, 'Missing keysetIds in the wallet state', {
+                mintUrl: transaction.mint
+            })
+        }
         
-        const token = getDecodedToken(transaction.inputToken)        
+        const token = getDecodedToken(transaction.inputToken, mintKeysetIds)      
         mintToReceive = token.mint
         const unit = token.unit || 'sat'
 
