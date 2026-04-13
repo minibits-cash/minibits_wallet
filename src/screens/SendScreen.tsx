@@ -52,7 +52,7 @@ import { QRCodeBlock } from './Wallet/QRCode'
 import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
 import { MemoInputCard } from '../components/MemoInputCard'
-import { PaymentRequest as CashuPaymentRequest, PaymentRequestTransport, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
+import { PaymentRequest as CashuPaymentRequest, PaymentRequestTransport, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken } from '@cashu/cashu-ts'
 import { ProfilePointer } from 'nostr-tools/nip19'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import FastImage from 'react-native-fast-image'
@@ -714,82 +714,85 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
 
     const onMintBalanceConfirm = async function () {
-
-        if(!mintBalanceToSendFrom) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Please select mint balance to send from.')
-        }
-
-        const { amount: amountToSendInt } = validateAndProcessAmount(amountToSend, unitRef.current)
-        const exactMatchProofs: Proof[] = []
-
-        if(!isOnlineRef.current) {
-            const availableProofs = proofsStore.getByMint(mintBalanceToSendFrom.mintUrl, { isPending: false, unit: unitRef.current });
-            const autoSelectedProofs = CashuUtils.getProofsToSend(amountToSendInt, availableProofs)
-            const autoSelectedAmount = CashuUtils.getProofsAmount(autoSelectedProofs)
-            const isExactMatch = autoSelectedAmount === amountToSendInt
-
-            log.trace("[onMintBalanceConfirm]", {isOnline: isOnlineRef.current, amountToSendInt, autoSelectedAmount, isExactMatch})
-
-            // setSelectedProofs(autoSelectedProofs) // 
-
-            if(!isExactMatch) {
-                // TODO need to improve algo auto-selected proofs
-
-                /* setAmountToSend(numbro(selectedAmount / getCurrency(unitRef.current).precision).format({
-                    thousandSeparated: true, 
-                    mantissa: getCurrency(unitRef.current).mantissa
-                })) */
-                resetSelectedProofs()
-                // show proof selector modal
-                setIsProofSelectorModalVisible(true)
-
-                return    
-            } else {
-                exactMatchProofs.push(...autoSelectedProofs)
+        try {
+            if(!mintBalanceToSendFrom) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Please select mint balance to send from.')
             }
-        }
-      
-        setIsLoading(true)       
-        
-        //@ts-ignore
-        const p2pk: {
-            pubkey: string;
-            locktime?: number;
-            refundKeys?: Array<string>
-        } = {}
 
-        log.trace('[onMintBalanceConfirm] lockedPubkey', { lockedPubkey })
+            const { amount: amountToSendInt } = validateAndProcessAmount(amountToSend, unitRef.current)
+            const exactMatchProofs: Proof[] = []
 
-        if (lockedPubkey && lockedPubkey.length > 0) {
-            if (lockedPubkey.startsWith('npub')) {
-                p2pk.pubkey = '02' + NostrClient.getHexkey(lockedPubkey)
-            } else {
-                if (lockedPubkey.length === 64) {
-                    p2pk.pubkey = '02' + lockedPubkey
-                } else if (lockedPubkey.length === 66) {
-                    p2pk.pubkey = lockedPubkey
+            if(!isOnlineRef.current) {
+                const availableProofs = proofsStore.getByMint(mintBalanceToSendFrom.mintUrl, { isPending: false, unit: unitRef.current });
+                const autoSelectedProofs = CashuUtils.getProofsToSend(amountToSendInt, availableProofs)
+                const autoSelectedAmount = CashuUtils.getProofsAmount(autoSelectedProofs)
+                const isExactMatch = autoSelectedAmount === amountToSendInt
+
+                log.trace("[onMintBalanceConfirm]", {isOnline: isOnlineRef.current, amountToSendInt, autoSelectedAmount, isExactMatch})
+
+                // setSelectedProofs(autoSelectedProofs) //
+
+                if(!isExactMatch) {
+                    // TODO need to improve algo auto-selected proofs
+
+                    /* setAmountToSend(numbro(selectedAmount / getCurrency(unitRef.current).precision).format({
+                        thousandSeparated: true,
+                        mantissa: getCurrency(unitRef.current).mantissa
+                    })) */
+                    resetSelectedProofs()
+                    // show proof selector modal
+                    setIsProofSelectorModalVisible(true)
+
+                    return
                 } else {
-                throw new AppError(Err.VALIDATION_ERROR, 'Invalid key. Please provide public key in NPUB or HEX format.')
+                    exactMatchProofs.push(...autoSelectedProofs)
                 }
             }
 
-            if (lockTime && lockTime > 0) {
-                p2pk.locktime = getUnixTime(new Date(Date.now() + lockTime * 24 * 60 * 60))
-                log.trace('[onMintBalanceConfirm] Locktime', { pubkey: p2pk.pubkey, locktime: p2pk.locktime })
+            setIsLoading(true)
+
+            //@ts-ignore
+            const p2pk: {
+                pubkey: string;
+                locktime?: number;
+                refundKeys?: Array<string>
+            } = {}
+
+            log.trace('[onMintBalanceConfirm] lockedPubkey', { lockedPubkey })
+
+            if (lockedPubkey && lockedPubkey.length > 0) {
+                if (lockedPubkey.startsWith('npub')) {
+                    p2pk.pubkey = '02' + NostrClient.getHexkey(lockedPubkey)
+                } else {
+                    if (lockedPubkey.length === 64) {
+                        p2pk.pubkey = '02' + lockedPubkey
+                    } else if (lockedPubkey.length === 66) {
+                        p2pk.pubkey = lockedPubkey
+                    } else {
+                        throw new AppError(Err.VALIDATION_ERROR, 'Invalid key. Please provide public key in NPUB or HEX format.')
+                    }
+                }
+
+                if (lockTime && lockTime > 0) {
+                    p2pk.locktime = getUnixTime(new Date(Date.now() + lockTime * 24 * 60 * 60))
+                    log.trace('[onMintBalanceConfirm] Locktime', { pubkey: p2pk.pubkey, locktime: p2pk.locktime })
+                }
             }
+
+            const result = await WalletTask.sendQueueAwaitable(
+                mintBalanceToSendFrom as MintBalance,
+                amountToSendInt,
+                unitRef.current,
+                memo,
+                exactMatchProofs.length > 0 ? exactMatchProofs : selectedProofs, // autoSelected proofs are not yet in state
+                p2pk,
+                draftTransactionIdRef.current || undefined
+            )
+
+            await handleSendTaskResult(result)
+        } catch (e: any) {
+            handleError(e)
         }
-
-        const result = await WalletTask.sendQueueAwaitable(
-            mintBalanceToSendFrom as MintBalance,
-            amountToSendInt,
-            unitRef.current,
-            memo,
-            exactMatchProofs.length > 0 ? exactMatchProofs : selectedProofs, // autoSelected proofs are not yet in state
-            p2pk,
-            draftTransactionIdRef.current || undefined
-        )
-
-        await handleSendTaskResult(result)
     }
 
 
@@ -909,6 +912,10 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Missing token to send.')
             }
 
+            if(!mintBalanceToSendFrom) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint balance context.')
+            }
+
             setIsNostrDMSending(true)
             let messageContent: string | undefined = undefined
 
@@ -923,16 +930,15 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 }
 
                 // keysetsV2 support
-                const tokenInfo = getTokenMetadata(encodedTokenToSend)
-                const mintKeysetIds = mintsStore.findByUrl(tokenInfo.mint)?.keysetIds
+                const mintKeysetIds = mintsStore.findByUrl(mintBalanceToSendFrom.mintUrl)?.keysetIds
                 if(!mintKeysetIds || mintKeysetIds.length === 0) {
                     throw new AppError(Err.NOTFOUND_ERROR, 'Missing keysetIds in the wallet state', {
-                        mintUrl: tokenInfo.mint
+                        mintUrl: mintBalanceToSendFrom.mintUrl
                     })
                 }
-                
+
                 const decodedTokenToSend = getDecodedToken(encodedTokenToSend, mintKeysetIds)
-                
+
                 messageContent = JSON.stringify({
                     id: decodedCashuPaymentRequest.id,
                     mint: decodedTokenToSend.mint,
@@ -1011,17 +1017,20 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Missing payment request to pay.')
             }
 
+            if (!mintBalanceToSendFrom) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint balance context.')
+            }
+
             setIsPostSending(true)
 
             // keysetsV2 support
-            const tokenInfo = getTokenMetadata(encodedTokenToSend)
-            const mintKeysetIds = mintsStore.findByUrl(tokenInfo.mint)?.keysetIds
+            const mintKeysetIds = mintsStore.findByUrl(mintBalanceToSendFrom.mintUrl)?.keysetIds
             if(!mintKeysetIds || mintKeysetIds.length === 0) {
                 throw new AppError(Err.NOTFOUND_ERROR, 'Missing keysetIds in the wallet state', {
-                    mintUrl: tokenInfo.mint
+                    mintUrl: mintBalanceToSendFrom.mintUrl
                 })
             }
-            
+
             const decodedTokenToSend = getDecodedToken(encodedTokenToSend, mintKeysetIds)
 
             const payload = {

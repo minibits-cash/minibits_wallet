@@ -133,7 +133,7 @@
 	"copyContactPublicKey": "Copiar pubkey do contato",
 	"copyMnemonicBackupWorkaround": "Para aplicar backup aos fundos existentes, envie todo saldo para si mesmo. Caso contrário, apenas fundos futuros poderão ser restaurados.",
 	"copyProofs": "Copiar proofs",
-	"decodedMissingCurrencyUnit": "Unidade monetária faltando no token recebido. A carteira assumirá que o valor está em bitcoin $%{unit}. Não continue se incerto.",
+	"decodedMissingCurrencyUnit": "Unidade monetária faltando no token recebido.",
 	"deleteContact": "Excluir contato",
 	"deleteContactDesc": "Remova este contato da sua carteira.",
 	"derivingSeedStatus": "Derivando seed, isso leva um tempo...",

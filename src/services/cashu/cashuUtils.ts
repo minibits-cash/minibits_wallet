@@ -382,8 +382,11 @@ const getP2PKLocktime = function (secret: string): number | undefined {
 }
 
 
-const isTokenP2PKLocked = function (token: Token) {
-  const secrets = token.proofs.map((p) => p.secret)
+const isTokenP2PKLocked = function (token: Token | TokenMetadata): boolean {
+
+  const proofs = 'proofs' in token ? token.proofs : token.incompleteProofs
+  const secrets = proofs.map((p) => p.secret)
+  
   for (const secret of secrets) {
     try {
       if (getP2PKPubkeySecret(secret)) {

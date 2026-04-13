@@ -168,6 +168,8 @@ export const MintsStoreModel = types
             yield mintInstance.setShortname()                           
             
             self.mints.push(mintInstance)
+            
+            return mintInstance
         }),
         updateMint: flow(function* updateMint(mintUrl: string) {            
             const mintInstance = self.findByUrl(mintUrl)

@@ -29,7 +29,7 @@ export const RECEIVE_BY_CASHU_PAYMENT_REQUEST_TASK = 'receiveByCashuPaymentReque
 
 export const receiveTask = async function (
     token: Token,
-    amountToReceive: number,    
+    amountToReceive: number,
     memo: string,
     encodedToken: string,
 ): Promise<TransactionTaskResult> {
@@ -121,8 +121,7 @@ export const receiveTask = async function (
             data: JSON.stringify(transactionData),
             keysetId: receivedProofs[0].id,
             outputToken,
-            balanceAfter,
-            ...(receivedAmount !== amountToReceive && {receivedAmount}),
+            balanceAfter,            
             ...(swapFeePaid > 0 && {fee: swapFeePaid})
         })
 
@@ -130,7 +129,7 @@ export const receiveTask = async function (
             taskFunction: RECEIVE_TASK,
             mintUrl: mintToReceive,
             transaction,
-            message: `You've received ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet.`,
+            message: `You've received ${formatCurrency(amountToReceive, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet.${swapFeePaid > 0 ? ` Swap fee paid was ${formatCurrency(swapFeePaid, getCurrency(unit).code)} ${getCurrency(unit).code}.` : ''}`,
             receivedAmount,
             receivedProofsCount: receivedProofs.length
         } as TransactionTaskResult
@@ -164,25 +163,17 @@ export const receiveTask = async function (
 
 
 export const receiveOfflinePrepareTask = async function (
-    token: Token,
-    amountToReceive: number,    
+    mintUrl: string,
+    unit: MintUnit,
+    amountToReceive: number,
     memo: string,
     encodedToken: string,
 ) {
   const transactionData: TransactionData[] = []
   let transaction: Transaction | undefined = undefined
-  let mintToReceive = ''
-  const unit = token.unit as MintUnit || 'sat'
+  const mintToReceive = mintUrl
 
   try {
-        mintToReceive = token.mint
-
-        if (!mintToReceive) {
-            throw new AppError(
-                Err.VALIDATION_ERROR,
-                'Token is missing a mint param.',
-            )
-        }     
 
         // Let's create new draft receive transaction in database
         transactionData.push({
@@ -297,6 +288,11 @@ export const receiveOfflineCompleteTask = async function (
             throw new AppError(Err.VALIDATION_ERROR, 'Could not find ecash token to redeem', {caller: 'receiveOfflineComplete'})
         }
 
+        // Ensure mint is in wallet state — may be missing for offline receives from new mints
+        if(!mintsStore.alreadyExists(transaction.mint)) {
+            await mintsStore.addMint(transaction.mint)
+        }
+
         // keysetsV2 support
         const mintKeysetIds = mintsStore.findByUrl(transaction.mint)?.keysetIds
         if(!mintKeysetIds || mintKeysetIds.length === 0) {
@@ -304,7 +300,7 @@ export const receiveOfflineCompleteTask = async function (
                 mintUrl: transaction.mint
             })
         }
-        
+
         const token = getDecodedToken(transaction.inputToken, mintKeysetIds)      
         mintToReceive = token.mint
         const unit = token.unit || 'sat'
@@ -365,7 +361,6 @@ export const receiveOfflineCompleteTask = async function (
             keysetId: receivedProofs[0].id,
             outputToken,
             balanceAfter,
-            ...(receivedAmount !== transaction.amount && {receivedAmount}),
             ...(swapFeePaid > 0 && {fee: swapFeePaid})
         })
 
@@ -373,7 +368,7 @@ export const receiveOfflineCompleteTask = async function (
             taskFunction: RECEIVE_OFFLINE_COMPLETE_TASK,
             mintUrl: mintToReceive,
             transaction,
-            message: `You've received ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet.`,
+            message: `You've received ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet.${swapFeePaid > 0 ? ` Swap fee paid was ${formatCurrency(swapFeePaid, getCurrency(unit).code)} ${getCurrency(unit).code}.` : ''}`,
             receivedAmount,
         } as TransactionTaskResult
 
@@ -559,7 +554,7 @@ export const receiveSync = async function (
   const unit = token.unit as MintUnit || 'sat' 
 
   try {        
-        // Handle missing mint, we add it automatically
+        // missing mint, should not happen as it is now added before
         const alreadyExists = mintsStore.alreadyExists(mintToReceive)
 
         if (!alreadyExists) {

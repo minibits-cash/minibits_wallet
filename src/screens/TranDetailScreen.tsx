@@ -55,7 +55,7 @@ import { pollerExists } from '../utils/poller'
 import { CommonActions, StaticScreenProps, useFocusEffect, useNavigation } from '@react-navigation/native'
 import { QRCodeBlock } from './Wallet/QRCode'
 import { MintListItem } from './Mints/MintListItem'
-import { Token, getDecodedToken } from '@cashu/cashu-ts'
+import { Token, TokenMetadata, getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
 import FastImage from 'react-native-fast-image'
 import { MintHeader } from './Mints/MintHeader'
 import { TransferOption } from './TransferScreen'
@@ -625,11 +625,11 @@ const ReceiveInfoBlock = function (props: {
     setIsResultModalVisible(previousState => !previousState)
 
 
-    const increaseProofsCounter = async function (tokenToRetry: Token) {      
+    const increaseProofsCounter = async function (unit: MintUnit) {      
         const {mint} = transaction
         const walletInstance = await walletStore.getWallet(
             mint, 
-            tokenToRetry.unit as MintUnit, 
+            unit, 
             {withSeed: true}
         )
 
@@ -647,25 +647,23 @@ const ReceiveInfoBlock = function (props: {
 
         try {
             // keysetsV2 support
-            const mintKeysetIds = mintsStore.findByUrl(transaction.mint)?.keysetIds
-            if(!mintKeysetIds || mintKeysetIds.length === 0) {
-                throw new AppError(Err.NOTFOUND_ERROR, 'Missing keysetIds in the wallet state', {
-                    mintUrl: transaction.mint
-                })
-            }
-            
-            const tokenToRetry = getDecodedToken(transaction.inputToken, mintKeysetIds)             
-            const amountToReceive = CashuUtils.getProofsAmount(tokenToRetry.proofs)
-            const memo = tokenToRetry.memo || ''
+            const tokenInfo = getTokenMetadata(transaction.inputToken)             
 
             if(isCounterIncreaseNeeded) {              
-              increaseProofsCounter(tokenToRetry)
+              increaseProofsCounter(transaction.unit)
+            }
+
+            const mintInstance = mintsStore.findByUrl(transaction.mint)
+
+            if(!mintInstance) {
+              throw new AppError(Err.NOTFOUND_ERROR, 'Mint not found in the wallet state, cannot retry receive', {
+                  mintUrl: transaction.mint 
+              })
             }
 
             const result = await WalletTask.receiveQueueAwaitable(
-                tokenToRetry,
-                amountToReceive,
-                memo,
+                mintInstance,
+                tokenInfo,
                 transaction.inputToken
             ) 
 

@@ -133,7 +133,7 @@
 	"copyContactPublicKey": "Copiar la clave pública del contacto",
 	"copyMnemonicBackupWorkaround": "Para aplicar una copia de seguridad a sus fondos existentes, envíese todo el saldo a usted mismo. De lo contrario, solo se podrán restaurar los fondos a partir de ese momento.",
 	"copyProofs": "Pruebas de copia",
-	"decodedMissingCurrencyUnit": "Falta la unidad monetaria en el token recibido. La billetera asumirá que el monto del token está en bitcoin $ %{unit} . No continúe si no está seguro de que sea correcto.",
+	"decodedMissingCurrencyUnit": "Falta la unidad monetaria en el token recibido.",
 	"deleteContact": "Eliminar contacto",
 	"deleteContactDesc": "Elimina este contacto de tu billetera.",
 	"derivingSeedStatus": "Derivar la semilla, esto lleva un tiempo...",

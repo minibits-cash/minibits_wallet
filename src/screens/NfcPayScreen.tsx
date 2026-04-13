@@ -744,21 +744,17 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
         // keysetsV2 support
         const tokenInfo = getTokenMetadata(encodedToken)
-        const mintKeysetIds = mintsStore.findByUrl(tokenInfo.mint)?.keysetIds
-        if(!mintKeysetIds || mintKeysetIds.length === 0) {
-            throw new AppError(Err.NOTFOUND_ERROR, 'Missing keysetIds in the wallet state, payment failed', {
-                mintUrl: tokenInfo.mint
-            })
-        }
+        const {mint: mintUrl, amount, unit, memo} = tokenInfo
 
-        const decoded = getDecodedToken(encodedToken, mintKeysetIds)
-        
-        const amount = CashuUtils.getProofsAmount(decoded.proofs)        
-        const memo = decoded.memo || 'Received over NFC'
+        let mintInstance = mintsStore.findByUrl(mintUrl)
+
+        if(!mintInstance) {
+            mintInstance = await mintsStore.addMint(mintUrl)
+        }
+              
         const result = await WalletTask.receiveQueueAwaitable(
-            decoded,
-            amount,
-            memo,
+            mintInstance,
+            tokenInfo,
             encodedToken
         )
 

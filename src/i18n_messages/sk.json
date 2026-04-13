@@ -133,7 +133,7 @@
 	"copyContactPublicKey": "Skopíruj verejný kľúč kontaktu",
 	"copyMnemonicBackupWorkaround": "Aby si odzálohoval svoj existujúci ecash, pošli celý zostatok sáme sebe.",
 	"copyProofs": "Skopíruj potvrdenia",
-	"decodedMissingCurrencyUnit": "Mena chýba v prijatom ecash tokene. Peňaženka bude predpokladať, že token je v bitcoin $%{unit}. Nepokračuj ak si si nie istý, že to je správne.",
+	"decodedMissingCurrencyUnit": "Mena chýba v prijatom ecash tokene.",
 	"deleteContact": "Vymaž kontakt",
 	"deleteContactDesc": "Vymaž tento kontakt zo zoznamu.",
 	"derivingSeedStatus": "Derivujem seed kľúč, môže to cvíľu trvať.",

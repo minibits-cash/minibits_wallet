@@ -1,4 +1,5 @@
 import { formatDistance } from 'date-fns'
+import { isAlive, isStateTreeNode } from 'mobx-state-tree'
 import { observer } from "mobx-react-lite"
 import React from "react"
 import { Image, ImageStyle, TextStyle, View, ViewStyle } from "react-native"
@@ -16,9 +17,13 @@ export interface ContactListProps {
 }
 
 export const ContactListItem = observer(function (props: ContactListProps) {
-  
+
     const { contact } = props
-  
+
+    if (isStateTreeNode(contact) && !isAlive(contact as any)) {
+        return null
+    }
+
     return (
       <ListItem
         key={contact.pubkey}                      

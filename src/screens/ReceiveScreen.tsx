@@ -35,8 +35,7 @@ import { round, toNumber } from '../utils/number'
 import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
 import { translate } from '../i18n'
-import { Token, getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
-import { RECEIVE_OFFLINE_PREPARE_TASK, RECEIVE_TASK } from '../services/wallet/receiveTask'
+import { TokenMetadata, getTokenMetadata } from '@cashu/cashu-ts'
 import { CurrencyAmount } from './Wallet/CurrencyAmount'
 
 export enum ReceiveOption {  
@@ -58,10 +57,12 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
     
     const {mintsStore, walletStore, userSettingsStore} = useStores()
 
-    const [token, setToken] = useState<Token | undefined>()
+    const [tokenInfo, setTokenInfo] = useState<TokenMetadata | undefined>()
     const [encodedToken, setEncodedToken] = useState<string | undefined>()
     const [amountToReceive, setAmountToReceive] = useState<string>('0')
     const [unit, setUnit] = useState<MintUnit>('sat')
+    const [mintUrl, setMintUrl] = useState<string | undefined>(undefined)
+    const [mint, setMint] = useState<Mint | undefined>(undefined)
     const [totalReceived, setTotalReceived] = useState<number>(0)
     const [receivedAmount, setReceivedAmount] = useState<string>('0')
     const [transactionStatus, setTransactionStatus] = useState<
@@ -73,6 +74,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
     const [memo, setMemo] = useState('')
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()
+    const [isNewMint, setIsNewMint] = useState(false)
     const [isP2PKLocked, setIsP2PKLocked] = useState(false)
     const [isP2PKLockedToWallet, setIsP2PKLockedToWallet] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
@@ -111,7 +113,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
     }, [totalReceived])
 
     const resetState = function () {
-        setToken(undefined)
+        setTokenInfo(undefined)
         setEncodedToken(undefined)
         setAmountToReceive('0')
         setReceivedAmount('0')
@@ -137,62 +139,84 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
 
         // keysetsV2 support
         const tokenInfo = getTokenMetadata(encoded)
-        const mintKeysetIds = mintsStore.findByUrl(tokenInfo.mint)?.keysetIds
-        if(!mintKeysetIds || mintKeysetIds.length === 0) {
-            throw new AppError(Err.NOTFOUND_ERROR, 'Missing keysetIds in the wallet state', {
-                mintUrl: tokenInfo.mint
-            })
+        const {amount, unit, memo, mint: mintUrl} = tokenInfo
+
+        if(!unit) {
+          throw new AppError(Err.VALIDATION_ERROR, translate("decodedMissingCurrencyUnit", { unit: CurrencyCode.SAT }))        
+        }
+
+        if(!mintUrl) {
+          throw new AppError(Err.VALIDATION_ERROR, 'Decoded token is missing mint url')
         }
         
-        const decoded = getDecodedToken(encoded, mintKeysetIds)
-        
-        const tokenAmount = CashuUtils.getProofsAmount(decoded.proofs)
-        const isLocked = CashuUtils.isTokenP2PKLocked(decoded)
+        const isLocked = CashuUtils.isTokenP2PKLocked(tokenInfo)
         let isLockedToWallet = false        
 
         if(isLocked) {
-          const lockedToPK = CashuUtils.getP2PKPubkeySecret(decoded.proofs[0].secret)
+          const lockedToPK = CashuUtils.getP2PKPubkeySecret(tokenInfo.incompleteProofs[0].secret)
           const keys = await walletStore.getCachedWalletKeys()
           isLockedToWallet = lockedToPK === '02' + keys.NOSTR.publicKey
         }
 
-        log.trace('decoded token', {decoded, isLocked, isLockedToWallet})
-        log.trace('tokenAmount', {tokenAmount})
+        log.trace('decoded tokenMetadata', {tokenInfo, isLocked, isLockedToWallet})
+        log.trace('tokenAmount', {amount, unit})  
 
-        if(!decoded.unit) {
-          setInfo(translate("decodedMissingCurrencyUnit", { unit: CurrencyCode.SAT }))
-          decoded.unit = 'sat'          
-        }
+        const currency = getCurrency(unit as MintUnit)
 
-        const currency = getCurrency(decoded.unit as MintUnit)
-
-        setToken(decoded)
+        setMintUrl(mintUrl)
+        setTokenInfo(tokenInfo)
         setIsP2PKLocked(isLocked)
         setIsP2PKLockedToWallet(isLockedToWallet)
-        setAmountToReceive(numbro(tokenAmount / currency.precision).format({thousandSeparated: true, mantissa: currency.mantissa}))
-        setUnit(decoded.unit as MintUnit)
-        
-        if (decoded.memo && decoded.memo.length > 0) {
-          setMemo(decoded.memo as string)
+        setAmountToReceive(numbro(amount / currency.precision).format({thousandSeparated: true, mantissa: currency.mantissa}))
+        setUnit(unit as MintUnit)
+        if (memo && memo.length > 0) {
+          setMemo(memo as string)
         }
+
+        const mintExists = mintsStore.mintExists(tokenInfo.mint)
+
+        if(!mintExists) {
+          setIsNewMint(true)
+        } else {          
+          setIsNewMint(false)
+          const mintInstance = mintsStore.findByUrl(tokenInfo.mint)
+          setMint(mintInstance)
+        }
+
       } catch (e: any) {
         handleError(e)
       }
     }
-
 
     const receiveToken = async function () {
 
         setIsLoading(true)
         setIsReceiveTaskSentToQueue(true)
 
-        const amountToReceiveInt = round(toNumber(amountToReceive) * getCurrency(unit).precision, 0)
-        const proofsCount = token!.proofs.length
+        if(!mintUrl) {
+          throw new AppError(Err.VALIDATION_ERROR, 'Mint url is not set')
+        }
+
+        if(!tokenInfo) {
+          throw new AppError(Err.VALIDATION_ERROR, 'Token info is not set')
+        }
+
+        let mintInstance = mint
+        if(!mintInstance) {
+          try {
+            mintInstance = await mintsStore.addMint(mintUrl)
+          } catch(e: any) {
+            return handleError(e)
+          }
+        }
+
+        if(!mintInstance) {
+          return handleError(new AppError(Err.VALIDATION_ERROR, 'Could not establish mint instance'))
+        }
 
         const result = await WalletTask.receiveQueueAwaitable(
-          token as Token,
-          amountToReceiveInt,
-          memo,
+          mintInstance,
+          tokenInfo,
           encodedToken as string,
         )
 
@@ -204,8 +228,14 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
       
       setIsLoading(false)
 
-      const {error, message, transaction, receivedAmount, mintUrl} = result
-      const {status} = transaction as Transaction
+      const {error, message, transaction, receivedAmount} = result
+
+      if(!transaction) {
+        setIsResultModalVisible(true)
+        return
+      }
+
+      const {status} = transaction
 
       setTransactionStatus(status)
       setTransaction(transaction)
@@ -264,14 +294,18 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
 
     const receiveOfflineToken = async function () {
         setIsLoading(true)
-        setIsReceiveTaskSentToQueue(true) 
+        setIsReceiveTaskSentToQueue(true)
 
-        const amountToReceiveInt = round(toNumber(amountToReceive) * getCurrency(unit).precision, 0)
-        
+        if(!encodedToken) {
+          throw new AppError(Err.VALIDATION_ERROR, 'Encoded token is not set')
+        }
+
+        if(!tokenInfo) {
+          throw new AppError(Err.VALIDATION_ERROR, 'Token info is not set')
+        }
+
         const result = await WalletTask.receiveOfflinePrepareQueueAwaitable(
-            token as Token,
-            amountToReceiveInt,
-            memo,
+            tokenInfo,
             encodedToken as string,
         )
 
@@ -307,7 +341,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
             <View style={$amountContainer}>
                 <AmountInput
                     ref={amountInputRef}                                               
-                    value={toNumber(receivedAmount) > 0 ? receivedAmount : amountToReceive}                    
+                    value={amountToReceive}                    
                     onChangeText={() => {}}
                     unit={unit}
                     editable={false}
@@ -358,7 +392,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
             )}
         </View>
         <View style={$contentContainer}>          
-          {token && toNumber(amountToReceive) > 0 && (
+          {toNumber(amountToReceive) > 0 && mintUrl && (
             <>
               {transactionStatus !== TransactionStatus.COMPLETED && (
                 <Card
@@ -385,28 +419,22 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                 label={'Receive to'}                
                 ContentComponent={
                   <>
-                    {CashuUtils.getMintsFromToken(token).map((mintUrl, index) => {
-                      const mint = mintsStore.findByUrl(mintUrl)                      
-                      if (!mint) {
-                        return (
-                          <ListItem
-                            key={mintUrl}
-                            text={new URL(mintUrl).hostname}
-                            topSeparator={true}
-                            RightComponent={<Text size='xs' tx="newMint" style={$newBadge}/>}
-                          />
-                        )
-                      } else {
-                        return (
-                          <MintListItem
-                            key={mintUrl}
-                            mint={mint as Mint}                            
-                            isSelected={true}                            
-                            isSelectable={true}
-                          />
-                        )
-                      }
-                    })}
+                    {isNewMint ? (
+                        <ListItem
+                          key={mintUrl}
+                          text={new URL(mintUrl).hostname}
+                          //topSeparator={true}
+                          RightComponent={<Text size='xs' tx="newMint" style={$newBadge}/>}
+                        />
+                        
+                     ) : (  
+                        <MintListItem
+                          key={mintUrl}
+                          mint={mint as Mint}                            
+                          isSelected={true}                            
+                          isSelectable={true}
+                        />
+                     )}
                   </>
                 }
               />

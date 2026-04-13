@@ -15,7 +15,7 @@ import {CashuProof, CashuUtils} from './cashu/cashuUtils'
 import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance, MintStatus} from '../models/Mint'
-import {MeltQuoteBaseResponse, MeltQuoteBolt11Response, MeltQuoteResponse, MeltQuoteState, MintQuoteState, PaymentRequestPayload, Token, getDecodedToken, getEncodedToken, getTokenMetadata} from '@cashu/cashu-ts'
+import {MeltQuoteBaseResponse, MeltQuoteBolt11Response, MeltQuoteResponse, MeltQuoteState, MintQuoteState, PaymentRequestPayload, Token, TokenMetadata, getDecodedToken, getEncodedToken, getTokenMetadata} from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
@@ -103,15 +103,12 @@ type WalletTaskService = {
       draftTransactionId?: number
   ) => Promise<TransactionTaskResult>
     receiveQueueAwaitable: (
-      token: Token,
-      amountToReceive: number,
-      memo: string,
+      mint: Mint,
+      tokenMetadata: TokenMetadata,
       encodedToken: string,
   ) => Promise<TransactionTaskResult>
     receiveOfflinePrepareQueueAwaitable: (
-      token: Token,
-      amountToReceive: number,
-      memo: string,
+      tokenMetadata: TokenMetadata,
       encodedToken: string,
   ) => Promise<TransactionTaskResult>
     receiveOfflineCompleteQueueAwaitable: (        
@@ -288,13 +285,14 @@ const transferQueueAwaitable = function (
 
 
 const receiveQueueAwaitable = function (
-  token: Token,
-  amountToReceive: number,
-  memo: string,
+  mint: Mint,
+  tokenMetadata: TokenMetadata,
   encodedToken: string,
 ): Promise<TransactionTaskResult> {
+
   const now = Date.now()
-  const proofsCount = token.proofs.length
+  const {amount, memo, unit} = tokenMetadata
+  const proofsCount = tokenMetadata.incompleteProofs.length
 
   const taskId = proofsCount > MAX_SWAP_INPUT_SIZE
       ? `receiveBatchTask-${now}`
@@ -326,15 +324,14 @@ const receiveQueueAwaitable = function (
 
       EventEmitter.on(eventName, handler)
 
-      const taskPromise = proofsCount > MAX_SWAP_INPUT_SIZE
-          ? receiveBatchTask(token, amountToReceive, memo, encodedToken)
-          : receiveTask(token, amountToReceive, memo, encodedToken)
-
       SyncQueue.addPrioritizedTask<TransactionTaskResult>(
           taskId,
           async () => {
               try {
-                  return await taskPromise
+                  const token = getDecodedToken(encodedToken, mint.keysetIds)
+                  return proofsCount > MAX_SWAP_INPUT_SIZE
+                      ? await receiveBatchTask(token, amount, memo || '', encodedToken)
+                      : await receiveTask(token, amount, memo || '', encodedToken)
               } catch (error) {
                   rejectOnce(error)
                   throw error
@@ -431,13 +428,12 @@ const receiveBatchTask = async function  (
 
 
 const receiveOfflinePrepareQueueAwaitable = function (
-  token: Token,
-  amountToReceive: number,    
-  memo: string,
+  tokenMetadata: TokenMetadata,
   encodedToken: string,
 ): Promise<TransactionTaskResult> {
   const now = Date.now()
   const taskId = `receiveOfflinePrepareTask-${now}`
+  const { mint: mintUrl, amount, memo, unit } = tokenMetadata
 
   return new Promise<TransactionTaskResult>((resolve, reject) => {
       let resolved = false
@@ -467,9 +463,10 @@ const receiveOfflinePrepareQueueAwaitable = function (
           async () => {
               try {
                   return await receiveOfflinePrepareTask(
-                      token,
-                      amountToReceive,
-                      memo,
+                      mintUrl,
+                      unit as MintUnit,
+                      amount,
+                      memo || '',
                       encodedToken
                   )
               } catch (error) {
@@ -2393,15 +2390,13 @@ const handleClaimTask = async function (params: {
                 mintUrl: tokenInfo.mint
             })
         }
-        
+
         decoded = getDecodedToken(encodedToken, mintKeysetIds)
-        const amountToReceive = CashuUtils.getProofsAmount(decoded.proofs)
-        const memo = decoded.memo || 'Received to Lightning address'
 
         const result: TransactionTaskResult = await receiveTask(
             decoded,
-            amountToReceive,
-            memo,
+            tokenInfo.amount,
+            tokenInfo.memo || 'Received to Lightning address',
             encodedToken,
         )
 

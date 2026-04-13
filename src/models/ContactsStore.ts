@@ -2,10 +2,8 @@ import {
     Instance,
     SnapshotOut,
     types,
-    flow,
     destroy,
     isStateTreeNode,
-    detach,
     getSnapshot,
   } from 'mobx-state-tree'
   import {withSetPropAction} from './helpers/withSetPropAction'
@@ -81,7 +79,7 @@ import { MINIBITS_NIP05_DOMAIN } from '@env'
                 }
             },
             removeContact(contactToBeRemoved: Contact) {
-                let contactInstance: Contact | undefined            
+                let contactInstance: Contact | undefined
 
                 if (isStateTreeNode(contactToBeRemoved)) {
                     contactInstance = contactToBeRemoved
@@ -90,9 +88,8 @@ import { MINIBITS_NIP05_DOMAIN } from '@env'
                 }
 
                 if (contactInstance) {
-                    detach(contactInstance) // needed
                     destroy(contactInstance)
-                    log.debug('[removeContact]', 'Contact removed from MintsStore')
+                    log.debug('[removeContact]', 'Contact removed from ContactsStore')
                 }
             },
             selectContact(contact: Contact) {
