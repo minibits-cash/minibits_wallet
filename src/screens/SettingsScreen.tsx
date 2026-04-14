@@ -216,6 +216,11 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
     navigation.navigate('RecoveryOptions')
   }
 
+  const gotoOptimizeEcash = function() {
+    // @ts-ignore
+    navigation.navigate('OptimizeEcash')
+  }
+
   const gotoUpdate = function() {
       // @ts-ignore
       navigation.navigate('Update', {
@@ -303,7 +308,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
   }
 
 
-  const $itemRight = {color: useThemeColor('textDim'), fontFamily: typography.light} as TextStyle
+  const $itemRight = {color: useThemeColor('textDim'), fontFamily: typography.primary?.light} as TextStyle
   const colorScheme = useColorScheme()
   const defaultThemeColor = colorScheme === 'dark' ? Themes[ThemeCode.DARK]?.color : Themes[ThemeCode.LIGHT]?.color
 
@@ -468,9 +473,18 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                     leftIcon='faHeartPulse'
                     leftIconColor={colors.palette.angry300}
                     leftIconInverse={true}
-                    style={$item}                    
+                    style={$item}
+                    bottomSeparator={true}
                     onPress={gotoRecoveryOptions}
-                />                
+                />
+                <ListItem
+                    tx='settingsScreen_optimizeEcash'
+                    leftIcon='faWandMagicSparkles'
+                    leftIconColor={colors.palette.gold200}
+                    leftIconInverse={true}
+                    style={$item}
+                    onPress={gotoOptimizeEcash}
+                />
               </>
             }
           />

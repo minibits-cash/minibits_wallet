@@ -61,7 +61,8 @@ export const MintsStoreModel = types
     .actions(withSetPropAction)
     .actions(self => ({
         mintExists: (mintUrl: string | URL) => {
-            const mint = self.mints.find(m => m.mintUrl === mintUrl)
+            const normalized = String(mintUrl).replace(/\/$/, '')
+            const mint = self.mints.find(m => m.mintUrl.replace(/\/$/, '') === normalized)
             if(mint) {return true} else {return false}
         },
         addOrUpdateCounterBackup(mintToRemove: Mint) {
@@ -109,7 +110,10 @@ export const MintsStoreModel = types
             if(!mintUrl) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint URL is required.')
             }
-            
+
+            // Cashu spec: mint URL must be stripped of trailing slashes
+            mintUrl = mintUrl.replace(/\/$/, '')
+
             if(!mintUrl.includes('.onion') && !mintUrl.startsWith('https')) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint URL needs to start with https.')
             }
@@ -119,7 +123,7 @@ export const MintsStoreModel = types
             }
 
             log.trace('[addMint] start')
-            
+
             const newMint = new CashuMint(mintUrl)
             // get fresh keysets
             const keySetResult: GetKeysetsResponse = yield newMint.getKeySets()

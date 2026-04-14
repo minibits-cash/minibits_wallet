@@ -533,6 +533,7 @@
 	"settingsScreen_preferredUnit": "Unidad preferida",
 	"settingsScreen_privacy": "Privacidad",
 	"settingsScreen_recovery": "Recuperación",
+	"settingsScreen_optimizeEcash": "Optimizar ecash",
 	"settingsScreen_relaysCount": {
 		"one": "Relé %{count}",
 		"other": "%{count} relés"

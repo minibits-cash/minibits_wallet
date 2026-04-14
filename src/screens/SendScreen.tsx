@@ -238,6 +238,24 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             
             const handlePaymentRequest = async () => {
                 try {
+
+                    /*const cashuPaymentRequest = new CashuPaymentRequest(
+                        [
+                            {
+                              type: PaymentRequestTransportType.POST,
+                              target: 'https://shuestand.mountainlake.io/api/v1/withdrawals/wd_62b13c9d-1082-4b2d-809e-1e6723f74c52/nut18'
+                            }
+                        ],
+                        'test1234',
+                        10,
+                        'sat',
+                        ['https://m7.mountainlake.io'],
+                        'memo'
+                      )
+                  
+                      const encoded = cashuPaymentRequest.toEncodedRequest()
+                      log.trace('[handlePaymentRequest] TEST payment request', encoded)*/
+
                     setPaymentOption(SendOption.PAY_CASHU_PAYMENT_REQUEST)
                     setContactToSendFrom(getContactFrom())                   
 
@@ -357,25 +375,32 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         }
 
                         if (availableBalances.length === 0) {
-                            throw new AppError(Err.NOTFOUND_ERROR, 'Wallet does not have any of the mints accepted by Cashu payment request.', {mints: pr.mints})
+                            throw new AppError(Err.VALIDATION_ERROR, 'None of the mints accepted by this payment request are in your wallet.', {mints: pr.mints})    
                         }
-                        
+
                         const withEnoughBalance = availableBalances.filter(balance => {
                             const unitBalance = balance.balances[unitRef.current]
 
                             if(!pr.amount) {
                                 return balance
                             }
-                            
+
                             if(pr.amount && pr.amount > 0 && unitBalance && unitBalance >= pr.amount) {
                                 return balance
                             }
 
-                            return null                             
+                            return null
                         })
-                        
+
+                        if (pr.amount && withEnoughBalance.length === 0) {
+                            throw new AppError(Err.VALIDATION_ERROR, `Not enough balance to pay this payment request. Required: ${pr.amount} ${unitRef.current}.`)
+                            
+                        }
+
                         setAvailableMintBalances(withEnoughBalance)
-                        setMintBalanceToSendFrom(withEnoughBalance[0])  
+                        setMintBalanceToSendFrom(withEnoughBalance[0])
+
+                        log.trace('[handlePaymentRequest] available mint balances for this payment request', {availableBalances, withEnoughBalance})
 
                     } else {
                         let withEnoughBalance: MintBalance[] = []
@@ -443,7 +468,6 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 setIsOnline(isInternetReachable)
 
                 if(isInternetReachable) {
-                    setAvailableMintBalances([])
                     setInfo('') // clear any offline-specific messages
                 } else {
                     const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(1, unitRef.current)

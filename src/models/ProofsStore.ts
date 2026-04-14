@@ -411,7 +411,7 @@ import {
     }))
   
     .views(self => ({
-      getMintBalance: (mintUrl: string) => self.balances.mintBalances.find(b => b.mintUrl === mintUrl),
+      getMintBalance: (mintUrl: string) => self.balances.mintBalances.find(b => b.mintUrl.replace(/\/$/, '') === mintUrl.replace(/\/$/, '')),
       getMintBalancesWithEnoughBalance: (amount: number, unit: MintUnit) =>
         self.balances.mintBalances
           .filter(b => (b.balances[unit] || 0) >= amount)

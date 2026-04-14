@@ -534,6 +534,7 @@
 	"settingsScreen_preferredUnit": "Preferred unit",
 	"settingsScreen_privacy": "Privacy",
 	"settingsScreen_recovery": "Recovery",
+	"settingsScreen_optimizeEcash": "Optimize ecash",
 	"settingsScreen_relaysCount": {
 		"one": "%{count} relay",
 		"other": "%{count} relays"

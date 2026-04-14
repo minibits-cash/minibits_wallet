@@ -830,7 +830,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 LeftComponent={
                     <View style={{marginRight: spacing.medium}}>                        
                         <FastImage 
-                            source={{uri: 'https://www.minibits.cash/img/minibits_icon-192.png'}}
+                            source={{uri: 'https://minibits.cash/icon-192.png'}}
                             style={{width: 40, height: 40}}
                         />
                     </View>

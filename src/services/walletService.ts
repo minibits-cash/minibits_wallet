@@ -2766,7 +2766,8 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                 // We do it defensively only after cash is received
                 // and asynchronously so we speed up queue
                 _sendReceiveNotification(
-                    receivedAmount,
+                    transaction.amount,
+                    transaction.fee,
                     transaction.unit,
                     isZap,
                     sentFrom,
@@ -2986,7 +2987,8 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                 // We do it defensively only after cash is received
                 // and asynchronously so we speed up queue
                 _sendReceiveNotification(
-                    receivedAmount,
+                    transaction.amount,
+                    transaction.fee,
                     transaction.unit,
                     false,
                     sentFrom,
@@ -3021,6 +3023,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
 
 const _sendReceiveNotification = async function (
     receivedAmount: number,
+    feePaid: number,
     unit: MintUnit,
     isZap: boolean,
     sentFrom: string,
@@ -3036,8 +3039,8 @@ const _sendReceiveNotification = async function (
             ? `<b>⚡${formatCurrency(amount, currency)} ${currency}</b> received!`
             : `⚡${formatCurrency(amount, currency)} ${currency} received!`
         const body = Platform.OS === 'android'
-            ? `${zap ? 'Zap' : 'Ecash'} from <b>${sender || 'unknown payer'}</b> is now in your wallet.`
-            : `${zap ? 'Zap' : 'Ecash'} from ${sender || 'unknown payer'} is now in your wallet.`
+            ? `${zap ? 'Zap' : 'Ecash'} from <b>${sender || 'unknown payer'}</b> is now in your wallet.${feePaid > 0 ? ` Fee paid: ${formatCurrency(feePaid, currency)} ${currency}.` : ''}`
+            : `${zap ? 'Zap' : 'Ecash'} from ${sender || 'unknown payer'} is now in your wallet.${feePaid > 0 ? ` Fee paid: ${formatCurrency(feePaid, currency)} ${currency}.` : ''}`
         return { title, body };
     }
     

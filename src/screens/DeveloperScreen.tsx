@@ -35,6 +35,8 @@ import { TransactionStatus } from '../models/Transaction'
 import { maxTransactionsInHistory } from '../models/TransactionsStore'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
+//
+
 type Props = StaticScreenProps<undefined>
 
 export const DeveloperScreen = observer(function DeveloperScreen({ route }: Props) {

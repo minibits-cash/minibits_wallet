@@ -1,11 +1,14 @@
-import React, {useState, useEffect} from 'react'
+import React, {useState, useEffect, useLayoutEffect} from 'react'
 import {
   TextStyle,
   ViewStyle,
   View,
   Platform,
-  ScrollView,
 } from 'react-native'
+import Animated, {
+  useSharedValue,
+  useAnimatedScrollHandler,
+} from 'react-native-reanimated'
 import notifee from '@notifee/react-native'
 import {useThemeColor, spacing, colors} from '../theme'
 import {
@@ -18,6 +21,7 @@ import {
   Loading,
   BottomModal,
   Header,
+  AnimatedHeader,
 } from '../components'
 import AppError from '../utils/AppError'
 import {useStores} from '../models'
@@ -35,6 +39,23 @@ type Props = StaticScreenProps<undefined>
 export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
   const navigation = useNavigation()
   const {proofsStore} = useStores()
+  const scrollY = useSharedValue(0)
+  const HEADER_SCROLL_DISTANCE = spacing.screenHeight * 0.15
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: true,
+      header: () => (
+        <Header
+          leftIcon="faArrowLeft"
+          onLeftPress={() => navigation.goBack()}
+          title="Optimize ecash"
+          scrollY={scrollY}
+          scrollDistance={HEADER_SCROLL_DISTANCE}
+        />
+      ),
+    })
+  }, [])
 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<AppError | undefined>()
@@ -131,17 +152,29 @@ export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
     setError(e)
   }
 
-  const headerBg = useThemeColor('header')
-  const headerTitle = useThemeColor('headerTitle')
   const hint = useThemeColor('textDim')
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y
+    },
+  })
 
   return (
     <Screen contentContainerStyle={$screen} preset="fixed">
-      <Header leftIcon="faArrowLeft" onLeftPress={() => navigation.goBack()} />
-      <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-        <Text preset="heading" text="Optimize ecash" style={{color: headerTitle}} />
-      </View>
-      <ScrollView style={$contentContainer}>
+      <Animated.ScrollView
+        style={$contentContainer}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+      >
+        <AnimatedHeader
+          title="Optimize ecash"
+          scrollY={scrollY}
+        />
+        <Card
+          content={`Only denominations with more than ${OPTIMIZE_DENOMINATION_THRESHOLD} proofs can be optimized - by swapping them with the mint for lower number of ecash notes with higher amounts.`}
+          style={[$card, {marginTop: -spacing.extraLarge * 1.5}]}
+        />
         <Card
           ContentComponent={
             <>
@@ -177,15 +210,7 @@ export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
           }
           style={$card}
         />
-        <View style={$hintContainer}>
-          <Text
-            style={{color: hint}}
-            size="xs"
-            preset="formHelper"
-            text={`Denominations with more than ${OPTIMIZE_DENOMINATION_THRESHOLD} proofs can be optimized individually.`}
-          />
-        </View>
-      </ScrollView>
+      </Animated.ScrollView>
       {isLoading && <Loading />}
       {error && <ErrorModal error={error} />}
       <BottomModal
@@ -247,23 +272,16 @@ export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
 }
 
 const $screen: ViewStyle = {
-  flex: 1,
-}
-
-const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  paddingBottom: spacing.medium,
-  height: spacing.screenHeight * 0.15,
+  // flex: 1,
 }
 
 const $contentContainer: TextStyle = {
-  flex: 1,
-  marginTop: -spacing.extraLarge * 2,
-  padding: spacing.extraSmall,
+  //flex: 1,
 }
 
 const $card: ViewStyle = {
   marginBottom: spacing.small,
+  marginHorizontal: spacing.small,
 }
 
 const $buttonContainer: ViewStyle = {
