@@ -38,7 +38,7 @@ import { round, roundDown, roundUp, toNumber } from '../utils/number'
 import { LnurlClient, LNURLPayParams } from '../services/lnurlService'
 import { CurrencyCode, MintUnit, convertToFromSats, getCurrency } from "../services/wallet/currency"
 import { FeeBadge } from './Wallet/FeeBadge'
-import { MeltQuoteBolt11Response, MeltQuoteResponse } from '@cashu/cashu-ts'
+import { MeltQuoteBolt11Response } from '@cashu/cashu-ts'
 import { MintHeader } from './Mints/MintHeader'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import numbro from 'numbro'
@@ -98,7 +98,7 @@ type TransferAction =
     | { type: 'PREPARE_LNURL_PAY'; lnurlPayParams: LNURLPayParams & { address?: string }; description: string; commentAllowed: number; isInvoiceDonation: boolean; donationForName?: string; fixedAmount?: number }
     | { type: 'SET_MINT_BALANCE'; balance: MintBalance }
     | { type: 'QUOTE_START' }
-    | { type: 'QUOTE_READY'; meltQuote: MeltQuoteResponse; availableMintBalances: MintBalance[] }
+    | { type: 'QUOTE_READY'; meltQuote: MeltQuoteBolt11Response; availableMintBalances: MintBalance[] }
     | { type: 'QUOTE_INSUFFICIENT'; message: string }
     | { type: 'QUOTE_FINISHED' }
     | { type: 'TRANSFER_START' }
@@ -225,7 +225,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
     const unitRef = useRef<MintUnit>('sat')
     const mintUrlRef = useRef<string>('')
     const draftTransactionIdRef = useRef<number>(null)
-    const meltQuoteRef = useRef<MeltQuoteResponse | undefined>(undefined)
+    const meltQuoteRef = useRef<MeltQuoteBolt11Response | undefined>(undefined)
 
     const {
       proofsStore, 

@@ -1,5 +1,5 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useEffect, useState, useRef, useCallback} from 'react'
+import React, {FC, useEffect, useState, useReducer, useRef, useCallback} from 'react'
 import {
   UIManager,
   Platform,
@@ -77,6 +77,214 @@ type Props = StaticScreenProps<{
   mintUrl?: string, 
 }>
 
+// ─── State machine ───────────────────────────────────────────────────────────
+
+type TopupState = {
+    paymentOption: ReceiveOption
+    contactToSendFrom: Contact | undefined
+    contactToSendTo: Contact | undefined
+    relaysToShareTo: string[]
+    lnurlWithdrawParams: LNURLWithdrawParams | undefined
+    availableMintBalances: MintBalance[]
+    mintBalanceToTopup: MintBalance | undefined
+    transactionStatus: TransactionStatus | undefined
+    transactionId: number | undefined
+    transaction: Transaction | undefined
+    invoiceToPay: string
+    lnurlWithdrawResult: LnurlWithdrawResult | undefined
+    resultModalInfo: { status: TransactionStatus; title?: string; message: string } | undefined
+    isLoading: boolean
+    isMintSelectorVisible: boolean
+    isNostrDMModalVisible: boolean
+    isWithdrawModalVisible: boolean
+    isTopupTaskSentToQueue: boolean
+    isResultModalVisible: boolean
+    isNostrDMSending: boolean
+    isNostrDMSuccess: boolean
+    isWithdrawRequestSending: boolean
+    isWithdrawRequestSuccess: boolean
+    info: string
+    error: AppError | undefined
+}
+
+type TopupAction =
+    | { type: 'SET_MINT_BALANCE'; balance: MintBalance }
+    | { type: 'PREPARE_SEND_TO_CONTACT'; contactFrom: Contact; contactTo: Contact; relays: string[]; paymentOption: ReceiveOption }
+    | { type: 'PREPARE_LNURL_WITHDRAW'; lnurlWithdrawParams: LNURLWithdrawParams }
+    | { type: 'SHOW_MINT_SELECTOR'; availableMintBalances: MintBalance[]; defaultMint?: MintBalance }
+    | { type: 'HIDE_MINT_SELECTOR' }
+    | { type: 'TOPUP_START' }
+    | { type: 'INVOICE_READY'; transactionId: number; transactionStatus: TransactionStatus; encodedInvoice: string }
+    | { type: 'TOPUP_FAILED'; transactionStatus: TransactionStatus; resultModalInfo: { status: TransactionStatus; title?: string; message: string } }
+    | { type: 'TOPUP_COMPLETE'; transaction: Transaction; resultModalInfo: { status: TransactionStatus; message: string } }
+    | { type: 'DM_SENDING' }
+    | { type: 'DM_SENT' }
+    | { type: 'WITHDRAW_SENDING' }
+    | { type: 'WITHDRAW_SUCCESS'; result: LnurlWithdrawResult }
+    | { type: 'WITHDRAW_FAILED'; resultModalInfo: { status: TransactionStatus; message: string } }
+    | { type: 'TOGGLE_NOSTR_DM_MODAL' }
+    | { type: 'TOGGLE_WITHDRAW_MODAL' }
+    | { type: 'TOGGLE_RESULT_MODAL' }
+    | { type: 'SET_INFO'; message: string }
+    | { type: 'SET_ERROR'; error: AppError }
+    | { type: 'RESET' }
+
+const INITIAL_STATE: TopupState = {
+    paymentOption: ReceiveOption.SHOW_INVOICE,
+    contactToSendFrom: undefined,
+    contactToSendTo: undefined,
+    relaysToShareTo: [],
+    lnurlWithdrawParams: undefined,
+    availableMintBalances: [],
+    mintBalanceToTopup: undefined,
+    transactionStatus: undefined,
+    transactionId: undefined,
+    transaction: undefined,
+    invoiceToPay: '',
+    lnurlWithdrawResult: undefined,
+    resultModalInfo: undefined,
+    isLoading: false,
+    isMintSelectorVisible: false,
+    isNostrDMModalVisible: false,
+    isWithdrawModalVisible: false,
+    isTopupTaskSentToQueue: false,
+    isResultModalVisible: false,
+    isNostrDMSending: false,
+    isNostrDMSuccess: false,
+    isWithdrawRequestSending: false,
+    isWithdrawRequestSuccess: false,
+    info: '',
+    error: undefined,
+}
+
+function topupReducer(state: TopupState, action: TopupAction): TopupState {
+    switch (action.type) {
+
+        case 'SET_MINT_BALANCE':
+            return { ...state, mintBalanceToTopup: action.balance }
+
+        case 'PREPARE_SEND_TO_CONTACT':
+            return {
+                ...state,
+                paymentOption: action.paymentOption,
+                contactToSendFrom: action.contactFrom,
+                contactToSendTo: action.contactTo,
+                relaysToShareTo: action.relays,
+                // open immediately if invoice was already created before contact was selected
+                isNostrDMModalVisible: !!state.invoiceToPay,
+            }
+
+        case 'PREPARE_LNURL_WITHDRAW':
+            return {
+                ...state,
+                paymentOption: ReceiveOption.LNURL_WITHDRAW,
+                lnurlWithdrawParams: action.lnurlWithdrawParams,
+            }
+
+        case 'SHOW_MINT_SELECTOR':
+            return {
+                ...state,
+                availableMintBalances: action.availableMintBalances,
+                mintBalanceToTopup: action.defaultMint ?? state.mintBalanceToTopup,
+                isMintSelectorVisible: true,
+            }
+
+        case 'HIDE_MINT_SELECTOR':
+            return { ...state, isMintSelectorVisible: false }
+
+        case 'TOPUP_START':
+            return { ...state, isLoading: true, isTopupTaskSentToQueue: true }
+
+        case 'INVOICE_READY':
+            return {
+                ...state,
+                isLoading: false,
+                transactionId: action.transactionId,
+                transactionStatus: action.transactionStatus,
+                invoiceToPay: action.encodedInvoice,
+                isMintSelectorVisible: false,
+                isNostrDMModalVisible: state.paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST,
+                isWithdrawModalVisible: state.paymentOption === ReceiveOption.LNURL_WITHDRAW,
+            }
+
+        case 'TOPUP_FAILED':
+            return {
+                ...state,
+                isLoading: false,
+                transactionStatus: action.transactionStatus,
+                resultModalInfo: action.resultModalInfo,
+                isResultModalVisible: true,
+            }
+
+        case 'TOPUP_COMPLETE':
+            return {
+                ...state,
+                transactionStatus: TransactionStatus.COMPLETED,
+                transaction: action.transaction,
+                resultModalInfo: action.resultModalInfo,
+                isNostrDMModalVisible: false,
+                isWithdrawModalVisible: false,
+                isResultModalVisible: true,
+            }
+
+        case 'DM_SENDING':
+            return { ...state, isNostrDMSending: true }
+
+        case 'DM_SENT':
+            return { ...state, isNostrDMSending: false, isNostrDMSuccess: true }
+
+        case 'WITHDRAW_SENDING':
+            return { ...state, isWithdrawRequestSending: true }
+
+        case 'WITHDRAW_SUCCESS':
+            return {
+                ...state,
+                isWithdrawRequestSending: false,
+                isWithdrawRequestSuccess: true,
+                lnurlWithdrawResult: action.result,
+            }
+
+        case 'WITHDRAW_FAILED':
+            return {
+                ...state,
+                isWithdrawRequestSending: false,
+                resultModalInfo: action.resultModalInfo,
+                isWithdrawModalVisible: false,
+                isResultModalVisible: true,
+            }
+
+        case 'TOGGLE_NOSTR_DM_MODAL':
+            return { ...state, isNostrDMModalVisible: !state.isNostrDMModalVisible }
+
+        case 'TOGGLE_WITHDRAW_MODAL':
+            return { ...state, isWithdrawModalVisible: !state.isWithdrawModalVisible }
+
+        case 'TOGGLE_RESULT_MODAL':
+            return { ...state, isResultModalVisible: !state.isResultModalVisible }
+
+        case 'SET_INFO':
+            return { ...state, info: action.message }
+
+        case 'SET_ERROR':
+            return {
+                ...state,
+                isLoading: false,
+                isTopupTaskSentToQueue: false,
+                isNostrDMSending: false,
+                isWithdrawRequestSending: false,
+                error: action.error,
+            }
+
+        case 'RESET':
+            return { ...INITIAL_STATE }
+
+        default:
+            return state
+    }
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     const navigation = useNavigation()
     const isInternetReachable = useIsInternetReachable()
@@ -95,56 +303,38 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     const unitRef = useRef<MintUnit>('sat')
     // const tokenInputRef = useRef<TextInput>(null)
 
-    const [paymentOption, setPaymentOption] = useState<ReceiveOption>(
-      ReceiveOption.SHOW_INVOICE,
-    )
-    const [amountToTopup, setAmountToTopup] = useState<string>('0')    
-    const [contactToSendFrom, setContactToSendFrom] = useState<
-      Contact | undefined
-    >()
-    const [contactToSendTo, setContactToSendTo] = useState<
-      Contact | undefined
-    >()
-    const [relaysToShareTo, setRelaysToShareTo] = useState<string[]>([])
-    const [lnurlWithdrawParams, setLnurlWithdrawParams] = useState<
-      LNURLWithdrawParams | undefined
-    >()
+    const [state, dispatch] = useReducer(topupReducer, INITIAL_STATE)
+    // User-input state kept separate to avoid rebuilding the full state object on every keystroke.
+    const [amountToTopup, setAmountToTopup] = useState<string>('0')
     const [memo, setMemo] = useState('')
-    const [availableMintBalances, setAvailableMintBalances] = useState<
-      MintBalance[]
-    >([])
-    const [mintBalanceToTopup, setMintBalanceToTopup] = useState<
-      MintBalance | undefined
-    >(undefined)
-    const [transactionStatus, setTransactionStatus] = useState<
-      TransactionStatus | undefined
-    >()
-    const [transactionId, setTransactionId] = useState<number | undefined>()
-    const [transaction, setTransaction] = useState<Transaction | undefined>()
-    const [invoiceToPay, setInvoiceToPay] = useState<string>('')
-    const [lnurlWithdrawResult, setLnurlWithdrawResult] = useState<
-      LnurlWithdrawResult | undefined
-    >()
 
-    const [info, setInfo] = useState('')
-    const [error, setError] = useState<AppError | undefined>()
-    const [resultModalInfo, setResultModalInfo] = useState<
-      {status: TransactionStatus; title?: string; message: string} | undefined
-    >()
-
-    const [isLoading, setIsLoading] = useState(false)
-    const [isMintSelectorVisible, setIsMintSelectorVisible] = useState(false)
-    const [isQRModalVisible, setIsQRModalVisible] = useState(false)
-    const [isNostrDMModalVisible, setIsNostrDMModalVisible] = useState(false)
-    const [isWithdrawModalVisible, setIsWithdrawModalVisible] = useState(false)
-    const [isTopupTaskSentToQueue, setIsTopupTaskSentToQueue] = useState(false)
-    const [isResultModalVisible, setIsResultModalVisible] = useState(false)
-    const [isNostrDMSending, setIsNostrDMSending] = useState(false)
-    const [isNostrDMSuccess, setIsNostrDMSuccess] = useState(false)
-    const [isWithdrawRequestSending, setIsWithdrawRequestSending] =
-      useState(false)
-    const [isWithdrawRequestSuccess, setIsWithdrawRequestSuccess] =
-      useState(false)
+    const {
+        paymentOption,
+        contactToSendFrom,
+        contactToSendTo,
+        relaysToShareTo,
+        lnurlWithdrawParams,
+        availableMintBalances,
+        mintBalanceToTopup,
+        transactionStatus,
+        transactionId,
+        transaction,
+        invoiceToPay,
+        lnurlWithdrawResult,
+        resultModalInfo,
+        isLoading,
+        isMintSelectorVisible,
+        isNostrDMModalVisible,
+        isWithdrawModalVisible,
+        isTopupTaskSentToQueue,
+        isResultModalVisible,
+        isNostrDMSending,
+        isNostrDMSuccess,
+        isWithdrawRequestSending,
+        isWithdrawRequestSuccess,
+        info,
+        error,
+    } = state
 
     useEffect(() => {
         const focus = () => {
@@ -174,7 +364,9 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
 
           if (mintUrl) {
             const mintBalance = proofsStore.getMintBalance(mintUrl)
-            setMintBalanceToTopup(mintBalance)
+            if (mintBalance) {
+              dispatch({ type: 'SET_MINT_BALANCE', balance: mintBalance })
+            }
           }
         } catch (e: any) {
           handleError(e)
@@ -218,14 +410,13 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
               picture,
             }
 
-            setPaymentOption(paymentOption!)
-            setContactToSendFrom(contactFrom)
-            setContactToSendTo(contact)
-            setRelaysToShareTo(relays)
-
-            if (invoiceToPay) {
-              toggleNostrDMModal() // open if we already have an invoice
-            }
+            dispatch({
+              type: 'PREPARE_SEND_TO_CONTACT',
+              paymentOption: paymentOption!,
+              contactFrom,
+              contactTo: contact!,
+              relays,
+            })
 
             // @ts-ignore
             navigation.setParams({
@@ -247,9 +438,8 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
             const amountSats = roundDown(lnurlParams.maxWithdrawable / 1000, 0)
 
             setAmountToTopup(`${amountSats}`)
-            setLnurlWithdrawParams(lnurlParams)
             setMemo(lnurlParams.defaultDescription)
-            setPaymentOption(ReceiveOption.LNURL_WITHDRAW)
+            dispatch({ type: 'PREPARE_LNURL_WITHDRAW', lnurlWithdrawParams: lnurlParams })
           } catch (e: any) {
             handleError(e)
           }
@@ -284,17 +474,14 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
           'Invoice has been paid and new proofs received',
         )
 
-        setResultModalInfo({
-          status: result.transaction.status,
-          message: result.message,
+        dispatch({
+          type: 'TOPUP_COMPLETE',
+          transaction: result.transaction,
+          resultModalInfo: {
+            status: result.transaction.status,
+            message: result.message,
+          },
         })
-
-        setTransactionStatus(TransactionStatus.COMPLETED)
-        setTransaction(result.transaction)
-        setIsQRModalVisible(false)
-        setIsNostrDMModalVisible(false)
-        setIsWithdrawModalVisible(false)
-        setIsResultModalVisible(true)
         
       }
 
@@ -313,12 +500,9 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       }
     }, [transactionId])
 
-    const toggleNostrDMModal = () =>
-      setIsNostrDMModalVisible(previousState => !previousState)
-    const toggleWithdrawModal = () =>
-      setIsWithdrawModalVisible(previousState => !previousState)
-    const toggleResultModal = () =>
-      setIsResultModalVisible(previousState => !previousState)
+    const toggleNostrDMModal = () => dispatch({ type: 'TOGGLE_NOSTR_DM_MODAL' })
+    const toggleWithdrawModal = () => dispatch({ type: 'TOGGLE_WITHDRAW_MODAL' })
+    const toggleResultModal = () => dispatch({ type: 'TOGGLE_RESULT_MODAL' })
 
     const onAmountEndEditing = function () {
       log.trace("[onAmountEndEditing] called")
@@ -336,7 +520,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
         log.trace('[onAmountEndEditing]', {amount, unit: unitRef.current})
 
         if (!isInternetReachable) {
-          setInfo(translate('commonOfflinePretty'))
+          dispatch({ type: 'SET_INFO', message: translate('commonOfflinePretty') })
         }
 
         if (!amount || amount === 0) {
@@ -366,16 +550,13 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
           )
           return
         }
-        
-        setAvailableMintBalances(availableBalances)
 
-        // Default mint if not set from route params is the one with the highest balance to topup
-        if (!mintBalanceToTopup) {
-          setMintBalanceToTopup(availableBalances[0])
-        }
-
-        LayoutAnimation.easeInEaseOut()        
-        setIsMintSelectorVisible(true)
+        LayoutAnimation.easeInEaseOut()
+        dispatch({
+          type: 'SHOW_MINT_SELECTOR',
+          availableMintBalances: availableBalances,
+          defaultMint: mintBalanceToTopup ? undefined : availableBalances[0],
+        })
       } catch (e: any) {
         handleError(e)
       }
@@ -386,7 +567,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
 
       // Show mint selector
       if (availableMintBalances.length > 0) {
-        setIsMintSelectorVisible(true)
+        dispatch({ type: 'SHOW_MINT_SELECTOR', availableMintBalances })
       }
     }
 
@@ -407,7 +588,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     }
 
     const onMintBalanceSelect = function (balance: MintBalance) {
-      setMintBalanceToTopup(balance)
+      dispatch({ type: 'SET_MINT_BALANCE', balance })
     }
 
     const onMintBalanceConfirm = async function () {
@@ -415,69 +596,64 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
         return
       }
 
-      setIsLoading(true)
-      setIsTopupTaskSentToQueue(true)
+      try {
+        dispatch({ type: 'TOPUP_START' })
 
-      const amountToTopupInt = round(
-        toNumber(amountToTopup) * getCurrency(unitRef.current).precision,
-        0,
-      )
+        const amountToTopupInt = round(
+          toNumber(amountToTopup) * getCurrency(unitRef.current).precision,
+          0,
+        )
 
-      const result = await WalletTask.topupQueueAwaitable(
-        mintBalanceToTopup as MintBalance,
-        amountToTopupInt,
-        unitRef.current,
-        memo,
-        contactToSendTo,
-      )
+        const result = await WalletTask.topupQueueAwaitable(
+          mintBalanceToTopup as MintBalance,
+          amountToTopupInt,
+          unitRef.current,
+          memo,
+          contactToSendTo,
+        )
 
-      await handleTopupTaskResult(result)
+        await handleTopupTaskResult(result)
+      } catch (e: any) {
+        handleError(e)
+      }
     }
 
 
     const handleTopupTaskResult = async (result: TransactionTaskResult) => {
       log.trace('handleTopupTaskResult start')
 
-      setIsLoading(false)
-
-      const {status, id} = result.transaction as Transaction
-      setTransactionStatus(status)
-      setTransactionId(id)
-
-      if (result.encodedInvoice) {
-        setInvoiceToPay(result.encodedInvoice)
-      }
-
       if (result.error) {
-        setResultModalInfo({
-          status: result.transaction?.status as TransactionStatus,
-          title: result.error.params?.message
-            ? result.error.message
-            : translate("topup_failed"),
-          message: result.error.params?.message || result.error.message,
+        dispatch({
+          type: 'TOPUP_FAILED',
+          transactionStatus: result.transaction?.status ?? TransactionStatus.ERROR,
+          resultModalInfo: {
+            status: result.transaction?.status ?? TransactionStatus.ERROR,
+            title: result.error.params?.message
+              ? result.error.message
+              : translate("topup_failed"),
+            message: result.error.params?.message || result.error.message,
+          },
         })
-        setIsResultModalVisible(true)
         return
       }
 
-      if (paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST) {
-        toggleNostrDMModal()
-      }
+      const tx = result.transaction as Transaction
 
-      if (paymentOption === ReceiveOption.LNURL_WITHDRAW) {
-        toggleWithdrawModal()
-      }
-
-      setIsMintSelectorVisible(false)
+      dispatch({
+        type: 'INVOICE_READY',
+        transactionId: tx.id,
+        transactionStatus: tx.status,
+        encodedInvoice: result.encodedInvoice as string,
+      })
     }
 
     const onMintBalanceCancel = async function () {
-      setIsMintSelectorVisible(false)
+      dispatch({ type: 'HIDE_MINT_SELECTOR' })
     }
 
     const sendAsNostrDM = async function () {
       try {
-        setIsNostrDMSending(true)
+        dispatch({ type: 'DM_SENDING' })
         const senderPubkey = walletProfileStore.pubkey
         const receiverPubkey = contactToSendTo?.pubkey
 
@@ -503,10 +679,8 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
           walletProfileStore.nip05
         )
 
-        setIsNostrDMSending(false)
-
         if (sentEvent) {
-          setIsNostrDMSuccess(true)
+          dispatch({ type: 'DM_SENT' })
 
           const transaction = transactionsStore.findById(
             transactionId as number,
@@ -532,7 +706,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
             })
           }
         } else {
-          setInfo(translate('topup_relayMissingSentEvent'))
+          dispatch({ type: 'SET_INFO', message: translate('topup_relayMissingSentEvent') })
         }
       } catch (e: any) {
         handleError(e)
@@ -551,7 +725,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
 
     const onLnurlWithdraw = async function () {
       try {
-        setIsWithdrawRequestSending(true) // replace, not working
+        dispatch({ type: 'WITHDRAW_SENDING' })
         const result = await LnurlClient.withdraw(
           lnurlWithdrawParams as LNURLWithdrawParams,
           invoiceToPay,
@@ -559,9 +733,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
         log.trace('Withdraw result', result, 'onLnurlWithdraw')
 
         if (result.status === 'OK') {
-          setIsWithdrawRequestSuccess(true)
-          setLnurlWithdrawResult(result)
-          setIsWithdrawRequestSending(false)
+          dispatch({ type: 'WITHDRAW_SUCCESS', result })
           return
         }
 
@@ -591,14 +763,13 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
           data: JSON.stringify(updated),
         })
 
-        setResultModalInfo({
-          status: TransactionStatus.ERROR,
-          message: JSON.stringify(result),
+        dispatch({
+          type: 'WITHDRAW_FAILED',
+          resultModalInfo: {
+            status: TransactionStatus.ERROR,
+            message: JSON.stringify(result),
+          },
         })
-
-        toggleWithdrawModal()
-        setIsResultModalVisible(true)
-        return
       } catch (e: any) {
         handleError(e)
       }
@@ -613,21 +784,13 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     }
 
     const resetState = function () {
-      // reset state so it does not interfere next payment
+      dispatch({ type: 'RESET' })
       setAmountToTopup('')
       setMemo('')
-      setIsMintSelectorVisible(false)
-      setIsNostrDMModalVisible(false)
-      setIsWithdrawModalVisible(false)
-      setIsWithdrawRequestSending(false)
-      setPaymentOption(ReceiveOption.SHOW_INVOICE)
-      setResultModalInfo(undefined)
-      setIsResultModalVisible(false)
     }
 
     const handleError = function (e: AppError): void {
-      setIsLoading(false)
-      setError(e)
+      dispatch({ type: 'SET_ERROR', error: e })
     }
 
     
