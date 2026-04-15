@@ -325,8 +325,7 @@ function sendReducer(state: SendState, action: SendAction): SendState {
                 ...state,
                 isLoading: false,
                 // Reset mint-selection data so stale balances from a prior amount-entry flow
-                // can never show through after an error (e.g. a PR-specific-mint failure
-                // while the mint selector was already open from a previous amount input).
+                // can never show through after an error
                 availableMintBalances: [],
                 mintBalanceToSendFrom: undefined,
                 transport: {
