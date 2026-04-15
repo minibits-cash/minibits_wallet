@@ -118,7 +118,7 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
 
     const onConfirm = async function() {
         if (!lightningData) {
-          setError({ name: Err.VALIDATION_ERROR, message: translate("userErrorMissingLightningData")})
+          setError({ code: 100, name: Err.VALIDATION_ERROR, message: translate("userErrorMissingLightningData")})
           return
         }
 

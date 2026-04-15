@@ -117,7 +117,7 @@ export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) 
 
     const onConfirm = async function() {
         if(!encodedToken) {
-            setError({name: Err.VALIDATION_ERROR, message: translate("missingEcashTokenToReceiveError")})
+            setError({code: 100, name: Err.VALIDATION_ERROR, message: translate("missingEcashTokenToReceiveError")})
             return
         }
 

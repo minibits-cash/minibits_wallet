@@ -1,14 +1,12 @@
 import React, { useRef, useState, useEffect } from "react"
 import { observer } from "mobx-react-lite"
 import { StackActions, StaticScreenProps, useNavigation } from "@react-navigation/native"
-import QuickCrypto from 'react-native-quick-crypto'
 import { View, TextInput, LayoutAnimation, Keyboard, ViewStyle, TextStyle } from "react-native"
 import { spacing, useThemeColor, typography, colors } from "../theme"
 import { useStores } from "../models"
 import { MintBalanceSelector } from "./Mints/MintBalanceSelector"
-import { CurrencyAmount } from "./Wallet/CurrencyAmount"
 import EventEmitter from '../utils/eventEmitter'
-import { getCurrency, MintUnit, CurrencyCode, convertToFromSats } from "../services/wallet/currency"
+import { getCurrency, MintUnit } from "../services/wallet/currency"
 import { round, toNumber } from "../utils/number"
 import { translate } from "../i18n"
 import AppError, { Err } from "../utils/AppError"
@@ -25,15 +23,12 @@ import {
   Text,
   AmountInput,
 } from "../components"
-import useIsInternetReachable from "../utils/useIsInternetReachable"
 import {HANDLE_RECEIVED_EVENT_TASK, log, TransactionTaskResult, WalletTask } from "../services"
 import { QRCodeBlock } from "./Wallet/QRCode"
 import { TranItem } from "./TranDetailScreen"
 import { Transaction, TransactionStatus } from "../models/Transaction"
-import { CASHU_PAYMENT_REQUEST_TASK } from "../services/wallet/cashuPaymentRequestTask"
 import { ResultModalInfo } from "./Wallet/ResultModalInfo"
 import { MintHeader } from "./Mints/MintHeader"
-import { verticalScale } from "@gocodingnow/rn-size-matters"
 import { MemoInputCard } from "../components/MemoInputCard"
 
 type Props = StaticScreenProps<{

@@ -19,24 +19,21 @@ import {
 import {Mint} from '../models/Mint'
 import {Transaction, TransactionStatus} from '../models/Transaction'
 import {useStores} from '../models'
-import {NostrClient, TransactionTaskResult, WalletTask} from '../services'
+import {TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
-import EventEmitter from '../utils/eventEmitter'
 
 import {CashuUtils} from '../services/cashu/cashuUtils'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { verticalScale } from '@gocodingnow/rn-size-matters'
-import { CurrencyCode, MintUnit, convertToFromSats, getCurrency } from "../services/wallet/currency"
+import { CurrencyCode, MintUnit, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
-import { round, toNumber } from '../utils/number'
 import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
 import { translate } from '../i18n'
 import { TokenMetadata, getTokenMetadata } from '@cashu/cashu-ts'
-import { CurrencyAmount } from './Wallet/CurrencyAmount'
+import { toNumber } from '../utils/number'
 
 export enum ReceiveOption {  
   SEND_PAYMENT_REQUEST = 'SEND_PAYMENT_REQUEST',
@@ -46,7 +43,7 @@ export enum ReceiveOption {
 }
 
 type Props = StaticScreenProps<{
-  encodedToken?: string  
+  encodedToken?: string 
 }>
 
 export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
@@ -55,7 +52,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
 
     const amountInputRef = useRef<TextInput>(null)
     
-    const {mintsStore, walletStore, userSettingsStore} = useStores()
+    const {mintsStore, walletStore} = useStores()
 
     const [tokenInfo, setTokenInfo] = useState<TokenMetadata | undefined>()
     const [encodedToken, setEncodedToken] = useState<string | undefined>()
@@ -189,38 +186,41 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
     }
 
     const receiveToken = async function () {
+        try {
+            setIsLoading(true)
+            setIsReceiveTaskSentToQueue(true)
 
-        setIsLoading(true)
-        setIsReceiveTaskSentToQueue(true)
+            if(!mintUrl) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Mint url is not set')
+            }
 
-        if(!mintUrl) {
-          throw new AppError(Err.VALIDATION_ERROR, 'Mint url is not set')
+            if(!tokenInfo) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Token info is not set')
+            }
+
+            let mintInstance = mint
+            if(!mintInstance) {
+                try {
+                    mintInstance = await mintsStore.addMint(mintUrl)
+                } catch(e: any) {
+                    return handleError(e)
+                }
+            }
+
+            if(!mintInstance) {
+                return handleError(new AppError(Err.VALIDATION_ERROR, 'Could not establish mint instance'))
+            }
+
+            const result = await WalletTask.receiveQueueAwaitable(
+                mintInstance,
+                tokenInfo,
+                encodedToken as string,
+            )
+
+            await handleReceiveTaskResult(result)
+        } catch(e: any) {
+            handleError(e)
         }
-
-        if(!tokenInfo) {
-          throw new AppError(Err.VALIDATION_ERROR, 'Token info is not set')
-        }
-
-        let mintInstance = mint
-        if(!mintInstance) {
-          try {
-            mintInstance = await mintsStore.addMint(mintUrl)
-          } catch(e: any) {
-            return handleError(e)
-          }
-        }
-
-        if(!mintInstance) {
-          return handleError(new AppError(Err.VALIDATION_ERROR, 'Could not establish mint instance'))
-        }
-
-        const result = await WalletTask.receiveQueueAwaitable(
-          mintInstance,
-          tokenInfo,
-          encodedToken as string,
-        )
-
-        await handleReceiveTaskResult(result)
     }
 
     const handleReceiveTaskResult = async (result: TransactionTaskResult) => {
@@ -255,10 +255,8 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
 
       if (receivedAmount && receivedAmount > 0) {
           // accumulate received amount in case of multiple receives in batch
+          // display is updated reactively by the useEffect on [totalReceived]
           setTotalReceived(prev => prev + receivedAmount)
-
-          const currency = getCurrency(unit)
-          setReceivedAmount(`${numbro(totalReceived / currency.precision).format({thousandSeparated: true, mantissa: currency.mantissa})}`)                
       }    
       
       setIsResultModalVisible(true)            
@@ -293,23 +291,27 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
 
 
     const receiveOfflineToken = async function () {
-        setIsLoading(true)
-        setIsReceiveTaskSentToQueue(true)
+        try {
+            setIsLoading(true)
+            setIsReceiveTaskSentToQueue(true)
 
-        if(!encodedToken) {
-          throw new AppError(Err.VALIDATION_ERROR, 'Encoded token is not set')
+            if(!encodedToken) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Encoded token is not set')
+            }
+
+            if(!tokenInfo) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Token info is not set')
+            }
+
+            const result = await WalletTask.receiveOfflinePrepareQueueAwaitable(
+                tokenInfo,
+                encodedToken as string,
+            )
+
+            await handleReceiveTaskResult(result)
+        } catch(e: any) {
+            handleError(e)
         }
-
-        if(!tokenInfo) {
-          throw new AppError(Err.VALIDATION_ERROR, 'Token info is not set')
-        }
-
-        const result = await WalletTask.receiveOfflinePrepareQueueAwaitable(
-            tokenInfo,
-            encodedToken as string,
-        )
-
-        await handleReceiveTaskResult(result)
     }
 
 
