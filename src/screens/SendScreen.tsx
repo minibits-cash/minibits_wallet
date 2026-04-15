@@ -1,9 +1,10 @@
 import {observer} from 'mobx-react-lite'
-import React, {  
+import React, {
   useEffect,
   useState,
+  useReducer,
   useCallback,
-  useRef,  
+  useRef,
 } from 'react'
 import {StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
 import {
@@ -78,6 +79,280 @@ type Props = StaticScreenProps<{
     scannedPubkey?: string 
 }>
 
+// ─── State machine ──────────────────────────────────────────────────────────
+
+type ModalVisibility = {
+    mintSelector: boolean
+    nostrDM: boolean
+    post: boolean
+    proofSelector: boolean
+    pubkeySelector: boolean
+    result: boolean
+}
+
+type TransportProgress = {
+    nostrDM: { sending: boolean; success: boolean }
+    post: { sending: boolean; success: boolean }
+}
+
+type SendState = {
+    // Payment setup
+    paymentOption: SendOption
+    encodedTokenToSend: string | undefined
+    encodedCashuPaymentRequest: string | undefined
+    decodedCashuPaymentRequest: CashuPaymentRequest | undefined
+    availableMintBalances: MintBalance[]
+    mintBalanceToSendFrom: MintBalance | undefined
+    selectedProofs: Proof[]
+    // Contacts / routing
+    contactToSendFrom: Contact | undefined
+    contactToSendTo: Contact | undefined
+    relaysToShareTo: string[]
+    postEndpointUrl: string | undefined
+    // Transaction outcome
+    transaction: Transaction | undefined
+    transactionId: number | undefined
+    transactionStatus: TransactionStatus | undefined
+    resultModalInfo: { status: TransactionStatus; title?: string; message: string } | undefined
+    // UI
+    isLoading: boolean
+    modals: ModalVisibility
+    transport: TransportProgress
+    // Feedback
+    info: string
+    error: AppError | undefined
+}
+
+type SendAction =
+    | { type: 'PREPARE_SEND_TO_CONTACT'; contactFrom: Contact; contactTo: Contact; relays: string[]; openNostrDM: boolean }
+    | { type: 'PREPARE_CASHU_PR'; encoded: string; decoded: CashuPaymentRequest; contactFrom: Contact; contactTo?: Contact; relays: string[]; postUrl?: string; availableBalances: MintBalance[]; defaultBalance?: MintBalance }
+    | { type: 'SET_MINT_BALANCE'; balance: MintBalance }
+    | { type: 'SET_AVAILABLE_BALANCES'; balances: MintBalance[]; defaultBalance?: MintBalance; showMintSelector?: boolean }
+    | { type: 'SET_SELECTED_PROOFS'; proofs: Proof[] }
+    | { type: 'SEND_START' }
+    | { type: 'SEND_TASK_SUCCESS'; token: string; transaction: Transaction; openTransport: 'nostrDM' | 'post' | 'none' }
+    | { type: 'SEND_TASK_ERROR'; status: TransactionStatus; title: string; message: string }
+    | { type: 'SYNC_COMPLETED'; title: string; message: string }
+    | { type: 'SYNC_ERROR'; message: string }
+    | { type: 'OPEN_RESULT_MODAL' }
+    | { type: 'TRANSPORT_START'; channel: 'nostrDM' | 'post' }
+    | { type: 'TRANSPORT_SUCCESS'; channel: 'nostrDM' | 'post' }
+    | { type: 'TRANSPORT_RESET'; channel: 'nostrDM' | 'post' }
+    | { type: 'TOGGLE_MODAL'; modal: keyof ModalVisibility }
+    | { type: 'OPEN_MODAL'; modal: keyof ModalVisibility }
+    | { type: 'CLOSE_MODAL'; modal: keyof ModalVisibility }
+    | { type: 'CLEAR_CONTACT_TO' }
+    | { type: 'SET_INFO'; message: string }
+    | { type: 'CLEAR_INFO' }
+    | { type: 'SET_ERROR'; error: AppError }
+    | { type: 'RESET' }
+
+const INITIAL_MODALS: ModalVisibility = {
+    mintSelector: false,
+    nostrDM: false,
+    post: false,
+    proofSelector: false,
+    pubkeySelector: false,
+    result: false,
+}
+
+const INITIAL_TRANSPORT: TransportProgress = {
+    nostrDM: { sending: false, success: false },
+    post: { sending: false, success: false },
+}
+
+const INITIAL_STATE: SendState = {
+    paymentOption: SendOption.SHOW_TOKEN,
+    encodedTokenToSend: undefined,
+    encodedCashuPaymentRequest: undefined,
+    decodedCashuPaymentRequest: undefined,
+    availableMintBalances: [],
+    mintBalanceToSendFrom: undefined,
+    selectedProofs: [],
+    contactToSendFrom: undefined,
+    contactToSendTo: undefined,
+    relaysToShareTo: [],
+    postEndpointUrl: undefined,
+    transaction: undefined,
+    transactionId: undefined,
+    transactionStatus: undefined,
+    resultModalInfo: undefined,
+    isLoading: false,
+    modals: INITIAL_MODALS,
+    transport: INITIAL_TRANSPORT,
+    info: '',
+    error: undefined,
+}
+
+function sendReducer(state: SendState, action: SendAction): SendState {
+    switch (action.type) {
+
+        case 'PREPARE_SEND_TO_CONTACT':
+            return {
+                ...state,
+                paymentOption: SendOption.SEND_TOKEN,
+                contactToSendFrom: action.contactFrom,
+                contactToSendTo: action.contactTo,
+                relaysToShareTo: action.relays,
+                modals: { ...state.modals, nostrDM: action.openNostrDM || state.modals.nostrDM },
+            }
+
+        case 'PREPARE_CASHU_PR':
+            return {
+                ...state,
+                paymentOption: SendOption.PAY_CASHU_PAYMENT_REQUEST,
+                contactToSendFrom: action.contactFrom,
+                contactToSendTo: action.contactTo,
+                encodedCashuPaymentRequest: action.encoded,
+                decodedCashuPaymentRequest: action.decoded,
+                relaysToShareTo: action.relays,
+                postEndpointUrl: action.postUrl,
+                availableMintBalances: action.availableBalances,
+                mintBalanceToSendFrom: action.defaultBalance ?? state.mintBalanceToSendFrom,
+                modals: { ...state.modals, mintSelector: true },
+            }
+
+        case 'SET_MINT_BALANCE':
+            return { ...state, mintBalanceToSendFrom: action.balance }
+
+        case 'SET_AVAILABLE_BALANCES':
+            return {
+                ...state,
+                availableMintBalances: action.balances,
+                mintBalanceToSendFrom: action.defaultBalance !== undefined
+                    ? action.defaultBalance
+                    : state.mintBalanceToSendFrom,
+                modals: action.showMintSelector !== undefined
+                    ? { ...state.modals, mintSelector: action.showMintSelector }
+                    : state.modals,
+            }
+
+        case 'SET_SELECTED_PROOFS':
+            return { ...state, selectedProofs: action.proofs }
+
+        case 'SEND_START':
+            return { ...state, isLoading: true }
+
+        case 'SEND_TASK_SUCCESS':
+            return {
+                ...state,
+                isLoading: false,
+                encodedTokenToSend: action.token,
+                transaction: action.transaction,
+                transactionId: action.transaction.id,
+                transactionStatus: action.transaction.status,
+                modals: {
+                    ...state.modals,
+                    mintSelector: false,
+                    nostrDM: action.openTransport === 'nostrDM',
+                    post: action.openTransport === 'post',
+                },
+            }
+
+        case 'SEND_TASK_ERROR':
+            return {
+                ...state,
+                isLoading: false,
+                resultModalInfo: { status: action.status, title: action.title, message: action.message },
+                modals: { ...state.modals, result: true },
+            }
+
+        case 'SYNC_COMPLETED':
+            return {
+                ...state,
+                transactionStatus: TransactionStatus.COMPLETED,
+                resultModalInfo: {
+                    status: TransactionStatus.COMPLETED,
+                    title: action.title,
+                    message: action.message,
+                },
+                modals: { ...state.modals, nostrDM: false, proofSelector: false },
+            }
+
+        case 'SYNC_ERROR':
+            return {
+                ...state,
+                transactionStatus: TransactionStatus.ERROR,
+                resultModalInfo: {
+                    status: TransactionStatus.ERROR,
+                    title: 'Send failed',
+                    message: action.message,
+                },
+                modals: { ...state.modals, nostrDM: false, proofSelector: false },
+            }
+
+        case 'OPEN_RESULT_MODAL':
+            return { ...state, modals: { ...state.modals, result: true } }
+
+        case 'TRANSPORT_START':
+            return {
+                ...state,
+                transport: { ...state.transport, [action.channel]: { sending: true, success: false } },
+            }
+
+        case 'TRANSPORT_SUCCESS':
+            return {
+                ...state,
+                transport: { ...state.transport, [action.channel]: { sending: false, success: true } },
+            }
+
+        case 'TRANSPORT_RESET':
+            return {
+                ...state,
+                transport: { ...state.transport, [action.channel]: { sending: false, success: false } },
+            }
+
+        case 'TOGGLE_MODAL':
+            return { ...state, modals: { ...state.modals, [action.modal]: !state.modals[action.modal] } }
+
+        case 'OPEN_MODAL':
+            return { ...state, modals: { ...state.modals, [action.modal]: true } }
+
+        case 'CLOSE_MODAL':
+            return { ...state, modals: { ...state.modals, [action.modal]: false } }
+
+        case 'CLEAR_CONTACT_TO':
+            return { ...state, contactToSendTo: undefined }
+
+        case 'SET_INFO':
+            return { ...state, info: action.message }
+
+        case 'CLEAR_INFO':
+            return { ...state, info: '' }
+
+        case 'SET_ERROR':
+            return {
+                ...state,
+                isLoading: false,
+                // Reset mint-selection data so stale balances from a prior amount-entry flow
+                // can never show through after an error (e.g. a PR-specific-mint failure
+                // while the mint selector was already open from a previous amount input).
+                availableMintBalances: [],
+                mintBalanceToSendFrom: undefined,
+                transport: {
+                    nostrDM: { sending: false, success: state.transport.nostrDM.success },
+                    post: { sending: false, success: state.transport.post.success },
+                },
+                modals: {
+                    ...state.modals,
+                    mintSelector: false,
+                    nostrDM: false,
+                    proofSelector: false,
+                    post: false,
+                },
+                error: action.error,
+            }
+
+        case 'RESET':
+            return { ...INITIAL_STATE }
+
+        default:
+            return state
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
 export const SendScreen = observer(function SendScreen({ route }: Props) {
     const navigation = useNavigation()
     const isInternetReachable = useIsInternetReachable()
@@ -98,46 +373,62 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const unitRef = useRef<MintUnit>('sat')
     const draftTransactionIdRef = useRef<number>(null)
     const isOnlineRef = useRef<boolean>(false)
+    const hasBeenOfflineRef = useRef<boolean>(false)
 
     
-    const [paymentOption, setPaymentOption] = useState<SendOption>(SendOption.SHOW_TOKEN)
-    const [encodedTokenToSend, setEncodedTokenToSend] = useState<string | undefined>()
-    const [encodedCashuPaymentRequest, setEncodedCashuPaymentRequest] = useState<string | undefined>()
-    const [decodedCashuPaymentRequest, setDecodedCashuPaymentRequest] = useState<CashuPaymentRequest | undefined>()
-    const [amountToSend, setAmountToSend] = useState<string>('0')    
-    const [contactToSendFrom, setContactToSendFrom] = useState<Contact| undefined>()    
-    const [contactToSendTo, setContactToSendTo] = useState<Contact| undefined>()        
-    const [relaysToShareTo, setRelaysToShareTo] = useState<string[]>([])
-    const [postEndpointUrl, setPostEndpointUrl] = useState<string | undefined>()
+    const [state, dispatch] = useReducer(sendReducer, INITIAL_STATE)
+    // User-input state kept separate to avoid rebuilding the full state object on every keystroke.
+    // isCashuPrWithAmount / isCashuPrWithDesc also live here so they are set atomically with
+    // amountToSend / memo in handlePaymentRequest — before any validation that can throw — making
+    // the amount and memo inputs read-only immediately even if later validation fails.
+    const [amountToSend, setAmountToSend] = useState<string>('0')
     const [memo, setMemo] = useState('')
-    const [availableMintBalances, setAvailableMintBalances] = useState<MintBalance[]>([])
-    const [mintBalanceToSendFrom, setMintBalanceToSendFrom] = useState<MintBalance | undefined>()
-    const [selectedProofs, setSelectedProofs] = useState<Proof[]>([])
-    const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | undefined>()
-    const [transaction, setTransaction] = useState<Transaction | undefined>()
-    const [transactionId, setTransactionId] = useState<number | undefined>()
-    const [info, setInfo] = useState('')
-    const [error, setError] = useState<AppError | undefined>()        
-    const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, title?: string, message: string} | undefined>()    
-    const [isLoading, setIsLoading] = useState(false)
-
-    const [isMintSelectorVisible, setIsMintSelectorVisible] = useState(false)
-    const [isOnline, setIsOnline] = useState(false)
     const [isCashuPrWithAmount, setIsCashuPrWithAmount] = useState(false)
-    const [isCashuPrWithDesc, setIsCashuPrWithDesc] = useState(false)   
-    const [isNostrDMModalVisible, setIsNostrDMModalVisible] = useState(false)
-    const [isProofSelectorModalVisible, setIsProofSelectorModalVisible] = useState(false) // offline mode
-    const [isResultModalVisible, setIsResultModalVisible] = useState(false)
-    const [isNostrDMSending, setIsNostrDMSending] = useState(false)
-    const [isNostrDMSuccess, setIsNostrDMSuccess] = useState(false)
-    const [isPostModalVisible, setIsPostModalVisible] = useState(false)
-    const [isPostSending, setIsPostSending] = useState(false)
-    const [isPostSuccess, setIsPostSuccess] = useState(false)
-    
-    const [isPubkeySelectorModalVisible, setIsPubkeySelectorModalVisible] = useState(false)
-    const [lockedPubkey, setLockedPubkey] = useState<string | undefined>() // Added lockedPubkey state
+    const [isCashuPrWithDesc, setIsCashuPrWithDesc] = useState(false)
+    const [lockedPubkey, setLockedPubkey] = useState<string | undefined>()
     const [lockTime, setLockTime] = useState<number | undefined>(1)
+    const [isOnline, setIsOnline] = useState(false)
 
+    // Destructure for ergonomic access throughout the component.
+    // Modal and transport booleans are aliased to preserve the existing variable names
+    // used in the JSX and callbacks, so no further renames are needed below.
+    const {
+        paymentOption,
+        encodedTokenToSend,
+        encodedCashuPaymentRequest,
+        decodedCashuPaymentRequest,
+        mintBalanceToSendFrom,
+        availableMintBalances,
+        selectedProofs,
+        contactToSendFrom,
+        contactToSendTo,
+        relaysToShareTo,
+        postEndpointUrl,
+        transaction,
+        transactionId,
+        transactionStatus,
+        resultModalInfo,
+        isLoading,
+        info,
+        error,
+        modals: {
+            mintSelector: isMintSelectorVisible,
+            nostrDM: isNostrDMModalVisible,
+            post: isPostModalVisible,
+            proofSelector: isProofSelectorModalVisible,
+            pubkeySelector: isPubkeySelectorModalVisible,
+            result: isResultModalVisible,
+        },
+        transport: {
+            nostrDM: { sending: isNostrDMSending, success: isNostrDMSuccess },
+            post: { sending: isPostSending, success: isPostSuccess },
+        },
+    } = state
+
+    /* 
+        This ensures that amount input get focus on screen load.
+        Delay is needed to make it work reliably.
+    */
     useEffect(() => {
         const focus = () => {
             amountInputRef && amountInputRef.current
@@ -151,7 +442,9 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     }, [])
 
 
-
+    /* 
+        Sets unit and mint (if provided) from route params on screen load, as ref variables.
+    */
     useEffect(() => {
         const setUnitAndMint = () => {
             try {
@@ -164,7 +457,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
                 if(mintUrl) {
                     const mintBalance = proofsStore.getMintBalance(mintUrl)
-                    setMintBalanceToSendFrom(mintBalance)
+                    dispatch({ type: 'SET_MINT_BALANCE', balance: mintBalance! })
                     log.trace('[setUnitAndMint] mintBalanceToSendFrom', mintBalance)
                 }
             } catch (e: any) {
@@ -193,91 +486,67 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         } as Contact
     }
 
-    // Send to contact
+
     useFocusEffect(
         useCallback(() => {
 
             const {paymentOption, contact} = route.params
 
+            /* 
+                If screen gets navigated back from contact list (Send to contact) 
+                with paymentOption and contact in route params, prepare to send token to the selected contact.
+            */
             const prepareSendToContact = () => {
                 try {
-                    let relays: string[] = []                
+                    let relays: string[] = []
                     log.trace('[prepareSendToContact] selected contact', contact, paymentOption)
-        
+
                     if(contact?.type === ContactType.PUBLIC) {
                         relays = relaysStore.allPublicUrls
                     } else {
                         relays = relaysStore.allUrls
                     }
-        
-                    if (relays.length === 0) {                    
+
+                    if (relays.length === 0) {
                         throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
                     }
-                    
-                    setPaymentOption(SendOption.SEND_TOKEN)
-                    setContactToSendFrom(getContactFrom())                
-                    setContactToSendTo(contact)                
-                    setRelaysToShareTo(relays)
 
-                    if(encodedTokenToSend) {
-                        toggleNostrDMModal() // open if we already have a token
-                    }
-
-                    //reset
-                    //@ts-ignore
-                    navigation.setParams({
-                        paymentOption: undefined,
-                        contact: undefined
+                    dispatch({
+                        type: 'PREPARE_SEND_TO_CONTACT',
+                        contactFrom: getContactFrom(),
+                        contactTo: contact!,
+                        relays,
+                        openNostrDM: !!encodedTokenToSend,
                     })
-                    
+
+                    //@ts-ignore
+                    navigation.setParams({ paymentOption: undefined, contact: undefined })
+
                 } catch(e: any) {
                     handleError(e)
                 }
             }
             
-            
+            /* 
+                If route params have paymentOption to pay a Cashu payment request, decode it and prepare the send payment.                
+            */
             const handlePaymentRequest = async () => {
                 try {
-
-                    /*const cashuPaymentRequest = new CashuPaymentRequest(
-                        [
-                            {
-                              type: PaymentRequestTransportType.POST,
-                              target: 'https://shuestand.mountainlake.io/api/v1/withdrawals/wd_62b13c9d-1082-4b2d-809e-1e6723f74c52/nut18'
-                            }
-                        ],
-                        'test1234',
-                        10,
-                        'sat',
-                        ['https://m7.mountainlake.io'],
-                        'memo'
-                      )
-                  
-                      const encoded = cashuPaymentRequest.toEncodedRequest()
-                      log.trace('[handlePaymentRequest] TEST payment request', encoded)*/
-
-                    setPaymentOption(SendOption.PAY_CASHU_PAYMENT_REQUEST)
-                    setContactToSendFrom(getContactFrom())                   
-
-                    const {encodedCashuPaymentRequest, draftTransactionId} = route.params
+                    const {encodedCashuPaymentRequest: encodedPR, draftTransactionId} = route.params
 
                     if(draftTransactionId) {
                         draftTransactionIdRef.current = draftTransactionId
                     }
 
-                    if (!encodedCashuPaymentRequest) {                    
+                    if (!encodedPR) {
                         throw new AppError(Err.VALIDATION_ERROR, 'Missing encodedCashuPaymentRequest.')
                     }
-            
-                    const pr: CashuPaymentRequest = decodePaymentRequest(encodedCashuPaymentRequest)
 
+                    const pr: CashuPaymentRequest = decodePaymentRequest(encodedPR)
                     log.trace('[handlePaymentRequest] decoded payment request', pr)
 
-                    setDecodedCashuPaymentRequest(pr)
-                    setEncodedCashuPaymentRequest(encodedCashuPaymentRequest)
-
                     if(!pr.transport || pr.transport.length === 0) {
-                        throw new AppError(Err.VALIDATION_ERROR, 
+                        throw new AppError(Err.VALIDATION_ERROR,
                             'Payment request can not be paid as it does not have any transport defined.',
                             {caller: 'handlePaymentRequest', paymentRequest: pr}
                         )
@@ -285,7 +554,11 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
                     const transports: PaymentRequestTransport[] = pr.transport
 
-                    // Check for NOSTR transport first
+                    // Resolve transport: collect into locals, dispatch once at the end
+                    let resolvedContactTo: Contact | undefined
+                    let resolvedRelays: string[] = []
+                    let resolvedPostUrl: string | undefined
+
                     const nostrTransport = transports.find(t => t.type === PaymentRequestTransportType.NOSTR)
                     if (nostrTransport) {
                         const decoded = NostrClient.decodeNprofile(nostrTransport.target)
@@ -297,27 +570,20 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                             relays = NostrClient.getAllRelays()
                         }
 
-                        let contactTo = {
-                            pubkey,
-                            npub,
-                        } as Contact
+                        let contactTo = { pubkey, npub } as Contact
 
                         const existing = contactsStore.findByPubkey(pubkey)
-
                         if(!existing) {
                             try {
                                 const profile = await NostrClient.getProfileFromRelays(pubkey, relays)
-
                                 if(profile) {
                                     contactTo.nip05 = profile.nip05
                                     contactTo.picture = profile.picture
                                     contactTo.lud16 = profile.lud16
                                     contactTo.name = profile.name
                                     contactTo.isExternalDomain = profile.nip05.includes(MINIBITS_NIP05_DOMAIN) ? false : true
-
                                     contactsStore.addContact(contactTo)
                                 }
-
                             } catch (e:any) {
                                 log.warn('[handlePaymentRequest] Could not get the payee profile from relays.')
                             }
@@ -325,15 +591,13 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                             contactTo = existing
                         }
 
-                        setContactToSendTo(contactTo)
-                        setRelaysToShareTo(relays)
+                        resolvedContactTo = contactTo
+                        resolvedRelays = relays
                     } else {
-                        // Fallback to POST transport
                         const postTransport = transports.find(t => t.type === PaymentRequestTransportType.POST)
                         if (postTransport) {
-                            setPostEndpointUrl(postTransport.target)
+                            resolvedPostUrl = postTransport.target
                         } else {
-                            // Error if neither transport is supported
                             throw new AppError(Err.VALIDATION_ERROR, 'Payment request only supports NOSTR or POST transports, but neither is available.')
                         }
                     }
@@ -343,88 +607,81 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     if(pr.unit && !MintUnits.includes(pr.unit as MintUnit)) {
                         throw new AppError(Err.VALIDATION_ERROR, `Wallet does not support ${pr.unit} unit.`)
                     }
-                    
+
                     if (pr.unit) {
                         unitRef.current = pr.unit as MintUnit
                     }
 
+                    // Set amount and memo from PR before any validation that can throw,
+                    // so the inputs are locked read-only even if later validation fails.
                     if (pr.description && pr.description.length > 0) {
                         setMemo(pr.description)
                         setIsCashuPrWithDesc(true)
                     }
 
                     if (pr.amount) {
-                        setAmountToSend(`${numbro(pr.amount / getCurrency(unitRef.current).precision)
-                        .format({
-                          thousandSeparated: true, 
-                          mantissa: getCurrency(unitRef.current).mantissa
+                        setAmountToSend(`${numbro(pr.amount / getCurrency(unitRef.current).precision).format({
+                            thousandSeparated: true,
+                            mantissa: getCurrency(unitRef.current).mantissa,
                         })}`)
-
                         setIsCashuPrWithAmount(true)
                     }
 
-                    const availableBalances: MintBalance[] = []
+                    // Resolve available balances
+                    let withEnoughBalance: MintBalance[] = []
 
-                    if (pr.mints && pr.mints.length > 0) {                        
-
+                    if (pr.mints && pr.mints.length > 0) {
+                        const availableBalances: MintBalance[] = []
                         for (const mint of pr.mints) {
                             if (mintsStore.mintExists(mint)) {
-                                const mintBalance = proofsStore.getMintBalance(mint)   
-                                availableBalances.push(mintBalance!)
+                                availableBalances.push(proofsStore.getMintBalance(mint)!)
                             }
                         }
 
                         if (availableBalances.length === 0) {
-                            throw new AppError(Err.VALIDATION_ERROR, 'None of the mints accepted by this payment request are in your wallet.', {mints: pr.mints})    
+                            dispatch({ type: 'SET_INFO', message: 'None of the mints accepted by this payment request are in your wallet.' })
+                            //infoMessage('None of the mints accepted by this payment request are in your wallet.')
+                            return
+                            //throw new AppError(Err.VALIDATION_ERROR, 'None of the mints accepted by this payment request are in your wallet.', {mints: pr.mints})
                         }
 
-                        const withEnoughBalance = availableBalances.filter(balance => {
+                        withEnoughBalance = availableBalances.filter(balance => {
                             const unitBalance = balance.balances[unitRef.current]
-
-                            if(!pr.amount) {
-                                return balance
-                            }
-
-                            if(pr.amount && pr.amount > 0 && unitBalance && unitBalance >= pr.amount) {
-                                return balance
-                            }
-
+                            if(!pr.amount) return balance
+                            if(pr.amount > 0 && unitBalance && unitBalance >= pr.amount) return balance
                             return null
                         })
 
                         if (pr.amount && withEnoughBalance.length === 0) {
-                            throw new AppError(Err.VALIDATION_ERROR, `Not enough balance to pay this payment request. Required: ${pr.amount} ${unitRef.current}.`)
-                            
+                            dispatch({ type: 'SET_INFO', message: `Not enough balance to pay this payment request. Required: ${pr.amount} ${unitRef.current}.`})
+                            //infoMessage(`Not enough balance to pay this payment request. Required: ${pr.amount} ${unitRef.current}.`)
+                            return
+                            //throw new AppError(Err.VALIDATION_ERROR, `Not enough balance to pay this payment request. Required: ${pr.amount} ${unitRef.current}.`)
                         }
-
-                        setAvailableMintBalances(withEnoughBalance)
-                        setMintBalanceToSendFrom(withEnoughBalance[0])
 
                         log.trace('[handlePaymentRequest] available mint balances for this payment request', {availableBalances, withEnoughBalance})
-
                     } else {
-                        let withEnoughBalance: MintBalance[] = []
-
-                        if(pr.amount && pr.amount > 0) {
-                            withEnoughBalance = proofsStore.getMintBalancesWithEnoughBalance(pr.amount, unitRef.current)
-                            setAvailableMintBalances(withEnoughBalance)
-                        } else {
-                            withEnoughBalance = proofsStore.getMintBalancesWithUnit(unitRef.current)
-                            setAvailableMintBalances(withEnoughBalance)
-                        }
-
-                        setMintBalanceToSendFrom(withEnoughBalance[0])
+                        withEnoughBalance = (pr.amount && pr.amount > 0)
+                            ? proofsStore.getMintBalancesWithEnoughBalance(pr.amount, unitRef.current)
+                            : proofsStore.getMintBalancesWithUnit(unitRef.current)
                     }
-                    
-                    setIsMintSelectorVisible(true)
 
-                    //reset
-                    //@ts-ignore
-                    navigation.setParams({
-                        paymentOption: undefined,
-                        encodedCashuPaymentRequest: undefined
+                    // Single atomic dispatch — replaces ~10 scattered setters
+                    dispatch({
+                        type: 'PREPARE_CASHU_PR',
+                        encoded: encodedPR,
+                        decoded: pr,
+                        contactFrom: getContactFrom(),
+                        contactTo: resolvedContactTo,
+                        relays: resolvedRelays,
+                        postUrl: resolvedPostUrl,
+                        availableBalances: withEnoughBalance,
+                        defaultBalance: withEnoughBalance[0],
                     })
-                    
+
+                    //@ts-ignore
+                    navigation.setParams({ paymentOption: undefined, encodedCashuPaymentRequest: undefined })
+
                 } catch(e: any) {
                     handleError(e)
                 }
@@ -441,14 +698,16 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         }, [route.params?.paymentOption])
     )
 
-    // Scan pubkey to lock to
+    /* 
+        Navigating back to the Send screen from scannning a pubkey to lock ecash token to.
+    */
     useEffect(() => {   
         const {scannedPubkey} = route.params
         log.trace('[useEffect]', scannedPubkey)
 
         const handleScannedPubkey = () => {
             setLockedPubkey(scannedPubkey)
-            setIsPubkeySelectorModalVisible(true)
+            dispatch({ type: 'OPEN_MODAL', modal: 'pubkeySelector' })
         }
 
         if(scannedPubkey) {
@@ -457,40 +716,53 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     }, [route.params?.scannedPubkey])
     
 
+    /*
+        Set ref and state variable based on network connectivity change.
+        Reset mint selector to all mints if device is offline, to allow any manual ecash note selection
+    */
     useEffect(() => {
         if (isInternetReachable !== null) {
             // Update ref immediately (for use in handlers/async)
             isOnlineRef.current = isInternetReachable
-        
+
             // Only update state if it's a real change → triggers re-render
             if (isInternetReachable !== isOnline) {
                 log.trace('[isOnline] status change', {isInternetReachable})
                 setIsOnline(isInternetReachable)
 
                 if(isInternetReachable) {
-                    setInfo('') // clear any offline-specific messages
-                } else {
-                    const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(1, unitRef.current)
-            
-                    if (availableBalances.length === 0) {
-                        setInfo('Not enough funds to send')
-                        return // keep isOfflineSend false or as-is
+                    // Only clear info if the user was actually offline — skip the initial null→true mount transition
+                    if (hasBeenOfflineRef.current) {
+                        dispatch({ type: 'CLEAR_INFO' })
+                        hasBeenOfflineRef.current = false
                     }
-                    setAvailableMintBalances(availableBalances)
+                } else {
+                    hasBeenOfflineRef.current = true
+                    const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(1, unitRef.current)
+
+                    if (availableBalances.length === 0) {
+                        dispatch({ type: 'SET_INFO', message: 'Not enough funds to send' })
+                        return
+                    }
+                    dispatch({ type: 'SET_AVAILABLE_BALANCES', balances: availableBalances })
                 }
             }
         }
     }, [isInternetReachable])
 
-
-
-    // ====================== 2. Sync State Result Listener ======================
-
+    // ====================== Sync State Result Listener ======================
+    /* 
+        Reacts to event emitted by the SyncStateWithMintTask that is triggered by web socket or poller check
+        on sent proofs state with the mint after a send action, in order
+        to detect when the sent tokens were swapped ny the recepient (i.e become spent). Updates UI accordingly.
+        
+        Event handling is somehow complex as we want to keep listening for the result or to reliably  when needed.
+    */
     const handleSyncStateResult = useCallback(
         async (result: SyncStateTaskResult) => {
             log.trace('[SendScreen] handleSyncStateResult triggered', { result, transactionId })
 
-            if (!transactionId) return;
+            if (!transactionId) return
 
             const { completedTransactionIds, errorTransactionIds, transactionStateUpdates } = result
 
@@ -499,52 +771,30 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
                 const amountSentInt = Math.round(
                     toNumber(amountToSend || '0') * getCurrency(unitRef.current).precision
-                );
+                )
                 const currency = getCurrency(unitRef.current)
 
-                setIsNostrDMModalVisible(false)
-                
-
-                setResultModalInfo({
-                    status: TransactionStatus.COMPLETED,
+                // Close nostrDM modal + set result info atomically; delay result modal for animation
+                dispatch({
+                    type: 'SYNC_COMPLETED',
                     title: '🚀 That was fast!',
                     message: `${formatCurrency(amountSentInt, currency.code)} ${currency.code} were received by the payee.`,
-                });
-                
-                // Delay showing result modal to allow NostrDM modal to fully close
-                setTimeout(() => {
-                    setIsProofSelectorModalVisible(false)
-                    setTransactionStatus(TransactionStatus.COMPLETED)
-                    setIsResultModalVisible(true)
-                }, 500)
+                })
+                setTimeout(() => dispatch({ type: 'OPEN_RESULT_MODAL' }), 500)
                 return
             }
 
             if (errorTransactionIds?.includes(transactionId)) {
-                log.trace('[SendScreen] Sync error detected', { transactionId });
+                log.trace('[SendScreen] Sync error detected', { transactionId })
 
-                const update = transactionStateUpdates?.find(u => u.tId === transactionId);
-                const message = update?.message || 'Transaction failed to complete on the mint.';
+                const update = transactionStateUpdates?.find(u => u.tId === transactionId)
+                const message = update?.message || 'Transaction failed to complete on the mint.'
 
-                setIsNostrDMModalVisible(false);
-                setIsProofSelectorModalVisible(false);
-
-                setResultModalInfo({
-                    status: TransactionStatus.ERROR,
-                    title: 'Send failed',
-                    message,
-                });
-                setTransactionStatus(TransactionStatus.ERROR);
-                // Delay showing result modal to allow NostrDM modal to fully close
-                setTimeout(() => {
-                    setIsResultModalVisible(true);
-                }, 300);
+                dispatch({ type: 'SYNC_ERROR', message })
+                setTimeout(() => dispatch({ type: 'OPEN_RESULT_MODAL' }), 300)
             }
         },
-        [
-            transactionId,
-            amountToSend,            
-        ],
+        [transactionId, amountToSend],
     );
 
     const syncStateListenerRef = useRef<((r: SyncStateTaskResult) => void) | null>(null);
@@ -600,15 +850,19 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         };
     }, [transactionId, handleSyncStateResult]);
        
-    const toggleNostrDMModal = () => setIsNostrDMModalVisible(previousState => !previousState)
-    const toggleProofSelectorModal = () => setIsProofSelectorModalVisible(previousState => !previousState)
+    const toggleNostrDMModal = () => dispatch({ type: 'TOGGLE_MODAL', modal: 'nostrDM' })
+    const toggleProofSelectorModal = () => dispatch({ type: 'TOGGLE_MODAL', modal: 'proofSelector' })
     const toggleResultModal = () => {
         log.warn('[toggleResultModal] start', isResultModalVisible)
-        setIsResultModalVisible(previousState => !previousState)
+        dispatch({ type: 'TOGGLE_MODAL', modal: 'result' })
     }
-    const togglePubkeySelectorModal = () => setIsPubkeySelectorModalVisible(previousState => !previousState)
-    const togglePostModal = () => setIsPostModalVisible(previousState => !previousState)
+    const togglePubkeySelectorModal = () => dispatch({ type: 'TOGGLE_MODAL', modal: 'pubkeySelector' })
+    const togglePostModal = () => dispatch({ type: 'TOGGLE_MODAL', modal: 'post' })
 
+    /*  
+        Amount shown on screen is formatted string, internal currency amounts are integer with precision based on mint unit, 
+        so we need to validate and convert the amount string before using it for any logic. 
+    */
     const validateAndProcessAmount = function (amountString: string, unit: MintUnit) {
         // Normalize empty string to "0"
         const normalizedAmount = amountString.trim() === "" ? "0" : amountString.trim()
@@ -624,6 +878,10 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         }
     }
 
+    /*  
+        Shows mint selector after amount input is validated and processed, 
+        to allow user to select mint balance to send from based on the entered amount.
+    */
     const onAmountEndEditing = function () {
         try {
         const { amount, amountString } = validateAndProcessAmount(amountToSend, unitRef.current)
@@ -639,15 +897,15 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 return
             }
 
-            setAvailableMintBalances(availableBalances)
-
             // Default mint if not set from route params is the one with the highest balance
-            if (!mintBalanceToSendFrom) {
-                setMintBalanceToSendFrom(availableBalances[0])
-            }
+            dispatch({
+                type: 'SET_AVAILABLE_BALANCES',
+                balances: availableBalances,
+                defaultBalance: mintBalanceToSendFrom ? undefined : availableBalances[0],
+                showMintSelector: true,
+            })
 
-            LayoutAnimation.easeInEaseOut()        
-            setIsMintSelectorVisible(true)
+            LayoutAnimation.easeInEaseOut()
 
         } else {
             infoMessage(translate('payCommon_amountZeroOrNegative'))
@@ -661,14 +919,14 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
     const onMemoEndEditing = function () {
         LayoutAnimation.easeInEaseOut()
-
-        // Show mint selector
         if (availableMintBalances.length > 0) {
-        setIsMintSelectorVisible(true)
+            dispatch({ type: 'OPEN_MODAL', modal: 'mintSelector' })
         }
     }
 
-
+    /*  
+        Deselects amount and memo if amount is already filled in and user confirms the memo input.
+    */
     const onMemoDone = function () {
         if (parseInt(amountToSend) > 0) {
         memoInputRef && memoInputRef.current
@@ -687,7 +945,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
 
     const onMintBalanceSelect = function (balance: MintBalance) {
-        setMintBalanceToSendFrom(balance)
+        dispatch({ type: 'SET_MINT_BALANCE', balance })
     }
 
 
@@ -695,48 +953,60 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         togglePubkeySelectorModal()
     }
 
+    /*  
+        Confirms the selected pubkey to lock the sent tokens to, validates it and prepares the send to contact flow 
+        if the key belongs to a known contact in the wallet.
+    */
     const onLockPubkeySelect = function () {
         if (!lockedPubkey || lockedPubkey.length === 0) {
-        onLockPubkeyCancel()
-        return
+            onLockPubkeyCancel()
+            return
         }
 
         if (lockedPubkey.startsWith('nsec')) {
-        throw new AppError(Err.VALIDATION_ERROR, 'Invalid key. Please provide public key in NPUB or HEX format.')
+            throw new AppError(Err.VALIDATION_ERROR, 'Invalid key. Please provide public key in NPUB or HEX format.')
         }
 
         const contact = contactsStore.findByNpub(lockedPubkey) || contactsStore.findByPubkey(lockedPubkey)
 
         if (contact) {
-        log.trace('[onLockPubkeySelect] Provided pubkey belongs to a contact', { contactName: contact.name })
-        let relays: string[] = []
+            log.trace('[onLockPubkeySelect] Provided pubkey belongs to a contact', { contactName: contact.name })
+            let relays: string[] = []
 
-        if (contact?.type === ContactType.PUBLIC) {
-            relays = relaysStore.allPublicUrls
-        } else {
-            relays = relaysStore.allUrls
+            if (contact?.type === ContactType.PUBLIC) {
+                relays = relaysStore.allPublicUrls
+            } else {
+                relays = relaysStore.allUrls
+            }
+
+            if (relays.length === 0) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
+            }
+
+            dispatch({
+                type: 'PREPARE_SEND_TO_CONTACT',
+                contactFrom: getContactFrom(),
+                contactTo: contact,
+                relays,
+                openNostrDM: false,
+            })
         }
 
-        if (relays.length === 0) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
-        }
-
-        setPaymentOption(SendOption.SEND_TOKEN)
-        setContactToSendFrom(getContactFrom())
-        setContactToSendTo(contact)
-        setRelaysToShareTo(relays)
-        }
-
-        togglePubkeySelectorModal()
+        dispatch({ type: 'CLOSE_MODAL', modal: 'pubkeySelector' })
     }
 
-    const onLockPubkeyCancel = function () { 
-        togglePubkeySelectorModal()
+    const onLockPubkeyCancel = function () {
+        dispatch({ type: 'CLOSE_MODAL', modal: 'pubkeySelector' })
+        dispatch({ type: 'CLEAR_CONTACT_TO' })
         setLockedPubkey(undefined)
-        setContactToSendTo(undefined)
     }
 
-
+    /*  
+        Create token press - validates all inputs, including the optional locked pubkey, 
+        prepares proofs to send based on the entered amount and selected mint balance.
+        
+        Handles proofs selection in offline mode when exact amount match is not available, by showing the proof selector modal.     
+    */
     const onMintBalanceConfirm = async function () {
         try {
             if(!mintBalanceToSendFrom) {
@@ -754,26 +1024,18 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
                 log.trace("[onMintBalanceConfirm]", {isOnline: isOnlineRef.current, amountToSendInt, autoSelectedAmount, isExactMatch})
 
-                // setSelectedProofs(autoSelectedProofs) //
-
                 if(!isExactMatch) {
                     // TODO need to improve algo auto-selected proofs
-
-                    /* setAmountToSend(numbro(selectedAmount / getCurrency(unitRef.current).precision).format({
-                        thousandSeparated: true,
-                        mantissa: getCurrency(unitRef.current).mantissa
-                    })) */
-                    resetSelectedProofs()
-                    // show proof selector modal
-                    setIsProofSelectorModalVisible(true)
-
+                    dispatch({ type: 'SET_SELECTED_PROOFS', proofs: [] })
+                    setAmountToSend('0')
+                    dispatch({ type: 'OPEN_MODAL', modal: 'proofSelector' })
                     return
                 } else {
                     exactMatchProofs.push(...autoSelectedProofs)
                 }
             }
 
-            setIsLoading(true)
+            dispatch({ type: 'SEND_START' })
 
             //@ts-ignore
             const p2pk: {
@@ -819,74 +1081,67 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         }
     }
 
-
+    /*
+        Token to send is obtained from the  awaitable SendTask result (no event listener needed). Then depending on the flow:
+        - For Send Token to contact flow, show NostrDM modal.
+        - For Pay Cashu Payment Request flow, if the payment request has a NOSTR transport, 
+            show Nostr or POST modal based on pr transport.
+        - No modal for standard send (Show token) flow, user can copy the token from the result modal and share it manually.    
+    */
     const handleSendTaskResult = async (result: TransactionTaskResult) => {
-            log.trace('[SendScreen] handleSendTaskResult start')
+        log.trace('[SendScreen] handleSendTaskResult start')
 
-            setIsLoading(false)
+        const { transaction: txResult, error, encodedTokenToSend: token } = result
 
-            const { transaction, error, encodedTokenToSend } = result
-
-            // Update transaction state
-            if (transaction) {
-            setTransactionStatus(transaction.status)
-            setTransaction(transaction)
-            setTransactionId(transaction.id)
-
-            // Link transaction to Cashu payment request + contacts (only for Cashu PR flow)
-            if (
-                paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST &&
-                decodedCashuPaymentRequest?.id &&
-                encodedCashuPaymentRequest
-            ) {
-                transaction.update({
-                    paymentId: decodedCashuPaymentRequest.id,
-                    paymentRequest: encodedCashuPaymentRequest,
-                    profile: contactToSendFrom ? JSON.stringify(contactToSendFrom) : undefined,
-                    sentTo: contactToSendTo
-                        ? contactToSendTo.nip05 || contactToSendTo.name || null
-                        : null,
-                    sentFrom: contactToSendFrom
-                        ? contactToSendFrom.nip05 || contactToSendFrom.name || null
-                        : null,
-                })
-            }
-            }
-
-            // Save token if present (e.g. for manual copy/share)
-            if (encodedTokenToSend) {
-                setEncodedTokenToSend(encodedTokenToSend);
-            }
-
-            // ——— Error Handling ———
-            if (error || !transaction) {
-                const message = error?.params?.message || error?.message || 'Unknown error';
-                setResultModalInfo({
-                    status: (transaction?.status || TransactionStatus.ERROR) as TransactionStatus,
-                    title: error?.params?.message ? error.message : 'Send failed',
-                    message,
-                })
-                setIsResultModalVisible(true)
-                return;
-            }
-
-            // ——— Success Path ———
-            setIsMintSelectorVisible(false);
-
-            if (paymentOption === SendOption.SEND_TOKEN) {
-                toggleNostrDMModal()
-            }
-
-            if (paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST) {
-                if (relaysToShareTo.length > 0) {
-                    toggleNostrDMModal()
-                } else if (postEndpointUrl) {
-                    togglePostModal()
-                }
-            }
+        // ——— Error path ———
+        if (error || !txResult) {
+            const message = error?.params?.message || error?.message || 'Unknown error'
+            dispatch({
+                type: 'SEND_TASK_ERROR',
+                status: (txResult?.status || TransactionStatus.ERROR) as TransactionStatus,
+                title: error?.params?.message ? error.message : 'Send failed',
+                message,
+            })
+            return
         }
 
+        // MobX side-effect: link db transaction to Cashu PR + contacts
+        if (
+            paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST &&
+            decodedCashuPaymentRequest?.id &&
+            encodedCashuPaymentRequest
+        ) {
+            txResult.update({
+                paymentId: decodedCashuPaymentRequest.id,
+                paymentRequest: encodedCashuPaymentRequest,
+                profile: contactToSendFrom ? JSON.stringify(contactToSendFrom) : undefined,
+                sentTo: contactToSendTo ? contactToSendTo.nip05 || contactToSendTo.name || null : null,
+                sentFrom: contactToSendFrom ? contactToSendFrom.nip05 || contactToSendFrom.name || null : null,
+            })
+        }
 
+        // ——— Success path ———
+        let openTransport: 'nostrDM' | 'post' | 'none' = 'none'
+        if (paymentOption === SendOption.SEND_TOKEN) {
+            openTransport = 'nostrDM'
+        } else if (paymentOption === SendOption.PAY_CASHU_PAYMENT_REQUEST) {
+            if (relaysToShareTo.length > 0) openTransport = 'nostrDM'
+            else if (postEndpointUrl) openTransport = 'post'
+        }
+
+        dispatch({
+            type: 'SEND_TASK_SUCCESS',
+            token: token ?? '',
+            transaction: txResult,
+            openTransport,
+        })
+    }
+
+    /* 
+        Heal error with proofs counter being out of sync with the mint, by increasing 
+        the counter by 10 and retrying the send action.
+        TODO: This should be triggered by error codes in modern cashu-ts, not parsed message.
+    */
     const increaseProofsCounterAndRetry = async function () {
         try {
             const walletInstance = await walletStore.getWallet(
@@ -907,7 +1162,10 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         }
     }
 
-
+    /* 
+        Retry after spent ecash found in the wallet 
+        TODO: This should be triggered by error codes in modern cashu-ts, not parsed message.
+    */
     const retryAfterSpentCleaned = async function () {
         try {
             // retry send
@@ -925,7 +1183,9 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         gotoWallet()
     }
 
-
+    /* 
+        Ecash token sending via Nostr DM, triggered when user confirms the send in the Nostr DM modal.
+    */
     const sendAsNostrDM = async function () {
         try {
             if(!contactToSendFrom || !contactToSendTo) {
@@ -940,7 +1200,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Missing mint balance context.')
             }
 
-            setIsNostrDMSending(true)
+            dispatch({ type: 'TRANSPORT_START', channel: 'nostrDM' })
             let messageContent: string | undefined = undefined
 
             if(paymentOption === SendOption.SEND_TOKEN) {
@@ -980,10 +1240,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 walletProfileStore.nip05
             )
             
-            setIsNostrDMSending(false)
-
-            if(sentEvent) {                
-                setIsNostrDMSuccess(true)
+            if(sentEvent) {
+                dispatch({ type: 'TRANSPORT_SUCCESS', channel: 'nostrDM' })
 
                 if(!transactionId) {
                     return
@@ -1020,13 +1278,18 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 }
 
             } else {
-                setInfo('Nostr relays could not confirm that the message has been sent')
+                dispatch({ type: 'TRANSPORT_RESET', channel: 'nostrDM' })
+                dispatch({ type: 'SET_INFO', message: 'Nostr relays could not confirm that the message has been sent' })
             }
         } catch (e: any) {
             handleError(e)
         }
     }
 
+    /* 
+        Ecash token sending via POST request to the endpoint specified in the payment request, 
+        triggered when user confirms the send in the POST modal.
+    */
     const sendAsPostRequest = async function () {
         try {
             if (!postEndpointUrl) {
@@ -1045,7 +1308,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Missing mint balance context.')
             }
 
-            setIsPostSending(true)
+            dispatch({ type: 'TRANSPORT_START', channel: 'post' })
 
             // keysetsV2 support
             const mintKeysetIds = mintsStore.findByUrl(mintBalanceToSendFrom.mintUrl)?.keysetIds
@@ -1071,8 +1334,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 jwtAuthRequired: false
             })
 
-            setIsPostSending(false)
-            setIsPostSuccess(true)
+            dispatch({ type: 'TRANSPORT_SUCCESS', channel: 'post' })
 
             if (!transactionId) {
                 return
@@ -1104,59 +1366,51 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     }
 
 
+    /* 
+        Offline proofs selection handling - allows user to select which proofs to send when an 
+        exact match for the amount is not available, and updates the amount to send based on the selected proofs total. 
+    */
     const toggleSelectedProof = function (proof: Proof) {
         const precision = getCurrency(unitRef.current).precision
+        const isSelected = selectedProofs.some(p => p.secret === proof.secret)
 
-        setSelectedProofs(prevSelectedProofs => {
-          const isSelected = prevSelectedProofs.some(
-            p => p.secret === proof.secret
-          )
-          
-          // validate amountToSend s.t. it does not crash numbro
-          const _amountToSend = (!amountToSend || !amountToSend.trim() || Number.isNaN(parseInt(amountToSend))) 
-            ? 0 
-            : parseInt(amountToSend);
-  
-          if (isSelected) {
-            // If the proof is already selected, remove it from the array            
+        // validate amountToSend s.t. it does not crash numbro
+        const _amountToSend = (!amountToSend || !amountToSend.trim() || Number.isNaN(parseInt(amountToSend)))
+            ? 0
+            : parseInt(amountToSend)
+
+        if (isSelected) {
             setAmountToSend(`${numbro(_amountToSend - proof.amount / precision).format({
-                thousandSeparated: true, 
-                mantissa: getCurrency(unitRef.current).mantissa
+                thousandSeparated: true,
+                mantissa: getCurrency(unitRef.current).mantissa,
             })}`)
-            return prevSelectedProofs.filter(p => p.secret !== proof.secret)
-          } else {
-            // If the proof is not selected, add it to the array            
+            dispatch({ type: 'SET_SELECTED_PROOFS', proofs: selectedProofs.filter(p => p.secret !== proof.secret) })
+        } else {
             setAmountToSend(`${numbro(_amountToSend + proof.amount / precision).format({
-                thousandSeparated: true, 
-                mantissa: getCurrency(unitRef.current).mantissa
+                thousandSeparated: true,
+                mantissa: getCurrency(unitRef.current).mantissa,
             })}`)
-            return [...prevSelectedProofs, proof]
-          }
-        })
+            dispatch({ type: 'SET_SELECTED_PROOFS', proofs: [...selectedProofs, proof] })
+        }
     }
 
     const resetSelectedProofs = function () {
-        setSelectedProofs([])
+        dispatch({ type: 'SET_SELECTED_PROOFS', proofs: [] })
         setAmountToSend('0')
     }
 
-
+    /* 
+        Confirm proof selection in offline mode and proceed with the send, after updating the amount 
+        to send to match the total of the selected proofs. 
+    */
     const onOfflineSendConfirm = function () {
-        // Update amountToSend to match exactly the selected proofs amount before proceeding
-        // const selectedAmount = CashuUtils.getProofsAmount(selectedProofs)
-        // const precision = getCurrency(unitRef.current).precision
-        // const formattedAmount = numbro(selectedAmount / precision)
-        //     .format({
-        //         thousandSeparated: true, 
-        //         mantissa: getCurrency(unitRef.current).mantissa
-        //     })
-        
-        // setAmountToSend(formattedAmount)
+        // We show selected amount in proof selector modal, so do not trigger various state updates here.
         toggleProofSelectorModal() // close
         // Pass the exact selected amount directly to onMintBalanceConfirm
         onMintBalanceConfirm()
     }
 
+    /* Navigate to contact list */
     const gotoContacts = function () {
 
         if(encodedTokenToSend && contactToSendTo) {
@@ -1180,37 +1434,19 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         )
      }
 
-
     const resetState = function () {
-        // reset state so it does not interfere next payment
+        dispatch({ type: 'RESET' })
         setAmountToSend('')
-        setMemo('')                
-        setIsMintSelectorVisible(false)
-        setIsNostrDMModalVisible(false)        
-        setIsNostrDMSending(false)
-        setIsNostrDMModalVisible(false)
-        setIsProofSelectorModalVisible(false)
-        setIsLoading(false)
-        setResultModalInfo(undefined)
-        setIsResultModalVisible(false)
-        setLockTime(undefined)        
+        setMemo('')
+        setIsCashuPrWithAmount(false)
+        setIsCashuPrWithDesc(false)
         setLockedPubkey(undefined)
-        setPostEndpointUrl(undefined)
-        setIsPostModalVisible(false)
-        setIsPostSending(false)
-        setIsPostSuccess(false)
+        setLockTime(1)
     }
 
-
+    /* Avoid modals stacked if we have an error */
     const handleError = function(e: AppError): void {
-        // TODO resetState() on all tx data on error? Or save txId to state and allow retry / recovery?
-        setIsNostrDMSending(false)
-        setIsProofSelectorModalVisible(false)
-        setIsNostrDMModalVisible(false)
-        setIsLoading(false)
-        setIsPostSending(false)
-        setIsPostModalVisible(false)
-        setError(e)
+        dispatch({ type: 'SET_ERROR', error: e })
     }
 
     const headerBg = useThemeColor('header')
@@ -1240,9 +1476,6 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             mintUrl: mintBalanceToSendFrom?.mintUrl
         })        
     }
-
-
-
 
 
     return (
@@ -1813,7 +2046,7 @@ const TokenOptionsBlock = observer(function (props: {
                   {props.contactToSendTo ? (
                     <Button
                         text={`Send to ${props.contactToSendTo.nip05}`}
-                        preset='secondary'
+                        preset='tertiary'
                         onPress={props.toggleNostrDMModal}                        
                         style={{
                             minHeight: verticalScale(40), 
@@ -1830,7 +2063,7 @@ const TokenOptionsBlock = observer(function (props: {
                   ) : (
                     <Button
                         tx='sendToContact'
-                        preset='secondary'
+                        preset='tertiary'
                         onPress={props.gotoContacts}                        
                         style={{
                             minHeight: verticalScale(40), 
