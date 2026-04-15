@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react"
+import React, { useRef, useState, useEffect, useReducer } from "react"
 import { observer } from "mobx-react-lite"
 import { StackActions, StaticScreenProps, useNavigation } from "@react-navigation/native"
 import { View, TextInput, LayoutAnimation, Keyboard, ViewStyle, TextStyle } from "react-native"
@@ -27,14 +27,126 @@ import {HANDLE_RECEIVED_EVENT_TASK, log, TransactionTaskResult, WalletTask } fro
 import { QRCodeBlock } from "./Wallet/QRCode"
 import { TranItem } from "./TranDetailScreen"
 import { Transaction, TransactionStatus } from "../models/Transaction"
+import { MintBalance } from "../models/Mint"
 import { ResultModalInfo } from "./Wallet/ResultModalInfo"
 import { MintHeader } from "./Mints/MintHeader"
 import { MemoInputCard } from "../components/MemoInputCard"
 
 type Props = StaticScreenProps<{
   unit: MintUnit,
-  mintUrl?: string, 
+  mintUrl?: string,
 }>
+
+type CashuPaymentRequestState = {
+  availableMintBalances: MintBalance[]
+  mintBalanceToReceiveTo: MintBalance | undefined
+  transactionStatus: TransactionStatus | undefined
+  transactionId: number | undefined
+  transaction: Transaction | undefined
+  isCashuPaymentRequestTaskSentToQueue: boolean
+  isMintSelectorVisible: boolean
+  isLoading: boolean
+  error: AppError | undefined
+  info: string
+  encodedPaymentRequest: string | undefined
+  resultModalInfo: { status: TransactionStatus; title?: string; message: string } | undefined
+  isResultModalVisible: boolean
+}
+
+type CashuPaymentRequestAction =
+  | { type: 'SET_MINT_BALANCE'; balance: MintBalance }
+  | { type: 'SHOW_MINT_SELECTOR'; balances: MintBalance[]; defaultBalance?: MintBalance }
+  | { type: 'HIDE_MINT_SELECTOR' }
+  | { type: 'REQUEST_START' }
+  | { type: 'REQUEST_READY'; transactionId: number; transactionStatus: TransactionStatus; encodedPaymentRequest?: string }
+  | { type: 'REQUEST_FAILED'; status: TransactionStatus; title?: string; message: string }
+  | { type: 'REQUEST_COMPLETE'; transaction: Transaction; message: string }
+  | { type: 'TOGGLE_RESULT_MODAL' }
+  | { type: 'SET_INFO'; message: string }
+  | { type: 'SET_ERROR'; error: AppError }
+  | { type: 'RESET' }
+
+const INITIAL_STATE: CashuPaymentRequestState = {
+  availableMintBalances: [],
+  mintBalanceToReceiveTo: undefined,
+  transactionStatus: undefined,
+  transactionId: undefined,
+  transaction: undefined,
+  isCashuPaymentRequestTaskSentToQueue: false,
+  isMintSelectorVisible: false,
+  isLoading: false,
+  error: undefined,
+  info: '',
+  encodedPaymentRequest: undefined,
+  resultModalInfo: undefined,
+  isResultModalVisible: false,
+}
+
+function cashuPaymentRequestReducer(
+  state: CashuPaymentRequestState,
+  action: CashuPaymentRequestAction,
+): CashuPaymentRequestState {
+  switch (action.type) {
+    case 'SET_MINT_BALANCE':
+      return { ...state, mintBalanceToReceiveTo: action.balance }
+    case 'SHOW_MINT_SELECTOR':
+      return {
+        ...state,
+        availableMintBalances: action.balances,
+        mintBalanceToReceiveTo: action.defaultBalance ?? state.mintBalanceToReceiveTo ?? action.balances[0],
+        isMintSelectorVisible: true,
+      }
+    case 'HIDE_MINT_SELECTOR':
+      return { ...state, isMintSelectorVisible: false }
+    case 'REQUEST_START':
+      return { ...state, isLoading: true, isCashuPaymentRequestTaskSentToQueue: true }
+    case 'REQUEST_READY':
+      return {
+        ...state,
+        isLoading: false,
+        isMintSelectorVisible: false,
+        transactionId: action.transactionId,
+        transactionStatus: action.transactionStatus,
+        encodedPaymentRequest: action.encodedPaymentRequest ?? state.encodedPaymentRequest,
+      }
+    case 'REQUEST_FAILED':
+      return {
+        ...state,
+        isLoading: false,
+        isMintSelectorVisible: false,
+        isCashuPaymentRequestTaskSentToQueue: false,
+        transactionStatus: action.status,
+        resultModalInfo: { status: action.status, title: action.title, message: action.message },
+        isResultModalVisible: true,
+      }
+    case 'REQUEST_COMPLETE':
+      return {
+        ...state,
+        transactionStatus: TransactionStatus.COMPLETED,
+        transaction: action.transaction,
+        resultModalInfo: {
+          status: TransactionStatus.COMPLETED,
+          message: action.message,
+        },
+        isResultModalVisible: true,
+      }
+    case 'TOGGLE_RESULT_MODAL':
+      return { ...state, isResultModalVisible: !state.isResultModalVisible }
+    case 'SET_INFO':
+      return { ...state, info: action.message }
+    case 'SET_ERROR':
+      return {
+        ...state,
+        isLoading: false,
+        isCashuPaymentRequestTaskSentToQueue: false,
+        error: action.error,
+      }
+    case 'RESET':
+      return INITIAL_STATE
+    default:
+      return state
+  }
+}
 
 export const CashuPaymentRequestScreen = observer(function CashuPaymentRequestScreen({ route }: Props) {
   //const isInternetReachable = useIsInternetReachable()
@@ -42,31 +154,30 @@ export const CashuPaymentRequestScreen = observer(function CashuPaymentRequestSc
   const {
     proofsStore,
     mintsStore,
-    walletStore,
-    userSettingsStore,
   } = useStores()
 
   const amountInputRef = useRef<TextInput>(null)
   const memoInputRef = useRef<TextInput>(null)
   const unitRef = useRef<MintUnit>('sat')
 
-  const [amountToRequest, setAmountToRequest] = useState<string>("0")  
+  const [amountToRequest, setAmountToRequest] = useState<string>("0")
   const [memo, setMemo] = useState("")
-  const [availableMintBalances, setAvailableMintBalances] = useState<any[]>([])
-  const [mintBalanceToReceiveTo, setMintBalanceToReceiveTo] = useState<any | undefined>(undefined)
-  const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | undefined>()
-  const [transactionId, setTransactionId] = useState<number | undefined>()
-  const [transaction, setTransaction] = useState<Transaction | undefined>()
-  const [isCashuPaymentRequestTaskSentToQueue, setIsCashuPaymentRequestTaskSentToQueue] = useState(false)
-  const [isMintSelectorVisible, setIsMintSelectorVisible] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<AppError | undefined>()
-  const [info, setInfo] = useState("")
-  const [encodedPaymentRequest, setEncodedPaymentRequest] = useState<string | undefined>()
-  const [resultModalInfo, setResultModalInfo] = useState<
-    {status: TransactionStatus; title?: string; message: string} | undefined
-  >()
-  const [isResultModalVisible, setIsResultModalVisible] = useState(false)
+  const [state, dispatch] = useReducer(cashuPaymentRequestReducer, INITIAL_STATE)
+  const {
+    availableMintBalances,
+    mintBalanceToReceiveTo,
+    transactionStatus,
+    transactionId,
+    transaction,
+    isCashuPaymentRequestTaskSentToQueue,
+    isMintSelectorVisible,
+    isLoading,
+    error,
+    info,
+    encodedPaymentRequest,
+    resultModalInfo,
+    isResultModalVisible,
+  } = state
 
   useEffect(() => {
     const focus = () => {
@@ -96,7 +207,7 @@ useEffect(() => {
 
       if (mintUrl) {
         const mintBalance = proofsStore.getMintBalance(mintUrl)
-        setMintBalanceToReceiveTo(mintBalance)
+        if (mintBalance) dispatch({ type: 'SET_MINT_BALANCE', balance: mintBalance })
       }
     } catch (e: any) {
       handleError(e)
@@ -128,14 +239,11 @@ useEffect(() => {
         'Payment request has been paid and new proofs received',
       )
 
-      setResultModalInfo({
-        status: result.transaction.status,
+      dispatch({
+        type: 'REQUEST_COMPLETE',
+        transaction: result.transaction,
         message: result.message,
       })
-
-      setTransactionStatus(TransactionStatus.COMPLETED)
-      setTransaction(result.transaction)
-      setIsResultModalVisible(true)
     }
   }
 
@@ -155,8 +263,7 @@ useEffect(() => {
 }, [transactionId])
 
 
-const toggleResultModal = () =>
-  setIsResultModalVisible(previousState => !previousState)
+const toggleResultModal = () => dispatch({ type: 'TOGGLE_RESULT_MODAL' })
 
 const onAmountEndEditing = () => {
   log.trace("[onAmountEndEditing] called")
@@ -191,14 +298,15 @@ const onAmountEndEditing = () => {
         mantissa,
       })}`,
     )
-    setAvailableMintBalances(balances)
-    if (!mintBalanceToReceiveTo) setMintBalanceToReceiveTo(balances[0])
     LayoutAnimation.easeInEaseOut()
+    dispatch({
+      type: 'SHOW_MINT_SELECTOR',
+      balances,
+      defaultBalance: mintBalanceToReceiveTo,
+    })
 
-    setIsMintSelectorVisible(true)
-          
   } catch (e: any) {
-    setError(e)
+    dispatch({ type: 'SET_ERROR', error: e })
   }
 }
 
@@ -206,7 +314,7 @@ const onMemoEndEditing = () => {
   log.trace("[onMemoEndEditing] called")
   LayoutAnimation.easeInEaseOut()
   if (availableMintBalances.length > 0) {
-    setIsMintSelectorVisible(true)
+    dispatch({ type: 'SHOW_MINT_SELECTOR', balances: availableMintBalances })
   }
 }
 
@@ -220,23 +328,22 @@ const onMemoDone = () => {
   }
 }
 
-const onMintBalanceSelect = (balance: any) => {
-  setMintBalanceToReceiveTo(balance)
+const onMintBalanceSelect = (balance: MintBalance) => {
+  dispatch({ type: 'SET_MINT_BALANCE', balance })
 }
 
 const onMintBalanceCancel = () => {
-  setIsMintSelectorVisible(false)
+  dispatch({ type: 'HIDE_MINT_SELECTOR' })
 }
 
 const onMintBalanceConfirm = async () => {
   if (!mintBalanceToReceiveTo) return
-  setIsLoading(true)
   try {
     const mintUrl = mintBalanceToReceiveTo.mintUrl
     const mint = mintsStore.findByUrl(mintUrl)
     if (!mint) throw new AppError(Err.NOTFOUND_ERROR, "Mint not found")
 
-    setIsCashuPaymentRequestTaskSentToQueue(true)
+    dispatch({ type: 'REQUEST_START' })
 
     const amountInt = round(
       toNumber(amountToRequest) * getCurrency(unitRef.current).precision,
@@ -247,16 +354,13 @@ const onMintBalanceConfirm = async () => {
       mintBalanceToReceiveTo,
       amountInt,
       unitRef.current,
-      memo,      
+      memo,
     )
 
     await handlePayReqTaskResult(result)
-    
+
   } catch (e: any) {
-    setError(e)
-  } finally {
-    setIsLoading(false)
-    setIsMintSelectorVisible(false)
+    dispatch({ type: 'SET_ERROR', error: e })
   }
 }
 
@@ -264,48 +368,40 @@ const onMintBalanceConfirm = async () => {
 const handlePayReqTaskResult = async (result: TransactionTaskResult) => {
   log.trace('handlePayReqTaskResult event handler triggered')
 
-  setIsLoading(false)
-  setIsMintSelectorVisible(false)
-
-  const {status, id} = result.transaction as Transaction
-  setTransactionStatus(status) // Should be PENDING
-  setTransactionId(id)
-
-  if (result.encodedCashuPaymentRequest) {
-    setEncodedPaymentRequest(result.encodedCashuPaymentRequest)
-  }
-
   if (result.error) {
-    setResultModalInfo({
-      status: result.transaction?.status as TransactionStatus,
-      title: result.error.params?.message
-        ? result.error.message
-        : 'Error',
+    dispatch({
+      type: 'REQUEST_FAILED',
+      status: result.transaction?.status ?? TransactionStatus.ERROR,
+      title: result.error.params?.message ? result.error.message : 'Error',
       message: result.error.params?.message || result.error.message,
     })
-    setIsResultModalVisible(true)
     return
-  } 
+  }
+
+  const { status, id } = result.transaction as Transaction
+  dispatch({
+    type: 'REQUEST_READY',
+    transactionId: id,
+    transactionStatus: status,
+    encodedPaymentRequest: result.encodedCashuPaymentRequest,
+  })
 }
 
 const resetState = () => {
   setAmountToRequest("0")
   setMemo("")
-  setMintBalanceToReceiveTo(undefined)
-  setEncodedPaymentRequest(undefined)
-  setIsResultModalVisible(false)
+  dispatch({ type: 'RESET' })
 }
 
 const gotoWallet = () => {
   resetState()
-  navigation.dispatch(                
+  navigation.dispatch(
     StackActions.popToTop()
   )
 }
 
 const handleError = function (e: AppError): void {
-  setIsLoading(false)
-  setError(e)
+  dispatch({ type: 'SET_ERROR', error: e })
 }
 
 const headerBg = useThemeColor("header")
