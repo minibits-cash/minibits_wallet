@@ -39,6 +39,7 @@ import { LnurlClient, LNURLPayParams } from '../services/lnurlService'
 import { CurrencyCode, MintUnit, convertToFromSats, getCurrency } from "../services/wallet/currency"
 import { FeeBadge } from './Wallet/FeeBadge'
 import { MeltQuoteBolt11Response } from '@cashu/cashu-ts'
+import EventEmitter from '../utils/eventEmitter'
 import { MintHeader } from './Mints/MintHeader'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import numbro from 'numbro'
@@ -103,6 +104,7 @@ type TransferAction =
     | { type: 'QUOTE_FINISHED' }
     | { type: 'TRANSFER_START' }
     | { type: 'TRANSFER_COMPLETE'; transaction?: Transaction; transactionStatus: TransactionStatus; finalFee: number; resultModalInfo: { status: TransactionStatus; title?: string; message: string } }
+    | { type: 'UPDATE_RESULT_MODAL'; transactionStatus: TransactionStatus; resultModalInfo: { status: TransactionStatus; message: string } }
     | { type: 'TOGGLE_RESULT_MODAL' }
     | { type: 'SET_INFO'; message: string }
     | { type: 'CLEAR_INFO' }
@@ -194,6 +196,13 @@ function transferReducer(state: TransferState, action: TransferAction): Transfer
                 finalFee: action.finalFee,
                 resultModalInfo: action.resultModalInfo,
                 isResultModalVisible: true,
+            }
+
+        case 'UPDATE_RESULT_MODAL':
+            return {
+                ...state,
+                transactionStatus: action.transactionStatus,
+                resultModalInfo: action.resultModalInfo,
             }
 
         case 'TOGGLE_RESULT_MODAL':
@@ -433,6 +442,23 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
 
         }, [route.params?.paymentOption]),
     )
+
+    const [pendingAsyncMeltId, setPendingAsyncMeltId] = useState<number | undefined>(undefined)
+
+    useEffect(() => {
+        if (!pendingAsyncMeltId) return
+        const handler = (result: { transactionId: number; status: TransactionStatus; message: string }) => {
+            if (result.transactionId !== pendingAsyncMeltId) return
+            setPendingAsyncMeltId(undefined)
+            dispatch({
+                type: 'UPDATE_RESULT_MODAL',
+                transactionStatus: result.status,
+                resultModalInfo: { status: result.status, message: result.message },
+            })
+        }
+        EventEmitter.on('ev_asyncMeltResult', handler)
+        return () => EventEmitter.off('ev_asyncMeltResult', handler)
+    }, [pendingAsyncMeltId])
 
     const handleError = function(e: AppError): void {
         dispatch({ type: 'SET_ERROR', error: e })
@@ -750,6 +776,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
                 draftTransactionIdRef.current || undefined
             )
 
+            // TODO: handle async melt case - show in progress (not pending) state in modal and update when completed
             await handleTransferTaskResult(result)
 
         } catch (e: any) {
@@ -805,6 +832,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
             let resultModalInfo: { status: TransactionStatus; title?: string; message: string }
 
             if (error) {
+                // mint returned error with proofs pending - show pending message in modal instead of error
                 if (status === TransactionStatus.PENDING) {
                     resultModalInfo = { status, message }
                 } else {
@@ -815,6 +843,11 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
                     }
                 }
             } else {
+                if (status === TransactionStatus.PENDING) {
+                    // Async melt: monitor is running in background and will emit ev_asyncMeltResult
+                    // when the quote resolves. The listener above will update the modal at that point.
+                    setPendingAsyncMeltId(transaction.id)
+                }
                 // Success path
                 if (isInvoiceDonation && donationForName &&
                         (status === TransactionStatus.COMPLETED || status === TransactionStatus.RECOVERED)) {
@@ -1129,12 +1162,32 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
                   </>
                 )}
               {resultModalInfo &&
-                transactionStatus === TransactionStatus.PENDING && (
+                transactionStatus === TransactionStatus.PENDING &&
+                !pendingAsyncMeltId && (
                   <>
                     <ResultModalInfo
                       icon="faTriangleExclamation"
                       iconColor={colors.palette.iconYellow300}
                       title={translate('payCommon_isPending')}
+                      message={resultModalInfo?.message}
+                    />
+                    <View style={$buttonContainer}>
+                      <Button
+                        preset="secondary"
+                        tx={'commonClose'}
+                        onPress={gotoWallet}
+                      />
+                    </View>
+                  </>
+                )}
+              {resultModalInfo &&
+                transactionStatus === TransactionStatus.PENDING &&
+                !!pendingAsyncMeltId && (
+                  <>
+                    <ResultModalInfo
+                      icon="faClock"
+                      iconColor={colors.palette.iconBlue200}
+                      title={translate('payCommon_isInProgress')}
                       message={resultModalInfo?.message}
                     />
                     <View style={$buttonContainer}>

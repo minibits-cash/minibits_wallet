@@ -292,6 +292,7 @@
 	"payCommon_failed": "Pago fallido",
 	"payCommon_insufficientFunds": "No hay fondos suficientes para enviar esta cantidad.",
 	"payCommon_isPending": "El pago está pendiente",
+	"payCommon_isInProgress": "Pago en curso",
 	"payCommon_maximumPay": "El monto máximo a pagar es %{amount} %{currency} .",
 	"payCommon_minimumPay": "El monto mínimo de pago es %{amount} %{currency} .",
 	"payCommon_minimumWithdraw": "El monto mínimo de retiro es %{amount} %{currency} .",

@@ -102,7 +102,7 @@ const getRandomPictures = async function () {
     return avatars
 }
 
-// TODO remove pubkey params
+
 const createWalletProfile = async function (walletId: string, seedHash: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'POST'    
@@ -126,7 +126,6 @@ const createWalletProfile = async function (walletId: string, seedHash: string) 
 }
 
 // what is passed in {update} gets updated
-// TODO remove pubkey from url and params
 const updateWalletProfile = async function (update: {name?: string, lud16?: string, avatar?: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'    
@@ -149,7 +148,7 @@ const updateWalletProfile = async function (update: {name?: string, lud16?: stri
     return walletProfile
 }
 
-// TODO remove pubkey from url and params
+
 const updateWalletProfileNip05 = async function (update: {newPubkey: string, name: string, nip05: string, lud16: string, avatar: string}) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'PUT'    
@@ -175,7 +174,6 @@ const updateWalletProfileNip05 = async function (update: {newPubkey: string, nam
 }
 
 
-// TODO remove pubkey from url and params
 const updateDeviceToken = async function (deviceToken: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile' 
     const method = 'PUT'    

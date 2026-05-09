@@ -29,7 +29,7 @@ import { InFlightRequest, Mint } from './Mint'
 import { getRootStore } from './helpers/getRootStore'
 import { Transaction } from './Transaction'
 
-//
+// r
 
 /* 
    Not persisted, in-memory only model of the cashu-ts wallet instances and wallet keys persisted in the device secure store.
@@ -907,7 +907,8 @@ export const WalletStoreModel = types
             transactionId: number,
             options?: {
               increaseCounterBy?: number,
-              inFlightRequest?: InFlightRequest<MeltParams>
+              inFlightRequest?: InFlightRequest<MeltParams>,
+              preferAsync?: boolean,
             }
         ) {
             const mintInstance = self.getMintModelInstance(mintUrl)
@@ -971,7 +972,7 @@ export const WalletStoreModel = types
 
             try {
                 // Step 2: Complete the melt (sends to mint and constructs change proofs)
-                const meltResponse: MeltProofsResponse = yield cashuWallet.completeMelt(meltPreview)
+                const meltResponse: MeltProofsResponse = yield cashuWallet.completeMelt(meltPreview, undefined, options?.preferAsync)
 
                 // Remove the stored preview on success
                 currentCounter.removeMeltCounterValue(transactionId)

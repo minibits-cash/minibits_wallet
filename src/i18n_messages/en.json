@@ -293,6 +293,7 @@
 	"payCommon_failed": "Payment failed",
 	"payCommon_insufficientFunds": "There are not enough funds to send this amount.",
 	"payCommon_isPending": "Payment is pending",
+	"payCommon_isInProgress": "Payment in progress",
 	"payCommon_maximumPay": "Maximum amount to pay is %{amount} %{currency}.",
 	"payCommon_minimumPay": "Minimal payment amount is %{amount} %{currency}.",
 	"payCommon_minimumWithdraw": "Minimal withdraw amount is %{amount} %{currency}.",

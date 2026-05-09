@@ -1,6 +1,6 @@
 import {CashuUtils} from '../cashu/cashuUtils'
 import AppError, {Err} from '../../utils/AppError'
-import {MeltProofsResponse, MeltQuoteBolt11Response, MeltQuoteResponse, MeltQuoteState, getEncodedToken} from '@cashu/cashu-ts'
+import {Mint as CashuMint, Wallet as CashuWallet, MeltProofsResponse, MeltQuoteBolt11Response, MeltQuoteResponse, MeltQuoteState, getEncodedToken} from '@cashu/cashu-ts'
 import {rootStoreInstance} from '../../models'
 import { TransactionTaskResult, WalletTask } from '../walletService'
 import { MintBalance } from '../../models/Mint'
@@ -8,6 +8,7 @@ import { Proof } from '../../models/Proof'
 import { Transaction, TransactionData, TransactionStatus, TransactionType } from '../../models/Transaction'
 import { log } from '../logService'
 import { WalletUtils } from './utils'
+import { poller } from '../../utils/poller'
 import {isBefore} from 'date-fns'
 import { MintUnit, formatCurrency, getCurrency } from './currency'
 import { NostrEvent } from '../nostrService'
@@ -23,6 +24,49 @@ const {
 // const {walletStore} = nonPersistedStores
 
 export const TRANSFER_TASK = 'transferTask'
+
+const _monitorAsyncMeltQuote = async (params: {
+    mintUrl: string
+    unit: MintUnit
+    quoteId: string
+    proofsToMeltFrom: Proof[]
+    proofsToMeltFromAmount: number
+    amountToTransfer: number
+    meltFeeReserve: number
+    transactionId: number
+}) => {
+    const { mintUrl, quoteId } = params
+    const wsMint = new CashuMint(mintUrl)
+    const wsWallet = new CashuWallet(wsMint)
+
+    try {
+        log.trace('[transfer] Subscribing to meltQuoteUpdates for async melt', { quoteId })
+        const unsub = await wsWallet.on.meltQuoteUpdates(
+            [quoteId],
+            async (updatedQuote: MeltQuoteBolt11Response) => {
+                if (updatedQuote.state === MeltQuoteState.PAID ||
+                    updatedQuote.state === MeltQuoteState.UNPAID) {
+                    WalletTask.handlePendingMeltTask(params)
+                    unsub()
+                }
+            },
+            async (error: any) => {
+                throw error
+            },
+        )
+    } catch (error: any) {
+        log.error(Err.NETWORK_ERROR,
+            '[transfer] WebSocket error for async melt, starting poller.',
+            error.message,
+        )
+        poller(
+            `meltQuotePoller-${quoteId}`,
+            WalletTask.handlePendingMeltTask,
+            { interval: 15 * 1000, maxPolls: 8, maxErrors: 2 },
+            params,
+        ).then(() => log.trace('[meltQuotePoller] polling completed', { quoteId }))
+    }
+}
 
 export const transferTask = async function (
     mintBalanceToTransferFrom: MintBalance,
@@ -149,6 +193,9 @@ export const transferTask = async function (
             proofsToMeltFromAmount = CashuUtils.getProofsAmount(proofsToMeltFrom)
         }
 
+        // TODO: if proofsToMelFromAmount is significantly higher than amountWithFees, 
+        // add swap with the mint to get denominations that fit the needed amount
+
         // move proofs to PENDING state and link them to current tx
         proofsStore.addOrUpdate(proofsToMeltFrom,
             {
@@ -194,10 +241,11 @@ export const transferTask = async function (
                 unit,
                 meltQuote,
                 proofsToMeltFrom,
-                transactionId,                
+                transactionId,
+                { preferAsync: true },
             )
         } catch (e: any) {
-            if (WalletUtils.shouldHealOutputsError(e)) {                                
+            if (WalletUtils.shouldHealOutputsError(e)) {
                 log.error('[transferTask] Increasing proofsCounter outdated values and repeating payLightningMelt.')
                 meltResponse = await walletStore.payLightningMelt(
                     mintUrl,
@@ -205,7 +253,7 @@ export const transferTask = async function (
                     meltQuote,
                     proofsToMeltFrom,
                     transactionId,
-                    {increaseCounterBy: 10}
+                    { increaseCounterBy: 10, preferAsync: true },
                 )
             } else {
                 throw e
@@ -301,20 +349,43 @@ export const transferTask = async function (
                 nwcEvent
             } as TransactionTaskResult
 
-        } else if(meltResponse.quote.state === MeltQuoteState.PENDING) {            
+        } else if(meltResponse.quote.state === MeltQuoteState.PENDING) {
 
-            log.debug('[transfer] Invoice PENDING', {
-                metResponseQuote: meltResponse.quote,
-                transactionId
+            log.debug('[transfer] Invoice PENDING, async melt in progress', {
+                quoteId: meltResponse.quote.quote,
+                transactionId,
+            })
+
+            transactionData.push({
+                status: TransactionStatus.PENDING,
+                createdAt: new Date(),
+            })
+
+            transaction.update({
+                status: TransactionStatus.PENDING,
+                data: JSON.stringify(transactionData),
+            })
+
+            // Fire-and-forget: monitors quote via websocket (poller fallback) and
+            // updates the transaction + emits ev_asyncMeltResult when resolved.
+            _monitorAsyncMeltQuote({
+                mintUrl,
+                unit,
+                quoteId: meltResponse.quote.quote,
+                proofsToMeltFrom,
+                proofsToMeltFromAmount,
+                amountToTransfer,
+                meltFeeReserve,
+                transactionId,
             })
 
             return {
                 taskFunction: TRANSFER_TASK,
                 mintUrl,
                 transaction,
-                message: `Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.`,                
-                meltQuote,                
-                nwcEvent
+                message: 'Lightning payment is in progress. Check your transaction history for the result.',
+                meltQuote: meltResponse.quote,
+                nwcEvent,
             } as TransactionTaskResult
 
         } else {

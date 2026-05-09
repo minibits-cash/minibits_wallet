@@ -148,9 +148,19 @@ type WalletTaskService = {
         mintQuote: string
     }) => Promise<{recoveredAmount: number}>
     recoverMeltQuoteChange: (params: {
-        mintUrl: string, 
+        mintUrl: string,
         meltQuote: string | MeltQuoteResponse
     }) => Promise<{recoveredAmount: number}>
+    handlePendingMeltTask: (params: {
+        mintUrl: string
+        unit: MintUnit
+        quoteId: string
+        proofsToMeltFrom: Proof[]
+        proofsToMeltFromAmount: number
+        amountToTransfer: number
+        meltFeeReserve: number
+        transactionId: number
+    }) => Promise<void>
 }
 
 export interface WalletTaskResult {
@@ -2321,6 +2331,113 @@ const recoverMintQuote = async (
   }
 
 
+const handlePendingMeltTask = async (params: {
+    mintUrl: string
+    unit: MintUnit
+    quoteId: string
+    proofsToMeltFrom: Proof[]
+    proofsToMeltFromAmount: number
+    amountToTransfer: number
+    meltFeeReserve: number
+    transactionId: number
+}): Promise<void> => {
+    const { mintUrl, unit, quoteId, proofsToMeltFrom, proofsToMeltFromAmount,
+            amountToTransfer, meltFeeReserve, transactionId } = params
+
+    const transaction = transactionsStore.findById(transactionId)
+    if (!transaction || transaction.status !== TransactionStatus.PENDING) return
+
+    const quote = await walletStore.checkLightningMeltQuote(mintUrl, quoteId)
+
+    if (quote.state === MeltQuoteState.PAID) {
+        proofsStore.moveToSpent(proofsToMeltFrom)
+
+        let totalFeePaid = proofsToMeltFromAmount - amountToTransfer
+        let lightningFeePaid = totalFeePaid - meltFeeReserve
+        const meltFeePaid = meltFeeReserve
+        let returnedAmount = 0
+        let outputToken: string | undefined
+
+        // Call completeMelt with the stored MeltPreview to unbind the change blind signatures.
+        // This is a POST to the mint; different from the GET quote check above.
+        try {
+            const mintInstance = mintsStore.findByUrl(mintUrl)
+            if (mintInstance && transaction.keysetId) {
+                const currentCounter = mintInstance.getProofsCounterByKeysetId!(transaction.keysetId)
+                const meltCounterValue = currentCounter?.getMeltCounterValue(transactionId)
+                if (meltCounterValue?.meltPreview) {
+                    const cashuWallet = await walletStore.getWallet(mintUrl, unit,
+                        { withSeed: true, keysetId: transaction.keysetId })
+                    const { change } = await cashuWallet.completeMelt(meltCounterValue.meltPreview)
+                    currentCounter.removeMeltCounterValue(transactionId)
+                    if (change.length > 0) {
+                        proofsStore.addOrUpdate(change, {
+                            mintUrl, tId: transactionId, unit, isPending: false, isSpent: false,
+                        })
+                        returnedAmount = CashuUtils.getProofsAmount(change)
+                        outputToken = getEncodedToken({ mint: mintUrl, proofs: change, unit })
+                        totalFeePaid = totalFeePaid - returnedAmount
+                        lightningFeePaid = totalFeePaid - meltFeeReserve
+                    }
+                }
+            }
+        } catch (e: any) {
+            log.error('[handlePendingMelt] change recovery failed, completing without change', e.message)
+        }
+
+        const txData: TransactionData[] = transaction.data ? JSON.parse(transaction.data) : []
+        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
+        txData.push({
+            status: TransactionStatus.COMPLETED,
+            lightningFeePaid,
+            meltFeePaid,
+            returnedAmount,
+            //@ts-ignore
+            preimage: quote.payment_preimage,
+            createdAt: new Date(),
+        })
+        const updatePayload: any = {
+            status: TransactionStatus.COMPLETED,
+            data: JSON.stringify(txData),
+            fee: totalFeePaid,
+            balanceAfter,
+        }
+        if (outputToken) updatePayload.outputToken = outputToken
+        //@ts-ignore
+        if (quote.payment_preimage) updatePayload.proof = quote.payment_preimage
+        transaction.update(updatePayload)
+
+        log.debug('[handlePendingMelt] Transaction completed', { transactionId, totalFeePaid })
+
+        EventEmitter.emit('ev_asyncMeltResult', {
+            transactionId,
+            status: TransactionStatus.COMPLETED,
+            message: `Lightning invoice paid. Fee: ${formatCurrency(transaction.fee, getCurrency(unit).code)} ${getCurrency(unit).code}.`,
+        })
+
+    } else if (quote.state === MeltQuoteState.UNPAID) {
+        proofsStore.revertToSpendable(proofsToMeltFrom)
+
+        const txData: TransactionData[] = transaction.data ? JSON.parse(transaction.data) : []
+        txData.push({
+            status: TransactionStatus.ERROR,
+            error: WalletUtils.formatError(new AppError(Err.MINT_ERROR, 'Async lightning payment failed.')),
+            createdAt: new Date(),
+        })
+        transaction.update({ status: TransactionStatus.ERROR, data: JSON.stringify(txData) })
+
+        log.debug('[handlePendingMelt] Transaction failed (UNPAID)', { transactionId })
+
+        EventEmitter.emit('ev_asyncMeltResult', {
+            transactionId,
+            status: TransactionStatus.ERROR,
+            message: 'Lightning payment failed. Ecash returned to spendable balance.',
+        })
+    }
+    // MeltQuoteState.PENDING: no-op, ws/poller will call again
+}
+
+
 const handleClaimQueue = async function (): Promise<void> {
     
     log.info('[handleClaimQueue] start')
@@ -3145,4 +3262,5 @@ export const WalletTask: WalletTaskService = {
     testQueue,
     recoverMintQuote,
     recoverMeltQuoteChange,
+    handlePendingMeltTask,
 }

@@ -32,6 +32,45 @@ const {
 
 export const SEND_TASK = 'sendTask'
 
+const _monitorSentProofs = async (params: {
+    mintUrl: string
+    proofsToSend: CashuProof[]
+}) => {
+    const { mintUrl, proofsToSend } = params
+    const proofsToSync = proofsStore.getByMint(mintUrl, {isPending: true})
+    const wsMint = new CashuMint(mintUrl)
+    const wsWallet = new CashuWallet(wsMint)
+
+    try {
+        log.trace('[send] Subscribing to proofStateUpdates for sent proof', {secret: proofsToSend[0]})
+        const unsub = await wsWallet.on.proofStateUpdates(
+            [proofsToSend[0]],
+            async (proofState: ProofState) => {
+                log.trace(`Websocket: proof state updated: ${proofState.state} with secret: ${proofsToSend[0].secret}`)
+                if (proofState.state == CheckStateEnum.SPENT) {
+                    WalletTask.syncStateWithMintQueueAwaitable({proofsToSync, mintUrl, isPending: true})
+                    unsub()
+                }
+            },
+            async (error: any) => {
+                throw error
+            },
+        )
+    } catch (error: any) {
+        log.error(Err.NETWORK_ERROR,
+            "Error in websocket subscription. Starting poller.",
+            error.message,
+        )
+        poller(
+            `syncStateWithMintPoller-${mintUrl}`,
+            WalletTask.syncStateWithMintQueueAwaitable,
+            {interval: 10 * 1000, maxPolls: 3, maxErrors: 1},
+            {proofsToSend, mintUrl, isPending: true},
+        )
+        .then(() => log.trace('[syncStateWithMintPoller]', 'polling completed', {mintUrl}))
+    }
+}
+
 export const sendTask = async function (
     mintBalanceToSendFrom: MintBalance,
     amountToSend: number,
@@ -135,48 +174,9 @@ export const sendTask = async function (
 
         log.trace('[send] totalBalance after', balanceAfter)
 
-        // Start polling for accepted payment it is not an offline send
+        // Start monitoring for accepted payment if it is not an offline send
         if(selectedProofs.length === 0) {
-
-            const proofsToSync = proofsStore.getByMint(mintUrl, {isPending: true})
-
-            const wsMint = new CashuMint(mintUrl)
-            const wsWallet = new CashuWallet(wsMint)
-            
-            try {
-                log.trace('[send] Subscribing to onProofStateUpdates for proof', {secret: proofsToSend[0]})
-                const unsub = await wsWallet.on.proofStateUpdates(
-                    [proofsToSend[0]],
-                    async (proofState: ProofState) => {
-                        log.trace(`Websocket: proof state updated: ${proofState.state} with secret: ${proofsToSend[0].secret}`)
-                        
-                        if (proofState.state == CheckStateEnum.SPENT) {
-                            WalletTask.syncStateWithMintQueueAwaitable({proofsToSync, mintUrl, isPending: true})
-                            unsub()
-                        }
-                    },
-                    async (error: any) => {
-                        throw error
-                    }
-                )
-            } catch (error: any) {
-                log.error(Err.NETWORK_ERROR,
-                    "Error in websocket subscription. Starting poller.",
-                    error.message
-                )
-
-                poller(
-                    `syncStateWithMintPoller-${mintUrl}`,
-                    WalletTask.syncStateWithMintQueueAwaitable,
-                    {
-                        interval: 10 * 1000,
-                        maxPolls: 3,
-                        maxErrors: 1
-                    },
-                    {proofsToSend, mintUrl, isPending: true}
-                )
-                .then(() => log.trace('[syncStateWithMintPoller]', 'polling completed', {mintUrl}))
-            }    
+            _monitorSentProofs({mintUrl, proofsToSend})
         }
 
         return {

@@ -293,6 +293,7 @@
 	"payCommon_failed": "Pagamento falhou",
 	"payCommon_insufficientFunds": "Fundos insuficientes para enviar este valor.",
 	"payCommon_isPending": "Pagamento pendente",
+	"payCommon_isInProgress": "Pagamento em andamento",
 	"payCommon_maximumPay": "Valor máximo a pagar é %{amount} %{currency}.",
 	"payCommon_minimumPay": "Valor mínimo de pagamento é %{amount} %{currency}.",
 	"payCommon_minimumWithdraw": "Valor mínimo de saque é %{amount} %{currency}.",
