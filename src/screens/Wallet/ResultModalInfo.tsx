@@ -22,27 +22,30 @@ export const ResultModalInfo = function(props: {
 
     const textColor = useThemeColor('textDim')
 
-    const glowOpacity = useSharedValue(0)
+    const contentOpacity = useSharedValue(0)
     const iconScale = useSharedValue(0.8)
 
     useEffect(() => {
-      // Delay animation start to allow modal to fully appear
-
+      contentOpacity.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.ease) })
       iconScale.value = withDelay(
-        300,
+        150,
         withSequence(
-          withTiming(1.15, { duration: 400, easing: Easing.out(Easing.ease) }),
-          withTiming(1, { duration: 300, easing: Easing.inOut(Easing.ease) })
+          withTiming(1.15, { duration: 350, easing: Easing.out(Easing.ease) }),
+          withTiming(1, { duration: 250, easing: Easing.inOut(Easing.ease) })
         )
       )
     }, [])
+
+    const containerAnimatedStyle = useAnimatedStyle(() => ({
+      opacity: contentOpacity.value,
+    }))
 
     const iconAnimatedStyle = useAnimatedStyle(() => ({
       transform: [{ scale: iconScale.value }],
     }))
 
     return (
-      <View style={$bottomModal}>
+      <Animated.View style={[$bottomModal, containerAnimatedStyle]}>
         <View style={$iconContainer}>
           <Animated.View style={iconAnimatedStyle}>
             <Icon icon={props.icon} size={80} color={props.iconColor} />
@@ -53,7 +56,7 @@ export const ResultModalInfo = function(props: {
             style={{color: textColor, textAlign: 'center', marginTop: spacing.small}}
             text={props.message}
         />
-      </View>
+      </Animated.View>
     )
   }
 
