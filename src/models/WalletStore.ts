@@ -16,6 +16,7 @@ import {
   type ProofState,
   type OperationCounters,
   type MeltPreview,
+  MeltQuoteState,
 } from '@cashu/cashu-ts'
 import { JS_BUNDLE_VERSION } from '@env'
 import {KeyChain, MinibitsClient, WalletKeys} from '../services'
@@ -974,8 +975,10 @@ export const WalletStoreModel = types
                 // Step 2: Complete the melt (sends to mint and constructs change proofs)
                 const meltResponse: MeltProofsResponse = yield cashuWallet.completeMelt(meltPreview, undefined, options?.preferAsync)
 
-                // Remove the stored preview on success
-                currentCounter.removeMeltCounterValue(transactionId)
+                // Keep the preview for PENDING async melts — handlePendingMeltTask needs it to unbind change later
+                if (meltResponse.quote.state !== MeltQuoteState.PENDING) {
+                    currentCounter.removeMeltCounterValue(transactionId)
+                }
 
                 log.trace('[payLightningMelt]', {meltResponse})
                 return meltResponse

@@ -109,7 +109,7 @@ export const transferTask = async function (
                 amountToTransfer,
                 unit,
                 meltQuote,
-                encodedInvoice,
+                //encodedInvoice,
                 isNwc: nwcEvent ? true : false,           
                 createdAt: new Date(),
             })

@@ -206,7 +206,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
 
     const onPasteMintQuote = async function () {
       const quote = await Clipboard.getString()
-      if (!quote || quote.length !== 40) {
+      if (!quote) {
           setInfo(translate('recoveryInvalidMintQuote'))
           return
       }  
@@ -215,7 +215,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
 
     const onPasteMeltQuote = async function () {
       const quote = await Clipboard.getString()
-      if (!quote || quote.length !== 40) {
+      if (!quote) {
           setInfo(translate('recoveryInvalidMeltQuote'))
           return
       }  
@@ -259,10 +259,6 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
       try {
         if(!mintBalanceToRecoverFrom) {
           throw new AppError(Err.VALIDATION_ERROR, 'Mint is not selected.')
-        }
-
-        if(meltQuote.length !== 40) {
-          throw new AppError(Err.VALIDATION_ERROR, 'Melt quote must have 40 characters.')
         }
 
         const result = await WalletTask.recoverMeltQuoteChange({

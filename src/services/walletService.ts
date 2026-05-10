@@ -15,7 +15,7 @@ import {CashuProof, CashuUtils} from './cashu/cashuUtils'
 import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance, MintStatus} from '../models/Mint'
-import {MeltQuoteBaseResponse, MeltQuoteBolt11Response, MeltQuoteResponse, MeltQuoteState, MintQuoteState, PaymentRequestPayload, Token, TokenMetadata, getDecodedToken, getEncodedToken, getTokenMetadata} from '@cashu/cashu-ts'
+import {MeltQuoteBaseResponse, MeltQuoteBolt11Response, MeltQuoteResponse, MeltQuoteState, MintQuoteState, OutputData, PaymentRequestPayload, Token, TokenMetadata, getDecodedToken, getEncodedToken, getTokenMetadata} from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
@@ -219,7 +219,7 @@ const transferQueueAwaitable = function (
   mintBalanceToTransferFrom: MintBalance,
   amountToTransfer: number,
   unit: MintUnit,
-  meltQuote: MeltQuoteResponse,
+  meltQuote: MeltQuoteBolt11Response,
   memo: string,
   invoiceExpiry: Date,    
   encodedInvoice: string,
@@ -2250,45 +2250,53 @@ const recoverMintQuote = async (
         if (!change || change.length === 0) {
           throw new AppError(Err.VALIDATION_ERROR, `No change available for melt quote ${meltQuoteResponse.quote}`)
         }
-  
-        let txData: TransactionData = tx.data ? JSON.parse(tx.data) : []
-  
-        try {
-          // Recover blind signatures requires original counter value to produce valid proofs
-          // This is stored in meltPreview now
-          const change = await walletStore.recoverMeltQuoteChange(mintUrl, tx)
 
-          // Make sure we do not recover already received change
-          const newChange = change.filter(proof => !proofsStore.alreadyExists(proof))
+        let txData: TransactionData = tx.data ? JSON.parse(tx.data) : []
+
+        try {
+          if (!tx.keysetId) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Missing keysetId on transaction', { meltQuote })
+          }
+
+          const currentCounter = mintInstance.getProofsCounterByKeysetId!(tx.keysetId)
+          const meltCounterValue = currentCounter?.getMeltCounterValue(tx.id)
+
+          if (!meltCounterValue?.meltPreview) {
+            throw new AppError(Err.VALIDATION_ERROR, 'MeltPreview not found – this transaction may be from an older version', { meltQuote })
+          }
+
+          const meltPreview = meltCounterValue.meltPreview
+          const cashuWallet = await walletStore.getWallet(mintUrl, unit, { withSeed: true, keysetId: meltPreview.keysetId })
+          const keyset = cashuWallet.getKeyset(meltPreview.keysetId)
+
+          const reconstructedOutputData = meltPreview.outputData.map((od: any) => {
+              const blindingFactor = BigInt(od.blindingFactor)
+              const secretValues: number[] = typeof od.secret === 'object' && !ArrayBuffer.isView(od.secret)
+                  ? Object.values(od.secret as Record<string, number>)
+                  : Array.from(od.secret as Uint8Array)
+              const secret = new Uint8Array(secretValues)
+              return new OutputData(od.blindedMessage, blindingFactor, secret)
+          })
+
+          const recoveredChange = change.map((sig, i) => reconstructedOutputData[i].toProof(sig, keyset))
+          currentCounter.removeMeltCounterValue(tx.id)
+
+          const newChange = recoveredChange.filter(proof => !proofsStore.alreadyExists(proof))
 
           if (newChange.length === 0) {
-            throw new AppError(Err.MINT_ERROR, `No new ecash proofs to recover from melt quote ${meltQuoteResponse.quote}, ${change.length} proofs already in wallet.`)
+            throw new AppError(Err.MINT_ERROR, `No new ecash proofs to recover from melt quote ${meltQuoteResponse.quote}, ${recoveredChange.length} proofs already in wallet.`)
           }
-  
-          // Force zero-value swap to validate and receive change proofs
-          const { returnedProofs } = await walletStore.send(
-            mintUrl,
-            0,
-            unit,
-            newChange as Proof[],
-            tx.id,
-            { increaseCounterBy: newChange.length } // ?
-          )
-  
-          if (!returnedProofs || returnedProofs.length === 0) {
-            throw new AppError(Err.MINT_ERROR, 'Mint returned no proofs during change recovery')
-          }
-  
-          const { updatedAmount: recoveredAmount } = proofsStore.addOrUpdate(returnedProofs, {
+
+          const { updatedAmount: recoveredAmount } = proofsStore.addOrUpdate(newChange, {
             mintUrl,
             unit,
             tId: tx.id,
             isPending: false,
             isSpent: false,
           })
-  
+
           const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
-          const outputToken = getEncodedToken({ mint: mintUrl, proofs: returnedProofs, unit })
+          const outputToken = getEncodedToken({ mint: mintUrl, proofs: newChange, unit })
   
           txData.push({
             status: TransactionStatus.RECOVERED,
@@ -2358,18 +2366,38 @@ const handlePendingMeltTask = async (params: {
         let returnedAmount = 0
         let outputToken: string | undefined
 
-        // Call completeMelt with the stored MeltPreview to unbind the change blind signatures.
-        // This is a POST to the mint; different from the GET quote check above.
+        // Unblind the change blind signatures returned by the GET quote check using the
+        // stored MeltPreview — avoids a second POST which would fail with "already spent".
         try {
             const mintInstance = mintsStore.findByUrl(mintUrl)
+
             if (mintInstance && transaction.keysetId) {
                 const currentCounter = mintInstance.getProofsCounterByKeysetId!(transaction.keysetId)
                 const meltCounterValue = currentCounter?.getMeltCounterValue(transactionId)
-                if (meltCounterValue?.meltPreview) {
+
+                if (meltCounterValue?.meltPreview && quote.change?.length) {
+                    log.trace('[handlePendingMelt] Unblinding change from quote response', { transactionId, quoteId, changeCount: quote.change.length })
+
+                    const meltPreview = meltCounterValue.meltPreview
                     const cashuWallet = await walletStore.getWallet(mintUrl, unit,
-                        { withSeed: true, keysetId: transaction.keysetId })
-                    const { change } = await cashuWallet.completeMelt(meltCounterValue.meltPreview)
+                        { withSeed: true, keysetId: meltPreview.keysetId })
+                    const keyset = cashuWallet.getKeyset(meltPreview.keysetId)
+
+                    // Reconstruct OutputData instances: serializeMeltPreview converts bigint→string
+                    // and Uint8Array→plain-object, so we must restore the types before calling toProof.
+                    const reconstructedOutputData = meltPreview.outputData.map((od: any) => {
+                        const blindingFactor = BigInt(od.blindingFactor)
+                        const secretValues: number[] = typeof od.secret === 'object' && !ArrayBuffer.isView(od.secret)
+                            ? Object.values(od.secret as Record<string, number>)
+                            : Array.from(od.secret as Uint8Array)
+                        const secret = new Uint8Array(secretValues)
+                        return new OutputData(od.blindedMessage, blindingFactor, secret)
+                    })
+
+                    const change = quote.change.map((sig, i) => reconstructedOutputData[i].toProof(sig, keyset))
+
                     currentCounter.removeMeltCounterValue(transactionId)
+
                     if (change.length > 0) {
                         proofsStore.addOrUpdate(change, {
                             mintUrl, tId: transactionId, unit, isPending: false, isSpent: false,
