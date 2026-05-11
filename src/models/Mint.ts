@@ -15,13 +15,13 @@ import { MintUnit, MintUnits } from '../services/wallet/currency'
 import { getRootStore } from './helpers/getRootStore'
 import { generateId } from '../utils/utils'
 import { Proof } from './Proof'
-import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
+import { CashuProof, CashuUtils, StoredMeltPreview } from '../services/cashu/cashuUtils'
 
-// Helper function to serialize MeltPreview and convert BigInt to string
-function serializeMeltPreview(meltPreview: MeltPreview): any {
-    return JSON.parse(JSON.stringify(meltPreview, (_key, value) =>
-        typeof value === 'bigint' ? value.toString() : value
-    ))
+function serializeMeltPreview(meltPreview: MeltPreview): StoredMeltPreview {
+    return {
+        keysetId: meltPreview.keysetId,
+        outputData: CashuUtils.serializeOutputData(meltPreview.outputData),
+    }
 }
 
 export type MintBalance = {
@@ -60,7 +60,7 @@ const InFlightRequestModel = types.model('InFlightRequest', {
 const MeltCounterValueModel = types.model('MeltCounterValue', {
     transactionId: types.number,
     counterAtMelt: types.number,        // the counter value when melt started (kept for backward compatibility)
-    meltPreview: types.maybe(types.frozen<MeltPreview>()),  // v3.x MeltPreview object for recovery
+    meltPreview: types.maybe(types.frozen<StoredMeltPreview>()),
     createdAt: types.optional(types.Date, () => new Date()), // optional: when it was added
 })
 
@@ -155,13 +155,10 @@ export const MintProofsCounterModel = types
                 return self.meltCounterValues.get(key)!.counterAtMelt
             }
 
-            // Serialize MeltPreview to handle BigInt values
-            const serializableMeltPreview = meltPreview ? serializeMeltPreview(meltPreview) : undefined
-
             self.meltCounterValues.set(key, {
                 transactionId,
                 counterAtMelt: self.counter,
-                meltPreview: serializableMeltPreview as any,
+                meltPreview: meltPreview ? serializeMeltPreview(meltPreview) : undefined,
                 createdAt: new Date(),
             })
 

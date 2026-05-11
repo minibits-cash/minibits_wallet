@@ -36,7 +36,7 @@ import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { MintsStoreSnapshot } from '../models/MintsStore'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
-import { Token, getEncodedToken } from '@cashu/cashu-ts'
+import { Token, getEncodedToken, normalizeProofAmounts } from '@cashu/cashu-ts'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 const OPTIMIZE_FROM_PROOFS_COUNT = 10
@@ -262,7 +262,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
 
               const tokenByKeysetId: Token = {
                 mint,
-                proofs: proofsToExport,
+                proofs: normalizeProofAmounts(proofsToExport),
                 unit: proofsByKeysetId[0].unit
               }
               

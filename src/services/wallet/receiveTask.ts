@@ -11,8 +11,7 @@ import AppError, {Err} from '../../utils/AppError'
 import { TransactionTaskResult } from '../walletService'
 import { WalletUtils } from './utils'
 import { MintUnit, formatCurrency, getCurrency } from './currency'
-import { PaymentRequestPayload, Token, getDecodedToken } from '@cashu/cashu-ts'
-import { getEncodedToken } from '@cashu/cashu-ts'
+import { PaymentRequestPayload, Token, getDecodedToken, getEncodedToken, normalizeProofAmounts } from '@cashu/cashu-ts'
 
 const {
     mintsStore,
@@ -605,7 +604,7 @@ export const receiveSync = async function (
         // store swapped proofs as encoded token in tx data        
         const outputToken = getEncodedToken({
             mint: mintToReceive,
-            proofs: receivedProofs,
+            proofs: normalizeProofAmounts(receivedProofs),
             unit,
             memo,
         })   

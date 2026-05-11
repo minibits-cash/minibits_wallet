@@ -9,8 +9,7 @@ import AppError, {Err} from '../../utils/AppError'
 import { TransactionTaskResult } from '../walletService'
 import { WalletUtils } from './utils'
 import { MintUnit } from './currency'
-import { Token } from '@cashu/cashu-ts'
-import { getEncodedToken, getKeepAmounts } from '@cashu/cashu-ts'
+import { Token, getEncodedToken, normalizeProofAmounts } from '@cashu/cashu-ts'
 
 const {
   mintsStore,
@@ -52,7 +51,7 @@ try {
     // This will invalidate originally sent proofs effectively reverting the transaction.
     const encodedToken: Token = {
         mint: mintInstance.mintUrl,
-        proofs: pendingProofs,
+        proofs: normalizeProofAmounts(pendingProofs),
         unit
     }
 
@@ -69,8 +68,8 @@ try {
       // store freshed proofs as encoded token in tx data        
       const outputToken = getEncodedToken({
         mint: mintInstance.mintUrl,
-        proofs: receivedProofs,
-        unit            
+        proofs: normalizeProofAmounts(receivedProofs),
+        unit
       })
       
       // Remove original pending proofs

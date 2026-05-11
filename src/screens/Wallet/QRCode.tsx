@@ -121,7 +121,7 @@ export const QRCodeBlock = function (props: {
             setKeysetFormat('hex')            
           } else {
             try {
-              const encodedV3 = getEncodedToken(decoded, {version: 3})
+              const encodedV3 = getEncodedToken(decoded)
               setEncodedV3Token(encodedV3)
             } catch (e: any) {
               handleQrError(e)
@@ -195,7 +195,7 @@ export const QRCodeBlock = function (props: {
         } else if(type === 'EncodedV4Token') {
           if(!decodedToken) return
 
-          const encodedV3 = getEncodedToken(decodedToken, {version: 3})
+          const encodedV3 = getEncodedToken(decodedToken)
           setEncodedV3Token(encodedV3)
         }
       } catch (e: any) {

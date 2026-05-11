@@ -1,14 +1,19 @@
 import {Mint} from '../../models/Mint'
+import {
+  Amount,
+  OutputData,
+} from '@cashu/cashu-ts'
 import type {
-  Token, 
-  Proof as CashuProof,
+  Token,
+  ProofLike as CashuProof,
   PaymentRequest as CashuPaymentRequest,
   PaymentRequestPayload,
   TokenMetadata,
+  OutputDataLike,
 } from '@cashu/cashu-ts'
-import { bytesToHex } from '@noble/hashes/utils'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
 import AppError, {Err} from '../../utils/AppError'
-import { getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
+import { getTokenMetadata } from '@cashu/cashu-ts'
 import {Proof} from '../../models/Proof'
 import { log } from '../logService'
 import { decodePaymentRequest } from '@cashu/cashu-ts'
@@ -29,7 +34,7 @@ const isObj = function(v: unknown): v is object {
  * Sum the amounts of an array of proofs
  */
 const sumProofs = function(proofs: CashuProof[]): number {
-  return proofs.reduce((acc: number, proof: CashuProof) => acc + proof.amount, 0)
+  return proofs.reduce((acc: number, proof: CashuProof) => acc + Number(proof.amount), 0)
 }
 
 const CASHU_URI_PREFIXES = [
@@ -407,6 +412,38 @@ const isTokenP2PKLocked = function (token: Token | TokenMetadata): boolean {
 
 
 
+export interface StoredMeltPreview {
+    keysetId: string
+    outputData: SerializedOutputData[]
+}
+
+export interface SerializedOutputData {
+    blindedMessage: { amount: string | number; id: string; B_: string }
+    blindingFactor: string  // hex
+    secret: string          // hex
+    ephemeralE?: string
+}
+
+const serializeOutputData = (outputData: OutputDataLike[]): SerializedOutputData[] =>
+    outputData.map(od => ({
+        blindedMessage: {
+            amount: od.blindedMessage.amount.toString(),
+            id: od.blindedMessage.id,
+            B_: od.blindedMessage.B_,
+        },
+        blindingFactor: od.blindingFactor.toString(16),
+        secret: bytesToHex(od.secret),
+        ephemeralE: od.ephemeralE,
+    }))
+
+const deserializeOutputData = (serialized: SerializedOutputData[]): OutputData[] =>
+    serialized.map(od => new OutputData(
+        { amount: Amount.from(od.blindedMessage.amount), id: od.blindedMessage.id, B_: od.blindedMessage.B_ },
+        BigInt('0x' + od.blindingFactor),
+        hexToBytes(od.secret),
+        od.ephemeralE,
+    ))
+
 export const CashuUtils = {
     findEncodedCashuToken,
     findEncodedCashuPaymentRequest,
@@ -427,7 +464,9 @@ export const CashuUtils = {
     isTokenP2PKLocked,
     isCollidingKeysetId,
     isObj,
-    sumProofs
+    sumProofs,
+    serializeOutputData,
+    deserializeOutputData,
 }
 
 

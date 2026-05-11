@@ -205,6 +205,7 @@ import {
                 } else {                
                     proofNode = ProofModel.create({
                         ...proof,
+                        amount: Number(proof.amount),
                         mintUrl,
                         tId,
                         unit,

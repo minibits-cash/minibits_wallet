@@ -2,6 +2,7 @@ import {Instance, SnapshotOut, types, flow, getRoot, getSnapshot} from 'mobx-sta
 import {
   Mint as CashuMint,
   Wallet as CashuWallet,
+  KeyChain as CashuKeyChain,
   MeltQuoteBolt11Response,
   setGlobalRequestOptions,
   type MintKeys,
@@ -337,12 +338,16 @@ export const WalletStoreModel = types
 
           const newSeedWallet = new CashuWallet(cashuMint, {
             unit,
-            keys: mintInstance.keys,
-            keysets: mintInstance.keysets,
-            mintInfo: mintInstance.mintInfo,
             keysetId: walletKeys.id,
             bip39seed: seed
           })
+
+          if (mintInstance.mintInfo && mintInstance.keysets?.length && mintInstance.keys?.length) {
+            const keychainCache = CashuKeyChain.mintToCacheDTO(mintUrl, [...mintInstance.keysets], [...mintInstance.keys])
+            newSeedWallet.loadMintFromCache(mintInstance.mintInfo, keychainCache)
+          } else {
+            yield newSeedWallet.loadMint()
+          }
 
           self.seedWallets.push(newSeedWallet)
 
@@ -363,13 +368,16 @@ export const WalletStoreModel = types
         
         const newWallet = new CashuWallet(cashuMint, {
           unit,
-          keys: mintInstance.keys,
-          keysets: mintInstance.keysets,
-          mintInfo: mintInstance.mintInfo,
           keysetId: walletKeys.id,
-          bip39seed: undefined
         })
-        
+
+        if (mintInstance.mintInfo && mintInstance.keysets?.length && mintInstance.keys?.length) {
+          const keychainCache = CashuKeyChain.mintToCacheDTO(mintUrl, [...mintInstance.keysets], [...mintInstance.keys])
+          newWallet.loadMintFromCache(mintInstance.mintInfo, keychainCache)
+        } else {
+          yield newWallet.loadMint()
+        }
+
         self.wallets.push(newWallet)
           
         log.trace('[WalletStore.getWallet]', 'Returning NEW cashuWallet instance', {mintUrl})
@@ -1028,63 +1036,6 @@ export const WalletStoreModel = types
                     message: e.message,
                     caller: 'checkLightningMeltQuote', 
                     mintUrl,            
-                }
-            )
-          }
-        }),
-        recoverMeltQuoteChange: flow(function* recoverMeltQuoteChange(
-          mintUrl: string,         
-          transaction: Transaction
-        ) {
-          try {
-            const mintInstance = self.getMintModelInstance(mintUrl)
-            const transactionId = transaction.id            
-
-            if(!mintInstance || !transaction.keysetId) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance or keysetId', {mintUrl, transactionId})
-            }
-
-            const currentCounter = mintInstance.getProofsCounterByKeysetId!(transaction.keysetId)
-            const meltCounterValue = currentCounter.getMeltCounterValue(transaction.id)
-
-            if(!meltCounterValue || !meltCounterValue.meltPreview) {
-              throw new AppError(Err.VALIDATION_ERROR, 'Change already claimed - melt data not available for this transaction', {mintUrl, transactionId})
-            }
-
-            const meltPreview: MeltPreview = meltCounterValue.meltPreview
-
-            if(!meltPreview) {
-              throw new AppError(Err.VALIDATION_ERROR, 'MeltPreview not found - this transaction may be from an older version', {mintUrl, transactionId})
-            }
-
-            const cashuWallet: CashuWallet = yield self.getWallet(
-                mintUrl, 
-                transaction.unit, 
-                {
-                    withSeed: true,
-                    keysetId: transaction.keysetId         
-                }
-            )
-
-            // Use completeMelt with the stored MeltPreview to recover change
-            const {change}: MeltProofsResponse = yield cashuWallet.completeMelt(meltPreview)
-
-            currentCounter.removeMeltCounterValue(transactionId)
-
-            log.info('[recoverMeltQuoteChange]', {change})
-
-            return change
-
-          } catch (e: any) {
-            let message = 'The mint could not return change from a melt quote.'
-            if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
-            throw new AppError(
-                Err.MINT_ERROR,
-                message,
-                {
-                    message: e.message,
-                    caller: 'recoverMeltQuoteChange',
-                    mintUrl,
                 }
             )
           }

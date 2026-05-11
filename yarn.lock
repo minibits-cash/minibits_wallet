@@ -2869,15 +2869,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cashu/cashu-ts@npm:^3.6.1":
-  version: 3.6.1
-  resolution: "@cashu/cashu-ts@npm:3.6.1"
+"@cashu/cashu-ts@npm:^4.2.1":
+  version: 4.2.1
+  resolution: "@cashu/cashu-ts@npm:4.2.1"
   dependencies:
-    "@noble/curves": ^2.0.1
-    "@noble/hashes": ^2.0.1
-    "@scure/base": ^2.0.0
-    "@scure/bip32": ^2.0.1
-  checksum: 07018c68fa9b5bd8affde081a6f5c6fb0ba67e1e6e1a3872527547461aea57a3aeb6bb6dace5dad430464b17f53503ad11d6a56b985a43cea3a8a18e8e86838b
+    "@noble/curves": ^2.2.0
+    "@noble/hashes": ^2.2.0
+    "@scure/base": ^2.2.0
+    "@scure/bip32": ^2.2.0
+  checksum: a950f38686fcab220a61ea7b83c08f14f8af0ed5b54a18b38f8a370fc3e63897a6c1f266d8e7e9e269f05413d8b5f9d58d319bd1b194b2e2830cb7983169c931
   languageName: node
   linkType: hard
 
@@ -5433,12 +5433,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/curves@npm:2.0.1, @noble/curves@npm:^2.0.1":
-  version: 2.0.1
-  resolution: "@noble/curves@npm:2.0.1"
+"@noble/curves@npm:2.2.0, @noble/curves@npm:^2.2.0":
+  version: 2.2.0
+  resolution: "@noble/curves@npm:2.2.0"
   dependencies:
-    "@noble/hashes": 2.0.1
-  checksum: b6844f350d629bb6de55d3a123bc148403901c8b8eed77d2132a389d080d553242bcf1e06913bf51f51e395849ec70b9a8e8902c19e562ea3c6538bb0240d92f
+    "@noble/hashes": 2.2.0
+  checksum: 2b6f02c18918578f528791644886f54333c67323f5ccefe10bf250f08760f63786b807390d8d5f8562c661e70dd3559ce8e51e1fe360118c8fd47071c2bd6991
   languageName: node
   linkType: hard
 
@@ -5465,10 +5465,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/hashes@npm:2.0.1, @noble/hashes@npm:^2.0.1":
+"@noble/hashes@npm:2.0.1":
   version: 2.0.1
   resolution: "@noble/hashes@npm:2.0.1"
   checksum: aea67a671ca464027cd512d07666a804bd99abc343ba98c93ee8463a1c870c5594f8de468279ef3c60f3b23b6330db9f1a92bd23723b8a911ec73bddc9420248
+  languageName: node
+  linkType: hard
+
+"@noble/hashes@npm:2.2.0, @noble/hashes@npm:^2.2.0":
+  version: 2.2.0
+  resolution: "@noble/hashes@npm:2.2.0"
+  checksum: a8745fb5da57a73ddd3dd6d5ad45d156ea664be51ead5344ca1528f8e56ad0ba0720ec8adff3bda37c50c72a86a33a57332ec02c3fb8d2a2612f9c3e5e7079ab
   languageName: node
   linkType: hard
 
@@ -6405,10 +6412,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@scure/base@npm:2.0.0, @scure/base@npm:^2.0.0":
+"@scure/base@npm:2.0.0":
   version: 2.0.0
   resolution: "@scure/base@npm:2.0.0"
   checksum: 15d10f154256f52bb3e02b63cdf93b6df6db3814fa4c61a8bb2d339831aec7859609fb715b93c7fc852755f0fe67fb6411664c06159745711bf38af3b10ab93e
+  languageName: node
+  linkType: hard
+
+"@scure/base@npm:2.2.0, @scure/base@npm:^2.2.0":
+  version: 2.2.0
+  resolution: "@scure/base@npm:2.2.0"
+  checksum: 2dd91f310765366e2dcb5e37709eb35ccd57d3f2f112d36232ca03fb8819c8764708f333ac40935fa719ff2e943bd50e1912ab43d212e44e807100d21f835f13
   languageName: node
   linkType: hard
 
@@ -6430,14 +6444,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@scure/bip32@npm:^2.0.1":
-  version: 2.0.1
-  resolution: "@scure/bip32@npm:2.0.1"
+"@scure/bip32@npm:^2.2.0":
+  version: 2.2.0
+  resolution: "@scure/bip32@npm:2.2.0"
   dependencies:
-    "@noble/curves": 2.0.1
-    "@noble/hashes": 2.0.1
-    "@scure/base": 2.0.0
-  checksum: 5e6c7b455c4a5599673d5fa1b7edc1b3655fe2f7b8388dc19ebe4a89adb9c80c511215d4af624eb774c63c216fd8b7bb8fecf1eb8c3d5e979e279c7542657a42
+    "@noble/curves": 2.2.0
+    "@noble/hashes": 2.2.0
+    "@scure/base": 2.2.0
+  checksum: 6cd0ddf603b739d3c24a13618fc246d409bbf0dffec22bc2c3c8e3e64271bb58c7078bea0b6ab9601fcfe881a969ee31e3074d478affe13a439d7527a0b68ecf
   languageName: node
   linkType: hard
 
@@ -14606,7 +14620,7 @@ __metadata:
     "@babel/plugin-proposal-export-namespace-from": ^7.18.9
     "@babel/preset-env": ^7.25.3
     "@babel/runtime": ^7.25.0
-    "@cashu/cashu-ts": ^3.6.1
+    "@cashu/cashu-ts": ^4.2.1
     "@fortawesome/fontawesome-svg-core": ^7.1.0
     "@fortawesome/free-brands-svg-icons": ^7.1.0
     "@fortawesome/free-regular-svg-icons": ^7.1.0
@@ -14635,7 +14649,7 @@ __metadata:
     "@react-navigation/native": ^7.1.18
     "@react-navigation/native-stack": ^7.3.27
     "@react-navigation/stack": ^7.4.9
-    "@scure/bip32": ^2.0.1
+    "@scure/bip32": ^2.2.0
     "@scure/bip39": 2.0.1
     "@sentry/cli": ^2.56.0
     "@sentry/react-native": ^7.7.0

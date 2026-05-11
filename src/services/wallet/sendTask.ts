@@ -15,6 +15,7 @@ import {
     MintKeyset,
     ProofState,
     getEncodedToken,
+    normalizeProofAmounts,
 } from '@cashu/cashu-ts'
 import { MAX_SWAP_INPUT_SIZE, TransactionTaskResult, WalletTask } from '../walletService'
 import { Mint, MintBalance } from '../../models/Mint'
@@ -44,7 +45,7 @@ const _monitorSentProofs = async (params: {
     try {
         log.trace('[send] Subscribing to proofStateUpdates for sent proof', {secret: proofsToSend[0]})
         const unsub = await wsWallet.on.proofStateUpdates(
-            [proofsToSend[0]],
+            normalizeProofAmounts([proofsToSend[0]]),
             async (proofState: ProofState) => {
                 log.trace(`Websocket: proof state updated: ${proofState.state} with secret: ${proofsToSend[0].secret}`)
                 if (proofState.state == CheckStateEnum.SPENT) {
@@ -146,7 +147,7 @@ export const sendTask = async function (
 
         const outputToken = getEncodedToken({
             mint: mintUrl,
-            proofs: proofsToSend,
+            proofs: normalizeProofAmounts(proofsToSend),
             unit,
             memo,
         })
@@ -340,7 +341,7 @@ export const sendFromMintSync = async function (
         if(isSwapNeeded) {
             // Calculate feeReserve from mint fee rate
             const walletInstance = await walletStore.getWallet(mintUrl, unit, {withSeed: true}) as CashuWallet
-            swapFeeReserve = walletInstance.getFeesForProofs(proofsToSendFrom)
+            swapFeeReserve = walletInstance.getFeesForProofs(proofsToSendFrom).toNumber()
             const amountWithFees = amountToSend + swapFeeReserve
 
             if (totalAmountFromMint < amountWithFees) {

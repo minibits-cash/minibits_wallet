@@ -514,14 +514,14 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
             meltQuoteRef.current = quote
 
             // Format amount for display
-            const displayAmount = numbro(quote.amount / getCurrency(unitRef.current).precision).format({
+            const displayAmount = numbro(quote.amount.toNumber() / getCurrency(unitRef.current).precision).format({
                 thousandSeparated: true,
                 mantissa: getCurrency(unitRef.current).mantissa,
             })
             setAmountToTransfer(displayAmount)
 
             // Check total required balance (amount + fee reserve)
-            const totalRequired = quote.amount + quote.fee_reserve
+            const totalRequired = quote.amount.toNumber() + quote.fee_reserve.toNumber()
             const availableBalances = proofsStore.getMintBalancesWithEnoughBalance(totalRequired, unitRef.current)
 
             if (availableBalances.length === 0) {
@@ -934,7 +934,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
           {encodedInvoice && (meltQuote?.fee_reserve || finalFee) ? (
               <FeeBadge
                 currencyCode={getCurrency(unitRef.current).code}
-                estimatedFee={meltQuote?.fee_reserve || 0}
+                estimatedFee={meltQuote?.fee_reserve.toNumber() ?? 0}
                 finalFee={finalFee}
               />
             ) : (

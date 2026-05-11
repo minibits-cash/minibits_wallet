@@ -618,8 +618,10 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         setIsCashuPrWithDesc(true)
                     }
 
-                    if (pr.amount) {
-                        setAmountToSend(`${numbro(pr.amount / getCurrency(unitRef.current).precision).format({
+                    const prAmount = pr.amount ? Number(pr.amount) : undefined
+
+                    if (prAmount) {
+                        setAmountToSend(`${numbro(prAmount / getCurrency(unitRef.current).precision).format({
                             thousandSeparated: true,
                             mantissa: getCurrency(unitRef.current).mantissa,
                         })}`)
@@ -646,22 +648,22 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
                         withEnoughBalance = availableBalances.filter(balance => {
                             const unitBalance = balance.balances[unitRef.current]
-                            if(!pr.amount) return balance
-                            if(pr.amount > 0 && unitBalance && unitBalance >= pr.amount) return balance
+                            if(!prAmount) return balance
+                            if(prAmount > 0 && unitBalance && unitBalance >= prAmount) return balance
                             return null
                         })
 
-                        if (pr.amount && withEnoughBalance.length === 0) {
-                            dispatch({ type: 'SET_INFO', message: `Not enough balance to pay this payment request. Required: ${pr.amount} ${unitRef.current}.`})
-                            //infoMessage(`Not enough balance to pay this payment request. Required: ${pr.amount} ${unitRef.current}.`)
+                        if (prAmount && withEnoughBalance.length === 0) {
+                            dispatch({ type: 'SET_INFO', message: `Not enough balance to pay this payment request. Required: ${prAmount} ${unitRef.current}.`})
+                            //infoMessage(`Not enough balance to pay this payment request. Required: ${prAmount} ${unitRef.current}.`)
                             return
-                            //throw new AppError(Err.VALIDATION_ERROR, `Not enough balance to pay this payment request. Required: ${pr.amount} ${unitRef.current}.`)
+                            //throw new AppError(Err.VALIDATION_ERROR, `Not enough balance to pay this payment request. Required: ${prAmount} ${unitRef.current}.`)
                         }
 
                         log.trace('[handlePaymentRequest] available mint balances for this payment request', {availableBalances, withEnoughBalance})
                     } else {
-                        withEnoughBalance = (pr.amount && pr.amount > 0)
-                            ? proofsStore.getMintBalancesWithEnoughBalance(pr.amount, unitRef.current)
+                        withEnoughBalance = (prAmount && prAmount > 0)
+                            ? proofsStore.getMintBalancesWithEnoughBalance(prAmount, unitRef.current)
                             : proofsStore.getMintBalancesWithUnit(unitRef.current)
                     }
 

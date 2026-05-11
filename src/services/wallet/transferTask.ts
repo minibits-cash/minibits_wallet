@@ -1,6 +1,6 @@
 import {CashuUtils} from '../cashu/cashuUtils'
 import AppError, {Err} from '../../utils/AppError'
-import {Mint as CashuMint, Wallet as CashuWallet, MeltProofsResponse, MeltQuoteBolt11Response, MeltQuoteResponse, MeltQuoteState, getEncodedToken} from '@cashu/cashu-ts'
+import {Mint as CashuMint, Wallet as CashuWallet, MeltProofsResponse, MeltQuoteBolt11Response, MeltQuoteState, getEncodedToken, normalizeProofAmounts} from '@cashu/cashu-ts'
 import {rootStoreInstance} from '../../models'
 import { TransactionTaskResult, WalletTask } from '../walletService'
 import { MintBalance } from '../../models/Mint'
@@ -116,7 +116,7 @@ export const transferTask = async function (
             const newTransaction = {
                 type: TransactionType.TRANSFER,
                 amount: amountToTransfer,
-                fee: meltQuote.fee_reserve,
+                fee: meltQuote.fee_reserve.toNumber(),
                 unit,
                 data: JSON.stringify(transactionData),
                 memo,
@@ -137,7 +137,7 @@ export const transferTask = async function (
         // Replace individual setters with a single update
         transaction.update({ paymentId: paymentHash, quote: meltQuote.quote })
         
-        if (amountToTransfer + meltQuote.fee_reserve > mintBalanceToTransferFrom.balances[unit]!) {
+        if (amountToTransfer + meltQuote.fee_reserve.toNumber() > mintBalanceToTransferFrom.balances[unit]!) {
             throw new AppError(
                 Err.VALIDATION_ERROR, 
                 'Mint balance is insufficient to cover the amount to transfer with the expected Lightning fees.',
@@ -165,15 +165,15 @@ export const transferTask = async function (
         const totalAmountFromMint = CashuUtils.getProofsAmount(proofsFromMint)
 
         proofsToMeltFrom = CashuUtils.getProofsToSend(
-            amountToTransfer + meltQuote.fee_reserve,
+            amountToTransfer + meltQuote.fee_reserve.toNumber(),
             proofsFromMint
         )
 
         proofsToMeltFromAmount = CashuUtils.getProofsAmount(proofsToMeltFrom)
 
         const walletInstance = await walletStore.getWallet(mintUrl, unit, {withSeed: true})        
-        meltFeeReserve = walletInstance.getFeesForProofs(proofsToMeltFrom)
-        const amountWithFees = amountToTransfer + meltQuote.fee_reserve + meltFeeReserve        
+        meltFeeReserve = walletInstance.getFeesForProofs(proofsToMeltFrom).toNumber()
+        const amountWithFees = amountToTransfer + meltQuote.fee_reserve.toNumber() + meltFeeReserve        
 
         if (totalAmountFromMint < amountWithFees) {
             throw new AppError(
@@ -217,15 +217,15 @@ export const transferTask = async function (
         transactionData.push({
             status: TransactionStatus.PREPARED,
             proofsToMeltFromAmount,
-            lightningFeeReserve: meltQuote.fee_reserve,
+            lightningFeeReserve: meltQuote.fee_reserve.toNumber(),
             meltFeeReserve,
             createdAt: new Date(),
         })
 
         const inputToken = getEncodedToken({
             mint: mintUrl,
-            proofs: proofsToMeltFrom,
-            unit         
+            proofs: normalizeProofAmounts(proofsToMeltFrom),
+            unit
         })
 
         transaction.update({
@@ -383,7 +383,7 @@ export const transferTask = async function (
                 taskFunction: TRANSFER_TASK,
                 mintUrl,
                 transaction,
-                message: 'Lightning payment is in progress. Check your transaction history for the result.',
+                message: 'Lightning payment is in progress...',
                 meltQuote: meltResponse.quote,
                 nwcEvent,
             } as TransactionTaskResult

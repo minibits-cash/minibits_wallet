@@ -15,7 +15,7 @@ import {CashuProof, CashuUtils} from './cashu/cashuUtils'
 import {LightningUtils} from './lightning/lightningUtils'
 import AppError, {Err} from '../utils/AppError'
 import {MintBalance, MintStatus} from '../models/Mint'
-import {MeltQuoteBaseResponse, MeltQuoteBolt11Response, MeltQuoteResponse, MeltQuoteState, MintQuoteState, OutputData, PaymentRequestPayload, Token, TokenMetadata, getDecodedToken, getEncodedToken, getTokenMetadata} from '@cashu/cashu-ts'
+import {MeltQuoteBaseResponse, MeltQuoteBolt11Response, MeltQuoteState, MintQuoteState, PaymentRequestPayload, Token, TokenMetadata, getDecodedToken, getEncodedToken, getTokenMetadata, normalizeProofAmounts} from '@cashu/cashu-ts'
 import {Mint} from '../models/Mint'
 import {pollerExists, stopPolling} from '../utils/poller'
 import { NostrClient, NostrEvent, NostrProfile } from './nostrService'
@@ -95,7 +95,7 @@ type WalletTaskService = {
       mintBalanceToTransferFrom: MintBalance,
       amountToTransfer: number,
       unit: MintUnit,
-      meltQuote: MeltQuoteResponse,                
+      meltQuote: MeltQuoteBolt11Response,
       memo: string,
       invoiceExpiry: Date,
       encodedInvoice: string,
@@ -149,7 +149,7 @@ type WalletTaskService = {
     }) => Promise<{recoveredAmount: number}>
     recoverMeltQuoteChange: (params: {
         mintUrl: string,
-        meltQuote: string | MeltQuoteResponse
+        meltQuote: string | MeltQuoteBolt11Response
     }) => Promise<{recoveredAmount: number}>
     handlePendingMeltTask: (params: {
         mintUrl: string
@@ -301,7 +301,8 @@ const receiveQueueAwaitable = function (
 ): Promise<TransactionTaskResult> {
 
   const now = Date.now()
-  const {amount, memo, unit} = tokenMetadata
+  const {amount: rawAmount, memo, unit} = tokenMetadata
+  const amount = Number(rawAmount)
   const proofsCount = tokenMetadata.incompleteProofs.length
 
   const taskId = proofsCount > MAX_SWAP_INPUT_SIZE
@@ -338,7 +339,7 @@ const receiveQueueAwaitable = function (
           taskId,
           async () => {
               try {
-                  const token = getDecodedToken(encodedToken, mint.keysetIds)
+                  const token = getDecodedToken(encodedToken, mint.keysetIds ?? [])
                   return proofsCount > MAX_SWAP_INPUT_SIZE
                       ? await receiveBatchTask(token, amount, memo || '', encodedToken)
                       : await receiveTask(token, amount, memo || '', encodedToken)
@@ -443,7 +444,8 @@ const receiveOfflinePrepareQueueAwaitable = function (
 ): Promise<TransactionTaskResult> {
   const now = Date.now()
   const taskId = `receiveOfflinePrepareTask-${now}`
-  const { mint: mintUrl, amount, memo, unit } = tokenMetadata
+  const { mint: mintUrl, amount: rawAmount, memo, unit } = tokenMetadata
+  const amount = Number(rawAmount)
 
   return new Promise<TransactionTaskResult>((resolve, reject) => {
       let resolved = false
@@ -1677,7 +1679,7 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
               })
 
   
-              const outputToken = getEncodedToken({ mint: mintUrl, proofs, unit })
+              const outputToken = getEncodedToken({ mint: mintUrl, proofs: normalizeProofAmounts(proofs), unit })
               const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
   
               txData.push({ status: TransactionStatus.COMPLETED, receivedAmount, swapFeePaid, createdAt: new Date() })
@@ -1718,7 +1720,7 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
               proofsStore.addOrUpdate(returnedProofs, { mintUrl, tId: tx.id, unit, isPending: false, isSpent: false })
               proofsStore.addOrUpdate(proofsToSend, { mintUrl, tId: tx.id, unit, isPending: true, isSpent: false })
   
-              const outputToken = getEncodedToken({ mint: mintUrl, proofs: proofsToSend, unit })
+              const outputToken = getEncodedToken({ mint: mintUrl, proofs: normalizeProofAmounts(proofsToSend), unit })
               const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
   
               txData.push({ status: TransactionStatus.PENDING, createdAt: new Date() })
@@ -2269,15 +2271,7 @@ const recoverMintQuote = async (
           const cashuWallet = await walletStore.getWallet(mintUrl, unit, { withSeed: true, keysetId: meltPreview.keysetId })
           const keyset = cashuWallet.getKeyset(meltPreview.keysetId)
 
-          const reconstructedOutputData = meltPreview.outputData.map((od: any) => {
-              const blindingFactor = BigInt(od.blindingFactor)
-              const secretValues: number[] = typeof od.secret === 'object' && !ArrayBuffer.isView(od.secret)
-                  ? Object.values(od.secret as Record<string, number>)
-                  : Array.from(od.secret as Uint8Array)
-              const secret = new Uint8Array(secretValues)
-              return new OutputData(od.blindedMessage, blindingFactor, secret)
-          })
-
+          const reconstructedOutputData = CashuUtils.deserializeOutputData(meltPreview.outputData)
           const recoveredChange = change.map((sig, i) => reconstructedOutputData[i].toProof(sig, keyset))
           currentCounter.removeMeltCounterValue(tx.id)
 
@@ -2383,18 +2377,10 @@ const handlePendingMeltTask = async (params: {
                         { withSeed: true, keysetId: meltPreview.keysetId })
                     const keyset = cashuWallet.getKeyset(meltPreview.keysetId)
 
-                    // Reconstruct OutputData instances: serializeMeltPreview converts bigint→string
-                    // and Uint8Array→plain-object, so we must restore the types before calling toProof.
-                    const reconstructedOutputData = meltPreview.outputData.map((od: any) => {
-                        const blindingFactor = BigInt(od.blindingFactor)
-                        const secretValues: number[] = typeof od.secret === 'object' && !ArrayBuffer.isView(od.secret)
-                            ? Object.values(od.secret as Record<string, number>)
-                            : Array.from(od.secret as Uint8Array)
-                        const secret = new Uint8Array(secretValues)
-                        return new OutputData(od.blindedMessage, blindingFactor, secret)
-                    })
-
+                    const reconstructedOutputData = CashuUtils.deserializeOutputData(meltPreview.outputData)
                     const change = quote.change.map((sig, i) => reconstructedOutputData[i].toProof(sig, keyset))
+
+                    log.trace('[handlePendingMelt] Change unblinded', { transactionId, quoteId, change })
 
                     currentCounter.removeMeltCounterValue(transactionId)
 
@@ -2410,7 +2396,7 @@ const handlePendingMeltTask = async (params: {
                 }
             }
         } catch (e: any) {
-            log.error('[handlePendingMelt] change recovery failed, completing without change', e.message)
+            log.error('[handlePendingMelt] change recovery failed, completing without change', {message: e.message})
         }
 
         const txData: TransactionData[] = transaction.data ? JSON.parse(transaction.data) : []
@@ -2540,7 +2526,7 @@ const handleClaimTask = async function (params: {
 
         const result: TransactionTaskResult = await receiveTask(
             decoded,
-            tokenInfo.amount,
+            Number(tokenInfo.amount),
             tokenInfo.memo || 'Received to Lightning address',
             encodedToken,
         )
@@ -2838,7 +2824,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
 
             // keysetsV2 support
             const tokenInfo = getTokenMetadata(incoming.encoded)
-            const amountToReceive = tokenInfo.amount      
+            const amountToReceive = Number(tokenInfo.amount)
             const memo = tokenInfo.memo || 'Received over Nostr'
             const {unit, mint: mintUrl} = tokenInfo
 
@@ -3041,7 +3027,8 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
             }
             
             // create draft transaction
-            const {amount, unit, description, id, mints} = decoded
+            const {amount: rawAmount, unit, description, id, mints} = decoded
+            const amount = Number(rawAmount)
             
             const availableBalances: MintBalance[] = []
 

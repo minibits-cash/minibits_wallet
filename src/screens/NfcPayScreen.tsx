@@ -4,7 +4,7 @@ import {
     View,
     TextStyle,
 } from 'react-native'
-import { PaymentRequest as CashuPaymentRequest, MeltQuoteBolt11Response, MeltQuoteResponse, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
+import { PaymentRequest as CashuPaymentRequest, MeltQuoteBolt11Response, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
 import NfcManager, { Ndef, NfcEvents } from 'react-native-nfc-manager'
 import { colors, spacing, typography, useThemeColor } from '../theme'
 import EventEmitter from '../utils/eventEmitter'
@@ -400,7 +400,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         log.trace('[handlePaymentRequest] decoded Cashu payment request', { pr })
 
         // Validate basics
-        if (!pr.amount || pr.amount <= 0) {
+        if (!pr.amount || Number(pr.amount) <= 0) {
             throw new AppError(Err.VALIDATION_ERROR, 'Payment request has no valid amount')
         }
 
@@ -420,7 +420,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         // setEncodedCashuPaymentRequest(encoded)
         if (pr.description) setMemo(pr.description)
 
-        const requiredAmount = pr.amount
+        const requiredAmount = Number(pr.amount)
         const eligibleBalances = await getEligibleMintBalancesForCashu(pr, requiredAmount, unit)
 
         if (eligibleBalances.length === 0) {
@@ -678,14 +678,14 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         setInvoice(decoded)
         setInvoiceExpiry(expiresAt)
         setMeltQuote(quote)
-        setAmountToPay(formatDisplayAmount(quote.amount, unitRef.current))
+        setAmountToPay(formatDisplayAmount(quote.amount.toNumber(), unitRef.current))
         if (description) setMemo(description)
-    
+
         setNfcInfo('Paying Lightning invoice...')
 
         const result = await WalletTask.transferQueueAwaitable(
             balanceToUse,
-            quote.amount,
+            quote.amount.toNumber(),
             unitRef.current,
             quote,
             description ?? '',

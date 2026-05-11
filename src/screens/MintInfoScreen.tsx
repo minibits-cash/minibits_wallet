@@ -429,7 +429,7 @@ function NutsCard(props: {info: GetInfoResponse}) {
       continue;
     }
     if ('disabled' in info && info.disabled === false) { // detailed
-      supportedNutsDetailed.push([nut, info])
+      supportedNutsDetailed.push([nut, info as unknown as DetailedNutInfo])
     } else if ('supported' in info && typeof info.supported !== 'undefined') { // simple
       nutsSimple.push([nut, !!info.supported])
     } else {
@@ -567,14 +567,20 @@ function getMintLimits(info: GetInfoResponse) {
   console.log('runs')
   for (const method of info.nuts['4'].methods) {
     if ((typeof method.min_amount !== 'undefined' || typeof method.max_amount !== 'undefined') && method.unit === 'sat') {
-      mintSats = { min: method.min_amount, max: method.max_amount }
+      mintSats = {
+        min: method.min_amount !== undefined ? Number(method.min_amount) : undefined,
+        max: method.max_amount !== undefined ? Number(method.max_amount) : undefined,
+      }
       break;
     }
   }
 
   for (const method of info.nuts['5'].methods) {
     if ((typeof method.min_amount !== 'undefined' || typeof method.max_amount !== 'undefined') && method.unit === 'sat') {
-      meltSats = { min: method.min_amount, max: method.max_amount }
+      meltSats = {
+        min: method.min_amount !== undefined ? Number(method.min_amount) : undefined,
+        max: method.max_amount !== undefined ? Number(method.max_amount) : undefined,
+      }
       break;
     }
   }
