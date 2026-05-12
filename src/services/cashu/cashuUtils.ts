@@ -51,7 +51,8 @@ const CASHU_TOKEN_PREFIXES = [
 ]
 
 const CASHU_PAYMENT_REQUEST_PREFIXES = [
-  'creqA',  
+  'creqA',
+  'creqB' 
 ]
 
 const findEncodedCashuToken = function (content: string) {
