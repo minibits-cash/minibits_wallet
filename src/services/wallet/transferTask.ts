@@ -193,19 +193,92 @@ export const transferTask = async function (
             proofsToMeltFromAmount = CashuUtils.getProofsAmount(proofsToMeltFrom)
         }
 
-        // TODO: if proofsToMelFromAmount is significantly higher than amountWithFees, 
-        // add swap with the mint to get denominations that fit the needed amount
+        // Preemptive swap: if selected proofs overshoot needed amount by >20%, swap for
+        // well-denominated proofs to avoid paying excessive melt fees.
+        let swapFeePaid = 0
 
-        // move proofs to PENDING state and link them to current tx
-        proofsStore.addOrUpdate(proofsToMeltFrom,
-            {
+        if (proofsToMeltFromAmount > amountWithFees * 1.2) {
+            log.info('[transfer] proofsToMeltFromAmount overshoots amountWithFees by >20%, running preemptive swap', {
+                proofsToMeltFromAmount,
+                amountWithFees,
+            })
+            try {
+                const swapInputProofs = proofsToMeltFrom  // save reference before reassignment
+
+                const swapResult = await walletStore.send(
+                    mintUrl,
+                    amountWithFees,
+                    unit,
+                    proofsToMeltFrom,
+                    transactionId!,
+                )
+
+                // Change proofs from swap go back to spendable wallet
+                if (swapResult.returnedProofs.length > 0) {
+                    proofsStore.addOrUpdate(swapResult.returnedProofs, {
+                        mintUrl,
+                        unit,
+                        tId: transactionId,
+                        isPending: false,
+                        isSpent: false,
+                    })
+                }
+
+                // Mark original input proofs as spent — the swap consumed them.
+                // Exclude any returned unchanged by cashu-ts optimisation (they appear in returnedProofs).
+                const returnedSecrets = new Set(swapResult.returnedProofs.map(p => p.secret))
+                const consumedBySwap = swapInputProofs.filter(p => !returnedSecrets.has(p.secret))
+                proofsStore.addOrUpdate(consumedBySwap, {
+                    mintUrl,
+                    tId: transactionId,
+                    unit,
+                    isPending: false,
+                    isSpent: true,
+                })
+
+                // Track the true net debit: swap target + swap fee paid to the mint
+                proofsToMeltFromAmount = CashuUtils.getProofsAmount(swapResult.proofsToSend) + swapResult.swapFeePaid
+                meltFeeReserve += swapResult.swapFeePaid
+                swapFeePaid = swapResult.swapFeePaid
+
+                // Mark swap outputs as pending — addOrUpdate returns them as MST nodes directly.
+                const { updatedProofs: pendingSwapProofs } = proofsStore.addOrUpdate(swapResult.proofsToSend, {
+                    mintUrl,
+                    tId: transactionId,
+                    unit,
+                    isPending: true,
+                    isSpent: false,
+                })
+                proofsToMeltFrom = pendingSwapProofs
+
+                log.debug('[transfer] Preemptive swap completed', {
+                    proofsToMeltFromAmount,
+                    swapFeePaid,
+                    meltFeeReserve,
+                })
+            } catch (swapError: any) {
+                // Swap is an optimisation — fall back to original proofs, mark them pending
+                log.warn('[transfer] Preemptive swap failed, continuing with original proofs', {
+                    error: swapError.message,
+                })
+                proofsStore.addOrUpdate(proofsToMeltFrom, {
+                    mintUrl,
+                    tId: transaction.id,
+                    unit,
+                    isPending: true,
+                    isSpent: false,
+                })
+            }
+        } else {
+            // No swap needed — move original proofs to pending
+            proofsStore.addOrUpdate(proofsToMeltFrom, {
                 mintUrl,
                 tId: transaction.id,
                 unit,
                 isPending: true,
-                isSpent: false
-            }
-        )       
+                isSpent: false,
+            })
+        }
 
         log.trace('[transfer]', 'Prepared proofsToMeltFrom proofs', {
             proofsToMeltFromAmount,             
@@ -219,6 +292,7 @@ export const transferTask = async function (
             proofsToMeltFromAmount,
             lightningFeeReserve: meltQuote.fee_reserve.toNumber(),
             meltFeeReserve,
+            ...(swapFeePaid > 0 && {preemptiveSwapFeePaid: swapFeePaid}),
             createdAt: new Date(),
         })
 

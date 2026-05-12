@@ -448,7 +448,10 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
     useEffect(() => {
         if (!pendingAsyncMeltId) return
         const handler = (result: { transactionId: number; status: TransactionStatus; message: string }) => {
+            log.trace('[TransferScreen] Received async melt result', {result, pendingAsyncMeltId})
+
             if (result.transactionId !== pendingAsyncMeltId) return
+            
             setPendingAsyncMeltId(undefined)
             dispatch({
                 type: 'UPDATE_RESULT_MODAL',
