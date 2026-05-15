@@ -156,7 +156,15 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
           isLockedToWallet = lockedToPK === '02' + keys.NOSTR.publicKey
         }
 
-        log.trace('decoded tokenMetadata', {tokenInfo, isLocked, isLockedToWallet})
+        log.trace('decoded tokenMetadata', {
+          mint: tokenInfo.mint,
+          unit: tokenInfo.unit,
+          amount: tokenInfo.amount.toString(),
+          proofCount: tokenInfo.incompleteProofs?.length ?? 0,
+          hasMemo: !!tokenInfo.memo,
+          isLocked,
+          isLockedToWallet,
+        })
         log.trace('tokenAmount', {amount, unit})  
 
         const currency = getCurrency(unit as MintUnit)

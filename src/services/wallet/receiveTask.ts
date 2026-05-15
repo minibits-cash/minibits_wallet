@@ -170,7 +170,7 @@ export const receiveOfflinePrepareTask = async function (
 ) {
   const transactionData: TransactionData[] = []
   let transaction: Transaction | undefined = undefined
-  const mintToReceive = mintUrl
+  const mintToReceive = mintUrl.replace(/\/$/, '')
 
   try {
 
@@ -218,6 +218,57 @@ export const receiveOfflinePrepareTask = async function (
                 message: `The mint ${mintToReceive} is blocked. You can unblock it in Settings.`,
             } as unknown as TransactionTaskResult
         }
+
+        const mintInstance = mintsStore.findByUrl(mintToReceive) || mintsStore.findByUrl(mintUrl)
+
+        if (!mintInstance) {
+            throw new AppError(
+                Err.VALIDATION_ERROR,
+                'This token cannot be verified offline because the mint is not saved in your wallet. Go online to add the mint or receive it online.',
+                {caller: 'receiveOfflinePrepareTask', mintUrl: mintToReceive}
+            )
+        }
+
+        if (!mintInstance.keysetIds || mintInstance.keysetIds.length === 0 || !mintInstance.keys || mintInstance.keys.length === 0) {
+            throw new AppError(
+                Err.VALIDATION_ERROR,
+                'This token cannot be verified offline because the mint keys are not saved. Sync the mint online first.',
+                {caller: 'receiveOfflinePrepareTask', mintUrl: mintToReceive}
+            )
+        }
+
+        let token: Token
+
+        try {
+            token = getDecodedToken(encodedToken, mintInstance.keysetIds)
+        } catch (e: any) {
+            throw new AppError(
+                Err.VALIDATION_ERROR,
+                'Could not decode this ecash token for offline verification.',
+                {caller: 'receiveOfflinePrepareTask', mintUrl: mintToReceive, reason: e?.message}
+            )
+        }
+
+        const tokenMint = token.mint.replace(/\/$/, '')
+        const tokenUnit = token.unit || 'sat'
+
+        if (tokenMint !== mintToReceive) {
+            throw new AppError(
+                Err.VALIDATION_ERROR,
+                'Token mint does not match the offline receive mint.',
+                {caller: 'receiveOfflinePrepareTask', mintUrl: mintToReceive, tokenMint}
+            )
+        }
+
+        if (tokenUnit !== unit) {
+            throw new AppError(
+                Err.VALIDATION_ERROR,
+                'Token unit does not match the offline receive unit.',
+                {caller: 'receiveOfflinePrepareTask', unit, tokenUnit}
+            )
+        }
+
+        CashuUtils.verifyProofsDleqOrThrow(token.proofs, mintInstance.keys)
 
         // Update transaction status
         transactionData.push({

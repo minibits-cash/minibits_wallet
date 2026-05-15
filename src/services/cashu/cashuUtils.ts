@@ -2,10 +2,13 @@ import {Mint} from '../../models/Mint'
 import {
   Amount,
   OutputData,
+  hasValidDleq,
 } from '@cashu/cashu-ts'
 import type {
   Token,
+  Proof as CashuDecodedProof,
   ProofLike as CashuProof,
+  MintKeys as CashuMintKeys,
   PaymentRequest as CashuPaymentRequest,
   PaymentRequestPayload,
   TokenMetadata,
@@ -257,6 +260,79 @@ const getProofsSubset = function (
   return proofs.filter(proof => !proofsToRemove.some(p => p.secret === proof.secret))
 }
 
+const verifyProofsDleqOrThrow = function (
+  proofs: CashuDecodedProof[],
+  mintKeys: CashuMintKeys[],
+): void {
+  if (!proofs || proofs.length === 0) {
+    throw new AppError(
+      Err.VALIDATION_ERROR,
+      'This token does not contain ecash proofs to verify offline.',
+      { caller: 'verifyProofsDleqOrThrow' },
+    )
+  }
+
+  if (!mintKeys || mintKeys.length === 0) {
+    throw new AppError(
+      Err.VALIDATION_ERROR,
+      'This token cannot be verified offline because the mint keys are not saved. Sync the mint online first.',
+      { caller: 'verifyProofsDleqOrThrow' },
+    )
+  }
+
+  for (const [proofIndex, proof] of proofs.entries()) {
+    const amount = proof.amount.toString()
+    const params = {
+      caller: 'verifyProofsDleqOrThrow',
+      proofIndex,
+      keysetId: proof.id,
+      amount,
+    }
+
+    const keyset = mintKeys.find(k => k.id === proof.id)
+
+    if (!keyset || !keyset.keys || !keyset.keys[amount]) {
+      throw new AppError(
+        Err.VALIDATION_ERROR,
+        'This token cannot be verified offline because the mint keys are not saved. Sync the mint online first.',
+        params,
+      )
+    }
+
+    if (!proof.dleq) {
+      throw new AppError(
+        Err.VALIDATION_ERROR,
+        'This token does not include offline verification proof. Receive it online instead.',
+        params,
+      )
+    }
+
+    if (!proof.dleq.r) {
+      throw new AppError(
+        Err.VALIDATION_ERROR,
+        'This token is missing the DLEQ blinding factor needed for offline verification.',
+        params,
+      )
+    }
+
+    let isValid = false
+
+    try {
+      isValid = hasValidDleq(proof, keyset)
+    } catch {
+      isValid = false
+    }
+
+    if (!isValid) {
+      throw new AppError(
+        Err.VALIDATION_ERROR,
+        'Offline ecash verification failed. Do not accept this token.',
+        params,
+      )
+    }
+  }
+}
+
 
 const validateMintKeys = function (keys: object): boolean {
   let isValid = true
@@ -458,6 +534,7 @@ export const CashuUtils = {
     getProofsToSend,
     exportProofs,
     getProofsSubset,
+    verifyProofsDleqOrThrow,
     validateMintKeys,
     getMintFromProof,
     getP2PKPubkeySecret,
