@@ -316,7 +316,7 @@ export const transferTask = async function (
                 meltQuote,
                 proofsToMeltFrom,
                 transactionId,
-                { preferAsync: true },
+                { preferAsync: nwcEvent ? false : true },
             )
         } catch (e: any) {
             if (WalletUtils.shouldHealOutputsError(e)) {
@@ -327,7 +327,7 @@ export const transferTask = async function (
                     meltQuote,
                     proofsToMeltFrom,
                     transactionId,
-                    { increaseCounterBy: 10, preferAsync: true },
+                    { increaseCounterBy: 10, preferAsync: nwcEvent ? false : true },
                 )
             } else {
                 throw e

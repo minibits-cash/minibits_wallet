@@ -445,20 +445,34 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
 
     const [pendingAsyncMeltId, setPendingAsyncMeltId] = useState<number | undefined>(undefined)
 
+    // async melt result listener - updates the result modal when the melt quote resolves and transaction can be completed
     useEffect(() => {
         if (!pendingAsyncMeltId) return
+        
         const handler = (result: { transactionId: number; status: TransactionStatus; message: string }) => {
-            log.trace('[TransferScreen] Received async melt result', {result, pendingAsyncMeltId})
+            log.trace('[TransferScreen] Received async melt result', {result, pendingAsyncMeltId, isInvoiceDonation, donationForName})
 
             if (result.transactionId !== pendingAsyncMeltId) return
             
             setPendingAsyncMeltId(undefined)
-            dispatch({
+            if (isInvoiceDonation && donationForName &&
+              (result.status === TransactionStatus.COMPLETED || result.status === TransactionStatus.RECOVERED)) {
+                
+                walletProfileStore.updateName(donationForName)
+                dispatch({
+                  type: 'UPDATE_RESULT_MODAL',
+                  transactionStatus: result.status,
+                  resultModalInfo: { status: result.status, message: translate('transferScreen_donationSuccessMessage', { donationForName }) },
+                })
+            } else {
+              dispatch({
                 type: 'UPDATE_RESULT_MODAL',
                 transactionStatus: result.status,
                 resultModalInfo: { status: result.status, message: result.message },
-            })
+              })
+            }
         }
+
         EventEmitter.on('ev_asyncMeltResult', handler)
         return () => EventEmitter.off('ev_asyncMeltResult', handler)
     }, [pendingAsyncMeltId])
