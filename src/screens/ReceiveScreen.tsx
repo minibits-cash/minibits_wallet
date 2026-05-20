@@ -27,7 +27,7 @@ import {CashuUtils} from '../services/cashu/cashuUtils'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { CurrencyCode, MintUnit, getCurrency } from "../services/wallet/currency"
+import { CurrencyCode, MintUnit, MintUnits, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
@@ -141,6 +141,10 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
 
         if(!unit) {
           throw new AppError(Err.VALIDATION_ERROR, translate("decodedMissingCurrencyUnit", { unit: CurrencyCode.SAT }))        
+        }
+
+        if(!MintUnits.includes(unit as MintUnit)) {
+          throw new AppError(Err.VALIDATION_ERROR, `Wallet does not support ${unit} unit.`)
         }
 
         if(!mintUrl) {

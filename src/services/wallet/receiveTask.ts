@@ -219,7 +219,7 @@ export const receiveOfflinePrepareTask = async function (
             } as unknown as TransactionTaskResult
         }
 
-        const mintInstance = mintsStore.findByUrl(mintToReceive) || mintsStore.findByUrl(mintUrl)
+        const mintInstance = mintsStore.findByUrl(mintToReceive)
 
         if (!mintInstance) {
             throw new AppError(
@@ -246,25 +246,6 @@ export const receiveOfflinePrepareTask = async function (
                 Err.VALIDATION_ERROR,
                 'Could not decode this ecash token for offline verification.',
                 {caller: 'receiveOfflinePrepareTask', mintUrl: mintToReceive, reason: e?.message}
-            )
-        }
-
-        const tokenMint = token.mint.replace(/\/$/, '')
-        const tokenUnit = token.unit || 'sat'
-
-        if (tokenMint !== mintToReceive) {
-            throw new AppError(
-                Err.VALIDATION_ERROR,
-                'Token mint does not match the offline receive mint.',
-                {caller: 'receiveOfflinePrepareTask', mintUrl: mintToReceive, tokenMint}
-            )
-        }
-
-        if (tokenUnit !== unit) {
-            throw new AppError(
-                Err.VALIDATION_ERROR,
-                'Token unit does not match the offline receive unit.',
-                {caller: 'receiveOfflinePrepareTask', unit, tokenUnit}
             )
         }
 
