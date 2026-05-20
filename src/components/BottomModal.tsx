@@ -191,7 +191,7 @@ export function BottomModal(props: ModalProps) {
         behavior="position"
         enabled={Platform.OS === 'android'}
         keyboardVerticalOffset={0}
-        style={{ width: '100%' }}
+        style={{ width: '100%'}}
       >
       <View
         style={[

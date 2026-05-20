@@ -66,7 +66,7 @@ export const ErrorModal: FC<ErrorModalProps> = function ({ error }) {
             isVisible={isErrorVisible}
             onBackdropPress={onClose}
             onBackButtonPress={onClose}
-            style={{ marginBottom: Platform.OS === 'android' ? -(insets.top + insets.bottom) : 0 }}            
+            //style={{ marginBottom: Platform.OS === 'android' ? -(insets.top + insets.bottom) : 0 }}            
             ContentComponent={
             <View>                
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.small }}>
