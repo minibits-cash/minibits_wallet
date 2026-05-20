@@ -27,7 +27,7 @@ import {CashuUtils} from '../services/cashu/cashuUtils'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {MintListItem} from './Mints/MintListItem'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { CurrencyCode, MintUnit, getCurrency } from "../services/wallet/currency"
+import { CurrencyCode, MintUnit, MintUnits, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
@@ -143,6 +143,10 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
           throw new AppError(Err.VALIDATION_ERROR, translate("decodedMissingCurrencyUnit", { unit: CurrencyCode.SAT }))        
         }
 
+        if(!MintUnits.includes(unit as MintUnit)) {
+          throw new AppError(Err.VALIDATION_ERROR, `Wallet does not support ${unit} unit.`)
+        }
+
         if(!mintUrl) {
           throw new AppError(Err.VALIDATION_ERROR, 'Decoded token is missing mint url')
         }
@@ -156,7 +160,15 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
           isLockedToWallet = lockedToPK === '02' + keys.NOSTR.publicKey
         }
 
-        log.trace('decoded tokenMetadata', {tokenInfo, isLocked, isLockedToWallet})
+        log.trace('decoded tokenMetadata', {
+          mint: tokenInfo.mint,
+          unit: tokenInfo.unit,
+          amount: tokenInfo.amount.toString(),
+          proofCount: tokenInfo.incompleteProofs?.length ?? 0,
+          hasMemo: !!tokenInfo.memo,
+          isLocked,
+          isLockedToWallet,
+        })
         log.trace('tokenAmount', {amount, unit})  
 
         const currency = getCurrency(unit as MintUnit)
