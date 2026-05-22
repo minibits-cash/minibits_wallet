@@ -842,7 +842,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         if (!isOnline.current) {
             // Try to pay exactly with available proofs (avoid swap)
             for (const balance of balances) {
-                const proofs = proofsStore.getByMint(balance.mintUrl, { isPending: false, unit })
+                const proofs = proofsStore.getByMint(balance.mintUrl, { state: 'UNSPENT', unit })
                 const exactProofs = CashuUtils.getProofsToSend(amount, proofs)
 
                 if (CashuUtils.getProofsAmount(exactProofs) === amount) {

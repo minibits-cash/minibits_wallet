@@ -7,6 +7,7 @@ import {
 import {rootStoreInstance} from '../../models'
 import AppError, {Err} from '../../utils/AppError'
 import { TransactionTaskResult } from '../walletService'
+import { ProofReservation } from './proofReservation'
 import { WalletUtils } from './utils'
 import { MintUnit } from './currency'
 import { Token, getEncodedToken, normalizeProofAmounts } from '@cashu/cashu-ts'
@@ -32,21 +33,25 @@ try {
 
 const unit = transaction.unit as MintUnit
 
+const allProofs = proofsStore.getByTransactionId(transaction.id)
+const pendingProofs = allProofs.filter(p => p.state === 'PENDING')
+const mintInstance = mintsStore.findByUrl(transaction.mint)
+
+// Reservation is declared at the outer scope so the catch block can resolve it
+// (commit or rollback) if a failure happens after it's opened. Errors thrown
+// during the pre-validation below leave it undefined.
+let reservation: ProofReservation | undefined = undefined
+
 try {
-    
-    const allProofs = proofsStore.getByTransactionId(transaction.id)
-    const pendingProofs = allProofs.filter(p => p.isPending === true)
 
     if(pendingProofs.length === 0) {
     throw new AppError(Err.VALIDATION_ERROR, 'Missing proofs to swap')
     }
 
-    const mintInstance = mintsStore.findByUrl(transaction.mint)
-
     if(!mintInstance) {
         throw new AppError(Err.VALIDATION_ERROR, 'Missing mint')
-    } 
-      
+    }
+
     // We will swap pending proofs with the mint for fresh ones that we receive to the wallet.
     // This will invalidate originally sent proofs effectively reverting the transaction.
     const encodedToken: Token = {
@@ -55,61 +60,80 @@ try {
         unit
     }
 
+    // Open the reservation BEFORE the mint call. The pending proofs are
+    // already PENDING; `rollbackTo: 'PENDING'` ensures they stay PENDING if
+    // the recovery swap fails (user can retry). Without the override, rollback
+    // would restore them to their pre-reservation state which is also PENDING
+    // — but being explicit documents the intent and protects against future
+    // callers passing UNSPENT proofs into revertTask by mistake.
+    reservation = proofsStore.reserve(pendingProofs, {
+        transactionId: transaction.id,
+        mintUrl: mintInstance.mintUrl,
+        unit,
+        operationType: 'revert',
+        rollbackTo: 'PENDING',
+    })
+
     const receivedResult = await walletStore.receive(
         transaction.mint,
         unit as MintUnit,
-        encodedToken,          
+        encodedToken,
         transaction.id
     )
-      
-      const receivedProofs = receivedResult.proofs
-      const mintFeePaid = receivedResult.swapFeePaid
 
-      // store freshed proofs as encoded token in tx data        
-      const outputToken = getEncodedToken({
+    const receivedProofs = receivedResult.proofs
+    const mintFeePaid = receivedResult.swapFeePaid
+
+    // store freshed proofs as encoded token in tx data
+    const outputToken = getEncodedToken({
         mint: mintInstance.mintUrl,
         proofs: normalizeProofAmounts(receivedProofs),
         unit
-      })
-      
-      // Remove original pending proofs
-      proofsStore.moveToSpent(pendingProofs)
-     
-      // add fresh proofs to spendable wallet
-      const { updatedAmount: receivedAmount } = proofsStore.addOrUpdate(receivedProofs, {
+    })
+
+    // ATOMIC commit: original pending proofs → SPENT, new fresh proofs →
+    // UNSPENT, reservation row deleted — single SQLite transaction. Replaces
+    // the previous two-step moveToSpent + addOrUpdate sequence.
+    const { added } = proofsStore.commitReservation(reservation, {
+        toSpent: pendingProofs,
+        newProofs: [{ proofs: receivedProofs, state: 'UNSPENT', tId: transaction.id }],
+    })
+
+    const receivedAmount = added.reduce((sum, p) => sum + p.amount, 0)
+
+    // Update transaction status
+    transactionData.push({
+        status: TransactionStatus.REVERTED,
+        mintFeePaid,
+        createdAt: new Date(),
+    })
+
+    const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
+
+    transaction.update({
+        status: TransactionStatus.REVERTED,
+        data: JSON.stringify(transactionData),
+        outputToken,
+        balanceAfter,
+        ...(mintFeePaid > 0 && {fee: mintFeePaid})
+    })
+
+    return {
+        taskFunction: REVERT_TASK,
         mintUrl: mintInstance.mintUrl,
-        unit,
-        tId: transaction.id,
-        isPending: false,
-        isSpent: false
-      })
+        transaction,
+        message: `Transaction has been reverted and funds were returned to spendable balance.`,
+        receivedAmount,
+    } as TransactionTaskResult
 
-      // Update transaction status
-      transactionData.push({
-          status: TransactionStatus.REVERTED,
-          mintFeePaid,          
-          createdAt: new Date(),
-      })
-
-      const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
-      
-      transaction.update({
-          status: TransactionStatus.REVERTED,
-          data: JSON.stringify(transactionData),
-          outputToken,
-          balanceAfter,
-          ...(mintFeePaid > 0 && {fee: mintFeePaid})
-      })
-
-      return {
-          taskFunction: REVERT_TASK,
-          mintUrl: mintInstance.mintUrl,
-          transaction,
-          message: `Transaction has been reverted and funds were returned to spendable balance.`,
-          receivedAmount,
-      } as TransactionTaskResult
-      
   } catch (e: any) {
+      // Resolve the reservation if we opened one (otherwise it becomes an
+      // orphan). Rollback restores the proofs to PENDING (their pre-reservation
+      // state) so the user can retry the revert.
+      if (reservation) {
+          proofsStore.rollbackReservation(reservation)
+      }
+
       if (transaction) {            
           transactionData.push({
               status: TransactionStatus.ERROR,

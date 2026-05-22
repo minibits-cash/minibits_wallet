@@ -5,6 +5,7 @@ import {rootStoreInstance} from '../../models'
 import { TransactionTaskResult, WalletTask } from '../walletService'
 import { MintBalance } from '../../models/Mint'
 import { Proof } from '../../models/Proof'
+import { ProofReservation } from './proofReservation'
 import { Transaction, TransactionData, TransactionStatus, TransactionType } from '../../models/Transaction'
 import { log } from '../logService'
 import { WalletUtils } from './utils'
@@ -90,12 +91,15 @@ export const transferTask = async function (
 
 
     let transaction: Transaction | undefined = undefined
-    let transactionData: TransactionData[] = []    
+    let transactionData: TransactionData[] = []
     let proofsToMeltFrom: Proof[] = []
     let proofsToMeltFromAmount: number = 0
     let meltFeeReserve: number = 0
     let meltResponse: MeltProofsResponse
-    let meltQuoteCheck: MeltQuoteBolt11Response    
+    let meltQuoteCheck: MeltQuoteBolt11Response
+    // Declared at the function scope so the catch block can resolve the
+    // reservation (commit-no-changes or rollback) if we throw after opening it.
+    let meltReservation: ProofReservation | undefined = undefined
 
     try {
 
@@ -161,7 +165,7 @@ export const transferTask = async function (
         }
         
         // calculate fees charged by mint for melt transaction to prepare enough proofs
-        const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit})
+        const proofsFromMint = proofsStore.getByMint(mintUrl, {state: 'UNSPENT', unit})
         const totalAmountFromMint = CashuUtils.getProofsAmount(proofsFromMint)
 
         proofsToMeltFrom = CashuUtils.getProofsToSend(
@@ -196,60 +200,58 @@ export const transferTask = async function (
         // Preemptive swap: if selected proofs overshoot needed amount by >20%, swap for
         // well-denominated proofs to avoid paying excessive melt fees.
         let swapFeePaid = 0
+        let didPreemptiveSwap = false
 
         if (proofsToMeltFromAmount > amountWithFees * 1.2) {
             log.info('[transfer] proofsToMeltFromAmount overshoots amountWithFees by >20%, running preemptive swap', {
                 proofsToMeltFromAmount,
                 amountWithFees,
             })
-            try {
-                const swapInputProofs = proofsToMeltFrom  // save reference before reassignment
 
+            // SWAP reservation: lock the inputs atomically. On swap success, commit
+            // the (inputs → SPENT, change → UNSPENT, swap-output → PENDING) batch in
+            // a single SQLite transaction. On swap failure, rollback restores the
+            // inputs to UNSPENT and we fall through to the no-swap path.
+            const swapInputProofs = proofsToMeltFrom
+            const swapReservation = proofsStore.reserve(swapInputProofs, {
+                transactionId: transactionId!,
+                mintUrl,
+                unit,
+                operationType: 'transfer-swap',
+                rollbackTo: 'UNSPENT',
+            })
+
+            try {
                 const swapResult = await walletStore.send(
                     mintUrl,
                     amountWithFees,
                     unit,
-                    proofsToMeltFrom,
+                    swapInputProofs,
                     transactionId!,
                 )
 
-                // Change proofs from swap go back to spendable wallet
-                if (swapResult.returnedProofs.length > 0) {
-                    proofsStore.addOrUpdate(swapResult.returnedProofs, {
-                        mintUrl,
-                        unit,
-                        tId: transactionId,
-                        isPending: false,
-                        isSpent: false,
-                    })
-                }
-
-                // Mark original input proofs as spent — the swap consumed them.
-                // Exclude any returned unchanged by cashu-ts optimisation (they appear in returnedProofs).
+                // cashu-ts may return some inputs unchanged; those should NOT be marked SPENT.
                 const returnedSecrets = new Set(swapResult.returnedProofs.map(p => p.secret))
                 const consumedBySwap = swapInputProofs.filter(p => !returnedSecrets.has(p.secret))
-                proofsStore.addOrUpdate(consumedBySwap, {
-                    mintUrl,
-                    tId: transactionId,
-                    unit,
-                    isPending: false,
-                    isSpent: true,
+
+                // ATOMIC commit of the swap state transitions + reservation deletion.
+                const { added } = proofsStore.commitReservation(swapReservation, {
+                    toSpent: consumedBySwap,
+                    newProofs: [
+                        { proofs: swapResult.returnedProofs, state: 'UNSPENT', tId: transactionId! },
+                        { proofs: swapResult.proofsToSend, state: 'PENDING', tId: transactionId! },
+                    ],
                 })
 
-                // Track the true net debit: swap target + swap fee paid to the mint
+                // Adopt the swap output as the new proofsToMeltFrom.
+                const swapOutputSecrets = new Set(swapResult.proofsToSend.map(p => p.secret))
+                const pendingSwapProofs = added.filter(p => swapOutputSecrets.has(p.secret))
+
                 proofsToMeltFromAmount = CashuUtils.getProofsAmount(swapResult.proofsToSend) + swapResult.swapFeePaid
                 meltFeeReserve += swapResult.swapFeePaid
                 swapFeePaid = swapResult.swapFeePaid
-
-                // Mark swap outputs as pending — addOrUpdate returns them as MST nodes directly.
-                const { updatedProofs: pendingSwapProofs } = proofsStore.addOrUpdate(swapResult.proofsToSend, {
-                    mintUrl,
-                    tId: transactionId,
-                    unit,
-                    isPending: true,
-                    isSpent: false,
-                })
                 proofsToMeltFrom = pendingSwapProofs
+                didPreemptiveSwap = true
 
                 log.debug('[transfer] Preemptive swap completed', {
                     proofsToMeltFromAmount,
@@ -257,28 +259,29 @@ export const transferTask = async function (
                     meltFeeReserve,
                 })
             } catch (swapError: any) {
-                // Swap is an optimisation — fall back to original proofs, mark them pending
+                // Swap is an optimisation — restore the inputs to UNSPENT and fall
+                // through to the no-swap path with the original proofs.
                 log.warn('[transfer] Preemptive swap failed, continuing with original proofs', {
                     error: swapError.message,
                 })
-                proofsStore.addOrUpdate(proofsToMeltFrom, {
-                    mintUrl,
-                    tId: transaction.id,
-                    unit,
-                    isPending: true,
-                    isSpent: false,
-                })
+                proofsStore.rollbackReservation(swapReservation)
             }
-        } else {
-            // No swap needed — move original proofs to pending
-            proofsStore.addOrUpdate(proofsToMeltFrom, {
-                mintUrl,
-                tId: transaction.id,
-                unit,
-                isPending: true,
-                isSpent: false,
-            })
         }
+
+        // MELT reservation: locks proofsToMeltFrom as PENDING atomically.
+        //
+        // If the swap path ran, proofsToMeltFrom are already PENDING — we still
+        // open a reservation on them so the melt phase has its own orphan-recovery
+        // marker. `rollbackTo: 'UNSPENT'` releases them back to spendable on
+        // failure (they're not the user's original ecash but freshly swapped
+        // outputs intended for the melt).
+        meltReservation = proofsStore.reserve(proofsToMeltFrom, {
+            transactionId: transactionId!,
+            mintUrl,
+            unit,
+            operationType: didPreemptiveSwap ? 'transfer-melt-after-swap' : 'transfer-melt',
+            rollbackTo: 'UNSPENT',
+        })
 
         log.trace('[transfer]', 'Prepared proofsToMeltFrom proofs', {
             proofsToMeltFromAmount,             
@@ -335,13 +338,10 @@ export const transferTask = async function (
         }
         
         if (meltResponse.quote.state === MeltQuoteState.PAID) {
-            
-            log.debug('[transfer] Invoice PAID', {                
+
+            log.debug('[transfer] Invoice PAID', {
                 transactionId
             })
-
-            // Spend pending proofs that were used to settle the lightning invoice            
-            proofsStore.moveToSpent(proofsToMeltFrom)
 
             // compute fees and change
             let totalFeePaid = proofsToMeltFromAmount - amountToTransfer
@@ -351,24 +351,22 @@ export const transferTask = async function (
 
             let outputToken: string | undefined
 
-            if(meltResponse.change.length > 0) {
+            // ATOMIC commit: inputs PENDING → SPENT, change → UNSPENT, reservation
+            // row deleted — single SQLite transaction.
+            proofsStore.commitReservation(meltReservation, {
+                toSpent: proofsToMeltFrom,
+                newProofs: meltResponse.change.length > 0
+                    ? [{ proofs: meltResponse.change, state: 'UNSPENT', tId: transaction.id }]
+                    : [],
+            })
 
-                proofsStore.addOrUpdate(meltResponse.change,
-                    {
-                        mintUrl,
-                        tId: transaction.id,
-                        unit,
-                        isPending: false,
-                        isSpent: false
-                    }
-                )
-        
+            if (meltResponse.change.length > 0) {
                 outputToken = getEncodedToken({
                     mint: mintUrl,
                     proofs: meltResponse.change,
-                    unit,            
+                    unit,
                 })
-    
+
                 totalFeePaid = totalFeePaid - returnedAmount
                 lightningFeePaid = totalFeePaid - meltFeeReserve
             }
@@ -430,6 +428,12 @@ export const transferTask = async function (
                 transactionId,
             })
 
+            // Commit the reservation with no proof transitions: proofs stay PENDING
+            // and the reservation row is removed. The async handler (_monitorAsyncMeltQuote
+            // → handlePendingMeltTask) takes over from here without a reservation
+            // because its lifecycle is driven by ws/poller callbacks, not by this task.
+            proofsStore.commitReservation(meltReservation)
+
             transactionData.push({
                 status: TransactionStatus.PENDING,
                 createdAt: new Date(),
@@ -471,7 +475,7 @@ export const transferTask = async function (
         }
 
     } catch (e: any) {
-        let message = e.message        
+        let message = e.message
         let taskResult: TransactionTaskResult =  {
             taskFunction: TRANSFER_TASK,
             mintUrl,
@@ -481,44 +485,64 @@ export const transferTask = async function (
         } as TransactionTaskResult
         let recovered: number = 0
 
-        if (transaction) { 
+        if (transaction) {
+            // If we threw AFTER opening the melt reservation, resolve it
+            // (commit-no-changes or rollback) so the row doesn't become an
+            // orphan. Errors thrown BEFORE the reservation opens (e.g. during
+            // proof selection) leave `meltReservation` undefined.
+
             meltQuoteCheck = await walletStore.checkLightningMeltQuote(mintUrl, meltQuote.quote)
-            taskResult.meltQuote = meltQuoteCheck     
-            
-            if (proofsToMeltFrom.length > 0) {               
-                                
+            taskResult.meltQuote = meltQuoteCheck
+
+            if (proofsToMeltFrom.length > 0) {
+
                 // --- PAID ---
                 if(meltQuoteCheck.state === MeltQuoteState.PAID) {
 
                     message = `Lightning invoice has been successfully paid, however some error occured: ${e.message}`
-                    
+
                     taskResult.preimage =  meltQuoteCheck.payment_preimage
-                    taskResult.message = message               
+                    taskResult.message = message
+
+                    // Inputs must move PENDING → SPENT atomically with the
+                    // reservation row deletion. Change recovery happens
+                    // separately via recoverMeltQuoteChange (adds change as
+                    // UNSPENT) — it manages its own writes.
+                    if (meltReservation) {
+                        proofsStore.commitReservation(meltReservation, {
+                            toSpent: proofsToMeltFrom,
+                        })
+                    }
 
                     const {recoveredAmount} = await WalletTask.recoverMeltQuoteChange({
                         mintUrl,
-                        meltQuote: meltQuoteCheck,                    
+                        meltQuote: meltQuoteCheck,
                     })
-                    
 
                     log.error('[transfer]', message, {
                         recoveredAmount,
                         error: e.message,
-                        meltQuoteCheck, 
+                        meltQuoteCheck,
                         unit,
                         transactionId: transaction.id
                     })
 
                     recovered = recoveredAmount
-                
-                // --- PENDING BY MINT ---    
+
+                // --- PENDING BY MINT ---
                 } else if(meltQuoteCheck.state === MeltQuoteState.PENDING) {
 
                     message = 'Lightning payment did not complete in time. Your ecash will remain pending until the payment completes or fails.'
                     taskResult.message = message
 
+                    // Proofs stay PENDING; async resolution path takes over.
+                    // Drop the reservation row so startup doesn't see an orphan.
+                    if (meltReservation) {
+                        proofsStore.commitReservation(meltReservation)
+                    }
+
                     log.error('[transfer]', message, {
-                        error: `${e.message}: ${e.params.message}`,                       
+                        error: `${e.message}: ${e.params?.message}`,
                         unit,
                         meltQuoteCheck,
                         transactionId: transaction.id
@@ -526,47 +550,61 @@ export const transferTask = async function (
 
                 // --- UNPAID ---
                 } else {
-                    if (e.params && e.params.message && e.params.message.toLowerCase().includes('token already spent')) {
-
+                    if (WalletUtils.isTokenAlreadySpentError(e)) {
+                        // NUT-00 11001: at least one input is spent at the
+                        // mint. Sync will reconcile (mark them SPENT). Drop the
+                        // reservation row without restoring.
                         message = 'Token already spent, going to sync wallet pending proofs with the mint.'
                         taskResult.message = message
 
-                        log.error('[transfer]', message, {
-                            transactionId: transaction.id
-                        })                        
-                    } else if (e.params && e.params.message && e.params.message.toLowerCase().includes('proofs are pending')) {
-                        // if melt quote is UNPAID wallet used already pending by mint proofs for this transaction
-                        // we do not want to return them to spendable but keep them pending
-                        message = 'Pending proofs were used for this transaction, going to sync proofsToMeltFrom with the mint.'
-                        taskResult.message = message
+                        if (meltReservation) {
+                            proofsStore.commitReservation(meltReservation)
+                        }
 
                         log.error('[transfer]', message, {
                             transactionId: transaction.id
                         })
-                        
+                    } else if (WalletUtils.isTokenPendingError(e)) {
+                        // NUT-00 11006: an input is pending in another in-flight
+                        // melt. Do NOT release — sync resolves it once the
+                        // other operation settles.
+                        message = 'Pending proofs were used for this transaction, going to sync proofsToMeltFrom with the mint.'
+                        taskResult.message = message
+
+                        if (meltReservation) {
+                            proofsStore.commitReservation(meltReservation)
+                        }
+
+                        log.error('[transfer]', message, {
+                            transactionId: transaction.id
+                        })
+
                         await WalletTask.syncStateWithMintTask({
                             proofsToSync: proofsToMeltFrom, // includes some pending by mint proofs
                             mintUrl,
-                            isPending: true
+                            proofState: 'PENDING',
                         })
-                        
+
                     } else {
-                        // if melt quote is UNPAID return proofs from pending to spendable balance                        
-                        proofsStore.revertToSpendable(proofsToMeltFrom)
+                        // Clean unpaid: rollback atomically releases the
+                        // reserved proofs to UNSPENT (and deletes the row).
+                        if (meltReservation) {
+                            proofsStore.rollbackReservation(meltReservation)
+                        }
 
                         message = "Ecash reserved for this payment was returned to spendable balance."
 
                         log.error('[transfer]', message, {
-                            proofsToMeltFromAmount, 
+                            proofsToMeltFromAmount,
                             transactionId: transaction.id
                         })
                     }
                 }
 
                 await WalletTask.syncStateWithMintTask({
-                    proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true, unit}),
+                    proofsToSync: proofsStore.getByMint(mintUrl, {state: 'PENDING', unit}),
                     mintUrl,
-                    isPending: true
+                    proofState: 'PENDING',
                 })
             }
 

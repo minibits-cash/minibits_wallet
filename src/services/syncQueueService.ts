@@ -1,7 +1,7 @@
 import { Task, TaskId, TaskQueue, TaskStatus } from "taskon"
 import {log} from './logService'
 import EventEmitter from '../utils/eventEmitter'
-import { TransactionTaskResult, WalletTaskResult } from "./walletService"
+import { TransactionTaskResult, WalletTaskResult } from "./wallet/types"
 import { NotificationService, NWC_LISTENER_NAME } from "./notificationService"
 
 let _queue: any = undefined

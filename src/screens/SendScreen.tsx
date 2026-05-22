@@ -1018,7 +1018,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             const exactMatchProofs: Proof[] = []
 
             if(!isOnlineRef.current) {
-                const availableProofs = proofsStore.getByMint(mintBalanceToSendFrom.mintUrl, { isPending: false, unit: unitRef.current });
+                const availableProofs = proofsStore.getByMint(mintBalanceToSendFrom.mintUrl, { state: 'UNSPENT', unit: unitRef.current });
                 const autoSelectedProofs = CashuUtils.getProofsToSend(amountToSendInt, availableProofs)
                 const autoSelectedAmount = CashuUtils.getProofsAmount(autoSelectedProofs)
                 const isExactMatch = autoSelectedAmount === amountToSendInt
@@ -1994,7 +1994,7 @@ const SelectProofsBlock = observer(function (props: {
         marginTop: spacing.small
       }}>
         <FlatList<Proof>
-          data={proofsStore.getByMint(props.mintBalanceToSendFrom.mintUrl, { isPending: false, unit: props.unit })}
+          data={proofsStore.getByMint(props.mintBalanceToSendFrom.mintUrl, { state: 'UNSPENT', unit: props.unit })}
           renderItem={({ item }) => {
             const isSelected = props.selectedProofs.some(
               p => p.secret === item.secret

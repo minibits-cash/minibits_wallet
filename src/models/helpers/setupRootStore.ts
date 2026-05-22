@@ -76,6 +76,16 @@ export async function setupRootStore(rootStore: RootStore) {
 
         // hydrate unspent and pending ecash proofs to model from database
         await proofsStore.loadProofsFromDatabase()
+
+        // Roll back any orphan proof reservations from the last session.
+        // An orphan is a reservation row whose owning operation died before
+        // it could commit or rollback (process crash, force-quit, etc.).
+        // Each orphan restores its locked proofs to their original state.
+        const { recoveredCount } = proofsStore.recoverOrphanReservations()
+        if (recoveredCount > 0) {
+            log.warn(`[setupRootStore] Rolled back ${recoveredCount} orphan proof reservations`)
+        }
+
         // hydrate last transactions from database
         await transactionsStore.loadRecentFromDatabase()
 

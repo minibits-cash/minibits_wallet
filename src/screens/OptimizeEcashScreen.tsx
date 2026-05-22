@@ -102,7 +102,7 @@ export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
 
   const buildDenominationCounts = () => {
     const allProofs = Array.from(proofsStore.proofs.values()).filter(
-      p => !p.isSpent && !p.isPending,
+      p => p.state === 'UNSPENT',
     )
     const countMap: Record<number, number> = {}
     for (const proof of allProofs) {

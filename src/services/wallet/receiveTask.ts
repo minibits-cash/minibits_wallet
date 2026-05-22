@@ -629,9 +629,8 @@ export const receiveSync = async function (
             mintUrl: mintToReceive,
             unit,
             tId: transactionId,
-            isPending: false,
-            isSpent: false
-        })       
+            state: 'UNSPENT',
+        })
 
         // store swapped proofs as encoded token in tx data        
         const outputToken = getEncodedToken({

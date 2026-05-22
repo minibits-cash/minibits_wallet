@@ -156,7 +156,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
         )
       } else {
         // iOS does not support fg notifications with long running tasks
-        await WalletTask.syncStateWithAllMintsQueueAwaitable({isPending: false})        
+        await WalletTask.syncStateWithAllMintsQueueAwaitable({proofState: 'UNSPENT'})
       }      
     }
 

@@ -293,8 +293,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                         mintUrl: recoveredMint.mintUrl,
                         unit: selectedKeyset.unit as MintUnit,
                         tId: transaction!.id,
-                        isPending: false,
-                        isSpent: false,
+                        state: 'UNSPENT',
                     })
 
                     if (amount !== addedAmount) {
@@ -349,8 +348,7 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
                         mintUrl: recoveredMint.mintUrl,
                         unit: selectedKeyset.unit as MintUnit,
                         tId: pendingTransaction!.id,
-                        isPending: true,
-                        isSpent: false,
+                        state: 'PENDING',
                     })
 
                     if (pendingAmount !== addedAmount) {

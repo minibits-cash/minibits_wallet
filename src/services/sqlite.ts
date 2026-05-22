@@ -3,7 +3,8 @@ import {
   open,
   SQLBatchTuple,
 } from 'react-native-quick-sqlite'
-import {Proof} from '../models/Proof'
+import {Proof, ProofState} from '../models/Proof'
+import {CashuProof} from './cashu/cashuUtils'
 import {
   Transaction,
   TransactionStatus,
@@ -11,7 +12,6 @@ import {
 import AppError, {Err} from '../utils/AppError'
 import {log} from './logService'
 import {ProofRecord} from '../models/Proof'
-import { isDate } from 'date-fns'
 import { isAlive } from 'mobx-state-tree'
 
 // Helper functions to normalize transaction records with Date objects
@@ -27,7 +27,7 @@ const normalizeTransactionRows = function(rows: any) {
 
 let _db: QuickSQLiteConnection
 
-const _dbVersion = 24 // Update this if db changes require migrations
+const _dbVersion = 26 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
@@ -86,7 +86,7 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
     )`,
     ],    
     [
-        `CREATE TABLE IF NOT EXISTS proofs (            
+        `CREATE TABLE IF NOT EXISTS proofs (
         id TEXT NOT NULL,
         amount INTEGER NOT NULL,
         secret TEXT PRIMARY KEY NOT NULL,
@@ -97,16 +97,30 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
         unit TEXT,
         tId INTEGER,
         mintUrl TEXT,
-        isPending BOOLEAN,
-        isSpent BOOLEAN,
-        updatedAt TEXT      
+        state TEXT NOT NULL DEFAULT 'UNSPENT',
+        updatedAt TEXT
     )`,
     ],
     [
         `CREATE TABLE IF NOT EXISTS dbversion (
         id INTEGER PRIMARY KEY NOT NULL,
         version INTEGER,
-        createdAt TEXT      
+        createdAt TEXT
+    )`,
+    ],
+    [
+        // Open outgoing-operation reservations. A row exists only while a
+        // reservation is in-flight (between reserve() and commit()/rollback()).
+        // Orphans (process died mid-operation) are detected and rolled back
+        // at startup.
+        `CREATE TABLE IF NOT EXISTS reservations (
+        id TEXT PRIMARY KEY NOT NULL,
+        transactionId INTEGER NOT NULL,
+        mintUrl TEXT NOT NULL,
+        unit TEXT NOT NULL,
+        operationType TEXT NOT NULL,
+        lockedProofs TEXT NOT NULL,
+        createdAt TEXT NOT NULL
     )`,
     ],
   ] as SQLBatchTuple[]
@@ -207,9 +221,64 @@ const _runMigrations = function (db: QuickSQLiteConnection) {
     if (currentVersion < 24) {
       migrationQueries.push([
         `ALTER TABLE transactions
-         ADD COLUMN keysetId TEXT` 
-      ])      
+         ADD COLUMN keysetId TEXT`
+      ])
       log.info(`Prepared database migrations from ${currentVersion} -> 24`)
+    }
+
+    if (currentVersion < 25) {
+      // Replace isPending/isSpent boolean columns with a single state TEXT column.
+      // SQLite does not support DROP COLUMN in older versions, so we recreate the table.
+      migrationQueries.push([
+        `CREATE TABLE proofs_v25 (
+          id TEXT NOT NULL,
+          amount INTEGER NOT NULL,
+          secret TEXT PRIMARY KEY NOT NULL,
+          C TEXT NOT NULL,
+          dleq_r TEXT,
+          dleq_s TEXT,
+          dleq_e TEXT,
+          unit TEXT,
+          tId INTEGER,
+          mintUrl TEXT,
+          state TEXT NOT NULL DEFAULT 'UNSPENT',
+          updatedAt TEXT
+        )`,
+      ])
+      migrationQueries.push([
+        `INSERT INTO proofs_v25
+           (id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl, state, updatedAt)
+         SELECT
+           id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl,
+           CASE
+             WHEN isSpent = 1 THEN 'SPENT'
+             WHEN isPending = 1 THEN 'PENDING'
+             ELSE 'UNSPENT'
+           END,
+           updatedAt
+         FROM proofs`,
+      ])
+      migrationQueries.push([`DROP TABLE proofs`])
+      migrationQueries.push([`ALTER TABLE proofs_v25 RENAME TO proofs`])
+
+      log.info(`Prepared database migrations from ${currentVersion} -> 25`)
+    }
+
+    if (currentVersion < 26) {
+      // Add reservations table for atomic proof reservations (Phase 5).
+      migrationQueries.push([
+        `CREATE TABLE IF NOT EXISTS reservations (
+          id TEXT PRIMARY KEY NOT NULL,
+          transactionId INTEGER NOT NULL,
+          mintUrl TEXT NOT NULL,
+          unit TEXT NOT NULL,
+          operationType TEXT NOT NULL,
+          lockedProofs TEXT NOT NULL,
+          createdAt TEXT NOT NULL
+        )`,
+      ])
+
+      log.info(`Prepared database migrations from ${currentVersion} -> 26`)
     }
 
     // Update db version as a part of migration sqls
@@ -329,7 +398,7 @@ const updateTransaction = function (id: number, fields: Partial<Transaction>): T
     `
 
     const db = getInstance()
-    const result = db.execute(query, params)
+    db.execute(query, params)
 
     const updated = getTransactionById(id) // already normalized
 
@@ -886,15 +955,14 @@ const deleteTransactionById = function (id: number) {
  */
 const addOrUpdateProof = function (
   proof: Proof,
-  isPending: boolean = false,
-  isSpent: boolean = false,
+  state: ProofState = 'UNSPENT',
 ) {
   try {
     const now = new Date()
 
     const query = `
-      INSERT OR REPLACE INTO proofs (id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl, isPending, isSpent, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO proofs (id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl, state, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     const params = [
       proof.id,
@@ -907,16 +975,15 @@ const addOrUpdateProof = function (
       proof.unit,
       proof.tId,
       proof.mintUrl,
-      isPending,
-      isSpent,
+      state,
       now.toISOString(),
     ]
 
     const db = getInstance()
     const result = db.execute(query, params)
     // DO NOT log proof secrets to Sentry
-    log.info('[addOrUpdateProof]', `${isPending ? ' Pending' : ''} proof added or updated in the database`,
-      {id: result.insertId, tId: proof.tId, isPending, isSpent},
+    log.info('[addOrUpdateProof]', `Proof added or updated in the database`,
+      {id: result.insertId, tId: proof.tId, state},
     )
 
     const newProof = getProofById(result.insertId as number)
@@ -933,34 +1000,26 @@ const addOrUpdateProof = function (
 
 const addOrUpdateProofs = function (
   proofs: Proof[],
-  isPending: boolean = false,
-  isSpent: boolean = false,
+  state: ProofState = 'UNSPENT',
 ): number | undefined {
   try {
     const now = new Date()
     let insertQueries: SQLBatchTuple[] = []
 
-    if(isPending && isSpent) {
-      throw new Error('Conflicting proof states')
-    }
-
-    if(proofs.length === 0) {
+    if (proofs.length === 0) {
       log.error('[addOrUpdateProofs] Empty proof array passed')
       return 0
     }
 
-
     for (const proof of proofs) {
-      if(!isAlive(proof)) {
+      if (!isAlive(proof)) {
         log.error('[addOrUpdateProofs] Proof is not alive', {id: proof.id})
         continue
       }
 
       insertQueries.push([
-        `
-          INSERT OR REPLACE INTO proofs (id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl, isPending, isSpent, updatedAt)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
+        `INSERT OR REPLACE INTO proofs (id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl, state, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           proof.id,
           proof.amount,
@@ -972,21 +1031,18 @@ const addOrUpdateProofs = function (
           proof.unit,
           proof.tId,
           proof.mintUrl,
-          isPending,
-          isSpent,
+          state,
           now.toISOString(),
         ],
       ])
-    }    
+    }
 
-    // Execute the batch of SQL statements
     const db = getInstance()
-    const {rowsAffected} = db.executeBatch(insertQueries)    
-    
+    const {rowsAffected} = db.executeBatch(insertQueries)
+
     // DO NOT log proof secrets to Sentry
     log.info('[addOrUpdateProofs]',
-      `${rowsAffected}${isPending ? ' pending' : ''} ${isSpent ? ' spent' : ''} proofs were added or updated in the database`,
-      {isPending, isSpent}
+      `${rowsAffected} ${state} proofs were added or updated in the database`,
     )
 
     return rowsAffected
@@ -1065,44 +1121,34 @@ const getProofs = async (
   includePending: boolean,
   includeSpent: boolean,
 ): Promise<ProofRecord[]> => {
-  // If nothing is requested, return empty array early
   if (!includeUnspent && !includePending && !includeSpent) {
-    return [];
+    return []
   }
 
-  const conditions: string[] = [];
-
-  if (includeUnspent) {
-    conditions.push('(isPending = 0 AND isSpent = 0)');
-  }
-  if (includePending) {
-    conditions.push('(isPending = 1 AND isSpent = 0)');
-  }
-  if (includeSpent) {
-    conditions.push('isSpent = 1');
-  }
-
-  const whereClause = conditions.join(' OR ');
+  const states: string[] = []
+  if (includeUnspent) states.push("'UNSPENT'")
+  if (includePending) states.push("'PENDING'")
+  if (includeSpent)  states.push("'SPENT'")
 
   const query = `
     SELECT *
     FROM proofs
-    WHERE ${whereClause}
+    WHERE state IN (${states.join(', ')})
     ORDER BY id DESC
-  `;
+  `
 
   try {
-    const db = getInstance();
-    const { rows } = await db.executeAsync(query);
-    return (rows?._array ?? []) as ProofRecord[];
+    const db = getInstance()
+    const { rows } = await db.executeAsync(query)
+    return (rows?._array ?? []) as ProofRecord[]
   } catch (e: any) {
     throw new AppError(
       Err.DATABASE_ERROR,
       'Proofs could not be retrieved from the database',
       e.message,
-    );
+    )
   }
-};
+}
 
 const getProofsByTransaction = function (transactionId: number): ProofRecord[] {
   try {
@@ -1126,6 +1172,264 @@ const getProofsByTransaction = function (transactionId: number): ProofRecord[] {
   }
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Proof reservations (Phase 5 of refactoring).
+//
+// A reservation snapshots the pre-operation state of a set of proofs and locks
+// them as PENDING in a single SQLite transaction. The reservation row stays in
+// the DB for the entire lifetime of the operation so that an orphan (a row left
+// behind by a process that died mid-operation) can be detected on next startup
+// and rolled back deterministically.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type LockedProofSnapshot = {
+  secret: string
+  originalState: ProofState
+}
+
+export type ReservationRow = {
+  id: string
+  transactionId: number
+  mintUrl: string
+  unit: string
+  operationType: string
+  lockedProofs: LockedProofSnapshot[]
+  createdAt: Date
+}
+
+/**
+ * Open a reservation: insert the reservation row and move the locked proofs to
+ * PENDING — all in a single SQLite transaction (via executeBatch).
+ *
+ * If the batch fails, SQLite rolls back automatically and no partial state
+ * exists in the database.
+ */
+const openReservation = function (
+  reservation: {
+    id: string
+    transactionId: number
+    mintUrl: string
+    unit: string
+    operationType: string
+    lockedProofs: LockedProofSnapshot[]
+  },
+  proofsToLock: Proof[],
+): void {
+  try {
+    const now = new Date().toISOString()
+    const batch: SQLBatchTuple[] = []
+
+    batch.push([
+      `INSERT INTO reservations (id, transactionId, mintUrl, unit, operationType, lockedProofs, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        reservation.id,
+        reservation.transactionId,
+        reservation.mintUrl,
+        reservation.unit,
+        reservation.operationType,
+        JSON.stringify(reservation.lockedProofs),
+        now,
+      ],
+    ])
+
+    for (const proof of proofsToLock) {
+      if (!isAlive(proof)) continue
+      batch.push([
+        `INSERT OR REPLACE INTO proofs (id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl, state, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          proof.id,
+          proof.amount,
+          proof.secret,
+          proof.C,
+          proof.dleq ? proof.dleq.r : null,
+          proof.dleq ? proof.dleq.s : null,
+          proof.dleq ? proof.dleq.e : null,
+          proof.unit,
+          proof.tId,
+          proof.mintUrl,
+          'PENDING',
+          now,
+        ],
+      ])
+    }
+
+    const db = getInstance()
+    db.executeBatch(batch)
+
+    log.info('[openReservation]', 'Reservation opened', {
+      id: reservation.id,
+      transactionId: reservation.transactionId,
+      lockedCount: proofsToLock.length,
+      operationType: reservation.operationType,
+    })
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not open proof reservation',
+      e.message,
+    )
+  }
+}
+
+/**
+ * Commit a reservation: apply the supplied state transitions and delete the
+ * reservation row — all in a single SQLite transaction.
+ */
+const commitReservation = function (
+  reservationId: string,
+  changes: {
+    toSpent?: Proof[]
+    toUnspent?: Proof[]
+    newProofs?: Array<{
+      proofs: Proof[] | CashuProof[]
+      state: ProofState
+      mintUrl: string
+      unit: string
+      tId: number
+    }>
+  },
+): void {
+  try {
+    const now = new Date().toISOString()
+    const batch: SQLBatchTuple[] = []
+
+    for (const proof of changes.toSpent ?? []) {
+      if (!isAlive(proof)) continue
+      batch.push([
+        `UPDATE proofs SET state = ?, updatedAt = ? WHERE secret = ?`,
+        ['SPENT', now, proof.secret],
+      ])
+    }
+
+    for (const proof of changes.toUnspent ?? []) {
+      if (!isAlive(proof)) continue
+      batch.push([
+        `UPDATE proofs SET state = ?, updatedAt = ? WHERE secret = ?`,
+        ['UNSPENT', now, proof.secret],
+      ])
+    }
+
+    for (const group of changes.newProofs ?? []) {
+      for (const proof of group.proofs) {
+        batch.push([
+          `INSERT OR REPLACE INTO proofs (id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl, state, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            proof.id,
+            proof.amount,
+            proof.secret,
+            proof.C,
+            proof.dleq ? proof.dleq.r : null,
+            proof.dleq ? proof.dleq.s : null,
+            proof.dleq ? proof.dleq.e : null,
+            group.unit,
+            group.tId,
+            group.mintUrl,
+            group.state,
+            now,
+          ],
+        ])
+      }
+    }
+
+    batch.push([`DELETE FROM reservations WHERE id = ?`, [reservationId]])
+
+    const db = getInstance()
+    db.executeBatch(batch)
+
+    log.info('[commitReservation]', 'Reservation committed', {
+      id: reservationId,
+      toSpent: changes.toSpent?.length ?? 0,
+      toUnspent: changes.toUnspent?.length ?? 0,
+      newGroups: changes.newProofs?.length ?? 0,
+    })
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not commit proof reservation',
+      e.message,
+    )
+  }
+}
+
+/**
+ * Rollback a reservation: restore each locked proof to its originalState and
+ * delete the reservation row — all in a single SQLite transaction.
+ */
+const rollbackReservation = function (
+  reservationId: string,
+  lockedProofs: LockedProofSnapshot[],
+): void {
+  try {
+    const now = new Date().toISOString()
+    const batch: SQLBatchTuple[] = []
+
+    for (const snap of lockedProofs) {
+      batch.push([
+        `UPDATE proofs SET state = ?, updatedAt = ? WHERE secret = ?`,
+        [snap.originalState, now, snap.secret],
+      ])
+    }
+
+    batch.push([`DELETE FROM reservations WHERE id = ?`, [reservationId]])
+
+    const db = getInstance()
+    db.executeBatch(batch)
+
+    log.info('[rollbackReservation]', 'Reservation rolled back', {
+      id: reservationId,
+      restoredCount: lockedProofs.length,
+    })
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not rollback proof reservation',
+      e.message,
+    )
+  }
+}
+
+/**
+ * Return all reservations currently in the DB. Used at startup to roll back
+ * orphans (operations whose process died before they could commit or rollback).
+ */
+const getOpenReservations = function (): ReservationRow[] {
+  try {
+    const db = getInstance()
+    const {rows} = db.execute(`SELECT * FROM reservations`)
+    if (!rows) return []
+
+    const result: ReservationRow[] = []
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows.item(i)
+      let lockedProofs: LockedProofSnapshot[] = []
+      try {
+        lockedProofs = JSON.parse(row.lockedProofs)
+      } catch (e) {
+        log.warn('[getOpenReservations] Could not parse lockedProofs JSON', {id: row.id})
+      }
+      result.push({
+        id: row.id,
+        transactionId: row.transactionId,
+        mintUrl: row.mintUrl,
+        unit: row.unit,
+        operationType: row.operationType,
+        lockedProofs,
+        createdAt: new Date(row.createdAt),
+      })
+    }
+    return result
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Could not read open reservations',
+      e.message,
+    )
+  }
+}
 
 export const Database = {
   getInstance,
@@ -1156,4 +1460,8 @@ export const Database = {
   getProofById,
   getProofs,
   getProofsByTransaction,
+  openReservation,
+  commitReservation,
+  rollbackReservation,
+  getOpenReservations,
 }

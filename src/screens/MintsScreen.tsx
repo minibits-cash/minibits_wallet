@@ -200,8 +200,8 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
           return
         }
 
-        const proofsByMint = proofsStore.getByMint(selectedMint.mintUrl, {isPending: false})
-        const pendingProofsByMint = proofsStore.getByMint(selectedMint.mintUrl, {isPending: true})
+        const proofsByMint = proofsStore.getByMint(selectedMint.mintUrl, {state: 'UNSPENT'})
+        const pendingProofsByMint = proofsStore.getByMint(selectedMint.mintUrl, {state: 'PENDING'})
         let message: string = ''
 
         if (proofsByMint && proofsByMint.length > 0) {

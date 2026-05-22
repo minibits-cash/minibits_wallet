@@ -62,9 +62,9 @@ import { TransferOption } from './TransferScreen'
 import { WalletUtils } from '../services/wallet/utils'
 
 type ProofsByStatus = {
-  isSpent: Proof[]
-  isPending: Proof[]
-  isReceived: Proof[]
+  spent: Proof[]
+  pending: Proof[]
+  received: Proof[]
 }
 
 type Props = StaticScreenProps<{
@@ -1148,7 +1148,7 @@ const SendInfoBlock = function (props: {
         }
         
         const allProofs = proofsStore.getByTransactionId(transaction.id)
-        const pendingProofs = allProofs.filter(p => p.isPending === true)
+        const pendingProofs = allProofs.filter(p => p.state === 'PENDING')
 
         if(pendingProofs.length === 0) {
           const message = 'Could not get proofs related to the transaction from wallet state.'

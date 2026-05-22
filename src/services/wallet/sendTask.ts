@@ -13,7 +13,7 @@ import {
     Wallet as CashuWallet,
     CheckStateEnum,
     MintKeyset,
-    ProofState,
+    ProofState as CashuProofState,
     getEncodedToken,
     normalizeProofAmounts,
 } from '@cashu/cashu-ts'
@@ -38,7 +38,7 @@ const _monitorSentProofs = async (params: {
     proofsToSend: CashuProof[]
 }) => {
     const { mintUrl, proofsToSend } = params
-    const proofsToSync = proofsStore.getByMint(mintUrl, {isPending: true})
+    const proofsToSync = proofsStore.getByMint(mintUrl, {state: 'PENDING'})
     const wsMint = new CashuMint(mintUrl)
     const wsWallet = new CashuWallet(wsMint)
 
@@ -46,10 +46,10 @@ const _monitorSentProofs = async (params: {
         log.trace('[send] Subscribing to proofStateUpdates for sent proof', {secret: proofsToSend[0]})
         const unsub = await wsWallet.on.proofStateUpdates(
             normalizeProofAmounts([proofsToSend[0]]),
-            async (proofState: ProofState) => {
+            async (proofState: CashuProofState) => {
                 log.trace(`Websocket: proof state updated: ${proofState.state} with secret: ${proofsToSend[0].secret}`)
                 if (proofState.state == CheckStateEnum.SPENT) {
-                    WalletTask.syncStateWithMintQueueAwaitable({proofsToSync, mintUrl, isPending: true})
+                    WalletTask.syncStateWithMintQueueAwaitable({proofsToSync, mintUrl, proofState: 'PENDING'})
                     unsub()
                 }
             },
@@ -224,176 +224,192 @@ export const sendFromMintSync = async function (
     p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> }
 ) {
     const mintUrl = mintBalance.mintUrl
-    const mintInstance = mintsStore.findByUrl(mintUrl)    
-    let proofsToSendFrom: Proof[] = []
-    let proofsToSend: CashuProof[] | Proof[] = []  
-    
-    try {
-        if (!mintInstance) {
+    const mintInstance = mintsStore.findByUrl(mintUrl)
+
+    if (!mintInstance) {
+        throw new AppError(
+            Err.VALIDATION_ERROR,
+            'Could not find mint', {mintUrl, transactionId}
+        )
+    }
+
+    const proofsFromMint = proofsStore.getByMint(mintUrl, {state: 'UNSPENT', unit})
+
+    log.debug('[sendFromMintSync]', {
+        proofsFromMintCount: proofsFromMint.length,
+        mintBalance: mintBalance.balances[unit],
+        amountToSend,
+        transactionId,
+        unit
+    })
+
+    const totalAmountFromMint = CashuUtils.getProofsAmount(proofsFromMint)
+
+    if (totalAmountFromMint < amountToSend) {
+        throw new AppError(
+            Err.VALIDATION_ERROR,
+            'There is not enough funds to send this amount.',
+            {totalAmountFromMint, amountToSend, transactionId, caller: 'sendFromMintSync'},
+        )
+    }
+
+    // ─── OFFLINE SEND ────────────────────────────────────────────────
+    // User selected specific ecash; no mint interaction. Lock the selection
+    // as PENDING under a reservation and commit immediately. Crash before
+    // commit → orphan recovery rolls the lock back.
+    const selectedProofsAmount = CashuUtils.getProofsAmount(selectedProofs)
+    if (selectedProofsAmount > 0) {
+        if (amountToSend !== selectedProofsAmount) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
-                'Could not find mint', {mintUrl, transactionId}
+                'Requested amount to send does not equal sum of ecash denominations provided.',
+                {transactionId}
             )
-        }        
-             
-        const proofsFromMint = proofsStore.getByMint(mintUrl, {isPending: false, unit})       
-        
-        log.debug('[sendFromMintSync]', {
-            proofsFromMintCount: proofsFromMint.length,
-            mintBalance: mintBalance.balances[unit], 
-            amountToSend, 
+        }
+
+        if (selectedProofs.length > MAX_SWAP_INPUT_SIZE) {
+            throw new AppError(
+                Err.VALIDATION_ERROR,
+                `Number of proofs is above max of ${MAX_SWAP_INPUT_SIZE}. Visit Settings > Backup to optimize, then try again.`,
+                {transactionId}
+            )
+        }
+
+        const reservation = proofsStore.reserve(selectedProofs, {
             transactionId,
-            unit
+            mintUrl,
+            unit,
+            operationType: 'send-offline',
+            rollbackTo: 'UNSPENT',
         })
 
-        const totalAmountFromMint = CashuUtils.getProofsAmount(proofsFromMint)
+        try {
+            // Commit with empty changes: deletes the reservation row, proofs
+            // stay PENDING (sent ecash remains locked until redeemed/reverted).
+            proofsStore.commitReservation(reservation)
 
-        if (totalAmountFromMint < amountToSend) {
+            return {
+                proofs: CashuUtils.exportProofs(selectedProofs),
+                swapFeeReserve: 0,
+                swapFeePaid: 0,
+            }
+        } catch (e: any) {
+            proofsStore.rollbackReservation(reservation)
+            throw e
+        }
+    }
+
+    // ─── ONLINE SEND (auto-selected proofs, optional mint swap) ──────
+    let proofsToSendFrom: Proof[] = []
+    let proofsToSend: CashuProof[] | Proof[] = []
+
+    // Prioritize send from inactive keysets
+    const inactiveKeysetIds = getInactiveKeysetIds(mintInstance)
+    const activeKeysetIds = getActiveKeysetIds(mintInstance)
+
+    log.trace('[sendFromMintSync]', {inactiveKeysetIds, activeKeysetIds})
+
+    if (inactiveKeysetIds.length > 0) {
+        proofsToSendFrom = prioritizeFromInactiveKeysets(
+            mintInstance,
+            amountToSend,
+            unit,
+            proofsFromMint
+        )
+    } else {
+        proofsToSendFrom = CashuUtils.getProofsToSend(
+            amountToSend,
+            proofsFromMint
+        )
+    }
+
+    let proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)
+    let swapFeeReserve: number = 0
+    let returnedAmount = 0
+    let swapFeePaid: number = 0
+    let returnedProofs: CashuProof[] = []
+    let isSwapNeeded: boolean = false
+
+    if ((p2pk && p2pk.pubkey) || proofsToSendFromAmount - amountToSend > 0) {
+        isSwapNeeded = true
+    }
+
+    log.trace('[sendFromMintSync]', {proofsToSendFromAmount, amountToSend})
+
+    // Re-select inputs if a swap fee will be needed (must happen BEFORE
+    // opening the reservation so we lock the right set).
+    if (isSwapNeeded) {
+        const walletInstance = await walletStore.getWallet(mintUrl, unit, {withSeed: true}) as CashuWallet
+        swapFeeReserve = walletInstance.getFeesForProofs(proofsToSendFrom).toNumber()
+        const amountWithFees = amountToSend + swapFeeReserve
+
+        if (totalAmountFromMint < amountWithFees) {
             throw new AppError(
                 Err.VALIDATION_ERROR,
                 'There is not enough funds to send this amount.',
-                {totalAmountFromMint, amountToSend, transactionId, caller: 'sendFromMintSync'},
+                {totalAmountFromMint, amountWithFees, transactionId, caller: 'sendFromMintSync'},
             )
         }
 
-        /* 
-         * OFFLINE SEND
-         * if we have selected ecash to send in offline mode, we do not interact with the mint        
-         */
-
-        const selectedProofsAmount = CashuUtils.getProofsAmount(selectedProofs)
-
-        if(selectedProofsAmount > 0) {            
-            if(amountToSend !== selectedProofsAmount) { // failsafe for some unknown ecash selection UX error
-                throw new AppError(
-                    Err.VALIDATION_ERROR, 
-                    'Requested amount to send does not equal sum of ecash denominations provided.',
-                    {transactionId}
-                )
-            }
-
-            if(selectedProofs.length > MAX_SWAP_INPUT_SIZE) {
-                throw new AppError(
-                    Err.VALIDATION_ERROR, 
-                    `Number of proofs is above max of ${MAX_SWAP_INPUT_SIZE}. Visit Settings > Backup to optimize, then try again.`,
-                    {transactionId}
-                )
-            }
-
-            // move sent proofs to pending and add tx references
-            proofsStore.addOrUpdate(selectedProofs, {
-                mintUrl,
-                unit,
-                tId: transactionId,
-                isPending: true,
-                isSpent: false
-            })
-
-            // We return cleaned proofs to be encoded as a sendable token
-            return {
-                proofs: CashuUtils.exportProofs(selectedProofs), 
-                swapFeeReserve: 0, 
-                swapFeePaid: 0
-            }
-        }
-        
-        /* 
-         *  SWAP or DIRECT SEND 
-         *  if we did not selected ecash but amount and we might need a swap of ecash by the mint to match exact amount        
-         */
-
-        // Prioritize send from inactive keysets        
-        const inactiveKeysetIds = getInactiveKeysetIds(mintInstance)   
-        const activeKeysetIds = getActiveKeysetIds(mintInstance)
-        
-        log.trace('[sendFromMintSync]', {inactiveKeysetIds, activeKeysetIds})
-        
-        if(inactiveKeysetIds.length > 0) {
-            proofsToSendFrom = prioritizeFromInactiveKeysets(
-                mintInstance,
-                amountToSend,
-                unit,
-                proofsFromMint
-            )
-        }  else {
+        if (swapFeeReserve > 0) {
             proofsToSendFrom = CashuUtils.getProofsToSend(
-                amountToSend,
+                amountWithFees,
                 proofsFromMint
             )
+            proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)
         }
 
-        let proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)
-        let swapFeeReserve: number = 0
-        let returnedAmount = 0
-        let swapFeePaid: number = 0
-        let returnedProofs: CashuProof[] = []
-        let isSwapNeeded: boolean = false
+        returnedAmount = proofsToSendFromAmount - (amountToSend + swapFeeReserve)
+    } else {
+        if (proofsToSendFrom.length > MAX_SWAP_INPUT_SIZE) {
+            throw new AppError(
+                Err.VALIDATION_ERROR,
+                `Number of proofs is above max limit of ${MAX_SWAP_INPUT_SIZE}. Visit Backup to optimize your wallet, then try again.`,
+                {transactionId}
+            )
+        }
+    }
 
-        if((p2pk && p2pk.pubkey) || proofsToSendFromAmount - amountToSend > 0) {
-            isSwapNeeded = true
-        }      
+    // Open reservation: locks proofsToSendFrom as PENDING atomically in SQLite.
+    const reservation = proofsStore.reserve(proofsToSendFrom, {
+        transactionId,
+        mintUrl,
+        unit,
+        operationType: isSwapNeeded ? 'send-swap' : 'send-direct',
+        rollbackTo: 'UNSPENT',
+    })
 
-        log.trace('[sendFromMintSync]', {proofsToSendFromAmount, amountToSend})
-        /* 
-         *  SWAP is needed, could involve a fee
-         *  we could not find the denominations to match exact amount        
-         */
-        if(isSwapNeeded) {
-            // Calculate feeReserve from mint fee rate
-            const walletInstance = await walletStore.getWallet(mintUrl, unit, {withSeed: true}) as CashuWallet
-            swapFeeReserve = walletInstance.getFeesForProofs(proofsToSendFrom).toNumber()
-            const amountWithFees = amountToSend + swapFeeReserve
-
-            if (totalAmountFromMint < amountWithFees) {
-                throw new AppError(
-                    Err.VALIDATION_ERROR,
-                    'There is not enough funds to send this amount.',
-                    {totalAmountFromMint, amountWithFees, transactionId, caller: 'sendFromMintSync'},
-                )
-            }
-            
-            if(swapFeeReserve > 0) {
-                // re-select proofs for higher amount
-                proofsToSendFrom = CashuUtils.getProofsToSend(
-                    amountWithFees,
-                    proofsFromMint
-                )
-
-                proofsToSendFromAmount = CashuUtils.getProofsAmount(proofsToSendFrom)
-            }
-
-            // This is expected to get back from mint as a split remainder
-            returnedAmount = proofsToSendFromAmount - (amountToSend + swapFeeReserve)
-
+    try {
+        if (isSwapNeeded) {
             log.debug('[sendFromMintSync] Swap is needed.', {
-                proofsToSendFromAmount, 
-                amountWithFees, 
-                returnedAmount, 
+                proofsToSendFromAmount,
+                amountWithFees: amountToSend + swapFeeReserve,
+                returnedAmount,
                 transactionId
             })
 
             let sendResult = {} as {
-                returnedProofs: CashuProof[],
-                proofsToSend: CashuProof[], 
+                returnedProofs: CashuProof[]
+                proofsToSend: CashuProof[]
                 swapFeePaid: number
             }
 
             try {
                 sendResult = await walletStore.send(
                     mintUrl,
-                    amountToSend,                
-                    unit,            
+                    amountToSend,
+                    unit,
                     proofsToSendFrom,
                     transactionId,
                     {p2pk: p2pk && p2pk.pubkey ? p2pk : undefined}
                 )
-            } catch (e: any) {                
+            } catch (e: any) {
                 if (WalletUtils.shouldHealOutputsError(e)) {
-                    log.error('[sendFromMintSync] Increasing proofsCounter outdated values and repeating send.')      
+                    log.error('[sendFromMintSync] Increasing proofsCounter outdated values and repeating send.')
                     sendResult = await walletStore.send(
                         mintUrl,
-                        amountToSend,                
-                        unit,            
+                        amountToSend,
+                        unit,
                         proofsToSendFrom,
                         transactionId,
                         {p2pk: p2pk && p2pk.pubkey ? p2pk : undefined, increaseCounterBy: 10}
@@ -406,85 +422,62 @@ export const sendFromMintSync = async function (
             returnedProofs = sendResult.returnedProofs
             proofsToSend = sendResult.proofsToSend
             swapFeePaid = sendResult.swapFeePaid
-            
-            // add proofs returned by the mint after the split
-            log.trace('[sendFromMintSync] after swap: add returned proofs to spendable')
-            proofsStore.addOrUpdate(returnedProofs, {
-                mintUrl,
-                unit,
-                tId: transactionId,
-                isPending: false,
-                isSpent: false
-            })
 
-            // !!! Filter out any proofs that were returned unchanged by the cashu-ts optimization
-            // to avoid marking them as spent when they should remain spendable !!!
+            // cashu-ts may "return unchanged" some inputs that didn't need splitting;
+            // those should NOT be marked spent — they remain in the wallet.
             const returnedSecrets = new Set(returnedProofs.map(p => p.secret))
             const actuallySpentProofs = proofsToSendFrom.filter(p => !returnedSecrets.has(p.secret))
 
-            log.trace('[sendFromMintSync] after swap: move proofsToSendFrom to spent', {
+            log.trace('[sendFromMintSync] swap finalize', {
                 inputCount: proofsToSendFrom.length,
                 returnedUnchangedCount: proofsToSendFrom.length - actuallySpentProofs.length,
-                actuallySpentCount: actuallySpentProofs.length
+                actuallySpentCount: actuallySpentProofs.length,
+                returnedProofsCount: returnedProofs.length,
+                proofsToSendCount: proofsToSend.length,
             })
-            
-            proofsStore.addOrUpdate(actuallySpentProofs, {
-                mintUrl,
-                unit,
-                tId: transactionId,
-                isPending: false,
-                isSpent: true
+
+            // ATOMIC commit: inputs → SPENT, returned change → UNSPENT,
+            // proofsToSend → PENDING, reservation row deleted — one SQLite txn.
+            proofsStore.commitReservation(reservation, {
+                toSpent: actuallySpentProofs,
+                newProofs: [
+                    { proofs: returnedProofs, state: 'UNSPENT', tId: transactionId },
+                    { proofs: proofsToSend as CashuProof[], state: 'PENDING', tId: transactionId },
+                ],
             })
-            
-        } else {        
-            // SWAP is NOT needed, we've found denominations that match exact amount
+        } else {
+            // No swap: reserved proofs ARE the proofs to send; they remain PENDING.
             log.trace('[sendFromMintSync] Swap is not necessary.', {transactionId})
+            proofsToSend = CashuUtils.exportProofs(proofsToSendFrom)
+            proofsStore.commitReservation(reservation)
+        }
 
-            // If we selected whole balance, check if it is not above limit acceptable by wallet and mints.
-            if(proofsToSendFrom.length > MAX_SWAP_INPUT_SIZE) {
-                throw new AppError(
-                    Err.VALIDATION_ERROR, 
-                    `Number of proofs is above max limit of ${MAX_SWAP_INPUT_SIZE}. Visit Backup to optimize your wallet, then try again.`,
-                    {transactionId}
-                )
-            }
-
-            proofsToSend = CashuUtils.exportProofs(proofsToSendFrom)       
-        }      
-
-        // move sent proofs to pending
-        log.trace('[sendFromMintSync] move proofsToSend to pending') 
-        proofsStore.addOrUpdate(proofsToSend, {
-            mintUrl,
-            unit,
-            tId: transactionId,
-            isPending: true,
-            isSpent: false
-        })     
-
-        // We return cleaned proofs to be encoded as a sendable token + fees
         return {
             proofs: proofsToSend,
-            swapFeeReserve, 
+            swapFeeReserve,
             swapFeePaid,
-            isSwapNeeded            
+            isSwapNeeded
         }
-  } catch (e: any) {
-        // try to clean spent proofs if that was the swap error cause
-        if (e.params && e.params.message && e.params.message.toLowerCase().includes('token already spent')) {
+    } catch (e: any) {
+        // Atomic rollback: restore reserved proofs to their original state +
+        // delete the reservation row.
+        proofsStore.rollbackReservation(reservation)
 
+        // Try to clean up already-spent proofs surfaced by the mint as the
+        // root cause of the swap error.
+        if (e.params && e.params.message && e.params.message.toLowerCase().includes('token already spent')) {
             log.error('[sendFromMintSync] Going to clean spent proofs from proofsToSendFrom and from pending', {transactionId})
-            
+
             await WalletTask.syncStateWithMintTask({
                 proofsToSync: proofsToSend as Proof[],
                 mintUrl,
-                isPending: true
-            })            
+                proofState: 'PENDING',
+            })
 
             await WalletTask.syncStateWithMintTask({
-                proofsToSync: proofsStore.getByMint(mintUrl, {isPending: true, unit}),
+                proofsToSync: proofsStore.getByMint(mintUrl, {state: 'PENDING', unit}),
                 mintUrl,
-                isPending: true
+                proofState: 'PENDING',
             })
         }
 
@@ -493,7 +486,7 @@ export const sendFromMintSync = async function (
         } else {
             throw new AppError(Err.WALLET_ERROR, e.message, e.stack.slice(0, 200))
         }
-  }
+    }
 }
 
 
@@ -509,19 +502,19 @@ const prioritizeFromInactiveKeysets = function (
 
     const proofsFromInactiveKeysets = proofsStore.getByMint(
         mint.mintUrl, {
-            isPending: false, 
-            unit, 
-            keysetIds: inactiveKeysetIds
+            state: 'UNSPENT',
+            unit,
+            keysetIds: inactiveKeysetIds,
         }
     )
 
     const proofsFromActiveKeysets = proofsStore.getByMint(
         mint.mintUrl, {
-            isPending: false, 
-            unit, 
-            keysetIds: activeKeysetIds
+            state: 'UNSPENT',
+            unit,
+            keysetIds: activeKeysetIds,
         }
-    )            
+    )
 
     if(proofsFromInactiveKeysets && proofsFromInactiveKeysets.length > 0) {
         let proofsFromInactiveKeysetsAmount = CashuUtils.getProofsAmount(proofsFromInactiveKeysets)

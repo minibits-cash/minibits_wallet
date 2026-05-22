@@ -22,7 +22,7 @@ import {
 import { JS_BUNDLE_VERSION } from '@env'
 import {KeyChain, MinibitsClient, WalletKeys} from '../services'
 import {log} from '../services/logService'
-import AppError, { Err } from '../utils/AppError'
+import AppError, { Err, MintError, NetworkError } from '../utils/AppError'
 import { Currencies, CurrencyCode, MintUnit } from '../services/wallet/currency'
 import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
 import { Proof } from './Proof'
@@ -697,18 +697,25 @@ export const WalletStoreModel = types
             } catch (e: any) {
                 let message = 'Could not get response from the mint.'
                 if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
-                throw new AppError(
-                    Err.MINT_ERROR,
-                    message,
-                    {
-                    message: e.message,
+
+                // Heuristic: if the inner cashu-ts cause looks like a transport
+                // failure, surface a NetworkError so callers (e.g. syncStateWithMintTask)
+                // can mark the mint OFFLINE via `instanceof NetworkError`.
+                const innerMessage: string = e?.message ?? ''
+                const isNetwork = /network|fetch|timeout|ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(innerMessage)
+
+                const params = {
+                    message: innerMessage,
                     caller: 'WalletStore.getProofsStatesFromMint',
-                    mintUrl
-                    }
-                )
+                    mintUrl,
+                }
+
+                throw isNetwork
+                    ? new NetworkError(message, params)
+                    : new MintError(message, params)
             }
         }),
-        createLightningMintQuote: flow(function* createLightningMintQuote(  
+        createLightningMintQuote: flow(function* createLightningMintQuote(
             mintUrl: string,
             unit: MintUnit,
             amount: number,

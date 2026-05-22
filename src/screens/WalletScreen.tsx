@@ -316,7 +316,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
                 WalletTask.handleInFlightQueue()
                 WalletTask.handlePendingQueue()
-                await WalletTask.syncStateWithAllMintsQueueAwaitable({isPending: true})
+                await WalletTask.syncStateWithAllMintsQueueAwaitable({proofState: 'PENDING'})
 
                 // Await claim queue to complete API call before refreshing exchange rate
                 // (both may trigger token refresh, avoiding race condition)
