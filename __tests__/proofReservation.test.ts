@@ -72,7 +72,11 @@ function reservationCount(db: DatabaseSync): number {
 // Mirror the exact SQL the production code uses, wrapped in BEGIN/COMMIT to
 // match `executeBatch` atomicity.
 
-type LockedProofSnapshot = {secret: string; originalState: 'UNSPENT' | 'PENDING' | 'SPENT'}
+type LockedProofSnapshot = {
+    secret: string
+    originalState: 'UNSPENT' | 'PENDING' | 'SPENT'
+    originalTId: number | null
+}
 
 function openReservation(
     db: DatabaseSync,
@@ -101,11 +105,12 @@ function openReservation(
             JSON.stringify(reservation.lockedProofs),
             now,
         )
+        // Reassign tId to the new operation alongside the state lock.
         const updateProof = db.prepare(
-            `UPDATE proofs SET state = 'PENDING', updatedAt = ? WHERE secret = ?`,
+            `UPDATE proofs SET state = 'PENDING', tId = ?, updatedAt = ? WHERE secret = ?`,
         )
         for (const secret of proofsToLockSecrets) {
-            updateProof.run(now, secret)
+            updateProof.run(reservation.transactionId, now, secret)
         }
         db.exec('COMMIT')
     } catch (e) {
@@ -165,11 +170,12 @@ function rollbackReservation(
     const now = '2026-05-22T00:00:00.000Z'
     db.exec('BEGIN')
     try {
+        // Restore BOTH state and tId from the pre-reserve snapshot.
         const restore = db.prepare(
-            `UPDATE proofs SET state = ?, updatedAt = ? WHERE secret = ?`,
+            `UPDATE proofs SET state = ?, tId = ?, updatedAt = ? WHERE secret = ?`,
         )
         for (const snap of lockedProofs) {
-            restore.run(snap.originalState, now, snap.secret)
+            restore.run(snap.originalState, snap.originalTId, now, snap.secret)
         }
         db.prepare('DELETE FROM reservations WHERE id = ?').run(reservationId)
         db.exec('COMMIT')
@@ -177,6 +183,13 @@ function rollbackReservation(
         db.exec('ROLLBACK')
         throw e
     }
+}
+
+function getProofTId(db: DatabaseSync, secret: string): number | null {
+    const row = db.prepare('SELECT tId FROM proofs WHERE secret = ?').get(secret) as
+        | {tId: number | null}
+        | undefined
+    return row?.tId ?? null
 }
 
 function getOpenReservations(db: DatabaseSync): Array<{
@@ -208,8 +221,8 @@ describe('Proof reservations', () => {
                     unit: 'sat',
                     operationType: 'send-online',
                     lockedProofs: [
-                        {secret: 'sA', originalState: 'UNSPENT'},
-                        {secret: 'sB', originalState: 'UNSPENT'},
+                        {secret: 'sA', originalState: 'UNSPENT', originalTId: null},
+                        {secret: 'sB', originalState: 'UNSPENT', originalTId: null},
                     ],
                 },
                 ['sA', 'sB'],
@@ -237,8 +250,8 @@ describe('Proof reservations', () => {
                     unit: 'sat',
                     operationType: 'send-offline',
                     lockedProofs: [
-                        {secret: 'sA', originalState: 'UNSPENT'},
-                        {secret: 'sB', originalState: 'PENDING'},
+                        {secret: 'sA', originalState: 'UNSPENT', originalTId: null},
+                        {secret: 'sB', originalState: 'PENDING', originalTId: null},
                     ],
                 },
                 ['sA', 'sB'],
@@ -247,8 +260,8 @@ describe('Proof reservations', () => {
             const orphans = getOpenReservations(db)
             expect(orphans).toHaveLength(1)
             expect(orphans[0].lockedProofs).toEqual([
-                {secret: 'sA', originalState: 'UNSPENT'},
-                {secret: 'sB', originalState: 'PENDING'},
+                {secret: 'sA', originalState: 'UNSPENT', originalTId: null},
+                {secret: 'sB', originalState: 'PENDING', originalTId: null},
             ])
 
             db.close()
@@ -271,8 +284,8 @@ describe('Proof reservations', () => {
                     unit: 'sat',
                     operationType: 'send-swap',
                     lockedProofs: [
-                        {secret: 'input1', originalState: 'UNSPENT'},
-                        {secret: 'input2', originalState: 'UNSPENT'},
+                        {secret: 'input1', originalState: 'UNSPENT', originalTId: null},
+                        {secret: 'input2', originalState: 'UNSPENT', originalTId: null},
                     ],
                 },
                 ['input1', 'input2'],
@@ -308,7 +321,7 @@ describe('Proof reservations', () => {
                     mintUrl: 'https://mint.test',
                     unit: 'sat',
                     operationType: 'send-offline',
-                    lockedProofs: [{secret: 's1', originalState: 'UNSPENT'}],
+                    lockedProofs: [{secret: 's1', originalState: 'UNSPENT', originalTId: null}],
                 },
                 ['s1'],
             )
@@ -339,8 +352,8 @@ describe('Proof reservations', () => {
                     unit: 'sat',
                     operationType: 'send-swap',
                     lockedProofs: [
-                        {secret: 'sA', originalState: 'UNSPENT'},
-                        {secret: 'sB', originalState: 'UNSPENT'},
+                        {secret: 'sA', originalState: 'UNSPENT', originalTId: null},
+                        {secret: 'sB', originalState: 'UNSPENT', originalTId: null},
                     ],
                 },
                 ['sA', 'sB'],
@@ -349,8 +362,8 @@ describe('Proof reservations', () => {
             expect(getProofState(db, 'sA')).toBe('PENDING')
 
             rollbackReservation(db, 'r5', [
-                {secret: 'sA', originalState: 'UNSPENT'},
-                {secret: 'sB', originalState: 'UNSPENT'},
+                {secret: 'sA', originalState: 'UNSPENT', originalTId: null},
+                {secret: 'sB', originalState: 'UNSPENT', originalTId: null},
             ])
 
             expect(getProofState(db, 'sA')).toBe('UNSPENT')
@@ -374,12 +387,12 @@ describe('Proof reservations', () => {
                     mintUrl: 'https://mint.test',
                     unit: 'sat',
                     operationType: 'send-offline',
-                    lockedProofs: [{secret: 'sA', originalState: 'PENDING'}],
+                    lockedProofs: [{secret: 'sA', originalState: 'PENDING', originalTId: null}],
                 },
                 ['sA'],
             )
 
-            rollbackReservation(db, 'r6', [{secret: 'sA', originalState: 'PENDING'}])
+            rollbackReservation(db, 'r6', [{secret: 'sA', originalState: 'PENDING', originalTId: null}])
 
             // Restored to PENDING (its original locked state), not to UNSPENT
             expect(getProofState(db, 'sA')).toBe('PENDING')
@@ -405,8 +418,8 @@ describe('Proof reservations', () => {
                     unit: 'sat',
                     operationType: 'send-swap',
                     lockedProofs: [
-                        {secret: 'orphanA', originalState: 'UNSPENT'},
-                        {secret: 'orphanB', originalState: 'UNSPENT'},
+                        {secret: 'orphanA', originalState: 'UNSPENT', originalTId: null},
+                        {secret: 'orphanB', originalState: 'UNSPENT', originalTId: null},
                     ],
                 },
                 ['orphanA', 'orphanB'],
@@ -454,8 +467,8 @@ describe('Proof reservations', () => {
                     unit: 'sat',
                     operationType: 'send-swap',
                     lockedProofs: [
-                        {secret: 'a1', originalState: 'UNSPENT'},
-                        {secret: 'a2', originalState: 'UNSPENT'},
+                        {secret: 'a1', originalState: 'UNSPENT', originalTId: null},
+                        {secret: 'a2', originalState: 'UNSPENT', originalTId: null},
                     ],
                 },
                 ['a1', 'a2'],
@@ -468,7 +481,7 @@ describe('Proof reservations', () => {
                     mintUrl: 'https://mint.test',
                     unit: 'sat',
                     operationType: 'send-offline',
-                    lockedProofs: [{secret: 'b1', originalState: 'UNSPENT'}],
+                    lockedProofs: [{secret: 'b1', originalState: 'UNSPENT', originalTId: null}],
                 },
                 ['b1'],
             )
@@ -504,7 +517,7 @@ describe('Proof reservations', () => {
                     mintUrl: 'https://mint.test',
                     unit: 'sat',
                     operationType: 'send',
-                    lockedProofs: [{secret: 's1', originalState: 'UNSPENT'}],
+                    lockedProofs: [{secret: 's1', originalState: 'UNSPENT', originalTId: null}],
                 },
                 ['s1'],
             )
@@ -526,7 +539,7 @@ describe('Proof reservations', () => {
                         mintUrl: 'https://mint.test',
                         unit: 'sat',
                         operationType: 'send',
-                        lockedProofs: [{secret: 's2', originalState: 'UNSPENT'}],
+                        lockedProofs: [{secret: 's2', originalState: 'UNSPENT', originalTId: null}],
                     },
                     ['s2'],
                 ),
@@ -536,6 +549,147 @@ describe('Proof reservations', () => {
             expect(getProofState(db, 's2')).toBe('UNSPENT')
             // s1 is unaffected
             expect(getProofState(db, 's1')).toBe('PENDING')
+
+            db.close()
+        })
+    })
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Regression: a real bug observed in dev (2026-05-22).
+    //
+    // The send went through and the recipient redeemed the token, but the
+    // SEND transaction in our wallet stayed PENDING forever. Root cause:
+    // openReservation was writing the proof's OLD tId back to the row
+    // (the original RECEIVE that minted it) instead of the new operation's
+    // transactionId. So when sync later saw the proofs SPENT, it grouped
+    // them under the wrong (already-completed) transaction.
+    //
+    // These tests pin the tId-propagation contract: reserving must
+    // reassign tId to the new operation, and rollback must restore the
+    // pre-reserve tId.
+    // ─────────────────────────────────────────────────────────────────────
+    describe('tId propagation (regression: stuck-PENDING SEND, 2026-05-22)', () => {
+        test('openReservation reassigns each locked proof tId to the new transactionId', () => {
+            const db = new DatabaseSync(':memory:')
+            createSchema(db)
+
+            // Two proofs received originally by tx 110 and tx 123 respectively
+            // (simulates the dev log).
+            db.prepare(
+                `INSERT INTO proofs (id, amount, secret, C, mintUrl, unit, tId, state, updatedAt)
+                 VALUES ('keyset1', 4, 'inp_a', 'C', 'https://mint.test', 'sat', 110, 'UNSPENT', '2026-01-01')`,
+            ).run()
+            db.prepare(
+                `INSERT INTO proofs (id, amount, secret, C, mintUrl, unit, tId, state, updatedAt)
+                 VALUES ('keyset1', 2, 'inp_b', 'C', 'https://mint.test', 'sat', 123, 'UNSPENT', '2026-01-01')`,
+            ).run()
+
+            expect(getProofTId(db, 'inp_a')).toBe(110)
+            expect(getProofTId(db, 'inp_b')).toBe(123)
+
+            // New SEND operation as transaction 157
+            openReservation(
+                db,
+                {
+                    id: 'res-157',
+                    transactionId: 157,
+                    mintUrl: 'https://mint.test',
+                    unit: 'sat',
+                    operationType: 'send-direct',
+                    lockedProofs: [
+                        {secret: 'inp_a', originalState: 'UNSPENT', originalTId: 110},
+                        {secret: 'inp_b', originalState: 'UNSPENT', originalTId: 123},
+                    ],
+                },
+                ['inp_a', 'inp_b'],
+            )
+
+            // After reserve, BOTH proofs must point to the new tx so that any
+            // sync that later sees them SPENT correctly groups them under 157.
+            expect(getProofTId(db, 'inp_a')).toBe(157)
+            expect(getProofTId(db, 'inp_b')).toBe(157)
+            expect(getProofState(db, 'inp_a')).toBe('PENDING')
+            expect(getProofState(db, 'inp_b')).toBe('PENDING')
+
+            db.close()
+        })
+
+        test('rollback restores each proof to its individual originalTId', () => {
+            const db = new DatabaseSync(':memory:')
+            createSchema(db)
+            db.prepare(
+                `INSERT INTO proofs (id, amount, secret, C, mintUrl, unit, tId, state, updatedAt)
+                 VALUES ('keyset1', 4, 'inp_a', 'C', 'https://mint.test', 'sat', 110, 'UNSPENT', '2026-01-01')`,
+            ).run()
+            db.prepare(
+                `INSERT INTO proofs (id, amount, secret, C, mintUrl, unit, tId, state, updatedAt)
+                 VALUES ('keyset1', 2, 'inp_b', 'C', 'https://mint.test', 'sat', 123, 'UNSPENT', '2026-01-01')`,
+            ).run()
+
+            openReservation(
+                db,
+                {
+                    id: 'res-fail',
+                    transactionId: 200,
+                    mintUrl: 'https://mint.test',
+                    unit: 'sat',
+                    operationType: 'send-direct',
+                    lockedProofs: [
+                        {secret: 'inp_a', originalState: 'UNSPENT', originalTId: 110},
+                        {secret: 'inp_b', originalState: 'UNSPENT', originalTId: 123},
+                    ],
+                },
+                ['inp_a', 'inp_b'],
+            )
+
+            // Simulate operation failure.
+            rollbackReservation(db, 'res-fail', [
+                {secret: 'inp_a', originalState: 'UNSPENT', originalTId: 110},
+                {secret: 'inp_b', originalState: 'UNSPENT', originalTId: 123},
+            ])
+
+            // Each proof goes back to its OWN prior tId — not the failed
+            // operation's, and not any uniform value.
+            expect(getProofTId(db, 'inp_a')).toBe(110)
+            expect(getProofTId(db, 'inp_b')).toBe(123)
+            expect(getProofState(db, 'inp_a')).toBe('UNSPENT')
+            expect(getProofState(db, 'inp_b')).toBe('UNSPENT')
+            expect(reservationCount(db)).toBe(0)
+
+            db.close()
+        })
+
+        test('proofs with no prior tId (null) are reassigned and restored to null', () => {
+            const db = new DatabaseSync(':memory:')
+            createSchema(db)
+            // Proof inserted without a tId — simulates an imported/restored
+            // proof that was never tied to a wallet transaction.
+            db.prepare(
+                `INSERT INTO proofs (id, amount, secret, C, mintUrl, unit, state, updatedAt)
+                 VALUES ('keyset1', 1, 'orphan', 'C', 'https://mint.test', 'sat', 'UNSPENT', '2026-01-01')`,
+            ).run()
+            expect(getProofTId(db, 'orphan')).toBe(null)
+
+            openReservation(
+                db,
+                {
+                    id: 'res-null',
+                    transactionId: 300,
+                    mintUrl: 'https://mint.test',
+                    unit: 'sat',
+                    operationType: 'send-direct',
+                    lockedProofs: [
+                        {secret: 'orphan', originalState: 'UNSPENT', originalTId: null},
+                    ],
+                },
+                ['orphan'],
+            )
+            expect(getProofTId(db, 'orphan')).toBe(300)
+
+            rollbackReservation(db, 'res-null', [
+                {secret: 'orphan', originalState: 'UNSPENT', originalTId: null},
+            ])
+            expect(getProofTId(db, 'orphan')).toBe(null)
 
             db.close()
         })

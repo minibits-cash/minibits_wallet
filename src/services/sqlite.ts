@@ -1186,6 +1186,18 @@ const getProofsByTransaction = function (transactionId: number): ProofRecord[] {
 export type LockedProofSnapshot = {
   secret: string
   originalState: ProofState
+  /**
+   * The proof's tId AT RESERVE TIME — i.e. the transaction that previously
+   * owned this proof (typically the original RECEIVE/TOPUP that minted it).
+   *
+   * When the reservation opens, the proof's tId is reassigned to the NEW
+   * operation's transactionId so downstream sync sweeps can correctly group
+   * spent proofs under the right transaction. On rollback, originalTId is
+   * restored.
+   *
+   * `null` for proofs that had no prior transaction reference.
+   */
+  originalTId: number | null
 }
 
 export type ReservationRow = {
@@ -1248,7 +1260,10 @@ const openReservation = function (
           proof.dleq ? proof.dleq.s : null,
           proof.dleq ? proof.dleq.e : null,
           proof.unit,
-          proof.tId,
+          // Reassign tId to the new operation. The previous tId (which may
+          // point to e.g. the original RECEIVE that minted this proof) is
+          // captured in lockedProofs[i].originalTId for rollback restoration.
+          reservation.transactionId,
           proof.mintUrl,
           'PENDING',
           now,
@@ -1356,8 +1371,9 @@ const commitReservation = function (
 }
 
 /**
- * Rollback a reservation: restore each locked proof to its originalState and
- * delete the reservation row — all in a single SQLite transaction.
+ * Rollback a reservation: restore each locked proof to its originalState AND
+ * originalTId, then delete the reservation row — all in a single SQLite
+ * transaction.
  */
 const rollbackReservation = function (
   reservationId: string,
@@ -1369,8 +1385,8 @@ const rollbackReservation = function (
 
     for (const snap of lockedProofs) {
       batch.push([
-        `UPDATE proofs SET state = ?, updatedAt = ? WHERE secret = ?`,
-        [snap.originalState, now, snap.secret],
+        `UPDATE proofs SET state = ?, tId = ?, updatedAt = ? WHERE secret = ?`,
+        [snap.originalState, snap.originalTId, now, snap.secret],
       ])
     }
 

@@ -350,6 +350,7 @@ import {
             const lockedProofs = liveProofs.map(p => ({
                 secret: p.secret,
                 originalState: opts.rollbackTo === 'preserve' ? p.state : opts.rollbackTo,
+                originalTId: p.tId ?? null,
             }))
 
             // ATOMIC: write reservation row + lock proofs to PENDING in one batch.
@@ -365,10 +366,14 @@ import {
                 liveProofs,
             )
 
-            // SQLite is durable — mirror into MST.
+            // SQLite is durable — mirror into MST. Both state AND tId are
+            // reassigned: the operation now "owns" these proofs for the
+            // duration of the reservation, so any sync sweep that sees them
+            // SPENT will correctly attribute the spend to opts.transactionId.
             for (const p of liveProofs) {
                 if (isAlive(p) && p.state !== 'SPENT') {
                     p.setProp('state', 'PENDING')
+                    p.setProp('tId', opts.transactionId)
                 }
             }
 
@@ -504,10 +509,16 @@ import {
         rollbackReservation(reservation: ProofReservation): void {
             Database.rollbackReservation(reservation.id, reservation.lockedProofs)
 
+            // Mirror to MST: restore BOTH state and tId from the pre-reserve
+            // snapshot so the proof goes back to "owned by its prior tx in its
+            // prior state" — matches the SQL UPDATE done above.
             for (const snap of reservation.lockedProofs) {
                 const node = self.getBySecret(snap.secret)
                 if (node && isAlive(node) && node.state !== 'SPENT') {
                     node.setProp('state', snap.originalState)
+                    if (snap.originalTId !== null) {
+                        node.setProp('tId', snap.originalTId)
+                    }
                 }
             }
 
@@ -535,13 +546,15 @@ import {
             for (const orphan of orphans) {
                 try {
                     Database.rollbackReservation(orphan.id, orphan.lockedProofs)
-                    // Mirror into MST (proofs were already reloaded from DB, so
-                    // the SQLite update above already changed their state on the
-                    // next reload; here we update in-place too if the nodes exist).
+                    // Mirror into MST: restore BOTH state and tId from the
+                    // pre-reserve snapshot to match the SQL UPDATE above.
                     for (const snap of orphan.lockedProofs) {
                         const node = self.getBySecret(snap.secret)
                         if (node && isAlive(node) && node.state !== 'SPENT') {
                             node.setProp('state', snap.originalState)
+                            if (snap.originalTId !== null) {
+                                node.setProp('tId', snap.originalTId)
+                            }
                         }
                     }
                 } catch (e: any) {
