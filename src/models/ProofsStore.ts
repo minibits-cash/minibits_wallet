@@ -12,6 +12,7 @@ import {
   import AppError, { Err } from '../utils/AppError'
   import { Mint, MintBalance } from './Mint'
   import { Database } from '../services'
+  import { ReservationTransactionUpdate } from '../services/sqlite'
   import { MintUnit } from '../services/wallet/currency'
   import { CashuProof } from '../services/cashu/cashuUtils'
   import { generateId } from '../utils/utils'
@@ -402,6 +403,12 @@ import {
                     state: ProofState
                     tId: number
                 }>
+                /**
+                 * Atomically apply a transaction-row update inside the same
+                 * SQLite batch as the proof-state finalize. Closes the
+                 * proofs-table ↔ transactions-table atomicity window.
+                 */
+                transactionUpdate?: ReservationTransactionUpdate
             } = {},
         ): { added: Proof[] } {
             const mintsStore = getRootStore(self).mintsStore
@@ -413,7 +420,8 @@ import {
                 })
             }
 
-            // ATOMIC SQLite write of every state transition + reservation deletion.
+            // ATOMIC SQLite write of every state transition + (optional)
+            // transaction-row update + reservation deletion.
             Database.commitReservation(reservation.id, {
                 toSpent: changes.toSpent,
                 toUnspent: changes.toUnspent,
@@ -424,6 +432,7 @@ import {
                     unit: reservation.unit,
                     tId: group.tId,
                 })),
+                transactionUpdate: changes.transactionUpdate,
             })
 
             // Mirror to MST now that SQLite is durable.
@@ -491,11 +500,32 @@ import {
                 counter?.increaseProofsCounter(addedProofs.length)
             }
 
-            log.trace('[commitReservation]', 'Reservation committed', {
+            // Mirror the (already-durable) transaction update to MST so the
+            // in-memory model reflects the new tx state immediately. Uses
+            // setProp to avoid re-writing SQLite (Database.commitReservation
+            // already wrote the UPDATE atomically with the proof batch).
+            if (changes.transactionUpdate) {
+                const tu = changes.transactionUpdate
+                const transactionsStore = getRootStore(self).transactionsStore
+                const tx = transactionsStore.findById(tu.id)
+                if (tx && isAlive(tx)) {
+                    if (tu.status !== undefined) tx.setProp('status', tu.status)
+                    if (tu.data !== undefined) tx.setProp('data', tu.data)
+                    if (tu.amount !== undefined) tx.setProp('amount', tu.amount)
+                    if (tu.fee !== undefined) tx.setProp('fee', tu.fee)
+                    if (tu.balanceAfter !== undefined) tx.setProp('balanceAfter', tu.balanceAfter)
+                    if (tu.outputToken !== undefined) tx.setProp('outputToken', tu.outputToken)
+                    if (tu.keysetId !== undefined) tx.setProp('keysetId', tu.keysetId)
+                    if (tu.proof !== undefined) tx.setProp('proof', tu.proof)
+                }
+            }
+
+            log.trace('[commitReservation] ', 'Reservation committed', {
                 id: reservation.id,
                 toSpent: changes.toSpent?.length ?? 0,
                 toUnspent: changes.toUnspent?.length ?? 0,
                 addedCount: added.length,
+                txUpdate: changes.transactionUpdate?.id,
             })
 
             return { added }

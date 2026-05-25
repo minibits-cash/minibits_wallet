@@ -1,128 +1,88 @@
 import {rootStoreInstance} from '../../models'
-import { TransactionTaskResult } from '../walletService'
-import { MintBalance } from '../../models/Mint'
-import { Transaction, TransactionData, TransactionStatus, TransactionType } from '../../models/Transaction'
-import { log } from '../logService'
-import { WalletUtils } from './utils'
-import { MintUnit } from './currency'
-import { NostrClient } from '../nostrService'
-import { 
-  PaymentRequest as CashuPaymentRequest, 
-  PaymentRequestTransport, 
-  PaymentRequestTransportType 
-} from '@cashu/cashu-ts'
-import QuickCrypto from 'react-native-quick-crypto'
+import {TransactionTaskResult} from '../walletService'
+import {MintBalance} from '../../models/Mint'
+import {TransactionData, TransactionStatus} from '../../models/Transaction'
+import {log} from '../logService'
+import {WalletUtils} from './utils'
+import {MintUnit} from './currency'
 
-const {
-    transactionsStore,
-    walletProfileStore,    
-    relaysStore
-} = rootStoreInstance
-
-// const {walletStore} = nonPersistedStores
+const {transactionsStore} = rootStoreInstance
 
 export const CASHU_PAYMENT_REQUEST_TASK = 'cashuPaymentRequestTask'
 
+/**
+ * Backward-compatible Cashu Payment Request creation task wrapper.
+ *
+ * Preserves the legacy `WalletTask.cashuPaymentRequestQueueAwaitable`
+ * contract: a single call that creates the draft, builds the encoded PR,
+ * and returns a `TransactionTaskResult` carrying the encoded string for the
+ * UI to display (QR / copy-paste).
+ *
+ * Internally delegates to the lifecycle API:
+ *   `CashuPaymentRequestApi.prepare()` (DRAFT → PREPARED)
+ *   `CashuPaymentRequestApi.execute()` (PREPARED → PENDING; builds PR)
+ */
 export const cashuPaymentRequestTask = async function (
     mintBalanceToReceiveTo: MintBalance,
     amountToReceive: number,
     unit: MintUnit,
     memo: string,
-) : Promise<TransactionTaskResult> {
+): Promise<TransactionTaskResult> {
     log.info('[cashuPaymentRequestTask]', {mintBalanceToReceiveTo})
     log.info('[cashuPaymentRequestTask]', {amountToReceive, unit})
 
-    // create draft transaction
-    const transactionData: TransactionData[] = [
-        {
-            status: TransactionStatus.DRAFT,
-            amountToReceive,
-            unit,
-            createdAt: new Date(),
-        },
-    ]
-
-    let transaction: Transaction | undefined = undefined
     const mintUrl = mintBalanceToReceiveTo.mintUrl
 
+    const {CashuPaymentRequestApi} = await import('./operations/cashuPaymentRequestApi')
+
+    let transactionIdForRecovery: number | undefined
+
     try {
-        const newTransaction = {
-            type: TransactionType.RECEIVE_BY_PAYMENT_REQUEST,
+        const prepared = await CashuPaymentRequestApi.prepare({
+            mintBalance: mintBalanceToReceiveTo,
             amount: amountToReceive,
-            fee: 0,
             unit,
-            data: JSON.stringify(transactionData),
             memo,
-            mint: mintUrl,
-            status: TransactionStatus.DRAFT,
-        }
-        // store tx in db and in the model
-        transaction = await transactionsStore.addTransaction(newTransaction)        
-
-        const tags = [["n", "17"]]
-        const transport = [
-          {
-            type: PaymentRequestTransportType.NOSTR,
-            target: NostrClient.encodeNprofile(walletProfileStore.pubkey, relaysStore.allUrls),
-            tags,
-          },
-        ] as PaymentRequestTransport[]
-    
-        const cashuPrId = QuickCrypto.randomBytes(4).toString("hex")
-        const cashuPaymentRequest = new CashuPaymentRequest(
-          transport,
-          cashuPrId,
-          amountToReceive,
-          unit,
-          [mintUrl],
-          memo
-        )
-    
-        const encoded = cashuPaymentRequest.toEncodedRequest()
-
-        log.trace("[cashuPaymentRequestTask] Creating cashu payment request", {cashuPaymentRequest, encoded})
-
-        transactionData.push({
-            status: TransactionStatus.PENDING,            
-            cashuPaymentRequest,
-            createdAt: new Date()
+            method: {method: 'nostr', options: {}},
         })
+        transactionIdForRecovery = prepared.transactionId
 
-        transaction.update({
-            status: TransactionStatus.PENDING,
-            data: JSON.stringify(transactionData),
-            paymentId: cashuPrId
-        })
-       
+        const {transaction, cashuPaymentRequest, encodedCashuPaymentRequest} =
+            await CashuPaymentRequestApi.execute(prepared)
+
         return {
             taskFunction: CASHU_PAYMENT_REQUEST_TASK,
             mintUrl,
             transaction,
             message: '',
             cashuPaymentRequest,
-            encodedCashuPaymentRequest: encoded,
+            encodedCashuPaymentRequest,
         } as TransactionTaskResult
-
-    } catch (e: any) {        
-
-        if (transaction) {
-            transactionData.push({
-                status: TransactionStatus.ERROR,
-                error: WalletUtils.formatError(e),
-                createdAt: new Date()
-            })
-
-            transaction.update({
-                status: TransactionStatus.ERROR,
-                data: JSON.stringify(transactionData)
-            })
+    } catch (e: any) {
+        if (transactionIdForRecovery) {
+            const tx = transactionsStore.findById(transactionIdForRecovery)
+            if (tx && tx.status !== TransactionStatus.ERROR) {
+                let transactionData: TransactionData[] = []
+                try { transactionData = JSON.parse(tx.data) } catch {}
+                transactionData.push({
+                    status: TransactionStatus.ERROR,
+                    error: WalletUtils.formatError(e),
+                    createdAt: new Date(),
+                })
+                tx.update({
+                    status: TransactionStatus.ERROR,
+                    data: JSON.stringify(transactionData),
+                })
+            }
         }
 
         log.error(e.name, e.message)
 
         return {
             taskFunction: CASHU_PAYMENT_REQUEST_TASK,
-            transaction,
+            transaction: transactionIdForRecovery
+                ? transactionsStore.findById(transactionIdForRecovery)
+                : undefined,
             message: e.message,
             error: WalletUtils.formatError(e),
         } as TransactionTaskResult

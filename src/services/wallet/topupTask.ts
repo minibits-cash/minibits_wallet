@@ -1,195 +1,96 @@
 import {rootStoreInstance} from '../../models'
-import { TransactionTaskResult, WalletTask } from '../walletService'
-import { MintBalance } from '../../models/Mint'
-import { poller } from '../../utils/poller'
-import { Transaction, TransactionData, TransactionStatus, TransactionType } from '../../models/Transaction'
-import { log } from '../logService'
-import { Contact } from '../../models/Contact'
-import { LightningUtils } from '../lightning/lightningUtils'
-import { getSnapshot, isStateTreeNode } from 'mobx-state-tree'
-import { WalletUtils } from './utils'
-import { MintUnit } from './currency'
-import { NostrEvent } from '../nostrService'
-import AppError, { Err } from '../../utils/AppError'
-import { 
-    MintQuoteBolt11Response,
-    Mint as CashuMint,
-    Wallet as CashuWallet,
- } from '@cashu/cashu-ts'
-import { addSeconds } from 'date-fns/addSeconds'
+import {TransactionTaskResult} from '../walletService'
+import {MintBalance} from '../../models/Mint'
+import {TransactionData, TransactionStatus} from '../../models/Transaction'
+import {log} from '../logService'
+import {Contact} from '../../models/Contact'
+import {WalletUtils} from './utils'
+import {MintUnit} from './currency'
+import {NostrEvent} from '../nostrService'
 
-const {
-    transactionsStore,
-    walletProfileStore,    
-    walletStore
-} = rootStoreInstance
-
-// const {walletStore} = nonPersistedStores
+const {transactionsStore} = rootStoreInstance
 
 export const TOPUP_TASK = 'topupTask'
 
+/**
+ * Backward-compatible topup (lightning mint) task wrapper.
+ *
+ * Preserves the historical `WalletTask.topupQueueAwaitable` contract: a single
+ * call that creates the draft, fetches a mint quote, transitions the tx to
+ * PENDING, arms the ws/poller watch, and returns a `TransactionTaskResult`
+ * with the encoded invoice for the user to pay.
+ *
+ * Internally delegates to the lifecycle API:
+ *   `TopupOperationApi.prepare()` (DRAFT → PREPARED, quote created)
+ *   `TopupOperationApi.execute()` (PREPARED → PENDING, watcher armed)
+ *
+ * Screens that want to defer the watcher / surface the invoice before
+ * committing should call the lifecycle methods directly.
+ */
 export const topupTask = async function (
     mintBalanceToTopup: MintBalance,
     amountToTopup: number,
     unit: MintUnit,
     memo: string,
     contactToSendTo?: Contact,
-    nwcEvent?: NostrEvent
-) : Promise<TransactionTaskResult> {
+    nwcEvent?: NostrEvent,
+): Promise<TransactionTaskResult> {
     log.info('[topupTask]', {mintBalanceToTopup})
     log.info('[topupTask]', {amountToTopup, unit})
 
-    // create draft transaction
-    const transactionData: TransactionData[] = [
-        {
-            status: TransactionStatus.DRAFT,
-            amountToTopup,
-            unit,
-            createdAt: new Date(),
-        },
-    ]
-
-    let transaction: Transaction | undefined = undefined
     const mintUrl = mintBalanceToTopup.mintUrl
 
+    // Lazy import avoids a circular dep across the operations module graph.
+    const {TopupOperationApi} = await import('./operations/topupOperationApi')
+
+    let transactionIdForRecovery: number | undefined
+
     try {
-        const newTransaction = {
-            type: TransactionType.TOPUP,
+        const prepared = await TopupOperationApi.prepare({
+            mintBalance: mintBalanceToTopup,
             amount: amountToTopup,
-            fee: 0,
             unit,
-            data: JSON.stringify(transactionData),
             memo,
-            mint: mintUrl,
-            status: TransactionStatus.DRAFT,
-        }
-        // store tx in db and in the model
-        transaction = await transactionsStore.addTransaction(newTransaction)
-        
-        if(!transaction) {
-            throw new AppError(Err.DATABASE_ERROR, 'Could not store transaction.')
-        }
-
-        const {
-            encodedInvoice, 
-            mintQuote 
-        } = await walletStore.createLightningMintQuote(
-            mintUrl, 
-            unit, 
-            amountToTopup,
-            memo
-        )    
-
-        const decodedInvoice = LightningUtils.decodeInvoice(encodedInvoice)
-        const {
-            amount, 
-            payment_hash: paymentHash, 
-            expiry, 
-            timestamp
-        } = LightningUtils.getInvoiceData(decodedInvoice)
-
-        // Private contacts are stored in model, public ones are plain objects
-        // contactToSendTo is to whom to send the request
-        const contactTo = isStateTreeNode(contactToSendTo) ? getSnapshot(contactToSendTo) : contactToSendTo
-
-        // Bulk tx update
-        let expiresAtDate: Date | undefined = undefined
-        if(expiry && expiry > 0) {
-            expiresAtDate = addSeconds(new Date(timestamp * 1000), expiry)
-        } else {
-            expiresAtDate = addSeconds(new Date(timestamp * 1000), 86400)
-        }
-        
-        const sentFromValue = contactTo?.nip05 || contactTo?.name || ''
-        const sentToValue = walletProfileStore.nip05 || ''
-        
-        log.trace('[topupTask] invoice', {amount, paymentHash, expiry, timestamp, expiresAtDate})
-
-        transactionData.push({
-            status: TransactionStatus.PENDING,
-            quote: mintQuote,                        
-            createdAt: new Date()
+            method: {method: 'bolt11', options: {contactToSendTo}},
+            nwcEvent,
         })
+        transactionIdForRecovery = prepared.transactionId
 
-        const updateData = {
-            quote: mintQuote,
-            paymentId: paymentHash,
-            paymentRequest: encodedInvoice,
-            expiresAt: expiresAtDate,
-            sentFrom: sentFromValue,
-            sentTo: sentToValue,
-            status: TransactionStatus.PENDING,
-            data: JSON.stringify(transactionData)
-        }
-
-        transaction.update(updateData)
-
-        if(!nwcEvent) {
-            const wsMint = new CashuMint(mintUrl)
-            const wsWallet = new CashuWallet(wsMint)
-
-            try {
-                const unsub = await wsWallet.on.mintQuotePaid(
-                    mintQuote,
-                    async (m: MintQuoteBolt11Response) => {
-                        log.trace(`Websocket: mint quote PAID: ${m.quote}`)
-                        WalletTask.handlePendingQueue()
-                        unsub()                        
-                    },
-                    async (error: any) => {
-                        throw error
-                    }
-                )
-            } catch (error: any) {
-                log.error(Err.NETWORK_ERROR,
-                    "Error in websocket subscription. Starting poller.",
-                    error.message
-                )
-
-                poller(
-                    `handlePendingTopupPoller-${paymentHash}`, 
-                    WalletTask.handlePendingQueue,
-                    {
-                        interval: 10 * 1000,
-                        maxPolls: 6,
-                        maxErrors: 2
-                    },        
-                    {transaction})   
-                .then(() => log.trace('Polling completed', [], `handlePendingTopupPoller`))
-            }
-            
-        }
+        const pending = await TopupOperationApi.execute(prepared)
 
         return {
             taskFunction: TOPUP_TASK,
             mintUrl,
-            transaction,
+            transaction: pending,
             message: '',
-            encodedInvoice,            
-            nwcEvent
+            encodedInvoice: prepared.encodedInvoice,
+            nwcEvent,
         } as TransactionTaskResult
-
-    } catch (e: any) {        
-
-        if (transaction) {
-            transactionData.push({
-                status: TransactionStatus.ERROR,
-                error: WalletUtils.formatError(e),
-                createdAt: new Date()
-            })
-
-            // Update status and data on error
-            transaction.update({
-                status: TransactionStatus.ERROR,
-                data: JSON.stringify(transactionData)
-            })
+    } catch (e: any) {
+        if (transactionIdForRecovery) {
+            const tx = transactionsStore.findById(transactionIdForRecovery)
+            if (tx && tx.status !== TransactionStatus.ERROR) {
+                let transactionData: TransactionData[] = []
+                try { transactionData = JSON.parse(tx.data) } catch {}
+                transactionData.push({
+                    status: TransactionStatus.ERROR,
+                    error: WalletUtils.formatError(e),
+                    createdAt: new Date(),
+                })
+                tx.update({
+                    status: TransactionStatus.ERROR,
+                    data: JSON.stringify(transactionData),
+                })
+            }
         }
 
         log.error(e.name, e.message)
 
         return {
             taskFunction: TOPUP_TASK,
-            transaction,
+            transaction: transactionIdForRecovery
+                ? transactionsStore.findById(transactionIdForRecovery)
+                : undefined,
             message: e.message,
             error: WalletUtils.formatError(e),
         } as TransactionTaskResult

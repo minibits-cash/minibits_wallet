@@ -294,27 +294,14 @@ const handlePendingMeltTask = async (params: {
             lightningFeePaid = totalFeePaid - meltFeeReserve
         }
 
-        // Atomic finalize: proofsToMeltFrom move PENDING → SPENT and change (if any)
-        // is added as UNSPENT in a single SQLite transaction. Replaces the previous
-        // two-step `moveToSpent` + `addOrUpdate(change)` which left a crash window
-        // where ecash could be marked SPENT without the change being recorded.
-        const reservation = proofsStore.reserve(proofsToMeltFrom, {
-            transactionId,
-            mintUrl,
-            unit,
-            operationType: 'pending-melt-finalize-paid',
-            rollbackTo: 'PENDING',
-        })
-
-        proofsStore.commitReservation(reservation, {
-            toSpent: proofsToMeltFrom,
-            newProofs: unblinded.change.length > 0
-                ? [{ proofs: unblinded.change, state: 'UNSPENT', tId: transactionId }]
-                : [],
-        })
-
+        // Pre-compute everything that needs to land atomically. balanceAfter
+        // is simulated: proofsToMeltFrom were PENDING (contribute 0 to UNSPENT
+        // pool); moving them to SPENT changes nothing. The unblinded change is
+        // newly added as UNSPENT, raising the spendable balance.
         const txData: TransactionData[] = transaction.data ? JSON.parse(transaction.data) : []
-        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
+        const currentSpendable = proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
+        const balanceAfter = currentSpendable + returnedAmount
+
         txData.push({
             status: TransactionStatus.COMPLETED,
             lightningFeePaid,
@@ -324,16 +311,33 @@ const handlePendingMeltTask = async (params: {
             preimage: quote.payment_preimage,
             createdAt: new Date(),
         })
-        const updatePayload: any = {
-            status: TransactionStatus.COMPLETED,
-            data: JSON.stringify(txData),
-            fee: totalFeePaid,
-            balanceAfter,
-        }
-        if (outputToken) updatePayload.outputToken = outputToken
-        //@ts-ignore
-        if (quote.payment_preimage) updatePayload.proof = quote.payment_preimage
-        transaction.update(updatePayload)
+
+        const reservation = proofsStore.reserve(proofsToMeltFrom, {
+            transactionId,
+            mintUrl,
+            unit,
+            operationType: 'pending-melt-finalize-paid',
+            rollbackTo: 'PENDING',
+        })
+
+        // ATOMIC commit: proofsToMeltFrom → SPENT, change → UNSPENT, tx →
+        // COMPLETED, reservation row deleted — all one SQLite transaction.
+        proofsStore.commitReservation(reservation, {
+            toSpent: proofsToMeltFrom,
+            newProofs: unblinded.change.length > 0
+                ? [{ proofs: unblinded.change, state: 'UNSPENT', tId: transactionId }]
+                : [],
+            transactionUpdate: {
+                id: transactionId,
+                status: TransactionStatus.COMPLETED,
+                data: JSON.stringify(txData),
+                fee: totalFeePaid,
+                balanceAfter,
+                ...(outputToken && { outputToken }),
+                //@ts-ignore — payment_preimage is loosely typed in cashu-ts
+                ...(quote.payment_preimage && { proof: quote.payment_preimage }),
+            },
+        })
 
         log.debug('[handlePendingMelt] Transaction completed', {transactionId, totalFeePaid})
 

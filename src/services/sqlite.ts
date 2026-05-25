@@ -1290,8 +1290,33 @@ const openReservation = function (
 }
 
 /**
- * Commit a reservation: apply the supplied state transitions and delete the
- * reservation row — all in a single SQLite transaction.
+ * Optional transaction-row update atomically batched with a reservation commit.
+ *
+ * Only the named columns can be set; this is intentionally narrower than the
+ * full Transaction shape so the API is predictable and only covers fields that
+ * legitimately need to land atomically with a proof-state finalize.
+ */
+export type ReservationTransactionUpdate = {
+  id: number
+  status?: TransactionStatus
+  data?: string
+  amount?: number
+  fee?: number
+  balanceAfter?: number
+  outputToken?: string
+  keysetId?: string
+  proof?: string
+}
+
+/**
+ * Commit a reservation: apply the supplied state transitions, optionally a
+ * transaction-row update, and delete the reservation row — all in a single
+ * SQLite transaction.
+ *
+ * Passing `transactionUpdate` closes the proofs-table vs transactions-table
+ * atomicity window: a crash between proof-state finalize and tx-status update
+ * would otherwise leave a transaction stuck in PENDING/PREPARED while its
+ * underlying proofs are SPENT.
  */
 const commitReservation = function (
   reservationId: string,
@@ -1305,6 +1330,7 @@ const commitReservation = function (
       unit: string
       tId: number
     }>
+    transactionUpdate?: ReservationTransactionUpdate
   },
 ): void {
   try {
@@ -1329,12 +1355,19 @@ const commitReservation = function (
 
     for (const group of changes.newProofs ?? []) {
       for (const proof of group.proofs) {
+        // proof.amount may be a cashu-ts `Amount` class instance (when the
+        // group came straight from `cashuWallet.send/mint/melt` responses)
+        // rather than a plain number. Coerce explicitly — SQLite's JSI
+        // binding can't bind non-primitive objects to an INTEGER column and
+        // would silently drop the row, leaving the proof in MST but absent
+        // from the database (lost on the next restart).
+        const amount = typeof proof.amount === 'number' ? proof.amount : Number(proof.amount)
         batch.push([
           `INSERT OR REPLACE INTO proofs (id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl, state, updatedAt)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             proof.id,
-            proof.amount,
+            amount,
             proof.secret,
             proof.C,
             proof.dleq ? proof.dleq.r : null,
@@ -1350,16 +1383,48 @@ const commitReservation = function (
       }
     }
 
+    if (changes.transactionUpdate) {
+      const tu = changes.transactionUpdate
+      const setClauses: string[] = []
+      const params: (string | number | null)[] = []
+
+      // Whitelist of fields that can be set atomically. Order matters only for
+      // readability — params must match clause order.
+      const setIfDefined = (col: string, value: string | number | undefined) => {
+        if (value !== undefined) {
+          setClauses.push(`${col} = ?`)
+          params.push(value)
+        }
+      }
+      setIfDefined('status', tu.status)
+      setIfDefined('data', tu.data)
+      setIfDefined('amount', tu.amount)
+      setIfDefined('fee', tu.fee)
+      setIfDefined('balanceAfter', tu.balanceAfter)
+      setIfDefined('outputToken', tu.outputToken)
+      setIfDefined('keysetId', tu.keysetId)
+      setIfDefined('proof', tu.proof)
+
+      if (setClauses.length > 0) {
+        params.push(tu.id)
+        batch.push([
+          `UPDATE transactions SET ${setClauses.join(', ')} WHERE id = ?`,
+          params,
+        ])
+      }
+    }
+
     batch.push([`DELETE FROM reservations WHERE id = ?`, [reservationId]])
 
     const db = getInstance()
     db.executeBatch(batch)
 
-    log.info('[commitReservation]', 'Reservation committed', {
+    log.info('[commitReservation] ', 'Reservation committed to DB', {
       id: reservationId,
       toSpent: changes.toSpent?.length ?? 0,
       toUnspent: changes.toUnspent?.length ?? 0,
       newGroups: changes.newProofs?.length ?? 0,
+      txUpdate: changes.transactionUpdate ? changes.transactionUpdate.id : undefined,
     })
   } catch (e: any) {
     throw new AppError(

@@ -1,6 +1,7 @@
 import {isAlive} from 'mobx-state-tree'
 import {getEncodedToken, normalizeProofAmounts} from '@cashu/cashu-ts'
 import {log} from '../../logService'
+import {CashuUtils} from '../../cashu/cashuUtils'
 import {rootStoreInstance} from '../../../models'
 import {Mint} from '../../../models/Mint'
 import {Proof} from '../../../models/Proof'
@@ -138,28 +139,39 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                                 {inFlightRequest: inFlight},
                             )
 
+                            // Pre-compute everything that needs to land
+                            // atomically. balanceAfter: locked inputs were
+                            // PENDING (contribute 0 to UNSPENT); marking SPENT
+                            // changes nothing. The returnedProofs (change) are
+                            // added as UNSPENT, raising spendable.
+                            const outputToken = getEncodedToken({
+                                mint: mintUrl,
+                                proofs: normalizeProofAmounts(proofsToSend),
+                                unit,
+                            })
+                            const currentSpendable = proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
+                            const sumReturnedChange = CashuUtils.getProofsAmount(returnedProofs)
+                            const balanceAfter = currentSpendable + sumReturnedChange
+
+                            txData.push({status: TransactionStatus.PENDING, createdAt: new Date()})
+
                             // ATOMIC: inputs → SPENT, change → UNSPENT,
-                            // proofsToSend → PENDING, reservation row deleted —
-                            // single SQLite transaction.
+                            // proofsToSend → PENDING, tx → PENDING, reservation
+                            // row deleted — single SQLite transaction.
                             proofsStore.commitReservation(reservation, {
                                 toSpent: lockedInputs,
                                 newProofs: [
                                     { proofs: returnedProofs, state: 'UNSPENT', tId: tx.id },
                                     { proofs: proofsToSend, state: 'PENDING', tId: tx.id },
                                 ],
-                            })
-
-                            const outputToken = getEncodedToken({mint: mintUrl, proofs: normalizeProofAmounts(proofsToSend), unit})
-                            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
-
-                            txData.push({status: TransactionStatus.PENDING, createdAt: new Date()})
-
-                            tx.update({
-                                status: TransactionStatus.PENDING,
-                                data: JSON.stringify(txData),
-                                outputToken,
-                                balanceAfter,
-                                fee: swapFeePaid > 0 ? swapFeePaid : tx.fee,
+                                transactionUpdate: {
+                                    id: tx.id,
+                                    status: TransactionStatus.PENDING,
+                                    data: JSON.stringify(txData),
+                                    outputToken,
+                                    balanceAfter,
+                                    fee: swapFeePaid > 0 ? swapFeePaid : tx.fee,
+                                },
                             })
                         } catch (sendError: any) {
                             // Rollback restores each input to its pre-reservation

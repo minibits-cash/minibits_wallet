@@ -1092,7 +1092,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     const handleSendTaskResult = async (result: TransactionTaskResult) => {
         log.trace('[SendScreen] handleSendTaskResult start')
 
-        const { transaction: txResult, error, encodedTokenToSend: token } = result
+        const { transaction: txResult, error } = result
 
         // ——— Error path ———
         if (error || !txResult) {
@@ -1132,7 +1132,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
         dispatch({
             type: 'SEND_TASK_SUCCESS',
-            token: token ?? '',
+            token: txResult.outputToken ?? '',
             transaction: txResult,
             openTransport,
         })

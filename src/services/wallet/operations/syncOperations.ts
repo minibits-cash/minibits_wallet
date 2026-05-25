@@ -6,6 +6,8 @@ import {rootStoreInstance} from '../../../models'
 import {Proof, ProofState} from '../../../models/Proof'
 import {MintStatus} from '../../../models/Mint'
 import {
+    Transaction,
+    TransactionData,
     TransactionStatus,
     TransactionType,
 } from '../../../models/Transaction'
@@ -15,7 +17,8 @@ import {stopPolling} from '../../../utils/poller'
 import {sendTask} from '../sendTask'
 import {createQueueAwaitable} from '../queueHelper'
 import {receiveBatchTask} from './receiveOperations'
-import {MeltOperationService} from './meltOperations'
+import {SendOperationApi} from './sendOperationApi'
+import {TransferOperationApi} from './transferOperationApi'
 import {
     MAX_SWAP_INPUT_SIZE,
     MAX_SYNC_INPUT_SIZE,
@@ -114,6 +117,13 @@ const syncStateWithMintTask = async function (
         }
 
         // 1. Proofs now SPENT at mint → transaction succeeded
+        //
+        // Bulk-move proofs to SPENT (one SQL write for N proofs), then
+        // dispatch per-tx to the appropriate operation API's `finalize`. Each
+        // finalize is idempotent and sync-aware: it sees no PENDING proofs
+        // left (we just bulk-moved them) and just flips the tx status, with
+        // any side-effects (e.g. melt change recovery for TRANSFER) handled
+        // atomically alongside the status update.
         if (secrets.spent.size > 0) {
             const spentProofs = aliveProofs.filter(p => secrets.spent.has(p.secret))
             const spentByTx = groupByTId(spentProofs)
@@ -132,6 +142,11 @@ const syncStateWithMintTask = async function (
                 }
 
                 if (spentAmount < tx.amount) {
+                    // Partial spend has no clean lifecycle equivalent — proofs
+                    // were reused outside this wallet's control, so we stamp
+                    // ERROR directly and release any still-UNSPENT siblings
+                    // back to the spendable pool.
+                    _markErrorBySync(tx, 'Partial spend detected – proofs reused')
                     errorTxIds.push(tId)
                     transactionStateUpdates.push({
                         tId,
@@ -145,58 +160,50 @@ const syncStateWithMintTask = async function (
                         const stillUnspent = aliveProofs.filter(p => secrets.unspent.has(p.secret))
                         proofsStore.revertToSpendable(stillUnspent)
                     }
-                } else if (tx.status !== TransactionStatus.REVERTED) {
+                    continue
+                }
+
+                if (tx.status === TransactionStatus.REVERTED) {
+                    // Reclaim already happened — leave as REVERTED.
+                    continue
+                }
+
+                try {
+                    await _dispatchFinalize(tx)
                     completedTxIds.push(tId)
-                    const update: TransactionStateUpdate = {
+                    transactionStateUpdates.push({
                         tId,
                         amount: tx.amount,
                         spentByMintAmount: spentAmount,
                         updatedStatus: TransactionStatus.COMPLETED,
-                    }
-                    if (tx.type === TransactionType.TRANSFER && tx.quote) {
-                        update.meltQuoteToRecover = tx.quote
-                    }
-                    transactionStateUpdates.push(update)
-                }
-            }
-
-            for (const update of transactionStateUpdates) {
-                if (update.meltQuoteToRecover) {
-                    const {recoveredAmount} = await MeltOperationService.recoverMeltQuoteChange({
-                        mintUrl,
-                        meltQuote: update.meltQuoteToRecover,
                     })
-                    update.recoveredChangeAmount = recoveredAmount
+                } catch (e: any) {
+                    log.error('[syncStateWithMintTask] finalize dispatch failed', {
+                        tId,
+                        type: tx.type,
+                        error: e.message,
+                    })
+                    _markErrorBySync(tx, e.message)
+                    errorTxIds.push(tId)
+                    transactionStateUpdates.push({
+                        tId,
+                        amount: tx.amount,
+                        spentByMintAmount: spentAmount,
+                        updatedStatus: TransactionStatus.ERROR,
+                        message: `Finalize failed: ${e.message}`,
+                    })
                 }
             }
 
-            if (completedTxIds.length > 0) {
-                await transactionsStore.updateStatuses(
-                    completedTxIds,
-                    TransactionStatus.COMPLETED,
-                    JSON.stringify({
-                        status: TransactionStatus.COMPLETED,
-                        spentStateUpdates: transactionStateUpdates.filter(u => completedTxIds.includes(u.tId)),
-                        createdAt: new Date(),
-                    }),
-                )
-                stopPolling(`syncStateWithMintPoller-${mintUrl}`)
-            }
-            if (errorTxIds.length > 0) {
-                await transactionsStore.updateStatuses(
-                    errorTxIds,
-                    TransactionStatus.ERROR,
-                    JSON.stringify({
-                        status: TransactionStatus.ERROR,
-                        spentStateUpdates: transactionStateUpdates.filter(u => errorTxIds.includes(u.tId)),
-                        createdAt: new Date(),
-                    }),
-                )
+            if (completedTxIds.length > 0 || errorTxIds.length > 0) {
                 stopPolling(`syncStateWithMintPoller-${mintUrl}`)
             }
         }
 
-        // 2. Proofs still PENDING at mint → keep pending in wallet
+        // 2. Proofs still PENDING at mint → register as mint-pending, mark
+        // owning tx PENDING. No lifecycle equivalent — this is a sub-state
+        // (locally PENDING + mint-side PENDING) tracked via pendingByMintSecrets
+        // so branch 3 can later detect lightning failures.
         if (secrets.pending.size > 0) {
             const newPendingProofs = aliveProofs.filter(p => secrets.pending.has(p.secret) && !proofsStore.pendingByMintSecrets.includes(p.secret))
 
@@ -231,46 +238,59 @@ const syncStateWithMintTask = async function (
             }
         }
 
-        // 3. Proofs no longer pending at mint → lightning failed → revert
+        // 3. Proofs no longer pending at mint → lightning failed.
+        //
+        // Dispatch each affected tx to `TransferOperationApi.refresh` — its
+        // UNPAID branch reverts proofs to spendable and stamps the tx
+        // REVERTED. (Only TRANSFER txs ever hit this branch; melts are the
+        // only operation that registers mint-pending state.)
         const noLongerPendingSecrets = proofsStore.pendingByMintSecrets.filter(
             s => !secrets.pending.has(s),
         )
 
         if (noLongerPendingSecrets.length > 0) {
-            const revertedProofs: Proof[] = []
-            const revertedByTx = new Map<number, number>()
-
+            // Unregister all at once; per-tx refresh handles the proof revert.
+            const txsToRefresh = new Map<number, number>()
             for (const secret of noLongerPendingSecrets) {
                 const proof = proofsStore.getBySecret(secret)
                 if (!proof || !proof.tId) continue
-
-                revertedProofs.push(proof)
-                revertedByTx.set(proof.tId, (revertedByTx.get(proof.tId) ?? 0) + proof.amount)
-                if (!revertedTxIds.includes(proof.tId)) revertedTxIds.push(proof.tId)
+                txsToRefresh.set(proof.tId, (txsToRefresh.get(proof.tId) ?? 0) + proof.amount)
             }
+            proofsStore.unregisterFromPendingAtMint(new Set(noLongerPendingSecrets))
 
-            if (revertedProofs.length > 0) {
-                proofsStore.revertToSpendable(revertedProofs)
-                proofsStore.unregisterFromPendingAtMint(new Set(noLongerPendingSecrets))
+            for (const [tId, amount] of txsToRefresh) {
+                const tx = transactionsStore.findById(tId)
+                if (!tx) continue
 
-                for (const [tId, amount] of revertedByTx) {
+                if (tx.type !== TransactionType.TRANSFER) {
+                    log.warn(
+                        '[syncStateWithMintTask] Unexpected non-TRANSFER tx in branch 3',
+                        {tId, type: tx.type},
+                    )
+                    continue
+                }
+
+                try {
+                    await TransferOperationApi.refresh(tId)
+                    if (!revertedTxIds.includes(tId)) revertedTxIds.push(tId)
                     transactionStateUpdates.push({
                         tId,
                         movedToSpendableAmount: amount,
                         updatedStatus: TransactionStatus.REVERTED,
                     })
-                }
-
-                if (revertedTxIds.length > 0) {
-                    await transactionsStore.updateStatuses(
-                        revertedTxIds,
-                        TransactionStatus.REVERTED,
-                        JSON.stringify({
-                            message: 'Lightning payment failed – ecash returned to spendable balance',
-                            revertedStateUpdates: transactionStateUpdates.filter(u => u.updatedStatus === TransactionStatus.REVERTED),
-                            createdAt: new Date(),
-                        }),
-                    )
+                } catch (e: any) {
+                    log.error('[syncStateWithMintTask] refresh dispatch failed', {
+                        tId,
+                        error: e.message,
+                    })
+                    _markErrorBySync(tx, e.message)
+                    errorTxIds.push(tId)
+                    transactionStateUpdates.push({
+                        tId,
+                        movedToSpendableAmount: amount,
+                        updatedStatus: TransactionStatus.ERROR,
+                        message: `Refresh failed: ${e.message}`,
+                    })
                 }
             }
         }
@@ -304,6 +324,48 @@ const syncStateWithMintTask = async function (
             revertedTransactionIds: revertedTxIds,
         }
     }
+}
+
+/**
+ * Route a sync-confirmed-SPENT transaction to the appropriate operation API's
+ * `finalize`. Sync has already bulk-moved the proofs to SPENT, so each
+ * finalize sees an empty PENDING set and just stamps the tx COMPLETED (and,
+ * for TRANSFER, recovers melt change atomically with the status update).
+ *
+ * Only SEND and TRANSFER are expected here — other types don't park proofs
+ * in PENDING that sync could later observe as SPENT.
+ */
+async function _dispatchFinalize(tx: Transaction): Promise<void> {
+    switch (tx.type) {
+        case TransactionType.SEND:
+            await SendOperationApi.finalize(tx.id)
+            return
+        case TransactionType.TRANSFER:
+            await TransferOperationApi.finalize(tx.id)
+            return
+        default:
+            log.warn('[syncStateWithMintTask] Unexpected tx type in finalize dispatch', {
+                tId: tx.id,
+                type: tx.type,
+            })
+    }
+}
+
+/**
+ * Stamp a transaction as ERROR with the supplied reason. Used for sync's
+ * type-agnostic failure paths (partial spend, finalize/refresh dispatch
+ * throws) — there's no lifecycle-method equivalent for "external system
+ * forced this tx into an error state."
+ */
+function _markErrorBySync(tx: Transaction, reason: string): void {
+    let txData: TransactionData[] = []
+    try { txData = JSON.parse(tx.data) } catch {}
+    txData.push({
+        status: TransactionStatus.ERROR,
+        message: reason,
+        createdAt: new Date(),
+    })
+    tx.update({status: TransactionStatus.ERROR, data: JSON.stringify(txData)})
 }
 
 const syncStateWithAllMintsTask = async function (options: {
@@ -468,7 +530,7 @@ const swapAllTask = async function (): Promise<WalletTaskResult> {
                         batch,
                     )
 
-                    const encodedTokenToReceive: string = sendResult.encodedTokenToSend
+                    const encodedTokenToReceive: string = sendResult.transaction?.outputToken ?? ''
 
                     const tokenToReceive = getDecodedToken(encodedTokenToReceive, mint.keysetIds)
                     const tokenAmount = CashuUtils.getProofsAmount(tokenToReceive.proofs)
@@ -501,7 +563,7 @@ const swapAllTask = async function (): Promise<WalletTaskResult> {
                     proofsToOptimize,
                 )
 
-                const encodedTokenToReceive: string = sendResult.encodedTokenToSend
+                const encodedTokenToReceive: string = sendResult.transaction?.outputToken ?? ''
                 const tokenToReceive = getDecodedToken(encodedTokenToReceive, mint.keysetIds)
                 const tokenAmount = CashuUtils.getProofsAmount(tokenToReceive.proofs)
 
@@ -577,7 +639,7 @@ const swapByDenominationTask = async function (denomination: number): Promise<Wa
                         batch,
                     )
 
-                    const encodedTokenToReceive: string = sendResult.encodedTokenToSend
+                    const encodedTokenToReceive: string = sendResult.transaction?.outputToken ?? ''
                     const tokenToReceive = getDecodedToken(encodedTokenToReceive, mint.keysetIds)
                     const tokenAmount = CashuUtils.getProofsAmount(tokenToReceive.proofs)
 
@@ -608,7 +670,7 @@ const swapByDenominationTask = async function (denomination: number): Promise<Wa
                     proofsToOptimize,
                 )
 
-                const encodedTokenToReceive: string = sendResult.encodedTokenToSend
+                const encodedTokenToReceive: string = sendResult.transaction?.outputToken ?? ''
                 const tokenToReceive = getDecodedToken(encodedTokenToReceive, mint.keysetIds)
                 const tokenAmount = CashuUtils.getProofsAmount(tokenToReceive.proofs)
 

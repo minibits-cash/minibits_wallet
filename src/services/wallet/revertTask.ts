@@ -91,31 +91,33 @@ try {
         unit
     })
 
-    // ATOMIC commit: original pending proofs → SPENT, new fresh proofs →
-    // UNSPENT, reservation row deleted — single SQLite transaction. Replaces
-    // the previous two-step moveToSpent + addOrUpdate sequence.
-    const { added } = proofsStore.commitReservation(reservation, {
-        toSpent: pendingProofs,
-        newProofs: [{ proofs: receivedProofs, state: 'UNSPENT', tId: transaction.id }],
-    })
+    // Pre-compute everything that needs to land atomically. balanceAfter is
+    // simulated: the original pending proofs were PENDING (contribute 0 to
+    // UNSPENT pool); moving them to SPENT changes nothing. The new fresh
+    // proofs added as UNSPENT raise the spendable balance.
+    const receivedAmount = receivedProofs.reduce((sum, p) => sum + Number(p.amount), 0)
+    const currentSpendable = proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
+    const balanceAfter = currentSpendable + receivedAmount
 
-    const receivedAmount = added.reduce((sum, p) => sum + p.amount, 0)
-
-    // Update transaction status
     transactionData.push({
         status: TransactionStatus.REVERTED,
         mintFeePaid,
         createdAt: new Date(),
     })
 
-    const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
-
-    transaction.update({
-        status: TransactionStatus.REVERTED,
-        data: JSON.stringify(transactionData),
-        outputToken,
-        balanceAfter,
-        ...(mintFeePaid > 0 && {fee: mintFeePaid})
+    // ATOMIC commit: pending proofs → SPENT, new fresh proofs → UNSPENT,
+    // tx → REVERTED, reservation row deleted — single SQLite transaction.
+    proofsStore.commitReservation(reservation, {
+        toSpent: pendingProofs,
+        newProofs: [{ proofs: receivedProofs, state: 'UNSPENT', tId: transaction.id }],
+        transactionUpdate: {
+            id: transaction.id,
+            status: TransactionStatus.REVERTED,
+            data: JSON.stringify(transactionData),
+            outputToken,
+            balanceAfter,
+            ...(mintFeePaid > 0 && { fee: mintFeePaid }),
+        },
     })
 
     return {

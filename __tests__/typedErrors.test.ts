@@ -1,5 +1,5 @@
 /**
- * Typed error hierarchy tests (Phase 2 of coco alignment).
+ * Typed error hierarchy tests (Phase 2).
  *
  * Verifies:
  *  - subclass instances are still instanceof AppError (backward compat)

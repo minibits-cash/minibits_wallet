@@ -2,6 +2,7 @@ import { flow, Instance, isAlive, SnapshotIn, SnapshotOut, types } from 'mobx-st
 import { log } from '../services/logService'
 import { MintUnit } from '../services/wallet/currency'
 import { Database } from '../services'
+import { withSetPropAction } from './helpers/withSetPropAction'
 
 
 export type TransactionData = {
@@ -22,8 +23,21 @@ export enum TransactionType {
 export enum TransactionStatus {
     DRAFT = 'DRAFT',
     PREPARED = 'PREPARED',
-    PREPARED_OFFLINE = 'PREPARED_OFFLINE', // offline receive, safer to have if separate from prepared 
+    PREPARED_OFFLINE = 'PREPARED_OFFLINE', // offline receive, safer to have if separate from prepared
+    /**
+     * Mint call in flight, can't safely interrupt. Used by lifecycle-aware
+     * operations to mark the brief window between proof reservation and
+     * commit. On crash recovery, EXECUTING transactions need explicit
+     * reconciliation (the mint may or may not have processed the call).
+     */
+    EXECUTING = 'EXECUTING',
     PENDING = 'PENDING',
+    /**
+     * Transient rollback state — proofs are being reclaimed (via reclaim swap
+     * for PENDING ops, or via reservation rollback for PREPARED ops). On
+     * crash recovery during ROLLING_BACK, manual intervention may be needed.
+     */
+    ROLLING_BACK = 'ROLLING_BACK',
     REVERTED = 'REVERTED',
     RECOVERED = 'RECOVERED',
     COMPLETED = 'COMPLETED',
@@ -61,6 +75,7 @@ export const TransactionModel = types
         createdAt: types.optional(types.Date, new Date()),
     })
     .views(self => ({}))
+    .actions(withSetPropAction)
     .actions(self => ({
         pruneInputToken(inputToken: string) {
             self.inputToken = inputToken.slice(0, 40)

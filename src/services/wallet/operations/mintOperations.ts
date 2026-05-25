@@ -14,8 +14,8 @@ import {Contact} from '../../../models/Contact'
 import {CashuProof, CashuUtils} from '../../cashu/cashuUtils'
 import {LightningUtils} from '../../lightning/lightningUtils'
 import {NostrEvent} from '../../nostrService'
-import {pollerExists, stopPolling} from '../../../utils/poller'
-import {MintUnit, formatCurrency, getCurrency} from '../currency'
+import {pollerExists} from '../../../utils/poller'
+import {MintUnit} from '../currency'
 import {SyncQueue} from '../../syncQueueService'
 import {topupTask} from '../topupTask'
 import {WalletUtils} from '../utils'
@@ -25,7 +25,6 @@ import {
     TransactionTaskResult,
     WalletTaskResult,
 } from '../types'
-import {sendTopupNotification} from '../notifications'
 
 const {
     mintsStore,
@@ -59,6 +58,14 @@ const topupQueueAwaitable = (
 /**
  * Check a single pending mint quote and mint proofs if paid — even after expiry
  */
+/**
+ * Backward-compatible wrapper around `TopupOperationApi.refresh`.
+ *
+ * Used by the pending-queue sweep (via `enqueuePendingTopupCheck`) and via
+ * `WalletTask.handlePendingTopupTask` in the legacy task surface. The
+ * lifecycle API now owns the state-machine logic; this wrapper just adapts
+ * the result into the `WalletTaskResult` shape expected by callers.
+ */
 const handlePendingTopupTask = async (
     params: {transaction: Transaction},
 ): Promise<WalletTaskResult> => {
@@ -70,7 +77,6 @@ const handlePendingTopupTask = async (
         amount,
         paymentId: paymentHash,
         quote: mintQuote,
-        expiresAt,
     } = tx
 
     log.warn('[handlePendingTopupTask] start', {tx})
@@ -80,129 +86,45 @@ const handlePendingTopupTask = async (
         throw new ValidationError('Invalid pending topup transaction', {tId})
     }
 
-    let txData: TransactionData = tx.data ? JSON.parse(tx.data) : []
+    const {TopupOperationApi, topupSuccessMessage} = await import('./topupOperationApi')
 
     try {
-        const {state} = await walletStore.checkLightningMintQuote(mintUrl, mintQuote)
+        const refreshed = await TopupOperationApi.refresh(tId)
+        const status = refreshed.status
 
-        const isExpired = expiresAt && isBefore(expiresAt, new Date())
-
-        if (isExpired && state !== MintQuoteState.PAID) {
-            log.debug('[handlePendingTopupTask] Invoice expired and not paid', {paymentHash})
-
-            txData.push({status: TransactionStatus.EXPIRED, message: 'Invoice expired', createdAt: new Date()})
-            tx.update({status: TransactionStatus.EXPIRED, data: JSON.stringify(txData)})
-            stopPolling(`handlePendingTopupPoller-${paymentHash}`)
-
-            return {
-                taskFunction: HANDLE_PENDING_TOPUP_TASK,
-                transaction: tx,
-                mintUrl,
-                unit,
-                amount,
-                paymentHash,
-                message: 'Topup invoice expired and was not paid',
+        let message: string
+        switch (status) {
+            case TransactionStatus.COMPLETED: {
+                // Distinguish "minted now" from "already issued elsewhere" via the
+                // latest tx.data entry (refresh stamps a `note` for ISSUED).
+                const last = _lastDataEntry(refreshed)
+                if (last?.note === 'Already issued') {
+                    message = 'Ecash already issued'
+                } else {
+                    const paidAfterExpiry =
+                        !!tx.expiresAt && isBefore(tx.expiresAt, new Date())
+                    message = topupSuccessMessage(amount, unit, paidAfterExpiry)
+                }
+                break
             }
+            case TransactionStatus.EXPIRED:
+                message = 'Topup invoice expired and was not paid'
+                break
+            case TransactionStatus.PENDING:
+                message = 'Quote not paid yet'
+                break
+            default:
+                message = `Quote state resolved to ${status}`
         }
 
-        switch (state) {
-            case MintQuoteState.UNPAID:
-                log.trace('[handlePendingTopupTask] Quote still unpaid', {mintQuote})
-
-                if (isExpired) {
-                    txData.push({status: TransactionStatus.EXPIRED, message: 'Invoice expired (unpaid)', createdAt: new Date()})
-                    tx.update({status: TransactionStatus.EXPIRED, data: JSON.stringify(txData)})
-                    stopPolling(`handlePendingTopupPoller-${paymentHash}`)
-                }
-
-                return {
-                    taskFunction: HANDLE_PENDING_TOPUP_TASK,
-                    transaction: tx,
-                    mintUrl,
-                    unit,
-                    amount,
-                    paymentHash,
-                    message: isExpired ? 'Invoice expired (unpaid)' : 'Quote not paid yet',
-                }
-
-            case MintQuoteState.ISSUED:
-                log.info('[handlePendingTopupTask] Proofs already issued (likely from another device)', {mintQuote})
-                txData.push({status: TransactionStatus.COMPLETED, note: 'Already issued', createdAt: new Date()})
-                tx.update({status: TransactionStatus.COMPLETED, data: JSON.stringify(txData)})
-                stopPolling(`handlePendingTopupPoller-${paymentHash}`)
-                return {
-                    taskFunction: HANDLE_PENDING_TOPUP_TASK,
-                    transaction: tx,
-                    mintUrl,
-                    unit,
-                    amount,
-                    paymentHash,
-                    message: 'Ecash already issued',
-                }
-
-            case MintQuoteState.PAID: {
-                log.debug('[handlePendingTopupTask] Quote PAID – minting proofs (even if expired)', {paymentHash, amount, unit, isExpired})
-
-                let proofs: CashuProof[] = []
-
-                try {
-                    proofs = await walletStore.mintProofs(mintUrl, amount, unit, mintQuote, tId)
-                } catch (e: any) {
-                    if (WalletUtils.shouldHealOutputsError(e)) {
-                        log.error('[handlePendingTopupTask] Increasing proofsCounter outdated values and repeating mintProofs.')
-                        proofs = await walletStore.mintProofs(mintUrl, amount, unit, mintQuote, tId, {increaseCounterBy: 10})
-                    } else {
-                        throw e
-                    }
-                }
-
-                if (proofs.length === 0) {
-                    throw new MintError('Mint returned no proofs after payment')
-                }
-
-                proofsStore.addOrUpdate(proofs, {
-                    mintUrl,
-                    unit,
-                    tId,
-                    state: 'UNSPENT',
-                })
-
-                const currencyCode = getCurrency(unit).code
-                const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
-
-                txData.push({status: TransactionStatus.COMPLETED, createdAt: new Date()})
-
-                tx.update({
-                    status: TransactionStatus.COMPLETED,
-                    data: JSON.stringify(txData),
-                    balanceAfter,
-                })
-
-                stopPolling(`handlePendingTopupPoller-${paymentHash}`)
-                sendTopupNotification(amount, unit)
-
-                return {
-                    taskFunction: HANDLE_PENDING_TOPUP_TASK,
-                    transaction: tx,
-                    mintUrl,
-                    unit,
-                    amount,
-                    paymentHash,
-                    message: `Topup successful: +${formatCurrency(amount, currencyCode)} ${currencyCode}${isExpired ? ' (paid after expiry)' : ''}`,
-                }
-            }
-
-            default:
-                log.error('[handlePendingTopupTask] Unknown quote state', {state})
-                return {
-                    taskFunction: HANDLE_PENDING_TOPUP_TASK,
-                    transaction: tx,
-                    mintUrl,
-                    unit,
-                    amount,
-                    paymentHash,
-                    message: `Unknown quote state: ${state}`,
-                }
+        return {
+            taskFunction: HANDLE_PENDING_TOPUP_TASK,
+            transaction: refreshed,
+            mintUrl,
+            unit,
+            amount,
+            paymentHash,
+            message,
         }
     } catch (e: any) {
         log.error('[handlePendingTopupTask] failed', {
@@ -222,6 +144,15 @@ const handlePendingTopupTask = async (
             error: WalletUtils.formatError(e),
             message: `Topup failed: ${e.message}`,
         }
+    }
+}
+
+function _lastDataEntry(tx: Transaction): TransactionData | undefined {
+    try {
+        const arr = JSON.parse(tx.data) as TransactionData[]
+        return Array.isArray(arr) && arr.length > 0 ? arr[arr.length - 1] : undefined
+    } catch {
+        return undefined
     }
 }
 

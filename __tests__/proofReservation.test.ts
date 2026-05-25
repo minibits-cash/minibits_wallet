@@ -39,9 +39,43 @@ const CREATE_RESERVATIONS = `CREATE TABLE reservations (
   createdAt TEXT NOT NULL
 )`
 
+// Minimal transactions table for the two-table atomicity tests (Phase 5b).
+const CREATE_TRANSACTIONS = `CREATE TABLE transactions (
+  id INTEGER PRIMARY KEY NOT NULL,
+  status TEXT,
+  data TEXT,
+  amount INTEGER,
+  fee INTEGER,
+  balanceAfter INTEGER,
+  outputToken TEXT,
+  keysetId TEXT,
+  proof TEXT
+)`
+
 function createSchema(db: DatabaseSync) {
     db.exec(CREATE_PROOFS)
     db.exec(CREATE_RESERVATIONS)
+    db.exec(CREATE_TRANSACTIONS)
+}
+
+function insertTransaction(db: DatabaseSync, id: number, status: string) {
+    db.prepare(`INSERT INTO transactions (id, status) VALUES (?, ?)`).run(id, status)
+}
+
+function getTransactionStatus(db: DatabaseSync, id: number): string {
+    const row = db.prepare('SELECT status FROM transactions WHERE id = ?').get(id) as
+        | {status: string}
+        | undefined
+    return row?.status ?? ''
+}
+
+function getTransactionRow(
+    db: DatabaseSync,
+    id: number,
+): {status: string | null; data: string | null; balanceAfter: number | null} | undefined {
+    return db
+        .prepare('SELECT status, data, balanceAfter FROM transactions WHERE id = ?')
+        .get(id) as any
 }
 
 function insertProof(
@@ -119,6 +153,18 @@ function openReservation(
     }
 }
 
+type CommitTransactionUpdate = {
+    id: number
+    status?: string
+    data?: string
+    amount?: number
+    fee?: number
+    balanceAfter?: number
+    outputToken?: string
+    keysetId?: string
+    proof?: string
+}
+
 function commitReservation(
     db: DatabaseSync,
     reservationId: string,
@@ -130,6 +176,7 @@ function commitReservation(
             amount: number
             state: 'UNSPENT' | 'PENDING' | 'SPENT'
         }>
+        transactionUpdate?: CommitTransactionUpdate
     },
 ) {
     const now = '2026-05-22T00:00:00.000Z'
@@ -152,6 +199,34 @@ function commitReservation(
         )
         for (const p of changes.newProofs ?? []) {
             insertNew.run(p.amount, p.secret, p.state, now)
+        }
+
+        // Mirror the SQL the production code builds: dynamic UPDATE with only
+        // the supplied fields.
+        if (changes.transactionUpdate) {
+            const tu = changes.transactionUpdate
+            const setClauses: string[] = []
+            const params: (string | number | null)[] = []
+            const setIfDefined = (col: string, value: string | number | undefined) => {
+                if (value !== undefined) {
+                    setClauses.push(`${col} = ?`)
+                    params.push(value)
+                }
+            }
+            setIfDefined('status', tu.status)
+            setIfDefined('data', tu.data)
+            setIfDefined('amount', tu.amount)
+            setIfDefined('fee', tu.fee)
+            setIfDefined('balanceAfter', tu.balanceAfter)
+            setIfDefined('outputToken', tu.outputToken)
+            setIfDefined('keysetId', tu.keysetId)
+            setIfDefined('proof', tu.proof)
+            if (setClauses.length > 0) {
+                params.push(tu.id)
+                db.prepare(
+                    `UPDATE transactions SET ${setClauses.join(', ')} WHERE id = ?`,
+                ).run(...params)
+            }
         }
 
         db.prepare('DELETE FROM reservations WHERE id = ?').run(reservationId)
@@ -690,6 +765,170 @@ describe('Proof reservations', () => {
                 {secret: 'orphan', originalState: 'UNSPENT', originalTId: null},
             ])
             expect(getProofTId(db, 'orphan')).toBe(null)
+
+            db.close()
+        })
+    })
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Phase 5b: atomic two-table commit (proofs + transactions).
+    //
+    // A commit can optionally include a transactionUpdate that lands in the
+    // SAME SQLite transaction as the proof finalize. This closes the gap
+    // where a crash between proof commit and tx.update() left a transaction
+    // stuck in PENDING/PREPARED with its underlying proofs already SPENT.
+    // ─────────────────────────────────────────────────────────────────────
+    describe('atomic two-table commit (Phase 5b)', () => {
+        test('commit with transactionUpdate writes proofs AND transaction in one txn', () => {
+            const db = new DatabaseSync(':memory:')
+            createSchema(db)
+            insertProof(db, 'input', 100)
+            insertTransaction(db, 200, 'PREPARED')
+
+            openReservation(
+                db,
+                {
+                    id: 'res-tx',
+                    transactionId: 200,
+                    mintUrl: 'https://mint.test',
+                    unit: 'sat',
+                    operationType: 'send-direct',
+                    lockedProofs: [{secret: 'input', originalState: 'UNSPENT', originalTId: null}],
+                },
+                ['input'],
+            )
+            expect(getTransactionStatus(db, 200)).toBe('PREPARED')
+
+            commitReservation(db, 'res-tx', {
+                toSpent: ['input'],
+                transactionUpdate: {
+                    id: 200,
+                    status: 'COMPLETED',
+                    data: '[{"status":"COMPLETED"}]',
+                    balanceAfter: 50,
+                },
+            })
+
+            // Both writes landed:
+            expect(getProofState(db, 'input')).toBe('SPENT')
+            const row = getTransactionRow(db, 200)!
+            expect(row.status).toBe('COMPLETED')
+            expect(row.data).toBe('[{"status":"COMPLETED"}]')
+            expect(row.balanceAfter).toBe(50)
+            expect(reservationCount(db)).toBe(0)
+
+            db.close()
+        })
+
+        test('a failed commit batch rolls back BOTH proof and transaction writes', () => {
+            const db = new DatabaseSync(':memory:')
+            createSchema(db)
+            insertProof(db, 'input', 100)
+            insertTransaction(db, 201, 'PREPARED')
+
+            openReservation(
+                db,
+                {
+                    id: 'res-atomic',
+                    transactionId: 201,
+                    mintUrl: 'https://mint.test',
+                    unit: 'sat',
+                    operationType: 'send-direct',
+                    lockedProofs: [{secret: 'input', originalState: 'UNSPENT', originalTId: null}],
+                },
+                ['input'],
+            )
+
+            // Force a failure mid-batch by attempting to insert a duplicate
+            // reservation id alongside a valid tx update. SQLite rejects the
+            // whole batch.
+            expect(() => {
+                db.exec('BEGIN')
+                try {
+                    db.prepare(`UPDATE proofs SET state = 'SPENT' WHERE secret = ?`).run('input')
+                    db.prepare(`UPDATE transactions SET status = 'COMPLETED' WHERE id = ?`).run(201)
+                    // This will conflict — reservation 'res-atomic' already exists
+                    db.prepare(
+                        `INSERT INTO reservations (id, transactionId, mintUrl, unit, operationType, lockedProofs, createdAt)
+                         VALUES ('res-atomic', 999, '', '', '', '[]', '')`,
+                    ).run()
+                    db.exec('COMMIT')
+                } catch (e) {
+                    db.exec('ROLLBACK')
+                    throw e
+                }
+            }).toThrow()
+
+            // Neither write survives — proof and tx are both in their
+            // pre-attempt state. This is the core safety property: if any
+            // statement in the batch fails, SQLite rolls back the entire txn.
+            expect(getProofState(db, 'input')).toBe('PENDING') // still locked
+            expect(getTransactionStatus(db, 201)).toBe('PREPARED') // still pre-finalize
+
+            db.close()
+        })
+
+        test('commit without transactionUpdate leaves transactions table untouched', () => {
+            const db = new DatabaseSync(':memory:')
+            createSchema(db)
+            insertProof(db, 'p1', 100)
+            insertTransaction(db, 202, 'PENDING')
+
+            openReservation(
+                db,
+                {
+                    id: 'res-no-tx',
+                    transactionId: 202,
+                    mintUrl: 'https://mint.test',
+                    unit: 'sat',
+                    operationType: 'send-direct',
+                    lockedProofs: [{secret: 'p1', originalState: 'UNSPENT', originalTId: null}],
+                },
+                ['p1'],
+            )
+
+            commitReservation(db, 'res-no-tx', {toSpent: ['p1']})
+
+            expect(getProofState(db, 'p1')).toBe('SPENT')
+            // Transaction status untouched — the caller is responsible for
+            // any post-commit updates that don't need atomicity.
+            expect(getTransactionStatus(db, 202)).toBe('PENDING')
+
+            db.close()
+        })
+
+        test('partial transactionUpdate only sets the provided columns', () => {
+            const db = new DatabaseSync(':memory:')
+            createSchema(db)
+            insertProof(db, 'p2', 100)
+            db.prepare(
+                `INSERT INTO transactions (id, status, data, balanceAfter)
+                 VALUES (203, 'PREPARED', 'old-data', 999)`,
+            ).run()
+
+            openReservation(
+                db,
+                {
+                    id: 'res-partial',
+                    transactionId: 203,
+                    mintUrl: 'https://mint.test',
+                    unit: 'sat',
+                    operationType: 'revert',
+                    lockedProofs: [{secret: 'p2', originalState: 'PENDING', originalTId: 203}],
+                },
+                ['p2'],
+            )
+
+            // Only update status — data and balanceAfter must remain as-is.
+            commitReservation(db, 'res-partial', {
+                toSpent: ['p2'],
+                transactionUpdate: {id: 203, status: 'REVERTED'},
+            })
+
+            const row = getTransactionRow(db, 203)!
+            expect(row.status).toBe('REVERTED')
+            expect(row.data).toBe('old-data')
+            expect(row.balanceAfter).toBe(999)
 
             db.close()
         })

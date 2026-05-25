@@ -1,657 +1,305 @@
 import {log} from '../logService'
 import {
-  Transaction,
-  TransactionData,  
-  TransactionStatus,
-  TransactionType,
+    Transaction,
+    TransactionData,
+    TransactionStatus,
 } from '../../models/Transaction'
 import {rootStoreInstance} from '../../models'
-import {CashuProof, CashuUtils} from '../cashu/cashuUtils'
-import AppError, {Err} from '../../utils/AppError'
-import { TransactionTaskResult } from '../walletService'
-import { WalletUtils } from './utils'
-import { MintUnit, formatCurrency, getCurrency } from './currency'
-import { PaymentRequestPayload, Token, getDecodedToken, getEncodedToken, normalizeProofAmounts } from '@cashu/cashu-ts'
+import {WalletUtils} from './utils'
+import {TransactionTaskResult} from '../walletService'
+import {MintUnit, formatCurrency, getCurrency} from './currency'
+import {PaymentRequestPayload, Token} from '@cashu/cashu-ts'
 
-const {
-    mintsStore,
-    proofsStore,
-    transactionsStore,
-    walletStore
-} = rootStoreInstance
+const {transactionsStore} = rootStoreInstance
 
-// function names to pass to task results
+// Task function names — preserved for the event-bus surface (`ev_<task>_result`).
 export const RECEIVE_TASK = 'receiveTask'
 export const RECEIVE_OFFLINE_PREPARE_TASK = 'receiveOfflinePrepareTask'
 export const RECEIVE_OFFLINE_COMPLETE_TASK = 'receiveOfflineCompleteTask'
 export const RECEIVE_BY_CASHU_PAYMENT_REQUEST_TASK = 'receiveByCashuPaymentRequestTask'
 
+/**
+ * Backward-compatible online-receive task wrapper.
+ *
+ * Preserves the legacy `WalletTask.receiveQueueAwaitable` contract: a single
+ * call that creates the draft, validates, swaps proofs with the mint, and
+ * returns a `TransactionTaskResult`.
+ *
+ * Internally delegates to the lifecycle API:
+ *   `ReceiveOperationApi.prepare()` (DRAFT → PREPARED; BLOCKED short-circuit)
+ *   `ReceiveOperationApi.execute()` (PREPARED → COMPLETED; atomic commit)
+ */
 export const receiveTask = async function (
     token: Token,
     amountToReceive: number,
     memo: string,
     encodedToken: string,
 ): Promise<TransactionTaskResult> {
-  const transactionData: TransactionData[] = []  
-  let transaction: Transaction | undefined = undefined
-  let mintToReceive: string | undefined = undefined
-  const unit = token.unit as MintUnit || 'sat'  
+    const mintToReceive = token.mint
+    const unit = ((token.unit as MintUnit) || 'sat') as MintUnit
 
-  try {
-        mintToReceive = token.mint
+    // Lazy import avoids a circular dep across the operations module graph.
+    const {ReceiveOperationApi, receiveSuccessMessage} = await import(
+        './operations/receiveOperationApi'
+    )
 
-        if (!mintToReceive) {
-            throw new AppError(
-                Err.VALIDATION_ERROR,
-                'Token is missing a mint param.',
-            )
-        }                
+    let transactionIdForRecovery: number | undefined
 
-        // Let's create new draft receive transaction in database
-        transactionData.push({
-            status: TransactionStatus.DRAFT,
-            amountToReceive,
-            unit,            
-            createdAt: new Date(),
-        })
-
-        const newTransaction = {
-            type: TransactionType.RECEIVE,
+    try {
+        const prepared = await ReceiveOperationApi.prepare({
+            mintUrl: mintToReceive,
             amount: amountToReceive,
-            fee: 0,
             unit,
-            data: JSON.stringify(transactionData),
             memo,
-            mint: mintToReceive,            
-            status: TransactionStatus.DRAFT,
-        }
+            method: {method: 'cashu-token', options: {token, encodedToken, offline: false}},
+        })
+        transactionIdForRecovery = prepared.transactionId
 
-        transaction = await transactionsStore.addTransaction(newTransaction)
-        transaction.update({inputToken: encodedToken})        
-
-        // Handle blocked mint
-        const isBlocked = mintsStore.isBlocked(mintToReceive)
-
-        if (isBlocked) {
-            transactionData.push({
-                status: TransactionStatus.BLOCKED,
-                mintToReceive,
-                createdAt: new Date()
-            })
-
-            transaction.update({                
-                status: TransactionStatus.BLOCKED,
-                data: JSON.stringify(transactionData),
-            })
-
+        if (prepared.blocked) {
             return {
                 taskFunction: RECEIVE_TASK,
-                transaction,
+                mintUrl: mintToReceive,
+                transaction: prepared.tx,
                 message: `The mint ${mintToReceive} is blocked. You can unblock it in Settings.`,
             } as TransactionTaskResult
         }
 
-        const {            
-            receivedAmount,
-            receivedProofs, 
-            outputToken,            
-            swapFeePaid,             
-        } = await receiveSync(
-            mintToReceive,
-            token,
-            token.memo || '',
-            transaction.id
-        )
-        
- 
-        // Finally, update completed transaction
-        transactionData.push({
-            status: TransactionStatus.COMPLETED,
-            swapFeePaid,         
-            receivedAmount,
-            unit,                      
-            createdAt: new Date(),
-        })
+        const completed = await ReceiveOperationApi.execute(prepared)
 
-        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
-        
-        transaction.update({
-            status: TransactionStatus.COMPLETED,
-            data: JSON.stringify(transactionData),
-            keysetId: receivedProofs[0].id,
-            outputToken,
-            balanceAfter,            
-            ...(swapFeePaid > 0 && {fee: swapFeePaid})
-        })
+        const swapFeePaid = completed.fee ?? 0
+        const receivedAmount = completed.amount
+        // receiveBatchTask sums these to track progress across split batches.
+        const {proofsStore} = rootStoreInstance
+        const receivedProofsCount = proofsStore
+            .getByTransactionId(completed.id)
+            .filter(p => p.state === 'UNSPENT').length
 
         return {
             taskFunction: RECEIVE_TASK,
             mintUrl: mintToReceive,
-            transaction,
-            message: `You've received ${formatCurrency(amountToReceive, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet.${swapFeePaid > 0 ? ` Swap fee paid was ${formatCurrency(swapFeePaid, getCurrency(unit).code)} ${getCurrency(unit).code}.` : ''}`,
+            transaction: completed,
+            message: receiveSuccessMessage(amountToReceive, unit, swapFeePaid),
             receivedAmount,
-            receivedProofsCount: receivedProofs.length
+            receivedProofsCount,
         } as TransactionTaskResult
-        
     } catch (e: any) {
-        if (transaction) {            
-
-            transactionData.push({
-                status: TransactionStatus.ERROR,
-                error: WalletUtils.formatError(e),
-                errorToken: e.params?.errorToken || undefined
-            })
-
-            transaction.update({
-                status: TransactionStatus.ERROR,
-                data: JSON.stringify(transactionData)
-            })
-        }
-
+        _stampErrorIfNeeded(transactionIdForRecovery, e)
         log.error(e.name, e.message)
-
         return {
             taskFunction: RECEIVE_TASK,
             mintUrl: mintToReceive,
-            transaction,
+            transaction: transactionIdForRecovery
+                ? transactionsStore.findById(transactionIdForRecovery)
+                : undefined,
             message: e.message,
             error: WalletUtils.formatError(e),
         } as TransactionTaskResult
     }
 }
 
-
+/**
+ * Backward-compatible offline-prepare task wrapper.
+ *
+ * Calls `ReceiveOperationApi.prepare({offline: true})` to DLEQ-verify the
+ * token locally without contacting the mint. The transaction lands in
+ * `PREPARED_OFFLINE` and can be completed later via `receiveOfflineCompleteTask`.
+ */
 export const receiveOfflinePrepareTask = async function (
     mintUrl: string,
     unit: MintUnit,
     amountToReceive: number,
     memo: string,
     encodedToken: string,
-) {
-  const transactionData: TransactionData[] = []
-  let transaction: Transaction | undefined = undefined
-  const mintToReceive = mintUrl.replace(/\/$/, '')
+): Promise<TransactionTaskResult> {
+    const mintToReceive = mintUrl.replace(/\/$/, '')
 
-  try {
+    const {ReceiveOperationApi} = await import('./operations/receiveOperationApi')
+    const {getDecodedToken} = await import('@cashu/cashu-ts')
 
-        // Let's create new draft receive transaction in database
-        transactionData.push({
-            status: TransactionStatus.DRAFT,
-            amountToReceive,
-            unit,
-            createdAt: new Date(),
-        })
+    let transactionIdForRecovery: number | undefined
 
-        const newTransaction = {
-            type: TransactionType.RECEIVE_OFFLINE,
+    try {
+        // Pre-decode the token so prepare() doesn't need the wallet's keysetIds
+        // separately — it'll re-verify DLEQ regardless.
+        const {mintsStore} = rootStoreInstance
+        const mintInstance = mintsStore.findByUrl(mintToReceive)
+        const token = getDecodedToken(encodedToken, mintInstance?.keysetIds ?? [])
+
+        const prepared = await ReceiveOperationApi.prepare({
+            mintUrl: mintToReceive,
             amount: amountToReceive,
-            fee: 0,
             unit,
-            data: JSON.stringify(transactionData),
             memo,
-            mint: mintToReceive,            
-            status: TransactionStatus.DRAFT,
-        }
+            method: {method: 'cashu-token', options: {token, encodedToken, offline: true}},
+        })
+        transactionIdForRecovery = prepared.transactionId
 
-        transaction = await transactionsStore.addTransaction(newTransaction)
-        transaction.update({inputToken: encodedToken})        
-
-        // Handle blocked mint
-        const isBlocked = mintsStore.isBlocked(mintToReceive)
-
-        if (isBlocked) {
-            transactionData.push({
-                status: TransactionStatus.BLOCKED,
-                mintToReceive,
-                createdAt: new Date()
-            })
-
-            transaction.update({                
-                status: TransactionStatus.BLOCKED,
-                data: JSON.stringify(transactionData),
-            })
-
+        if (prepared.blocked) {
             return {
                 taskFunction: RECEIVE_OFFLINE_PREPARE_TASK,
                 mintUrl: mintToReceive,
-                transaction,
+                transaction: prepared.tx,
                 message: `The mint ${mintToReceive} is blocked. You can unblock it in Settings.`,
-            } as unknown as TransactionTaskResult
+            } as TransactionTaskResult
         }
 
-        const mintInstance = mintsStore.findByUrl(mintToReceive)
-
-        if (!mintInstance) {
-            throw new AppError(
-                Err.VALIDATION_ERROR,
-                'This token cannot be verified offline because the mint is not saved in your wallet. Go online to add the mint or receive it online.',
-                {caller: 'receiveOfflinePrepareTask', mintUrl: mintToReceive}
-            )
-        }
-
-        if (!mintInstance.keysetIds || mintInstance.keysetIds.length === 0 || !mintInstance.keys || mintInstance.keys.length === 0) {
-            throw new AppError(
-                Err.VALIDATION_ERROR,
-                'This token cannot be verified offline because the mint keys are not saved. Sync the mint online first.',
-                {caller: 'receiveOfflinePrepareTask', mintUrl: mintToReceive}
-            )
-        }
-
-        let token: Token
-
-        try {
-            token = getDecodedToken(encodedToken, mintInstance.keysetIds)
-        } catch (e: any) {
-            throw new AppError(
-                Err.VALIDATION_ERROR,
-                'Could not decode this ecash token for offline verification.',
-                {caller: 'receiveOfflinePrepareTask', mintUrl: mintToReceive, reason: e?.message}
-            )
-        }
-
-        CashuUtils.verifyProofsDleqOrThrow(token.proofs, mintInstance.keys)
-
-        // Update transaction status
-        transactionData.push({
-            status: TransactionStatus.PREPARED_OFFLINE,            
-            createdAt: new Date(),
-        })
-
-        transaction.update( {           
-            status: TransactionStatus.PREPARED_OFFLINE,
-            data: JSON.stringify(transactionData),
-        })        
-
+        const code = getCurrency(unit).code
         return {
             taskFunction: RECEIVE_OFFLINE_PREPARE_TASK,
             mintUrl: mintToReceive,
-            transaction,
-            message: `You received ${formatCurrency(amountToReceive, getCurrency(unit).code)} ${getCurrency(unit).code} while offline. You need to redeem them to your wallet when you will be online again.`,            
+            transaction: prepared.tx,
+            message: `You received ${formatCurrency(amountToReceive, code)} ${code} while offline. You need to redeem them to your wallet when you will be online again.`,
         } as TransactionTaskResult
-
     } catch (e: any) {
-        if (transaction) {
-            transactionData.push({
-                status: TransactionStatus.ERROR,
-                error: WalletUtils.formatError(e),
-            })
-
-            transaction.update({                
-                status: TransactionStatus.ERROR,
-                data: JSON.stringify(transactionData),
-            })
-        }
-
+        _stampErrorIfNeeded(transactionIdForRecovery, e)
         log.error(e.name, e.message)
-
         return {
             taskFunction: RECEIVE_OFFLINE_PREPARE_TASK,
             mintUrl: mintToReceive,
-            transaction,
+            transaction: transactionIdForRecovery
+                ? transactionsStore.findById(transactionIdForRecovery)
+                : undefined,
             message: '',
             error: WalletUtils.formatError(e),
         } as TransactionTaskResult
     }
 }
 
+/**
+ * Backward-compatible offline-complete task wrapper.
+ *
+ * Resumes a previously-prepared offline receive: re-builds the prepared
+ * snapshot from disk (tx.inputToken) and runs `ReceiveOperationApi.execute`.
+ */
+export const receiveOfflineCompleteTask = async function (
+    transactionId: number,
+): Promise<TransactionTaskResult> {
+    const tx = transactionsStore.findById(transactionId)
+    let mintToReceive = tx?.mint ?? ''
 
-
-
-
-export const receiveOfflineCompleteTask = async function (        
-    transactionId: number
-) {
-    let mintToReceive = ''    
-    const transaction = transactionsStore.findById(transactionId)
+    const {ReceiveOperationApi, receiveSuccessMessage, loadPreparedForOfflineComplete} =
+        await import('./operations/receiveOperationApi')
 
     try {
-        if(!transaction) {
+        if (!tx) {
+            const {default: AppError, Err} = await import('../../utils/AppError')
             throw new AppError(Err.VALIDATION_ERROR, 'Could not retrieve transaction.', {transactionId})
-        }   
-
-        let transactionData = [] as unknown as TransactionData
-
-        try {
-            transactionData = JSON.parse(transaction.data)
-        } catch (e) {}
-
-        if (!transaction.inputToken) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Could not find ecash token to redeem', {caller: 'receiveOfflineComplete'})
         }
+        mintToReceive = tx.mint
 
-        // Ensure mint is in wallet state — may be missing for offline receives from new mints
-        if(!mintsStore.alreadyExists(transaction.mint)) {
-            await mintsStore.addMint(transaction.mint)
-        }
+        const prepared = loadPreparedForOfflineComplete(transactionId)
 
-        // keysetsV2 support
-        const mintKeysetIds = mintsStore.findByUrl(transaction.mint)?.keysetIds
-        if(!mintKeysetIds || mintKeysetIds.length === 0) {
-            throw new AppError(Err.NOTFOUND_ERROR, 'Missing keysetIds in the wallet state', {
-                mintUrl: transaction.mint
-            })
-        }
-
-        const token = getDecodedToken(transaction.inputToken, mintKeysetIds)      
-        mintToReceive = token.mint
-        const unit = token.unit || 'sat'
-
-        if(unit !== transaction.unit) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Transaction unit and token unit are not the same', {unit, transactionUnit: transaction.unit})
-        }
-
-        // Re-check blocked mint
-        const isBlocked = mintsStore.isBlocked(mintToReceive)
-
-        if (isBlocked) {
-            transactionData.push({
-                status: TransactionStatus.BLOCKED,
-                mintToReceive,
-                createdAt: new Date()
-            })
-
-            transaction.update({                
-                status: TransactionStatus.BLOCKED,
-                data: JSON.stringify(transactionData),
-            })
-
+        if (prepared.blocked) {
             return {
                 taskFunction: RECEIVE_OFFLINE_COMPLETE_TASK,
                 mintUrl: mintToReceive,
-                transaction,
+                transaction: prepared.tx,
                 message: `The mint ${mintToReceive} is blocked. You can unblock it in Settings.`,
             } as TransactionTaskResult
         }
 
-        const {             
-            receivedAmount,
-            receivedProofs,
-            outputToken,
-            swapFeePaid,             
-        } = await receiveSync(
-            mintToReceive,
-            token,
-            token.memo || '',
-            transaction.id
-        )
- 
-        // Finally, update completed transaction
-        transactionData.push({
-            status: TransactionStatus.COMPLETED,  
-            receivedAmount,
-            swapFeePaid,
-            unit,                     
-            createdAt: new Date(),
-        })        
+        const completed = await ReceiveOperationApi.execute(prepared)
 
-        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
-        
-        transaction.update({
-            status: TransactionStatus.COMPLETED,
-            data: JSON.stringify(transactionData),
-            keysetId: receivedProofs[0].id,
-            outputToken,
-            balanceAfter,
-            ...(swapFeePaid > 0 && {fee: swapFeePaid})
-        })
+        const swapFeePaid = completed.fee ?? 0
+        const receivedAmount = completed.amount
 
         return {
             taskFunction: RECEIVE_OFFLINE_COMPLETE_TASK,
             mintUrl: mintToReceive,
-            transaction,
-            message: `You've received ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} to your Minibits wallet.${swapFeePaid > 0 ? ` Swap fee paid was ${formatCurrency(swapFeePaid, getCurrency(unit).code)} ${getCurrency(unit).code}.` : ''}`,
+            transaction: completed,
+            message: receiveSuccessMessage(receivedAmount, completed.unit, swapFeePaid),
             receivedAmount,
         } as TransactionTaskResult
-
     } catch (e: any) {
-        // release lock
-        if(transaction) {
-                
-            let transactionData = [] as unknown as TransactionData
-
-            try {
-                transactionData = JSON.parse(transaction.data)
-            } catch (e) {}
-
-            transactionData.push({
-                status: TransactionStatus.ERROR,
-                error: WalletUtils.formatError(e),
-            })
-    
-            transaction.update({
-                status: TransactionStatus.ERROR,
-                data: JSON.stringify(transactionData)
-            })
-        }        
-
+        _stampErrorIfNeeded(transactionId, e)
         return {
             taskFunction: RECEIVE_OFFLINE_COMPLETE_TASK,
             mintUrl: mintToReceive,
-            transaction,
+            transaction: transactionsStore.findById(transactionId),
             message: '',
             error: WalletUtils.formatError(e),
         } as TransactionTaskResult
     }
 }
 
-
-
+/**
+ * Backward-compatible Cashu Payment Request fulfillment wrapper.
+ *
+ * Triggered by NostrOperationService when a DM arrives matching one of our
+ * outstanding PRs. Delegates to `CashuPaymentRequestApi.finalize`.
+ */
 export const receiveByCashuPaymentRequestTask = async function (
-    paymentRequestPayload: PaymentRequestPayload,    
+    paymentRequestPayload: PaymentRequestPayload,
 ): Promise<TransactionTaskResult> {
+    const mintToReceive = paymentRequestPayload.mint
+    const paymentRequestId = paymentRequestPayload.id
 
-  const transactionData = []  as unknown as TransactionData
-  // let transaction: Transaction | undefined = undefined
-  const unit = paymentRequestPayload.unit as MintUnit
-  const mintToReceive = paymentRequestPayload.mint
-  const proofsToReceive = paymentRequestPayload.proofs
-  const paymentRequestId = paymentRequestPayload.id
+    // The tx was created by `cashuPaymentRequestTask` (now CashuPaymentRequestApi)
+    // and parked at PENDING with paymentId === paymentRequestId.
+    const tx = transactionsStore.findLastBy({paymentId: paymentRequestId}) as
+        | Transaction
+        | undefined
 
-  // Let's find transaction with related payment request
-  const transaction = transactionsStore.findLastBy({paymentId: paymentRequestId}) as Transaction | undefined
+    const {CashuPaymentRequestApi, cashuPaymentRequestSuccessMessage} = await import(
+        './operations/cashuPaymentRequestApi'
+    )
 
-  try {        
-        if (!mintToReceive || !unit || !Array.isArray(proofsToReceive) || proofsToReceive.length === 0) {
-            throw new AppError(
-                Err.VALIDATION_ERROR,
-                'Payment request payload is invalid.',
-                {paymentRequestPayload}
-            )
-        }
-
-        if(!transaction) {
+    try {
+        if (!tx) {
+            const {default: AppError, Err} = await import('../../utils/AppError')
             throw new AppError(
                 Err.VALIDATION_ERROR,
                 'Related Payment request could not be found in the wallet.',
-                {paymentRequestPayload}
-            )            
+                {paymentRequestPayload},
+            )
         }
 
-        const amountToReceive = CashuUtils.getProofsAmount(proofsToReceive)        
-        const memo = paymentRequestPayload.memo || 'PR ' + paymentRequestId
+        const completed = await CashuPaymentRequestApi.finalize(tx.id, paymentRequestPayload)
 
-        if(transaction.unit !== unit || transaction.amount !== amountToReceive) {
-            throw new AppError(
-                Err.VALIDATION_ERROR,
-                'Related Payment request has different amount or unit than the incoming payment.',
-                {
-                    expectedUnit: transaction.unit, 
-                    expectedAmount: transaction.amount, 
-                    amountToReceive, unit, 
-                    paymentRequestId, 
-                    caller: 'receiveByCashuPaymentRequestTask'
-                }
-            ) 
-        }
-        
-        // Handle blocked mint
-        const isBlocked = mintsStore.isBlocked(mintToReceive)
-
-        if (isBlocked) {
-            transactionData.push({
-                status: TransactionStatus.BLOCKED,
-                message: 'Mint is blocked in your Settings, ecash has not been received.',
-            })
-
-            transaction.update({                
-                status: TransactionStatus.BLOCKED,
-                data: JSON.stringify(transactionData),
-            })
-
-            return {
-                taskFunction: RECEIVE_BY_CASHU_PAYMENT_REQUEST_TASK,
-                transaction,
-                message: `The mint ${mintToReceive} is blocked. You can unblock it in Settings.`,
-            } as TransactionTaskResult
-        }
-
-        // TODO rework to PR payload
-        const {            
+        const receivedAmount = completed.amount
+        const message = cashuPaymentRequestSuccessMessage(
+            paymentRequestId ?? '',
             receivedAmount,
-            receivedProofs, 
-            outputToken,            
-            swapFeePaid,             
-        } = await receiveSync(
-            mintToReceive,
-            paymentRequestPayload,
-            memo,
-            transaction.id
+            completed.unit,
         )
-        
- 
-        // Finally, update completed transaction
-        transactionData.push({
-            status: TransactionStatus.COMPLETED,
-            swapFeePaid,         
-            receivedAmount,
-            unit,                      
-            createdAt: new Date(),
-        })
-
-        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
-        
-        transaction.update({
-            status: TransactionStatus.COMPLETED,
-            data: JSON.stringify(transactionData),
-            keysetId: receivedProofs[0].id,
-            outputToken,
-            balanceAfter,
-            ...(receivedAmount !== amountToReceive && {receivedAmount}),
-            ...(swapFeePaid > 0 && {fee: swapFeePaid})
-        })
 
         return {
             taskFunction: RECEIVE_BY_CASHU_PAYMENT_REQUEST_TASK,
             mintUrl: mintToReceive,
-            transaction,
-            message: `Payment request ${paymentRequestId} with amount of ${formatCurrency(receivedAmount, getCurrency(unit).code)} ${getCurrency(unit).code} has been paid.`,
+            transaction: completed,
+            message,
             receivedAmount,
-            receivedProofsCount: receivedProofs.length
         } as TransactionTaskResult
-        
-    } catch (e: any) {    
-
+    } catch (e: any) {
         log.error(e.name, e.message)
-
-        transactionData.push({
-            status: TransactionStatus.ERROR,
-            error: WalletUtils.formatError(e),
-            errorToken: e.params?.errorToken || undefined
-        })
-
-        transaction && transaction.update({
-            status: TransactionStatus.ERROR,
-            data: JSON.stringify(transactionData)
-        })
-
+        if (tx && tx.status !== TransactionStatus.ERROR && tx.status !== TransactionStatus.BLOCKED) {
+            _stampErrorIfNeeded(tx.id, e)
+        }
         return {
             taskFunction: RECEIVE_BY_CASHU_PAYMENT_REQUEST_TASK,
             mintUrl: mintToReceive,
-            transaction,
+            transaction: tx,
             message: e.message,
             error: WalletUtils.formatError(e),
         } as TransactionTaskResult
     }
 }
 
+function _stampErrorIfNeeded(transactionId: number | undefined, e: any) {
+    if (!transactionId) return
+    const tx = transactionsStore.findById(transactionId)
+    if (!tx) return
+    if (tx.status === TransactionStatus.ERROR || tx.status === TransactionStatus.BLOCKED) return
 
-export const receiveSync = async function (
-    mintToReceive: string,
-    token: Token | PaymentRequestPayload,    
-    memo: string,    
-    transactionId: number
-) {
-  
-  const unit = token.unit as MintUnit || 'sat' 
-
-  try {        
-        // missing mint, should not happen as it is now added before
-        const alreadyExists = mintsStore.alreadyExists(mintToReceive)
-
-        if (!alreadyExists) {
-            await mintsStore.addMint(mintToReceive)
-        }
-
-        const mintInstance = mintsStore.findByUrl(mintToReceive)
-
-        if(!mintInstance) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing mint', {mintToReceive})
-        }        
-        
-        let receivedResult = {} as unknown as {proofs: CashuProof[], swapFeePaid: number}
-
-        try {
-            receivedResult = await walletStore.receive(
-                mintToReceive,
-                unit as MintUnit,
-                token,
-                transactionId   
-            )
-        } catch (e: any) {            
-            if (WalletUtils.shouldHealOutputsError(e)) {                            
-                log.error('[receiveSync] Increasing proofsCounter outdated values and repeating receive.')
-                receivedResult = await walletStore.receive(
-                    mintToReceive,
-                    unit as MintUnit,
-                    token,
-                    transactionId,
-                    {increaseCounterBy: 10}
-                )
-            } else {
-                throw e
-            }
-        }
-        
-        const receivedProofs = receivedResult!.proofs
-        const swapFeePaid = receivedResult!.swapFeePaid
-        
-        const { updatedAmount: receivedAmount } = proofsStore.addOrUpdate(receivedProofs, {
-            mintUrl: mintToReceive,
-            unit,
-            tId: transactionId,
-            state: 'UNSPENT',
-        })
-
-        // store swapped proofs as encoded token in tx data        
-        const outputToken = getEncodedToken({
-            mint: mintToReceive,
-            proofs: normalizeProofAmounts(receivedProofs),
-            unit,
-            memo,
-        })   
-
-        return {            
-            receivedAmount,
-            receivedProofs,
-            outputToken,
-            swapFeePaid            
-        }
-        
-    } catch (e: any) {
-        if (e instanceof AppError) {
-            throw e
-        } else {
-            throw new AppError(Err.WALLET_ERROR, e.message, e.stack.slice(0, 200))
-        }
-    }
+    let transactionData: TransactionData[] = []
+    try { transactionData = JSON.parse(tx.data) } catch {}
+    transactionData.push({
+        status: TransactionStatus.ERROR,
+        error: WalletUtils.formatError(e),
+        errorToken: e?.params?.errorToken || undefined,
+    })
+    tx.update({
+        status: TransactionStatus.ERROR,
+        data: JSON.stringify(transactionData),
+    })
 }
