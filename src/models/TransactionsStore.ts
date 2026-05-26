@@ -207,7 +207,35 @@ export const TransactionsStoreModel = types
                     if(ref) self.history.push(ref)
                 }
             }
-            
+
+        }),
+
+        // ── Search-driven history page load ──
+        searchHistory: flow(function* searchHistory(
+            term: string,
+            filters: {amount: boolean; incoming: boolean; outgoing: boolean; pending: boolean},
+            limit: number,
+            offset: number,
+        ) {
+            const transactions = yield Database.searchTransactionsAsync(term, filters, limit, offset)
+
+            for (const dbTx of transactions) {
+                const { id } = dbTx
+
+                if (!self.transactionsMap.has(id)) {
+                    self.transactionsMap.set(id, {
+                        ...dbTx,
+                        inputToken: dbTx.inputToken?.slice(0, 40) || '',
+                        outputToken: dbTx.outputToken?.slice(0, 40) || '',
+                    })
+                }
+
+                const ref = self.transactionsMap.get(id)
+
+                if (!self.history.find(t => t.id === id)) {
+                    if(ref) self.history.push(ref)
+                }
+            }
         }),
 
         // ── Rehydrate recent on app start ──

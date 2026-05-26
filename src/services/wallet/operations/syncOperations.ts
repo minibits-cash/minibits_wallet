@@ -142,8 +142,7 @@ const syncStateWithMintTask = async function (
                 }
 
                 if (spentAmount < tx.amount) {
-                    // Partial spend has no clean lifecycle equivalent — proofs
-                    // were reused outside this wallet's control, so we stamp
+                    // Partial spend has no clean lifecycle equivalent — we stamp
                     // ERROR directly and release any still-UNSPENT siblings
                     // back to the spendable pool.
                     _markErrorBySync(tx, 'Partial spend detected – proofs reused')

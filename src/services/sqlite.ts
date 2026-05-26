@@ -455,6 +455,102 @@ const getTransactionsAsync = async function (limit: number, offset: number, only
   }
 }
 
+export type TransactionSearchFilters = {
+  amount: boolean
+  incoming: boolean
+  outgoing: boolean
+  pending: boolean
+}
+
+const INCOMING_TYPES = ['RECEIVE', 'RECEIVE_OFFLINE', 'RECEIVE_BY_PAYMENT_REQUEST', 'RECEIVE_NOSTR', 'TOPUP']
+const OUTGOING_TYPES = ['SEND', 'TRANSFER']
+
+const buildSearchWhere = (term: string, filters: TransactionSearchFilters): {clause: string; params: any[]} => {
+  const conditions: string[] = []
+  const params: any[] = []
+  const trimmed = term.trim()
+
+  if (trimmed.length > 0) {
+    if (filters.amount) {
+      const n = parseInt(trimmed, 10)
+      if (!isNaN(n)) {
+        conditions.push('amount = ?')
+        params.push(n)
+      }
+    } else {
+      const like = `%${trimmed}%`
+      conditions.push('(memo LIKE ? OR noteToSelf LIKE ? OR sentFrom LIKE ? OR sentTo LIKE ?)')
+      params.push(like, like, like, like)
+    }
+  }
+
+  if (filters.incoming) {
+    const placeholders = INCOMING_TYPES.map(() => '?').join(',')
+    conditions.push(`type IN (${placeholders})`)
+    params.push(...INCOMING_TYPES)
+  }
+  if (filters.outgoing) {
+    const placeholders = OUTGOING_TYPES.map(() => '?').join(',')
+    conditions.push(`type IN (${placeholders})`)
+    params.push(...OUTGOING_TYPES)
+  }
+  if (filters.pending) {
+    conditions.push("status = 'PENDING'")
+  }
+
+  if (conditions.length === 0) return {clause: '', params: []}
+  return {clause: 'WHERE ' + conditions.join(' AND '), params}
+}
+
+const searchTransactionsAsync = async function (
+  term: string,
+  filters: TransactionSearchFilters,
+  limit: number,
+  offset: number,
+) {
+  try {
+    const {clause, params} = buildSearchWhere(term, filters)
+    const query = `
+      SELECT *
+      FROM transactions
+      ${clause}
+      ORDER BY id DESC
+      LIMIT ? OFFSET ?
+    `
+    const db = getInstance()
+    const {rows} = await db.executeAsync(query, [...params, limit, offset])
+
+    log.trace(`[searchTransactionsAsync] Returned ${rows?.length} rows`)
+
+    return normalizeTransactionRows(rows)
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Transactions search failed',
+      e.message,
+    )
+  }
+}
+
+const searchTransactionsCount = function (
+  term: string,
+  filters: TransactionSearchFilters,
+): number {
+  try {
+    const {clause, params} = buildSearchWhere(term, filters)
+    const query = `SELECT COUNT(*) AS total FROM transactions ${clause}`
+    const db = getInstance()
+    const {rows} = db.execute(query, params)
+    return (rows?.item(0)?.total as number) || 0
+  } catch (e: any) {
+    throw new AppError(
+      Err.DATABASE_ERROR,
+      'Transactions search count failed',
+      e.message,
+    )
+  }
+}
+
 const getPendingTopups = function () {
   try {
       const query = `
@@ -1521,6 +1617,8 @@ export const Database = {
   getLastTransactionBy,
   getRecentTransactionsByUnitAsync,
   getTransactionsAsync,
+  searchTransactionsAsync,
+  searchTransactionsCount,
   getPendingTopups,
   getPendingTopupsCount,
   getPendingTransfers,
