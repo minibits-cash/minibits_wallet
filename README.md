@@ -17,10 +17,10 @@ Minibits is an ecash and Lightning wallet exploring how ₿-backed ecash can ena
 
 Platform support
 - [x] Android app - Play Store, Zapstore [✨ New!] , Github
-- [x] iOS app - AppStore [✨ New!], Testflight and Freedomstore.io
+- [x] iOS app - AppStore, Testflight and Freedomstore.io
 - [x] Light and dark mode
 - [x] i18n support
-- [x] EN, PT, ES, SK languange support [✨ New!]
+- [x] EN, PT, ES, SK languange support
 
 Mints
 - [x] Multiple currency units issued by mints
@@ -55,7 +55,7 @@ Top up wallet
 - [x] Share encoded bitcoin Lightning invoice to pay
 - [x] Share lightning invoice with a contact over NOSTR message
 - [x] Top up balance with LNURL Withdraw
-- [x] Enter transaction amount in fiat currency [✨ New!]
+- [x] Enter transaction amount in fiat currency
 
 Pay / Cash out from wallet
 - [x] One click ZAPS - tip users of NOSTR social network
@@ -68,7 +68,7 @@ Pay / Cash out from wallet
 Transaction history
 - [x] Unified transaction history for all kinds of transactions
 - [x] Audit trail of transaction events
-- [x] Filter pending transactions
+- [x] Transaction search and filters [✨ New!]
 - [x] Retry after recoverable transaction errors
 - [x] Revert pending transaction in 1 click (get back tokens not claimed by receiver)
 - [ ] Tags and related filtering of transactions
