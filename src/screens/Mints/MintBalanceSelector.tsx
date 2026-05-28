@@ -15,7 +15,7 @@ export const MintBalanceSelector = observer(function (props: {
     selectedMintBalance?: MintBalance
     unit: MintUnit
     title: string
-    confirmTitle: string
+    confirmTitle?: string
     confirmIcon?: IconTypes
     secondaryConfirmTitle?: string
     secondaryConfirmIcon?: IconTypes
@@ -23,8 +23,8 @@ export const MintBalanceSelector = observer(function (props: {
     collapsible?: boolean
     onMintBalanceSelect: any
     onSecondaryMintBalanceSelect?: any
-    onCancel: any  
-    onMintBalanceConfirm: any
+    onCancel?: any
+    onMintBalanceConfirm?: any
   }) {
   
     const collapsible = props.collapsible === false ? false : true // default true
@@ -120,45 +120,51 @@ export const MintBalanceSelector = observer(function (props: {
             </>
           }
         />
-        <View style={$bottomContainer}>
-          {!isKeyboardVisible && (
-          <View style={[$buttonContainer, {marginTop: spacing.large}]}>
-                          
-              {props.secondaryConfirmTitle && (
-                <Button
-                  text={props.secondaryConfirmTitle}
-                  LeftAccessory={() =>
-                    (props.secondaryConfirmIcon && (
-                      <Icon icon={props.secondaryConfirmIcon} color={secondaryIconColor} size={spacing.medium}/>
-                    ))
-                  }
-                  preset="secondary"
-                  onPress={props.onSecondaryMintBalanceSelect}
-                  style={{marginRight: spacing.medium}}          
-                />
-              )}
-              <Button
-                text={props.confirmTitle}
-                LeftAccessory={() =>
-                  <Icon icon={props.confirmIcon ? props.confirmIcon : 'faCheckCircle'} color="white" size={spacing.medium}/>
-                }
-                onPress={props.onMintBalanceConfirm}
-                style={{marginRight: spacing.medium}}          
-              />
+        {(props.confirmTitle || props.secondaryConfirmTitle || props.onCancel) && (
+          <View style={$bottomContainer}>
+            {!isKeyboardVisible && (
+            <View style={[$buttonContainer, {marginTop: spacing.large}]}>
 
-              <Button
-                preset="secondary"
-                LeftAccessory={() =>
-                  (props.cancelIcon && (
-                    <Icon icon={props.cancelIcon} color={secondaryIconColor} size={spacing.medium}/>
-                  ))
-                }
-                tx={'commonCancel'}
-                onPress={props.onCancel}
-              />
+                {props.secondaryConfirmTitle && props.onSecondaryMintBalanceSelect && (
+                  <Button
+                    text={props.secondaryConfirmTitle}
+                    LeftAccessory={() =>
+                      (props.secondaryConfirmIcon && (
+                        <Icon icon={props.secondaryConfirmIcon} color={secondaryIconColor} size={spacing.medium}/>
+                      ))
+                    }
+                    preset="secondary"
+                    onPress={props.onSecondaryMintBalanceSelect}
+                    style={{marginRight: spacing.medium}}
+                  />
+                )}
+                {props.confirmTitle && props.onMintBalanceConfirm && (
+                  <Button
+                    text={props.confirmTitle}
+                    LeftAccessory={() =>
+                      <Icon icon={props.confirmIcon ? props.confirmIcon : 'faCheckCircle'} color="white" size={spacing.medium}/>
+                    }
+                    onPress={props.onMintBalanceConfirm}
+                    style={{marginRight: spacing.medium}}
+                  />
+                )}
+
+                {props.onCancel && (
+                  <Button
+                    preset="secondary"
+                    LeftAccessory={() =>
+                      (props.cancelIcon && (
+                        <Icon icon={props.cancelIcon} color={secondaryIconColor} size={spacing.medium}/>
+                      ))
+                    }
+                    tx={'commonCancel'}
+                    onPress={props.onCancel}
+                  />
+                )}
+            </View>
+            )}
           </View>
-          )}
-        </View>
+        )}
       </View>
     )
   })

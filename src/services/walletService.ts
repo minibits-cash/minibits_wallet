@@ -108,7 +108,7 @@ type WalletTaskService = {
         draftTransactionId?: number,
     ) => Promise<TransactionTaskResult>
     swapAllQueue: () => Promise<void>
-    swapByDenominationQueue: (denomination: number) => Promise<void>
+    swapByDenominationQueue: (denomination: number, mintUrl: string) => Promise<void>
     topupQueueAwaitable: (
         mintBalanceToTopup: MintBalance,
         amountToTopup: number,

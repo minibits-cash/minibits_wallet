@@ -70,7 +70,8 @@ notifee.registerForegroundService(async (notification) => {
       if(notification.data.task === SWAP_DENOMINATION_TASK) {
         log.debug(`[registerForegroundService] Submitting task ${SWAP_DENOMINATION_TASK} to the queue.`)
 
-        WalletTask.swapByDenominationQueue(notification.data.data)
+        const payload = notification.data.data || {}
+        WalletTask.swapByDenominationQueue(payload.denomination, payload.mintUrl)
       }
 
 

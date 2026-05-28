@@ -2,5 +2,7 @@
     "[javascriptreact][typescriptreact][javascript][typescript]": {
         "editor.insertSpaces": true,
 		"editor.tabSize": 4  
-    }
+    },    
+    "claudeCode.disableLoginPrompt": true,
+    "claudeCode.selectedModel": "claude-opus-4-7"    
 }

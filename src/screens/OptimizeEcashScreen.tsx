@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useLayoutEffect} from 'react'
+import React, {useState, useEffect, useLayoutEffect, useMemo} from 'react'
 import {
   TextStyle,
   ViewStyle,
@@ -31,6 +31,9 @@ import {TransactionStatus} from '../models/Transaction'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {StaticScreenProps, useNavigation} from '@react-navigation/native'
+import {MintBalanceSelector} from './Mints/MintBalanceSelector'
+import {MintBalance} from '../models/Mint'
+import {MintUnit} from '../services/wallet/currency'
 
 const OPTIMIZE_DENOMINATION_THRESHOLD = 5
 
@@ -57,8 +60,20 @@ export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
     })
   }, [])
 
+  // For now this screen only deals with the 'sat' unit, as denominations are unit-bound.
+  const unit: MintUnit = 'sat'
+
+  const mintBalances = useMemo<MintBalance[]>(
+    () => proofsStore.getMintBalancesWithUnit(unit),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [proofsStore.balances],
+  )
+
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<AppError | undefined>()
+  const [selectedMintBalance, setSelectedMintBalance] = useState<MintBalance | undefined>(
+    () => proofsStore.getMintBalanceWithMaxBalance(unit) ?? mintBalances[0],
+  )
   const [denominationCounts, setDenominationCounts] = useState<{denomination: number; count: number}[]>([])
   const [activeDenomination, setActiveDenomination] = useState<number | null>(null)
   const [isResultModalVisible, setIsResultModalVisible] = useState(false)
@@ -68,9 +83,10 @@ export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
   >()
 
   useEffect(() => {
-    const counts = buildDenominationCounts()
+    const counts = buildDenominationCounts(selectedMintBalance?.mintUrl)
     setDenominationCounts(counts)
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMintBalance?.mintUrl])
 
   useEffect(() => {
     const handleResult = async (result: WalletTaskResult) => {
@@ -85,8 +101,8 @@ export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
       })
       setIsResultModalVisible(true)
 
-      // Refresh denomination counts after optimization
-      const counts = buildDenominationCounts()
+      // Refresh denomination counts after optimization for the selected mint
+      const counts = buildDenominationCounts(selectedMintBalance?.mintUrl)
       setDenominationCounts(counts)
       setActiveDenomination(null)
     }
@@ -98,14 +114,15 @@ export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
     return () => {
       EventEmitter.off(`ev_${SWAP_DENOMINATION_TASK}_result`, handleResult)
     }
-  }, [activeDenomination])
+  }, [activeDenomination, selectedMintBalance?.mintUrl])
 
-  const buildDenominationCounts = () => {
-    const allProofs = Array.from(proofsStore.proofs.values()).filter(
-      p => p.state === 'UNSPENT',
-    )
+  const buildDenominationCounts = (mintUrl?: string) => {
+    if (!mintUrl) {
+      return []
+    }
+    const mintProofs = proofsStore.getByMint(mintUrl, {state: 'UNSPENT', unit})
     const countMap: Record<number, number> = {}
-    for (const proof of allProofs) {
+    for (const proof of mintProofs) {
       countMap[proof.amount] = (countMap[proof.amount] ?? 0) + 1
     }
     return Object.entries(countMap)
@@ -113,7 +130,15 @@ export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
       .sort((a, b) => a.denomination - b.denomination)
   }
 
+  const onMintBalanceSelect = (balance: MintBalance) => {
+    setSelectedMintBalance(balance)
+  }
+
   const optimizeDenomination = async (denomination: number) => {
+    if (!selectedMintBalance) {
+      return
+    }
+
     const enabled = await NotificationService.areNotificationsEnabled()
 
     if (!enabled) {
@@ -128,10 +153,13 @@ export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
       if (Platform.OS === 'android') {
         await NotificationService.createTaskNotification(
           `Optimizing denomination ${denomination}...`,
-          {task: SWAP_DENOMINATION_TASK, data: denomination},
+          {
+            task: SWAP_DENOMINATION_TASK,
+            data: {denomination, mintUrl: selectedMintBalance.mintUrl},
+          },
         )
       } else {
-        WalletTask.swapByDenominationQueue(denomination)
+        WalletTask.swapByDenominationQueue(denomination, selectedMintBalance.mintUrl)
       }
     } catch (e: any) {
       handleError(e)
@@ -171,22 +199,35 @@ export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
           title="Optimize ecash"
           scrollY={scrollY}
         />
-        <Card
-          content={`Only denominations with more than ${OPTIMIZE_DENOMINATION_THRESHOLD} proofs can be optimized - by swapping them with the mint for lower number of ecash notes with higher amounts.`}
-          style={[$card, {marginTop: -spacing.extraLarge * 1.5}]}
+        <View style={[$selectorContainer, {marginTop: -spacing.extraLarge * 1.5}]}>
+          {mintBalances.length > 0 ? (
+            <MintBalanceSelector
+              mintBalances={mintBalances}
+              selectedMintBalance={selectedMintBalance}
+              unit={unit}
+              title="Select mint to optimize"
+              onMintBalanceSelect={onMintBalanceSelect}
+            />
+          ) : (
+            <Card content="No mints with balance to optimize." style={$card} />
+          )}
+        </View>
+        <Text
+          text={`Only denominations with more than ${OPTIMIZE_DENOMINATION_THRESHOLD} proofs can be optimized - by swapping them with the mint for lower number of ecash notes with higher amounts.`}
+          preset="formHelper"
+          style={[$hintText, {color: hint}]}
         />
         <Card
           ContentComponent={
             <>
               {denominationCounts.length === 0 ? (
-                <ListItem text="No ecash proofs found." />
+                <ListItem text="No ecash proofs for the selected mint." />
               ) : (
                 denominationCounts.map(({denomination, count}, index) => (
                   <ListItem
                     key={denomination}
                     text={`${denomination}`}
                     leftIcon='faMoneyBill1'
-                    //subText={`Count: ${count}`}
                     RightComponent={
                       <View style={$rightContainer}>
                         <Text preset="formHelper" text={`${count}x`} style={{color: hint, marginRight: spacing.small}} />
@@ -284,6 +325,15 @@ const $card: ViewStyle = {
   marginHorizontal: spacing.small,
 }
 
+const $selectorContainer: ViewStyle = {
+  marginHorizontal: spacing.small,
+}
+
+const $hintText: TextStyle = {
+  marginHorizontal: spacing.medium,
+  marginBottom: spacing.small,
+}
+
 const $buttonContainer: ViewStyle = {
   flexDirection: 'row',
   alignSelf: 'center',
@@ -295,9 +345,4 @@ const $rightContainer: ViewStyle = {
   marginRight: -10,
   flexDirection: 'row',
   alignItems: 'center',
-}
-
-const $hintContainer: ViewStyle = {
-  marginHorizontal: spacing.medium,
-  marginBottom: spacing.small,
 }

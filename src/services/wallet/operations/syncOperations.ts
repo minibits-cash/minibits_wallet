@@ -594,10 +594,14 @@ const swapAllTask = async function (): Promise<WalletTaskResult> {
 }
 
 /*
- * swapByDenominationTask swaps only proofs with the given denomination (amount) across all mints.
+ * swapByDenominationTask swaps only proofs with the given denomination (amount)
+ * for a single mint identified by mintUrl.
  */
-const swapByDenominationTask = async function (denomination: number): Promise<WalletTaskResult> {
-    log.trace('[swapByDenominationTask] start', {denomination})
+const swapByDenominationTask = async function (
+    denomination: number,
+    mintUrl: string,
+): Promise<WalletTaskResult> {
+    log.trace('[swapByDenominationTask] start', {denomination, mintUrl})
 
     if (mintsStore.mintCount === 0) {
         return {
@@ -606,67 +610,44 @@ const swapByDenominationTask = async function (denomination: number): Promise<Wa
         }
     }
 
+    const mint = mintsStore.findByUrl(mintUrl)
+
+    if (!mint) {
+        return {
+            taskFunction: SWAP_DENOMINATION_TASK,
+            message: `Mint ${mintUrl} not found.`,
+        }
+    }
+
     let initialProofsCount = 0
     let finalProofsCount = 0
     const errors: string[] = []
     const maxBatchSize = MAX_SWAP_INPUT_SIZE
 
-    for (const mint of mintsStore.allMints) {
-        for (const unit of mint.units) {
-            const allProofs = proofsStore.getByMint(mint.mintUrl, {state: 'UNSPENT', unit, ascending: true})
-            const proofsToOptimize = allProofs.filter(p => p.amount === denomination)
+    for (const unit of mint.units) {
+        const allProofs = proofsStore.getByMint(mint.mintUrl, {state: 'UNSPENT', unit, ascending: true})
+        const proofsToOptimize = allProofs.filter(p => p.amount === denomination)
 
-            if (proofsToOptimize.length === 0) {
-                continue
-            }
+        if (proofsToOptimize.length === 0) {
+            continue
+        }
 
-            initialProofsCount += proofsToOptimize.length
-            const mintBalance = mint.balances
+        initialProofsCount += proofsToOptimize.length
+        const mintBalance = mint.balances
 
-            if (proofsToOptimize.length > maxBatchSize) {
-                let index = 0
-                for (let i = 0; i < proofsToOptimize.length; i += maxBatchSize) {
-                    index++
-                    const batch = proofsToOptimize.slice(i, i + maxBatchSize)
-                    const batchAmount = CashuUtils.getProofsAmount(batch)
-
-                    const sendResult = await sendTask(
-                        mintBalance!,
-                        batchAmount,
-                        unit,
-                        `Optimize denomination ${denomination} #${index}`,
-                        batch,
-                    )
-
-                    const encodedTokenToReceive: string = sendResult.transaction?.outputToken ?? ''
-                    const tokenToReceive = getDecodedToken(encodedTokenToReceive, mint.keysetIds)
-                    const tokenAmount = CashuUtils.getProofsAmount(tokenToReceive.proofs)
-
-                    const receiveResult = await receiveBatchTask(
-                        tokenToReceive,
-                        tokenAmount,
-                        tokenToReceive.memo as string,
-                        encodedTokenToReceive,
-                    )
-
-                    await syncStateWithMintTask({proofsToSync: batch, mintUrl: mint.mintUrl, proofState: 'PENDING'})
-
-                    if (receiveResult.receivedProofsCount && receiveResult.receivedProofsCount > 0) {
-                        finalProofsCount += receiveResult.receivedProofsCount
-                    }
-                    if (receiveResult.error) {
-                        errors.push(receiveResult.error.message)
-                    }
-                }
-            } else {
-                const proofsAmount = CashuUtils.getProofsAmount(proofsToOptimize)
+        if (proofsToOptimize.length > maxBatchSize) {
+            let index = 0
+            for (let i = 0; i < proofsToOptimize.length; i += maxBatchSize) {
+                index++
+                const batch = proofsToOptimize.slice(i, i + maxBatchSize)
+                const batchAmount = CashuUtils.getProofsAmount(batch)
 
                 const sendResult = await sendTask(
                     mintBalance!,
-                    proofsAmount,
+                    batchAmount,
                     unit,
-                    `Optimize denomination ${denomination}`,
-                    proofsToOptimize,
+                    `Optimize denomination ${denomination} #${index}`,
+                    batch,
                 )
 
                 const encodedTokenToReceive: string = sendResult.transaction?.outputToken ?? ''
@@ -680,7 +661,7 @@ const swapByDenominationTask = async function (denomination: number): Promise<Wa
                     encodedTokenToReceive,
                 )
 
-                await syncStateWithMintTask({proofsToSync: proofsToOptimize, mintUrl: mint.mintUrl, proofState: 'PENDING'})
+                await syncStateWithMintTask({proofsToSync: batch, mintUrl: mint.mintUrl, proofState: 'PENDING'})
 
                 if (receiveResult.receivedProofsCount && receiveResult.receivedProofsCount > 0) {
                     finalProofsCount += receiveResult.receivedProofsCount
@@ -688,6 +669,36 @@ const swapByDenominationTask = async function (denomination: number): Promise<Wa
                 if (receiveResult.error) {
                     errors.push(receiveResult.error.message)
                 }
+            }
+        } else {
+            const proofsAmount = CashuUtils.getProofsAmount(proofsToOptimize)
+
+            const sendResult = await sendTask(
+                mintBalance!,
+                proofsAmount,
+                unit,
+                `Optimize denomination ${denomination}`,
+                proofsToOptimize,
+            )
+
+            const encodedTokenToReceive: string = sendResult.transaction?.outputToken ?? ''
+            const tokenToReceive = getDecodedToken(encodedTokenToReceive, mint.keysetIds)
+            const tokenAmount = CashuUtils.getProofsAmount(tokenToReceive.proofs)
+
+            const receiveResult = await receiveBatchTask(
+                tokenToReceive,
+                tokenAmount,
+                tokenToReceive.memo as string,
+                encodedTokenToReceive,
+            )
+
+            await syncStateWithMintTask({proofsToSync: proofsToOptimize, mintUrl: mint.mintUrl, proofState: 'PENDING'})
+
+            if (receiveResult.receivedProofsCount && receiveResult.receivedProofsCount > 0) {
+                finalProofsCount += receiveResult.receivedProofsCount
+            }
+            if (receiveResult.error) {
+                errors.push(receiveResult.error.message)
             }
         }
     }
@@ -709,11 +720,14 @@ const swapAllQueue = async function (): Promise<void> {
     )
 }
 
-const swapByDenominationQueue = async function (denomination: number): Promise<void> {
+const swapByDenominationQueue = async function (
+    denomination: number,
+    mintUrl: string,
+): Promise<void> {
     const now = new Date().getTime()
     return SyncQueue.addPrioritizedTask(
         `swapDenominationTask-${denomination}-${now}`,
-        async () => await swapByDenominationTask(denomination),
+        async () => await swapByDenominationTask(denomination, mintUrl),
     )
 }
 
