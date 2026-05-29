@@ -343,7 +343,7 @@ export const WalletStoreModel = types
           })
 
           if (mintInstance.mintInfo && mintInstance.keysets?.length && mintInstance.keys?.length) {
-            const keychainCache = CashuKeyChain.mintToCacheDTO(mintUrl, [...mintInstance.keysets], [...mintInstance.keys])
+            const keychainCache = CashuKeyChain.mintToCacheDTO(unit, mintUrl, [...mintInstance.keysets], [...mintInstance.keys])
             newSeedWallet.loadMintFromCache(mintInstance.mintInfo, keychainCache)
           } else {
             yield newSeedWallet.loadMint()
@@ -372,7 +372,7 @@ export const WalletStoreModel = types
         })
 
         if (mintInstance.mintInfo && mintInstance.keysets?.length && mintInstance.keys?.length) {
-          const keychainCache = CashuKeyChain.mintToCacheDTO(mintUrl, [...mintInstance.keysets], [...mintInstance.keys])
+          const keychainCache = CashuKeyChain.mintToCacheDTO(unit, mintUrl, [...mintInstance.keysets], [...mintInstance.keys])
           newWallet.loadMintFromCache(mintInstance.mintInfo, keychainCache)
         } else {
           yield newWallet.loadMint()
