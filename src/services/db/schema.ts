@@ -1,0 +1,91 @@
+import {SQLBatchTuple} from './connection'
+
+/**
+ * Schema definitions — the single source of truth for table shapes.
+ *
+ * The `proofs` and `reservations` column lists are referenced from more than
+ * one place (first-run creation here, plus the v25 proofs rebuild and the v26
+ * reservations add in migrations.ts). Defining the columns once and generating
+ * every `CREATE TABLE` from them guarantees the definitions can never drift.
+ */
+
+export const TRANSACTIONS_COLUMNS = `
+  id INTEGER PRIMARY KEY NOT NULL,
+  paymentId TEXT,
+  type TEXT,
+  amount INTEGER,
+  unit TEXT,
+  fee INTEGER,
+  data TEXT,
+  keysetId TEXT,
+  sentFrom TEXT,
+  sentTo TEXT,
+  profile TEXT,
+  memo TEXT,
+  mint TEXT,
+  quote TEXT,
+  paymentRequest TEXT,
+  zapRequest TEXT,
+  inputToken TEXT,
+  outputToken TEXT,
+  proof TEXT,
+  balanceAfter INTEGER,
+  noteToSelf TEXT,
+  tags TEXT,
+  status TEXT,
+  expiresAt TEXT,
+  createdAt TEXT
+`
+
+export const PROOFS_COLUMNS = `
+  id TEXT NOT NULL,
+  amount INTEGER NOT NULL,
+  secret TEXT PRIMARY KEY NOT NULL,
+  C TEXT NOT NULL,
+  dleq_r TEXT,
+  dleq_s TEXT,
+  dleq_e TEXT,
+  unit TEXT,
+  tId INTEGER,
+  mintUrl TEXT,
+  state TEXT NOT NULL DEFAULT 'UNSPENT',
+  updatedAt TEXT
+`
+
+export const DBVERSION_COLUMNS = `
+  id INTEGER PRIMARY KEY NOT NULL,
+  version INTEGER,
+  createdAt TEXT
+`
+
+export const RESERVATIONS_COLUMNS = `
+  id TEXT PRIMARY KEY NOT NULL,
+  transactionId INTEGER NOT NULL,
+  mintUrl TEXT NOT NULL,
+  unit TEXT NOT NULL,
+  operationType TEXT NOT NULL,
+  lockedProofs TEXT NOT NULL,
+  createdAt TEXT NOT NULL
+`
+
+/** Build a CREATE TABLE statement from a column block. */
+export const createTable = (
+  name: string,
+  columns: string,
+  ifNotExists = true,
+): string => `CREATE TABLE ${ifNotExists ? 'IF NOT EXISTS ' : ''}${name} (${columns})`
+
+/** Ordered list of column names for the proofs table (drives the v25 copy). */
+export const PROOFS_COLUMN_NAMES =
+  'id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl, state, updatedAt'
+
+/** First-run schema creation, run inside a single batch transaction. */
+export const createSchemaQueries: SQLBatchTuple[] = [
+  [createTable('transactions', TRANSACTIONS_COLUMNS)],
+  [createTable('proofs', PROOFS_COLUMNS)],
+  [createTable('dbversion', DBVERSION_COLUMNS)],
+  // Open outgoing-operation reservations. A row exists only while a reservation
+  // is in-flight (between reserve() and commit()/rollback()). Orphans (process
+  // died mid-operation) are detected and rolled back at startup.
+  [createTable('reservations', RESERVATIONS_COLUMNS)],
+]

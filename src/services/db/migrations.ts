@@ -1,0 +1,142 @@
+import {DbConnection, SQLBatchTuple} from './connection'
+import {createTable, PROOFS_COLUMNS, PROOFS_COLUMN_NAMES, RESERVATIONS_COLUMNS} from './schema'
+import {dbError} from './errors'
+import {Err} from '../../utils/AppError'
+import {log} from '../logService'
+
+/** Bump this when a schema change requires a migration, then add an entry below. */
+export const _dbVersion = 26
+
+type Migration = {version: number; queries: SQLBatchTuple[]}
+
+/**
+ * Ordered migration registry. On startup every migration whose `version` is
+ * greater than the device's current version is applied, in order, inside a
+ * single batch transaction (with a final version-bump row appended).
+ *
+ * To add a migration: append an entry with the next version number. No runner
+ * logic changes are needed.
+ */
+const MIGRATIONS: Migration[] = [
+  {version: 19, queries: [[`DROP TABLE usersettings`]]},
+  {version: 20, queries: [[`ALTER TABLE transactions ADD COLUMN paymentId TEXT`]]},
+  {version: 21, queries: [[`ALTER TABLE transactions ADD COLUMN quote TEXT`]]},
+  {
+    version: 22,
+    queries: [
+      [`ALTER TABLE transactions ADD COLUMN paymentRequest TEXT`],
+      [`ALTER TABLE transactions ADD COLUMN expiresAt TEXT`],
+    ],
+  },
+  {
+    version: 23,
+    queries: [
+      [`ALTER TABLE proofs ADD COLUMN dleq_r TEXT`],
+      [`ALTER TABLE proofs ADD COLUMN dleq_s TEXT`],
+      [`ALTER TABLE proofs ADD COLUMN dleq_e TEXT`],
+    ],
+  },
+  {version: 24, queries: [[`ALTER TABLE transactions ADD COLUMN keysetId TEXT`]]},
+  {
+    // Replace isPending/isSpent boolean columns with a single state TEXT column.
+    // SQLite does not support DROP COLUMN in older versions, so we recreate the
+    // table from the canonical proofs column definition.
+    version: 25,
+    queries: [
+      [createTable('proofs_v25', PROOFS_COLUMNS, false)],
+      [
+        `INSERT INTO proofs_v25
+           (${PROOFS_COLUMN_NAMES})
+         SELECT
+           id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl,
+           CASE
+             WHEN isSpent = 1 THEN 'SPENT'
+             WHEN isPending = 1 THEN 'PENDING'
+             ELSE 'UNSPENT'
+           END,
+           updatedAt
+         FROM proofs`,
+      ],
+      [`DROP TABLE proofs`],
+      [`ALTER TABLE proofs_v25 RENAME TO proofs`],
+    ],
+  },
+  {
+    // Add reservations table for atomic proof reservations (Phase 5).
+    version: 26,
+    queries: [[createTable('reservations', RESERVATIONS_COLUMNS)]],
+  },
+]
+
+/**
+ * Read the device schema version. On first run (no row yet) it seeds the
+ * dbversion row with the current `_dbVersion` and returns it.
+ */
+export const getDatabaseVersion = function (db: DbConnection): {version: number} {
+  try {
+    const query = `
+      SELECT version FROM dbVersion
+    `
+
+    const {rows} = db.execute(query)
+
+    if (!rows?.item(0)) {
+      // On first run, insert current version record
+      const now = new Date()
+      const insertQuery = `
+            INSERT OR REPLACE INTO dbversion (id, version, createdAt)
+            VALUES (?, ?, ?)
+        `
+      const params = [1, _dbVersion, now.toISOString()]
+      db.execute(insertQuery, params)
+
+      return {version: _dbVersion}
+    }
+
+    return rows?.item(0)
+  } catch (e: any) {
+    throw dbError('Could not get database version', e)
+  }
+}
+
+/**
+ * Run all migrations whose version is newer than the device's current version,
+ * then bump the stored version — all in a single batch transaction.
+ *
+ * NOTE: the batch failure is currently swallowed (logged, not thrown). Hardening
+ * this to fail loudly is a Tier 3 follow-up.
+ */
+export const runMigrations = function (db: DbConnection) {
+  const now = new Date()
+  const {version: currentVersion} = getDatabaseVersion(db)
+
+  const migrationQueries: SQLBatchTuple[] = []
+
+  for (const migration of MIGRATIONS) {
+    if (currentVersion < migration.version) {
+      migrationQueries.push(...migration.queries)
+      log.info(`Prepared database migrations from ${currentVersion} -> ${migration.version}`)
+    }
+  }
+
+  // Update db version as a part of migration sqls
+  migrationQueries.push([
+    `INSERT OR REPLACE INTO dbversion (id, version, createdAt)
+      VALUES (?, ?, ?)`,
+    [1, _dbVersion, now.toISOString()],
+  ])
+
+  try {
+    const {rowsAffected} = db.executeBatch(migrationQueries)
+
+    if (rowsAffected && rowsAffected > 0) {
+      log.info(`Completed database migrations to version ${_dbVersion}`)
+    }
+  } catch (e: any) {
+    // silent
+    log.info(
+      Err.DATABASE_ERROR,
+      'Database migrations error: ' + JSON.stringify(e),
+    )
+  }
+}
