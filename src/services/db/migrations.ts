@@ -72,31 +72,35 @@ const MIGRATIONS: Migration[] = [
 ]
 
 /**
- * Read the device schema version. On first run (no row yet) it seeds the
- * dbversion row with the current `_dbVersion` and returns it.
+ * Pure read of the stored schema version. Returns null when the version row has
+ * not been seeded yet (a fresh database). Never mutates.
+ */
+export const readDatabaseVersion = function (db: DbConnection): number | null {
+  const {rows} = db.execute(`SELECT version FROM dbVersion`)
+  const row = rows?.item(0)
+  return row ? (row.version as number) : null
+}
+
+/** Seed (or overwrite) the single dbversion row. */
+export const seedDatabaseVersion = function (
+  db: DbConnection,
+  version: number = _dbVersion,
+): void {
+  db.execute(
+    `INSERT OR REPLACE INTO dbversion (id, version, createdAt) VALUES (?, ?, ?)`,
+    [1, version, new Date().toISOString()],
+  )
+}
+
+/**
+ * Read the schema version without mutating. On a fresh, unseeded database this
+ * reports the current `_dbVersion`; the actual seeding is done explicitly during
+ * schema setup (see instance.ts). Kept on the Database facade for callers that
+ * just want to display the version.
  */
 export const getDatabaseVersion = function (db: DbConnection): {version: number} {
   try {
-    const query = `
-      SELECT version FROM dbVersion
-    `
-
-    const {rows} = db.execute(query)
-
-    if (!rows?.item(0)) {
-      // On first run, insert current version record
-      const now = new Date()
-      const insertQuery = `
-            INSERT OR REPLACE INTO dbversion (id, version, createdAt)
-            VALUES (?, ?, ?)
-        `
-      const params = [1, _dbVersion, now.toISOString()]
-      db.execute(insertQuery, params)
-
-      return {version: _dbVersion}
-    }
-
-    return rows?.item(0)
+    return {version: readDatabaseVersion(db) ?? _dbVersion}
   } catch (e: any) {
     throw dbError('Could not get database version', e)
   }

@@ -1,6 +1,6 @@
 import {DbConnection, open, SQLBatchTuple} from './connection'
 import {createSchemaQueries} from './schema'
-import {_dbVersion, getDatabaseVersion, runMigrations} from './migrations'
+import {_dbVersion, readDatabaseVersion, seedDatabaseVersion, runMigrations} from './migrations'
 import {dbError} from './errors'
 import {log} from '../logService'
 
@@ -35,7 +35,14 @@ const _createOrUpdateSchema = function (db: DbConnection) {
       log.info('[_createOrUpdateSchema] New database schema created')
     }
 
-    const {version} = getDatabaseVersion(db)
+    let version = readDatabaseVersion(db)
+    if (version === null) {
+      // Fresh database: the schema was just created at the latest shape, so
+      // seed the version row and skip migrations.
+      seedDatabaseVersion(db)
+      version = _dbVersion
+    }
+
     log.info('[_createOrUpdateSchema]', `Device database version: ${version}`)
 
     // Trigger migrations if there is versions mismatch
