@@ -64,6 +64,30 @@
             <category android:name="android.intent.category.DEFAULT" />
             <data android:scheme="cashu" />
         </intent-filter>
+        <!-- NFC tag/peer dispatch (e.g. tapping another wallet to receive a lightning: URI).
+             Without these, an installed wallet that declares NDEF_DISCOVERED wins the NFC
+             chooser and Minibits is excluded; the VIEW filters above only catch the
+             ACTION_VIEW fallback that fires when no app claims NDEF_DISCOVERED. -->
+        <intent-filter>
+            <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <data android:scheme="lightning" />
+        </intent-filter>
+        <intent-filter>
+            <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <data android:scheme="lnurlw" />
+        </intent-filter>
+        <intent-filter>
+            <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <data android:scheme="lnurlp" />
+        </intent-filter>
+        <intent-filter>
+            <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <data android:scheme="cashu" />
+        </intent-filter>
     </activity-alias>
 
     <!-- Golden theme launcher icon alias (disabled by default) -->
@@ -99,6 +123,27 @@
         <intent-filter>
             <action android:name="android.intent.action.VIEW" />
             <category android:name="android.intent.category.BROWSABLE" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <data android:scheme="cashu" />
+        </intent-filter>
+        <!-- NFC tag/peer dispatch (mirror of .MainActivityDefault) -->
+        <intent-filter>
+            <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <data android:scheme="lightning" />
+        </intent-filter>
+        <intent-filter>
+            <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <data android:scheme="lnurlw" />
+        </intent-filter>
+        <intent-filter>
+            <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <data android:scheme="lnurlp" />
+        </intent-filter>
+        <intent-filter>
+            <action android:name="android.nfc.action.NDEF_DISCOVERED" />
             <category android:name="android.intent.category.DEFAULT" />
             <data android:scheme="cashu" />
         </intent-filter>
