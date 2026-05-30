@@ -33,7 +33,15 @@
  * every subsequent parameter and corrupting the row. Here, such a value is
  * either coerced deliberately or rejected loudly — never silently dropped.
  */
-import {open as opOpen, DB, Scalar, SQLBatchTuple as OpSQLBatchTuple} from '@op-engineering/op-sqlite'
+import {Platform} from 'react-native'
+import {
+  open as opOpen,
+  DB,
+  Scalar,
+  SQLBatchTuple as OpSQLBatchTuple,
+  IOS_DOCUMENT_PATH,
+  ANDROID_FILES_PATH,
+} from '@op-engineering/op-sqlite'
 import AppError, {Err} from '../../utils/AppError'
 
 export type {Scalar}
@@ -155,8 +163,22 @@ const adaptResult = (r: {insertId?: number; rowsAffected?: number; rows?: any[]}
 const isParamSets = (params: unknown[]): params is unknown[][] =>
   params.length > 0 && Array.isArray(params[0])
 
+/**
+ * The database directory react-native-quick-sqlite used, so existing installs
+ * keep finding their data after the migration — no copy/move needed.
+ *
+ * quick-sqlite stored the db in the iOS Documents dir and the Android files dir.
+ * op-sqlite's defaults differ (iOS Library, Android databases/), so we pass an
+ * ABSOLUTE location: op-sqlite fully overrides its base path when the location
+ * starts with '/' (see cpp/OPSqlite.cpp open proxy). The db file then resolves
+ * to exactly <Documents|files>/<name> — the same file quick-sqlite created.
+ */
+const legacyLocation = (): string =>
+  Platform.OS === 'ios' ? IOS_DOCUMENT_PATH : ANDROID_FILES_PATH
+
 const open = (params: {name: string; location?: string; encryptionKey?: string}): DbConnection => {
-  const db: DB = opOpen(params)
+  // Caller-supplied location (if any) still wins over the legacy default.
+  const db: DB = opOpen({location: legacyLocation(), ...params})
 
   const execute = (query: string, p?: unknown[]): QueryResult =>
     adaptResult(db.executeSync(query, sanitizeParams(p)))
