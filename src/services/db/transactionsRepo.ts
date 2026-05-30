@@ -485,17 +485,22 @@ export const updateStatusesAsync = async function (
   status: TransactionStatus,
   data: string,
 ) {
-  const transactionIdsString = transactionIds.join(',')
+  if (transactionIds.length === 0) {
+    return
+  }
+
+  // Bind the ids as parameters rather than interpolating them into the SQL.
+  const placeholders = transactionIds.map(() => '?').join(',')
 
   const selectQuery = `
     SELECT data
     FROM transactions
-    WHERE id IN (${transactionIdsString})
+    WHERE id IN (${placeholders})
   `
 
   try {
     const db = getInstance()
-    const result1 = await db.executeAsync(selectQuery)
+    const result1 = await db.executeAsync(selectQuery, transactionIds)
 
     if (!result1.rows) {
       return
@@ -513,10 +518,10 @@ export const updateStatusesAsync = async function (
     const updateQuery = `
       UPDATE transactions
       SET status = ?, data = ?
-      WHERE id IN (${transactionIdsString})
+      WHERE id IN (${placeholders})
     `
     // We update one by one from the array
-    const params = [status, updatedDataArray.join(',')]
+    const params = [status, updatedDataArray.join(','), ...transactionIds]
 
     const result2 = await db.executeAsync(updateQuery, params)
 

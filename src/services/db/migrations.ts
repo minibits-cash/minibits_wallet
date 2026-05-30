@@ -1,7 +1,6 @@
 import {DbConnection, SQLBatchTuple} from './connection'
 import {createTable, PROOFS_COLUMNS, PROOFS_COLUMN_NAMES, RESERVATIONS_COLUMNS} from './schema'
 import {dbError} from './errors'
-import {Err} from '../../utils/AppError'
 import {log} from '../logService'
 
 /** Bump this when a schema change requires a migration, then add an entry below. */
@@ -18,7 +17,11 @@ type Migration = {version: number; queries: SQLBatchTuple[]}
  * logic changes are needed.
  */
 const MIGRATIONS: Migration[] = [
-  {version: 19, queries: [[`DROP TABLE usersettings`]]},
+  // IF EXISTS: on devices that never had a usersettings table this DROP used to
+  // error (and the error was swallowed, leaving the migration stuck). Making it
+  // defensive lets these devices migrate forward cleanly and lets us treat any
+  // real migration failure as fatal below.
+  {version: 19, queries: [[`DROP TABLE IF EXISTS usersettings`]]},
   {version: 20, queries: [[`ALTER TABLE transactions ADD COLUMN paymentId TEXT`]]},
   {version: 21, queries: [[`ALTER TABLE transactions ADD COLUMN quote TEXT`]]},
   {
@@ -103,8 +106,11 @@ export const getDatabaseVersion = function (db: DbConnection): {version: number}
  * Run all migrations whose version is newer than the device's current version,
  * then bump the stored version — all in a single batch transaction.
  *
- * NOTE: the batch failure is currently swallowed (logged, not thrown). Hardening
- * this to fail loudly is a Tier 3 follow-up.
+ * Fails loudly: the batch is atomic, so any failure rolls everything back
+ * (including the version bump, so the next launch retries from the same point).
+ * We throw rather than swallow — running on a schema that doesn't match the code
+ * is the silent-corruption class we're avoiding, and a failed CREATE TABLE
+ * already aborts startup in instance.ts, so this is consistent.
  */
 export const runMigrations = function (db: DbConnection) {
   const now = new Date()
@@ -133,10 +139,6 @@ export const runMigrations = function (db: DbConnection) {
       log.info(`Completed database migrations to version ${_dbVersion}`)
     }
   } catch (e: any) {
-    // silent
-    log.info(
-      Err.DATABASE_ERROR,
-      'Database migrations error: ' + JSON.stringify(e),
-    )
+    throw dbError('Database migrations failed', e)
   }
 }
