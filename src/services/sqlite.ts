@@ -1,8 +1,8 @@
 import {
-  QuickSQLiteConnection,
+  DbConnection,
   open,
   SQLBatchTuple,
-} from 'react-native-quick-sqlite'
+} from './db/connection'
 import {Proof, ProofState} from '../models/Proof'
 import {CashuProof} from './cashu/cashuUtils'
 import {
@@ -13,6 +13,16 @@ import AppError, {Err} from '../utils/AppError'
 import {log} from './logService'
 import {ProofRecord} from '../models/Proof'
 import { isAlive } from 'mobx-state-tree'
+
+/**
+ * Normalize an arbitrary caught error into an AppError for the DB layer.
+ *
+ * Existing AppErrors (e.g. a NOTFOUND_ERROR raised deliberately inside a query)
+ * pass through unchanged so their specific `name`/code isn't flattened into a
+ * generic DATABASE_ERROR. Everything else is wrapped with the supplied message.
+ */
+const dbError = (message: string, e: any): AppError =>
+  e instanceof AppError ? e : new AppError(Err.DATABASE_ERROR, message, e?.message)
 
 // Helper functions to normalize transaction records with Date objects
 const normalizeTransactionRecord = function (r: any) {
@@ -25,14 +35,14 @@ const normalizeTransactionRows = function(rows: any) {
   return rows?._array.map(normalizeTransactionRecord) as Transaction[];
 }
 
-let _db: QuickSQLiteConnection
+let _db: DbConnection
 
 const _dbVersion = 26 // Update this if db changes require migrations
 
 const getInstance = function () {
   if (!_db) {
     // 1. creates database
-    _db = _createDatabaseInstance() as QuickSQLiteConnection
+    _db = _createDatabaseInstance() as DbConnection
 
     // 2. Runs possible migrations and sets version
     _createOrUpdateSchema(_db)
@@ -44,17 +54,13 @@ const getInstance = function () {
 const _createDatabaseInstance = function () {
   try {
     const instance = open({name: 'minibits.db'})
-    return instance as QuickSQLiteConnection
+    return instance as DbConnection
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not create or open database',
-      e.message,
-    )
+    throw dbError('Could not create or open database', e)
   }
 }
 
-const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
+const _createOrUpdateSchema = function (db: DbConnection) {
   const creationQueries = [
     [
         `CREATE TABLE IF NOT EXISTS transactions (
@@ -141,17 +147,13 @@ const _createOrUpdateSchema = function (db: QuickSQLiteConnection) {
     }
        
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not create or update database schema',
-      e.message,
-    )
+    throw dbError('Could not create or update database schema', e)
   }
 }
 
 // Run database migrations in case on device version of schema is not yet set or outdated
 
-const _runMigrations = function (db: QuickSQLiteConnection) {
+const _runMigrations = function (db: DbConnection) {
     const now = new Date()
     const {version} = getDatabaseVersion(db)    
 
@@ -322,16 +324,12 @@ const cleanAll = function () {
       log.info('[cleanAll]', 'Database tables were deleted')
     }
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not delete database schema',
-      e.message,
-    )
+    throw dbError('Could not delete database schema', e)
   }
 }
 
 
-const getDatabaseVersion = function (db: QuickSQLiteConnection): {version: number} {
+const getDatabaseVersion = function (db: DbConnection): {version: number} {
   try {
     const query = `
       SELECT version FROM dbVersion
@@ -355,11 +353,7 @@ const getDatabaseVersion = function (db: QuickSQLiteConnection): {version: numbe
     return rows?.item(0)    
     
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not get database version',
-      e.message,
-    )
+    throw dbError('Could not get database version', e)
   }
 }
 /*
@@ -406,11 +400,7 @@ const updateTransaction = function (id: number, fields: Partial<Transaction>): T
 
     return updated as Transaction
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update transaction in database',
-      e.message,
-    )
+    throw dbError('Could not update transaction in database', e)
   }
 }
 
@@ -447,11 +437,7 @@ const getTransactionsAsync = async function (limit: number, offset: number, only
       return normalizeTransactionRows(rows)
 
   } catch (e: any) {
-      throw new AppError(
-      Err.DATABASE_ERROR,
-      'Transactions could not be retrieved from the database',
-      e.message,
-      )
+      throw dbError('Transactions could not be retrieved from the database', e)
   }
 }
 
@@ -524,11 +510,7 @@ const searchTransactionsAsync = async function (
 
     return normalizeTransactionRows(rows)
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Transactions search failed',
-      e.message,
-    )
+    throw dbError('Transactions search failed', e)
   }
 }
 
@@ -543,11 +525,7 @@ const searchTransactionsCount = function (
     const {rows} = db.execute(query, params)
     return (rows?.item(0)?.total as number) || 0
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Transactions search count failed',
-      e.message,
-    )
+    throw dbError('Transactions search count failed', e)
   }
 }
 
@@ -569,11 +547,7 @@ const getPendingTopups = function () {
       return normalizeTransactionRows(rows)
 
   } catch (e: any) {
-      throw new AppError(
-      Err.DATABASE_ERROR,
-      'Transactions could not be retrieved from the database',
-      e.message,
-      )
+      throw dbError('Transactions could not be retrieved from the database', e)
   }
 }
 
@@ -596,11 +570,7 @@ const getPendingTransfers = function () {
       return normalizeTransactionRows(rows)
 
   } catch (e: any) {
-      throw new AppError(
-      Err.DATABASE_ERROR,
-      'Transactions could not be retrieved from the database',
-      e.message,
-      )
+      throw dbError('Transactions could not be retrieved from the database', e)
   }
 }
 
@@ -624,11 +594,7 @@ const getPendingTopupsCount = function () {
       return rows?.item(0)['total'] as number
 
   } catch (e: any) {
-      throw new AppError(
-      Err.DATABASE_ERROR,
-      'Transactions could not be retrieved from the database',
-      e.message,
-      )
+      throw dbError('Transactions could not be retrieved from the database', e)
   }
 }
 
@@ -652,11 +618,7 @@ const getPendingTransfersCount = function () {
       return rows?.item(0)['total'] as number
 
   } catch (e: any) {
-      throw new AppError(
-      Err.DATABASE_ERROR,
-      'Transactions could not be retrieved from the database',
-      e.message,
-      )
+      throw dbError('Transactions could not be retrieved from the database', e)
   }
 }
 
@@ -707,7 +669,7 @@ const getTransactionsCount = function (status?: TransactionStatus) {
       }
       
   } catch (e: any) {
-      throw new AppError(Err.DATABASE_ERROR, 'Transaction count error', e.message)
+      throw dbError('Transaction count error', e)
   }
 }
 
@@ -732,7 +694,7 @@ const getRecentTransactionsByUnitAsync = async (countRecent: number) => {
       return normalizeTransactionRows(rows)
       
   } catch (e: any) {
-      throw new AppError(Err.DATABASE_ERROR, 'Error retrieving last 3 transactions by unit', e.message)
+      throw dbError('Error retrieving last 3 transactions by unit', e)
   }
 }
 
@@ -753,7 +715,7 @@ const getPendingAmount = function () {
 
     return rows?.item(0)['SUM(amount)']
   } catch (e: any) {
-    throw new AppError(Err.DATABASE_ERROR, 'Transaction not found', e.message)
+    throw dbError('Transaction not found', e)
   }
 }
 
@@ -771,7 +733,7 @@ const getTransactionById = function (id: number) {
 
     return normalizeTransactionRecord(rows?.item(0))
   } catch (e: any) {
-    throw new AppError(Err.DATABASE_ERROR, 'Transaction not found', e.message)
+    throw dbError('Transaction not found', e)
   }
 }
 
@@ -842,16 +804,9 @@ const getLastTransactionBy = function (
 
     return normalizeTransactionRecord(row)
   } catch (e: any) {
-    if (e instanceof AppError) {
-      throw e // rethrow known app errors
-    }
-
-    log.error('[getLastTransactionBy] Database error', e)
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Failed to fetch transaction',
-      e.message || String(e)
-    )
+    // dbError passes through the deliberate NOTFOUND/validation AppErrors above
+    // and wraps anything else as a DATABASE_ERROR.
+    throw dbError('Failed to fetch transaction', e)
   }
 }
 
@@ -875,11 +830,7 @@ const addTransactionAsync = async function (tx: Partial<Transaction>): Promise<T
     return getTransactionById(result.insertId as number) // already normalized
 
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not store transaction in the database',
-      e.message,
-    )
+    throw dbError('Could not store transaction in the database', e)
   }
 }
 
@@ -929,11 +880,7 @@ const updateStatusesAsync = async function (
 
     return result2
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update transaction statuses in the database',
-      e.message,
-    )
+    throw dbError('Could not update transaction statuses in the database', e)
   }
 }
 
@@ -965,11 +912,7 @@ const deleteTransactionsByStatus = function (status: TransactionStatus) {
       return rows
 
     } catch (e: any) {
-      throw new AppError(
-        Err.DATABASE_ERROR,
-        'Could not delete transactions.',
-        e.message,
-      )
+      throw dbError('Could not delete transactions.', e)
     }
 }
 
@@ -988,11 +931,7 @@ const getIncomingPendingCount = function () {
     return rows?.item(0)['total'] as number
 
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not get incoming pending count.',
-      e.message,
-    )
+    throw dbError('Could not get incoming pending count.', e)
   }
 }
 
@@ -1012,11 +951,7 @@ const deleteIncomingPending = function () {
     return rows
 
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not delete incoming pending transactions.',
-      e.message,
-    )
+    throw dbError('Could not delete incoming pending transactions.', e)
   }
 }
 
@@ -1038,11 +973,7 @@ const deleteTransactionById = function (id: number) {
     return rows
 
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not delete transaction.',
-      e.message,
-    )
+    throw dbError('Could not delete transaction.', e)
   }
 }
 
@@ -1086,11 +1017,7 @@ const addOrUpdateProof = function (
 
     return newProof as ProofRecord
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not store proof into the database',
-      e.message,
-    )
+    throw dbError('Could not store proof into the database', e)
   }
 }
 
@@ -1143,11 +1070,7 @@ const addOrUpdateProofs = function (
 
     return rowsAffected
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not insert or update proofs into the database',
-      e.message,
-    )
+    throw dbError('Could not insert or update proofs into the database', e)
   }
 }
 
@@ -1168,11 +1091,7 @@ const updateProofsMintUrl = function (currentMintUrl: string, updatedMintUrl: st
 
     
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not update proof mintUrl in database',
-      e.message,
-    )
+    throw dbError('Could not update proof mintUrl in database', e)
   }
 }
 
@@ -1188,11 +1107,7 @@ const removeAllProofs = async function () {
 
     return true
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not remove proofs from the database',
-      e.message,
-    )
+    throw dbError('Could not remove proofs from the database', e)
   }
 }
 
@@ -1208,7 +1123,7 @@ const getProofById = function (id: number) {
 
     return rows?.item(0) as ProofRecord
   } catch (e: any) {
-    throw new AppError(Err.DATABASE_ERROR, 'proof not found', e.message)
+    throw dbError('proof not found', e)
   }
 }
 
@@ -1238,11 +1153,7 @@ const getProofs = async (
     const { rows } = await db.executeAsync(query)
     return (rows?._array ?? []) as ProofRecord[]
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Proofs could not be retrieved from the database',
-      e.message,
-    )
+    throw dbError('Proofs could not be retrieved from the database', e)
   }
 }
 
@@ -1260,11 +1171,7 @@ const getProofsByTransaction = function (transactionId: number): ProofRecord[] {
 
     return rows?._array as ProofRecord[]
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Proofs could not be retrieved from the database',
-      e.message,
-    )
+    throw dbError('Proofs could not be retrieved from the database', e)
   }
 }
 
@@ -1377,11 +1284,7 @@ const openReservation = function (
       operationType: reservation.operationType,
     })
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not open proof reservation',
-      e.message,
-    )
+    throw dbError('Could not open proof reservation', e)
   }
 }
 
@@ -1523,11 +1426,7 @@ const commitReservation = function (
       txUpdate: changes.transactionUpdate ? changes.transactionUpdate.id : undefined,
     })
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not commit proof reservation',
-      e.message,
-    )
+    throw dbError('Could not commit proof reservation', e)
   }
 }
 
@@ -1561,11 +1460,7 @@ const rollbackReservation = function (
       restoredCount: lockedProofs.length,
     })
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not rollback proof reservation',
-      e.message,
-    )
+    throw dbError('Could not rollback proof reservation', e)
   }
 }
 
@@ -1600,11 +1495,7 @@ const getOpenReservations = function (): ReservationRow[] {
     }
     return result
   } catch (e: any) {
-    throw new AppError(
-      Err.DATABASE_ERROR,
-      'Could not read open reservations',
-      e.message,
-    )
+    throw dbError('Could not read open reservations', e)
   }
 }
 
