@@ -108,3 +108,5 @@ tasks.md
 
 # hot-updater
 .env.hotupdater
+# hot-updater
+.hot-updater/log
