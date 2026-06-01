@@ -43,6 +43,7 @@ import {
   ANDROID_FILES_PATH,
 } from '@op-engineering/op-sqlite'
 import AppError, {Err} from '../../utils/AppError'
+import {log} from '../logService'
 
 export type {Scalar}
 
@@ -163,6 +164,24 @@ const adaptResult = (r: {insertId?: number; rowsAffected?: number; rows?: any[]}
 const isParamSets = (params: unknown[]): params is unknown[][] =>
   params.length > 0 && Array.isArray(params[0])
 
+// ─── Lightweight query performance tracing ──────────────────────────────────
+// Logs the duration of every query at TRACE level so the op-sqlite migration
+// can be profiled on-device. Only the SQL text (which carries `?` placeholders)
+// is logged — NEVER the params, which may contain proof secrets.
+
+const perfNow = (): number =>
+  typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now()
+
+const ms = (start: number): number => Math.round((perfNow() - start) * 100) / 100
+
+/** Collapse whitespace and truncate so multi-line SQL logs on a single line. */
+const fmtSql = (sql: string): string => {
+  const s = sql.replace(/\s+/g, ' ').trim()
+  return s.length > 120 ? s.slice(0, 120) + '…' : s
+}
+
 /**
  * The database directory react-native-quick-sqlite used, so existing installs
  * keep finding their data after the migration — no copy/move needed.
@@ -180,13 +199,22 @@ const open = (params: {name: string; location?: string; encryptionKey?: string})
   // Caller-supplied location (if any) still wins over the legacy default.
   const db: DB = opOpen({location: legacyLocation(), ...params})
 
-  const execute = (query: string, p?: unknown[]): QueryResult =>
-    adaptResult(db.executeSync(query, sanitizeParams(p)))
+  const execute = (query: string, p?: unknown[]): QueryResult => {
+    const t = perfNow()
+    const result = adaptResult(db.executeSync(query, sanitizeParams(p)))
+    log.trace('[sqlite.execute]', {ms: ms(t), rows: result.rows.length, sql: fmtSql(query)})
+    return result
+  }
 
-  const executeAsync = async (query: string, p?: unknown[]): Promise<QueryResult> =>
-    adaptResult(await db.execute(query, sanitizeParams(p)))
+  const executeAsync = async (query: string, p?: unknown[]): Promise<QueryResult> => {
+    const t = perfNow()
+    const result = adaptResult(await db.execute(query, sanitizeParams(p)))
+    log.trace('[sqlite.executeAsync]', {ms: ms(t), rows: result.rows.length, sql: fmtSql(query)})
+    return result
+  }
 
   const executeBatch = (commands: SQLBatchTuple[]): {rowsAffected: number} => {
+    const t = perfNow()
     let rowsAffected = 0
     db.executeSync('BEGIN')
     try {
@@ -209,11 +237,18 @@ const open = (params: {name: string; location?: string; encryptionKey?: string})
       }
       throw e
     }
+    log.trace('[sqlite.executeBatch]', {ms: ms(t), statements: commands.length, rowsAffected})
     return {rowsAffected}
   }
 
   const executeBatchAsync = async (commands: SQLBatchTuple[]): Promise<{rowsAffected: number}> => {
+    const t = perfNow()
     const r = await db.executeBatch(commands as OpSQLBatchTuple[])
+    log.trace('[sqlite.executeBatchAsync]', {
+      ms: ms(t),
+      statements: commands.length,
+      rowsAffected: r.rowsAffected ?? 0,
+    })
     return {rowsAffected: r.rowsAffected ?? 0}
   }
 
