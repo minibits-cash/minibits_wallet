@@ -169,6 +169,9 @@ const isParamSets = (params: unknown[]): params is unknown[][] =>
 // can be profiled on-device. Only the SQL text (which carries `?` placeholders)
 // is logged — NEVER the params, which may contain proof secrets.
 
+/** Master switch for per-query performance TRACE logging. Flip to false to disable. */
+const PERF_TRACKING = true
+
 const perfNow = (): number =>
   typeof performance !== 'undefined' && typeof performance.now === 'function'
     ? performance.now()
@@ -200,21 +203,21 @@ const open = (params: {name: string; location?: string; encryptionKey?: string})
   const db: DB = opOpen({location: legacyLocation(), ...params})
 
   const execute = (query: string, p?: unknown[]): QueryResult => {
-    const t = perfNow()
+    const t = PERF_TRACKING ? perfNow() : 0
     const result = adaptResult(db.executeSync(query, sanitizeParams(p)))
-    log.trace('[sqlite.execute]', {ms: ms(t), rows: result.rows.length, sql: fmtSql(query)})
+    if (PERF_TRACKING) log.trace('[sqlite.execute]', {ms: ms(t), rows: result.rows.length, sql: fmtSql(query)})
     return result
   }
 
   const executeAsync = async (query: string, p?: unknown[]): Promise<QueryResult> => {
-    const t = perfNow()
+    const t = PERF_TRACKING ? perfNow() : 0
     const result = adaptResult(await db.execute(query, sanitizeParams(p)))
-    log.trace('[sqlite.executeAsync]', {ms: ms(t), rows: result.rows.length, sql: fmtSql(query)})
+    if (PERF_TRACKING) log.trace('[sqlite.executeAsync]', {ms: ms(t), rows: result.rows.length, sql: fmtSql(query)})
     return result
   }
 
   const executeBatch = (commands: SQLBatchTuple[]): {rowsAffected: number} => {
-    const t = perfNow()
+    const t = PERF_TRACKING ? perfNow() : 0
     let rowsAffected = 0
     db.executeSync('BEGIN')
     try {
@@ -237,14 +240,14 @@ const open = (params: {name: string; location?: string; encryptionKey?: string})
       }
       throw e
     }
-    log.trace('[sqlite.executeBatch]', {ms: ms(t), statements: commands.length, rowsAffected})
+    if (PERF_TRACKING) log.trace('[sqlite.executeBatch]', {ms: ms(t), statements: commands.length, rowsAffected})
     return {rowsAffected}
   }
 
   const executeBatchAsync = async (commands: SQLBatchTuple[]): Promise<{rowsAffected: number}> => {
-    const t = perfNow()
+    const t = PERF_TRACKING ? perfNow() : 0
     const r = await db.executeBatch(commands as OpSQLBatchTuple[])
-    log.trace('[sqlite.executeBatchAsync]', {
+    if (PERF_TRACKING) log.trace('[sqlite.executeBatchAsync]', {
       ms: ms(t),
       statements: commands.length,
       rowsAffected: r.rowsAffected ?? 0,
