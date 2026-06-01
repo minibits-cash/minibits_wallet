@@ -3,6 +3,7 @@ import {
     ViewStyle,
     View,
     TextStyle,
+    Platform,
 } from 'react-native'
 import { PaymentRequest as CashuPaymentRequest, MeltQuoteBolt11Response, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
 import NfcManager, { Ndef, NfcEvents } from 'react-native-nfc-manager'
@@ -421,7 +422,12 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             // so without this the next tap would fall through to the OS chooser again.
             // The short delay lets reader mode tear down cleanly and throttles re-arming in
             // case the NFC stack is transiently erroring.
-            if (keepScanningRef.current && !didStartProcessing) {
+            //
+            // Android-only: on iOS requestTechnology drives the CoreNFC system scan sheet, so
+            // re-arming would reopen that popup automatically on every empty/failed read and
+            // on the ~60s session timeout. iOS has no OS-chooser problem to solve here, so we
+            // let the session close and re-arm only on screen focus (as before).
+            if (Platform.OS === 'android' && keepScanningRef.current && !didStartProcessing) {
                 await new Promise(r => setTimeout(r, 300))
                 if (keepScanningRef.current && !didStartProcessing) {
                     startNfcSession()
