@@ -1,6 +1,7 @@
 package com.minibits_wallet
 
 // minibits_wallet:react-native-screens
+import android.content.Intent
 import android.os.Bundle
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -26,4 +27,16 @@ open class MainActivity : ReactActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(null)
     }
+
+  /**
+   * This activity is launchMode="singleTask", so when an NFC tap (or deep link) arrives while
+   * the app is already running it is delivered here via onNewIntent rather than a fresh start.
+   * super.onNewIntent forwards the intent to React Native's ActivityEventListeners (which the
+   * NFC manager and Linking module use), and setIntent updates getIntent() so launch-intent
+   * reads (getLaunchTagEvent / Linking.getInitialURL) reflect the new intent on warm resume.
+   */
+  override fun onNewIntent(intent: Intent) {
+      super.onNewIntent(intent)
+      setIntent(intent)
+  }
 }

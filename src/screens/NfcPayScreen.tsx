@@ -48,6 +48,10 @@ import FastImage from 'react-native-fast-image'
 
 type Props = StaticScreenProps<{
     unit: MintUnit
+    // When the screen is opened by an incoming NFC dispatch (cold/warm app launch via the
+    // OS NFC chooser), the tag has ALREADY been read by the OS; we pass the decoded text
+    // here and process it directly instead of arming the reader for a live tap.
+    incomingData?: string
 }>
 
 const SYNC_STATE_WITH_MINT_TIMEOUT = 10 * 1000
@@ -57,6 +61,11 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const { mintsStore, walletStore, proofsStore, transactionsStore, walletProfileStore } = useStores()
     const unitRef = useRef<MintUnit>('sat')
     const isOnline = useRef<boolean>(true)
+    // While true, the reader-mode session is re-armed after each read so the NEXT tap is
+    // captured by our exclusive reader-mode session instead of falling through to the OS
+    // "Complete action using…" chooser / other installed wallets. Turned off once a tag is
+    // actually being processed and on unmount.
+    const keepScanningRef = useRef<boolean>(false)
 
     const isInternetReachable = useIsInternetReachable()
 
@@ -99,9 +108,34 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 log.trace({isInternetReachable})
 
                 const balance = proofsStore.getMintBalanceWithMaxBalance(unitRef.current)
-                
+
                 if (balance) {
                     setMintBalanceToSendFrom(balance)
+                }
+
+                // Opened by an incoming NFC dispatch (cold/warm launch via the OS chooser):
+                // the tag was already read by the OS, so process the decoded data directly
+                // and skip arming the live reader.
+                const incomingData = route.params?.incomingData
+                if (incomingData) {
+                    keepScanningRef.current = false
+                    setIsProcessing(true)
+                    try {
+                        await handleIncomingData(incomingData)
+                    } catch (e: any) {
+                        log.error(e.message, { params: e.params || {} })
+                        setResultModalInfo({
+                            status: TransactionStatus.ERROR,
+                            title: e.params?.message ? e.message : 'NFC Payment failed',
+                            message: e.params?.message || e.message || 'Unknown error during NFC payment processing.',
+                        })
+                        setNfcInfo(e.message)
+                        setIsError(true)
+                        toggleResultModal()
+                    } finally {
+                        setIsProcessing(false)
+                    }
+                    return
                 }
 
                 /*setNfcInfo('Hold your device close to the NFC reader.')
@@ -125,6 +159,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
                 setNfcInfo('Hold your device close to the NFC reader.')
                 setIsNfcEnabled(true)
+                keepScanningRef.current = true
 
                 // Start listening for tags immediately
                 startNfcSession()
@@ -138,6 +173,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         initNfc()
 
         return () => {
+            keepScanningRef.current = false
             NfcManager.cancelTechnologyRequest().catch(() => {})
             NfcManager.setEventListener(NfcEvents.DiscoverTag, null)
             NfcManager.setEventListener(NfcEvents.SessionClosed, null)
@@ -153,6 +189,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
             if (isNfcEnabled && !isProcessing) {
+                keepScanningRef.current = true
                 startNfcSession()
             }
         })
@@ -326,6 +363,11 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
     const startNfcSession = async () => {
         let decoded: string | undefined = undefined;
+        // Whether this session read a real tag and handed off to the payment flow. When it
+        // did, we must NOT re-arm the reader (the result/processing UI owns the screen now).
+        // When it didn't (empty read, read error), we re-arm so a retry tap is captured by
+        // our reader-mode session rather than the OS chooser.
+        let didStartProcessing = false
         try {
             log.debug('[startNfcSession] Starting NFC session for payment request reading...')
 
@@ -335,6 +377,8 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 return
             }
 
+            didStartProcessing = true
+            keepScanningRef.current = false
             setIsProcessing(true)
 
             //log.info('NFC Tag found', {tag});
@@ -369,8 +413,20 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             setIsError(true)
             toggleResultModal()
         } finally {
-            await NfcManager.cancelTechnologyRequest().catch(() => {}) 
+            await NfcManager.cancelTechnologyRequest().catch(() => {})
             setIsProcessing(false)
+
+            // Re-arm the reader for the next tap unless we handed off to the payment flow
+            // or the screen is gone. cancelTechnologyRequest() above tears down reader mode,
+            // so without this the next tap would fall through to the OS chooser again.
+            // The short delay lets reader mode tear down cleanly and throttles re-arming in
+            // case the NFC stack is transiently erroring.
+            if (keepScanningRef.current && !didStartProcessing) {
+                await new Promise(r => setTimeout(r, 300))
+                if (keepScanningRef.current && !didStartProcessing) {
+                    startNfcSession()
+                }
+            }
         }
     }
 
@@ -1142,9 +1198,6 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                     </View>
                 </View>
             </View>
-
-            {info && <InfoModal message={info} />}
-            {error && <ErrorModal error={error} />}
             <BottomModal
                 isVisible={isResultModalVisible}
                 ContentComponent={
@@ -1229,6 +1282,8 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 onBackButtonPress={toggleResultModal}
                 onBackdropPress={toggleResultModal}
             />
+            {info && <InfoModal message={info} />}
+            {error && <ErrorModal error={error} />}
         </Screen>
     )
 })
@@ -1285,7 +1340,7 @@ export const PulsingContactlessIcon: React.FC<PulsingContactlessIconProps> = ({
 const $screen: ViewStyle = { }
 const $contentContainer: ViewStyle = { flex: 1, padding: spacing.extraSmall }
 const $headerContainer: TextStyle = { alignItems: 'center', paddingVertical: spacing.medium,}
-const $buttonContainer: ViewStyle = { flex: 1, marginTop: spacing.large, flexDirection: 'row', alignSelf: 'center' }
+const $buttonContainer: ViewStyle = { flexDirection: 'row', alignSelf: 'center' }
 const $bottomContainer: ViewStyle = {
     position: 'absolute',
     bottom: 0,

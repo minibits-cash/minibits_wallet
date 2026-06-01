@@ -45,6 +45,7 @@ import {
     MINIBITS_MINT_URL,
 } from '@env'
 import { IncomingParser } from '../services/incomingParser'
+import { NfcService } from '../services/nfcService'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { CurrencySign } from './Wallet/CurrencySign'
 import { CurrencyCode, MintUnit, MintUnitCurrencyPairs, convertToFromSats, getCurrency } from "../services/wallet/currency"
@@ -166,11 +167,21 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     // On app start
     useEffect(() => {        
         const getInitialData  = async () => {
+            // If the app was COLD-launched by an NFC tap (e.g. another wallet's HCE share,
+            // with Minibits picked in the OS chooser), route the decoded tag to the NFC pay
+            // screen. getLaunchNdefText returns undefined for non-NFC launches, so a normal
+            // deep link falls through to Linking below.
+            const nfcText = await NfcService.getLaunchNdefText()
+            if (nfcText) {
+                handleNfcData(nfcText)
+                return
+            }
+
             // get deeplink data if any
             const url = await Linking.getInitialURL()
-                                             
-            if (url) {                            
-                handleDeeplink({url})                
+
+            if (url) {
+                handleDeeplink({url})
                 return // skip further processing so that it does not slow down or clash deep link
             }
 
@@ -220,18 +231,23 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         }
         
         Linking.addEventListener('url', handleDeeplink)
+        // WARM resume: app backgrounded, then brought to foreground by an NFC tap. The tag
+        // arrives via the DiscoverBackgroundTag event (no data URI for text records, so
+        // Linking would miss it); route it to the NFC pay screen like the cold-start path.
+        NfcService.setBackgroundTagListener(handleNfcData)
         EventEmitter.on(`ev_${HANDLE_RECEIVED_EVENT_TASK}_result`, handleReceivedEventTaskResult)
         EventEmitter.on(`ev_${HANDLE_CLAIM_TASK}_result`, handleClaimTaskResult)
-        
+
 
         getInitialData()
 
         // Unsubscribe from the task result event on component unmount
         return () => {
+            NfcService.removeBackgroundTagListener()
             EventEmitter.off(`ev_${HANDLE_RECEIVED_EVENT_TASK}_result`, handleReceivedEventTaskResult)
-            EventEmitter.off(`ev_${HANDLE_CLAIM_TASK}_result`, handleClaimTaskResult)        
+            EventEmitter.off(`ev_${HANDLE_CLAIM_TASK}_result`, handleClaimTaskResult)
         }
-        
+
     }, [])
 
 
@@ -258,14 +274,24 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
             const incomingData = IncomingParser.findAndExtract(url)
             await IncomingParser.navigateWithIncomingData(
-                incomingData, 
-                navigation,                 
+                incomingData,
+                navigation,
                 currentUnit
             )
 
         } catch (e: any) {
             handleError(e)
         }
+    }
+
+    // Routes NFC data (cold launch or warm resume) to the dedicated NFC pay screen, which
+    // processes the already-read payload via its own handleIncomingData.
+    const handleNfcData = function (data: string) {
+        // @ts-ignore
+        navigation.navigate('NfcPay', {
+            unit: currentUnit,
+            incomingData: data,
+        })
     }
 
     const gotoUpdate = function() {
