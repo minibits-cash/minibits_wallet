@@ -7,11 +7,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import notifee, { AuthorizationStatus } from '@notifee/react-native'
 import messaging from '@react-native-firebase/messaging'
-import { HotUpdater, getUpdateSource } from '@hot-updater/react-native'
-import {
-    HOT_UPDATER_API_KEY,
-    HOT_UPDATER_URL,
-} from '@env'
+import { HotUpdater } from '@hot-updater/react-native'
 import {ThemeCode, Themes, colors, spacing, typography, useThemeColor} from '../theme'
 import { changeIcon } from 'react-native-change-icon'
 import {ListItem, Screen, Text, Card, NwcIcon, Button, BottomModal, InfoModal, Icon, Header, AnimatedHeader} from '../components'
@@ -71,12 +67,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
         const checkForUpdate = async () => {
             try {
                 const updateInfo = await HotUpdater.checkForUpdate({
-                    source: getUpdateSource(HOT_UPDATER_URL, {
-                      updateStrategy: "fingerprint",
-                    }),
-                    requestHeaders: {
-                        Authorization: `Bearer ${HOT_UPDATER_API_KEY}`,
-                    },
+                    updateStrategy: "fingerprint",
                 })
 
                 log.debug('[checkForUpdate]', {updateInfo})

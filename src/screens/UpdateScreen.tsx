@@ -3,8 +3,6 @@ import React, {FC, useEffect, useState} from 'react'
 import {Linking, Platform, ScrollView, Switch, TextStyle, View, ViewStyle} from 'react-native'
 import {
     APP_ENV,
-    HOT_UPDATER_API_KEY,
-    HOT_UPDATER_URL,      
 } from '@env'
 // import codePush from "react-native-code-push"
 import {colors, spacing, useThemeColor} from '../theme'
@@ -26,7 +24,7 @@ import { log } from '../services'
 import {Env} from '../utils/envtypes'
 import { CommonActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
 import { translate } from '../i18n'
-import { getUpdateSource, HotUpdater, useHotUpdaterStore } from '@hot-updater/react-native'
+import { HotUpdater, useHotUpdaterStore } from '@hot-updater/react-native'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
 
 
@@ -90,12 +88,7 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
         try {
             setIsUpdateModalVisible(true)
                 const updateInfo = await HotUpdater.checkForUpdate({
-                    source: getUpdateSource(HOT_UPDATER_URL, {
-                      updateStrategy: "fingerprint",
-                    }),
-                    requestHeaders: {
-                        Authorization: `Bearer ${HOT_UPDATER_API_KEY}`,
-                    },
+                    updateStrategy: "fingerprint",
                 })
 
             if (!updateInfo) {

@@ -24,9 +24,21 @@ import { Text } from './components/Text'
 import useIsInternetReachable from './utils/useIsInternetReachable'
 import { MMKVStorage } from './services'
 import { Button, Screen } from './components'
+import { HotUpdater } from '@hot-updater/react-native'
+import { HOT_UPDATER_URL, HOT_UPDATER_API_KEY } from '@env'
 
 setSizeMattersBaseWidth(375)
 setSizeMattersBaseHeight(812)
+
+// Configure hot-updater once before any HotUpdater.checkForUpdate() call.
+// As of 0.32.0 the base URL and request headers are set here instead of
+// being passed per-call via the removed getUpdateSource() helper.
+HotUpdater.init({
+  baseURL: HOT_UPDATER_URL,
+  requestHeaders: {
+    Authorization: `Bearer ${HOT_UPDATER_API_KEY}`,
+  },
+})
 
 
 function App() {

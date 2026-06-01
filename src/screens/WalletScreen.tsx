@@ -41,10 +41,8 @@ import {TransactionListItem} from './Transactions/TransactionListItem'
 import {WalletTask} from '../services'
 import {translate} from '../i18n'
 import AppError, { Err } from '../utils/AppError'
-import {    
-    HOT_UPDATER_API_KEY,
-    HOT_UPDATER_URL,
-    MINIBITS_MINT_URL,    
+import {
+    MINIBITS_MINT_URL,
 } from '@env'
 import { IncomingParser } from '../services/incomingParser'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
@@ -54,7 +52,7 @@ import { CurrencyAmount } from './Wallet/CurrencyAmount'
 import { LeftProfileHeader } from './ContactsScreen'
 import { getUnixTime } from 'date-fns/getUnixTime'
 import FastImage from 'react-native-fast-image'
-import { HotUpdater, getUpdateSource } from '@hot-updater/react-native'
+import { HotUpdater } from '@hot-updater/react-native'
 import { NfcIcon } from '../components/NfcIcon'
 
 const MINT_CHECK_INTERVAL = 60
@@ -127,12 +125,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         const checkForUpdate = async () => {
             try {
                 const updateInfo = await HotUpdater.checkForUpdate({
-                    source: getUpdateSource(HOT_UPDATER_URL, {
-                        updateStrategy: "fingerprint",
-                    }),
-                    requestHeaders: {
-                        Authorization: `Bearer ${HOT_UPDATER_API_KEY}`,
-                    },
+                    updateStrategy: "fingerprint",
                 })
 
                 log.trace('[checkForUpdate]', {updateInfo})
