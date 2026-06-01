@@ -62,6 +62,14 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                 continue
             }
 
+            // Already resolved elsewhere (e.g. sync confirmed the proofs SPENT and finalized
+            // the tx): nothing to recover. Drop the lingering in-flight request so it isn't
+            // retried on every sweep.
+            if (tx.status === TransactionStatus.COMPLETED || tx.status === TransactionStatus.REVERTED) {
+                counter.removeInFlightRequest(inFlight.transactionId)
+                continue
+            }
+
             let txData: TransactionData[] = []
             try {
                 txData = tx.data ? JSON.parse(tx.data) : []
@@ -107,6 +115,17 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                     }
 
                     case TransactionType.SEND: {
+                        // Defensive: a stale/old-format in-flight request may lack the input
+                        // proofs (e.g. persisted by an earlier version, or request migrated to
+                        // null). Without them the swap can't be retried — drop it so it stops
+                        // throwing on every sweep instead of recovering.
+                        if (!Array.isArray(inFlight.request?.proofs)) {
+                            log.warn('[handleInFlightByMintTask] SEND in-flight request missing proofs, dropping', {
+                                tId: tx.id,
+                            })
+                            break
+                        }
+
                         // Look up the MST nodes for the persisted input proofs so
                         // they can be reserved (and atomically transitioned to
                         // SPENT below). In the common case all proofs exist and

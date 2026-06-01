@@ -67,6 +67,13 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     // "Complete action using…" chooser / other installed wallets. Turned off once a tag is
     // actually being processed and on unmount.
     const keepScanningRef = useRef<boolean>(false)
+    // Set once we lock onto a tag and hand it to the payment flow. While true we keep the
+    // Android reader-mode session ALIVE (never cancelTechnologyRequest) until the screen
+    // unmounts. Reader mode suppresses the OS NFC dispatch/chooser entirely; tearing it down
+    // re-enables dispatch, and a payee that keeps presenting its invoice over HCE (e.g. a
+    // Lightning invoice, which it has no way to know is paid) would then trigger the
+    // "Complete action using…" chooser over our result modal. Also stops re-arming new taps.
+    const paymentLockedRef = useRef<boolean>(false)
 
     const isInternetReachable = useIsInternetReachable()
 
@@ -84,7 +91,12 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
     const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | undefined>()
     const [transaction, setTransaction] = useState<Transaction | undefined>()
-    const [transactionId, setTransactionId] = useState<number | undefined>()      
+    const [transactionId, setTransactionId] = useState<number | undefined>()
+    // When an async (lightning) melt returns PENDING because the mint has not yet settled the
+    // payment, the monitor keeps running in the background and emits ev_asyncMeltResult once the
+    // quote resolves. While this id is set, the result modal shows an "in progress" state instead
+    // of the "stuck pending" warning.
+    const [pendingAsyncMeltId, setPendingAsyncMeltId] = useState<number | undefined>(undefined)
     const [resultModalInfo, setResultModalInfo] = useState<{status: TransactionStatus, title?: string, message: string} | undefined>()    
     const [isLoading, setIsLoading] = useState(false)
     //const [isOffline, setIsOffline] = useState(false)
@@ -189,7 +201,9 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     // Auto-restart session when screen comes into focus
     useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
-            if (isNfcEnabled && !isProcessing) {
+            // Don't re-arm if a payment is locked — its reader-mode session is still alive
+            // and a fresh requestTechnology would collide (ERR_MULTI_REQ).
+            if (isNfcEnabled && !isProcessing && !paymentLockedRef.current) {
                 keepScanningRef.current = true
                 startNfcSession()
             }
@@ -362,15 +376,47 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
     // ====================== Lightning Payment (Transfer Task) Result Handler ======================
 
+    // async melt result listener - updates the result modal when the melt quote resolves and
+    // the transaction reaches a terminal status (COMPLETED / REVERTED).
+    useEffect(() => {
+        if (!pendingAsyncMeltId) return
+
+        const handler = (result: { transactionId: number; status: TransactionStatus; message: string }) => {
+            log.trace('[NfcScreen] Received async melt result', { result, pendingAsyncMeltId })
+
+            if (result.transactionId !== pendingAsyncMeltId) return
+
+            setPendingAsyncMeltId(undefined)
+            setTransactionStatus(result.status)
+            setResultModalInfo({ status: result.status, message: result.message })
+        }
+
+        EventEmitter.on('ev_asyncMeltResult', handler)
+        return () => EventEmitter.off('ev_asyncMeltResult', handler)
+    }, [pendingAsyncMeltId])
+
+    // Tears down the current reader-mode session and arms a fresh one. Shared by the finally
+    // retry path (transient failed read) and dismissResultModal (re-scan after the modal is
+    // dismissed). Android-only: on iOS a fresh requestTechnology would reopen the CoreNFC scan
+    // sheet, so iOS re-arms only on screen focus.
+    const rearmReader = async function () {
+        if (Platform.OS !== 'android' || !keepScanningRef.current) return
+        // Cancel the current (consumed or failed) session; a fresh requestTechnology would
+        // otherwise collide with it (ERR_MULTI_REQ).
+        await NfcManager.cancelTechnologyRequest().catch(() => {})
+        // Let reader mode tear down cleanly and throttle re-arming if the NFC stack errors.
+        await new Promise(r => setTimeout(r, 300))
+        if (keepScanningRef.current && !paymentLockedRef.current) {
+            log.trace('[rearmReader] restarting NFC reader session')
+            setNfcInfo('Hold your device close to the NFC reader.')
+            startNfcSession()
+        }
+    }
+
     const startNfcSession = async () => {
         let decoded: string | undefined = undefined;
-        // Whether this session read a real tag and handed off to the payment flow. When it
-        // did, we must NOT re-arm the reader (the result/processing UI owns the screen now).
-        // When it didn't (empty read, read error), we re-arm so a retry tap is captured by
-        // our reader-mode session rather than the OS chooser.
-        let didStartProcessing = false
         try {
-            log.debug('[startNfcSession] Starting NFC session for payment request reading...')
+            log.debug('[startNfcSession] Starting NFC session...')
 
             const tag = await NfcService.readNdefTag()
 
@@ -378,8 +424,10 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 return
             }
 
-            didStartProcessing = true
-            keepScanningRef.current = false
+            // Lock onto this tag and hand it to the payment flow. From here we keep the
+            // reader-mode session alive (see finally) so the OS chooser can't pop over the
+            // result modal, and we stop re-arming for new taps.
+            paymentLockedRef.current = true
             setIsProcessing(true)
 
             //log.info('NFC Tag found', {tag});
@@ -391,7 +439,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             if(!decoded || decoded.length < 40) {
                 const msg = 'This NFC tag can not be processed, missing or truncated NDEF message.'
                 
-                throw new AppError(Err.NFC_ERROR, msg)
+                throw new AppError(Err.NFC_ERROR, msg, decoded ? { decoded } : undefined)
             }
 
             setNfcInfo('Processing, keep your device still...')            
@@ -414,24 +462,24 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             setIsError(true)
             toggleResultModal()
         } finally {
-            await NfcManager.cancelTechnologyRequest().catch(() => {})
+            log.trace('[startNfcSession.finally] block start', {paymentLockedRef: paymentLockedRef.current, keepScanningRef: keepScanningRef.current})
             setIsProcessing(false)
 
-            // Re-arm the reader for the next tap unless we handed off to the payment flow
-            // or the screen is gone. cancelTechnologyRequest() above tears down reader mode,
-            // so without this the next tap would fall through to the OS chooser again.
-            // The short delay lets reader mode tear down cleanly and throttles re-arming in
-            // case the NFC stack is transiently erroring.
-            //
-            // Android-only: on iOS requestTechnology drives the CoreNFC system scan sheet, so
-            // re-arming would reopen that popup automatically on every empty/failed read and
-            // on the ~60s session timeout. iOS has no OS-chooser problem to solve here, so we
-            // let the session close and re-arm only on screen focus (as before).
-            if (Platform.OS === 'android' && keepScanningRef.current && !didStartProcessing) {
-                await new Promise(r => setTimeout(r, 300))
-                if (keepScanningRef.current && !didStartProcessing) {
-                    startNfcSession()
-                }
+            if (Platform.OS === 'android' && paymentLockedRef.current) {
+                // Keep the reader-mode session ALIVE after locking onto a payment so the OS
+                // chooser can't pop over the result modal (the payee may keep presenting its
+                // invoice over HCE — e.g. a Lightning invoice it can't know is paid). The
+                // session is torn down on unmount, or by dismissResultModal when the user
+                // dismisses the modal without leaving the screen.
+                log.trace('[startNfcSession.finally] payment locked - keeping reader session alive')
+            } else if (Platform.OS === 'android') {
+                // Transient non-locked read (empty/failed): recover the reader so a retry tap
+                // is captured by reader mode instead of falling through to the OS chooser.
+                await rearmReader()
+            } else {
+                // iOS: close the CoreNFC scan sheet. Re-arming would reopen that popup, so iOS
+                // re-arms only on screen focus.
+                await NfcManager.cancelTechnologyRequest().catch(() => {})
             }
         }
     }
@@ -526,7 +574,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const handleSendTaskResult = async function (encodedCashuPaymentRequest: string, result: TransactionTaskResult) {
         log.debug('[NfcScreen] handleSendTaskResult start', {transactionStatus: result.transaction?.status})
 
-        const { transaction, error, encodedTokenToSend } = result
+        const { transaction, error } = result
         const decodedCashuPaymentRequest = decodePaymentRequest(encodedCashuPaymentRequest)
 
         // update tx with pr info
@@ -552,6 +600,10 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         }
 
         // ———————— Missing Token or PR ————————
+        // sendTask returns the prepared token on the transaction (outputToken); there is no
+        // top-level encodedTokenToSend field on TransactionTaskResult, so reading it from the
+        // result was always undefined and made every NFC cashu-PR payment fail here.
+        const encodedTokenToSend = transaction.outputToken ?? undefined
         if (!encodedTokenToSend || !decodedCashuPaymentRequest) {
             throw new AppError(Err.NOTFOUND_ERROR, 'Internal error', {
                 message: 'Failed to retrieve Payment request or ecash token'
@@ -782,6 +834,11 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                     })
                 }
             } else {
+                if (status === TransactionStatus.PENDING) {
+                    // Async melt: monitor is running in background and will emit ev_asyncMeltResult
+                    // when the quote resolves. The listener above will update the modal at that point.
+                    setPendingAsyncMeltId(transaction.id)
+                }
                 // Success or settled pending
                 setResultModalInfo({
                     status,
@@ -960,9 +1017,22 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         setIsResultModalVisible(false)
         setResultModalInfo(undefined)
         setIsPaid(false)
+        setPendingAsyncMeltId(undefined)
     }
 
     const toggleResultModal = () => setIsResultModalVisible(previousState => !previousState)
+
+    // Dismiss the result modal while STAYING on the NFC screen (backdrop, back button, or the
+    // "reverted" close). After a payment we keep the Android reader-mode session alive (and
+    // paymentLockedRef true) so the OS chooser can't pop over the modal — but that session is
+    // consumed. So on dismiss we reset the pay state, release the lock, and re-arm a fresh
+    // reader so another NFC payment can be made; without this the next tap would never be
+    // read. (Leaving via the Close buttons unmounts the screen, which cleans up instead.)
+    const dismissResultModal = function () {
+        resetState() // also hides the modal
+        paymentLockedRef.current = false
+        rearmReader()
+    }
 
 
 
@@ -1239,7 +1309,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                             <Button
                             preset="secondary"
                             tx={'commonClose'}
-                            onPress={toggleResultModal}
+                            onPress={dismissResultModal}
                             />
                         </View>
                         </>
@@ -1266,7 +1336,8 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                     )}
                     {resultModalInfo &&
                     transactionStatus === TransactionStatus.PENDING &&
-                    resultModalInfo.status !== TransactionStatus.ERROR && (
+                    resultModalInfo.status !== TransactionStatus.ERROR &&
+                    !pendingAsyncMeltId && (
                         <>
                             <ResultModalInfo
                                 icon="faTriangleExclamation"
@@ -1283,10 +1354,30 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                             </View>
                         </>
                     )}
+                    {resultModalInfo &&
+                    transactionStatus === TransactionStatus.PENDING &&
+                    resultModalInfo.status !== TransactionStatus.ERROR &&
+                    !!pendingAsyncMeltId && (
+                        <>
+                            <ResultModalInfo
+                                icon="faClock"
+                                iconColor={colors.palette.iconBlue200}
+                                title={resultModalInfo?.title || translate('payCommon_isInProgress')}
+                                message={resultModalInfo?.message}
+                            />
+                            <View style={$buttonContainer}>
+                                <Button
+                                preset="secondary"
+                                tx={'commonClose'}
+                                onPress={gotoWallet}
+                                />
+                            </View>
+                        </>
+                    )}
                 </>
                 }
-                onBackButtonPress={toggleResultModal}
-                onBackdropPress={toggleResultModal}
+                onBackButtonPress={dismissResultModal}
+                onBackdropPress={dismissResultModal}
             />
             {info && <InfoModal message={info} />}
             {error && <ErrorModal error={error} />}

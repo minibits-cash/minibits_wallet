@@ -562,9 +562,15 @@ async function finalize(transactionId: number): Promise<CompletedTransaction> {
     if (tx.status === TransactionStatus.COMPLETED) {
         return tx as CompletedTransaction
     }
-    if (!isPending(tx)) {
+    // finalize() is only ever dispatched by syncStateWithMintTask, and only for a tx whose
+    // outgoing proofs the mint just confirmed SPENT (sync moves them to SPENT, then this
+    // re-verifies below). A send that errored locally — e.g. a network failure on a request
+    // the mint nonetheless processed and the payee then claimed — must be recoverable to
+    // COMPLETED rather than staying stuck ERROR. So allow ERROR through alongside PENDING;
+    // the SPENT re-check below still prevents completing a genuinely-failed (unspent) send.
+    if (!isPending(tx) && tx.status !== TransactionStatus.ERROR) {
         throw new ValidationError(
-            `Cannot finalize send in state ${tx.status}. Expected PENDING or COMPLETED.`,
+            `Cannot finalize send in state ${tx.status}. Expected PENDING, COMPLETED, or ERROR.`,
             {transactionId, status: tx.status},
         )
     }

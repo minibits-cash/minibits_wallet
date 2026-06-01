@@ -80,7 +80,12 @@ const writeNdefMessage = async (text: string) => {
         const bytes = Ndef.encodeMessage([Ndef.textRecord(text)])
         await NfcManager.ndefHandler.writeNdefMessage(bytes)
         log.trace('[writeNdefMessage] write completed')
-        await NfcManager.cancelTechnologyRequest().catch(() => {}) // close session
+        // NOTE: do NOT cancelTechnologyRequest here. The token is already delivered to the
+        // payee by writeNdefMessage above; cancelling would disable Android reader mode
+        // mid-payment and let the payee's still-presented HCE tag trigger the OS "Complete
+        // action using…" chooser over our result modal. The caller (NfcPayScreen) owns the
+        // reader-mode session lifecycle and keeps it alive until the screen unmounts / the
+        // result modal is dismissed, same as the read-and-pay paths.
     } catch(e: any) {
         throw new AppError(Err.NFC_ERROR, e.message, {caller: 'writeNdefMessage', error: String(e)})
     }
