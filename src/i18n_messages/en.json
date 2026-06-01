@@ -679,6 +679,8 @@
 	"transactionCommon_youPaid": "You paid",
 	"transactionCommon_youReceived": "You received",
 	"transactionCommon_youSent": "You sent",
+	"transactionResult_lightningInvoicePaidFee": "Lightning invoice has been paid. Fee was %{fee}.",
+	"transactionResult_lightningPaymentFailed": "Lightning payment failed. Reserved ecash has been returned to spendable balance.",
 	"transferScreen_donationSuccessMessage": "Donation for %{donationForName} has been successfully paid and your wallet address has been updated. Thank you!",
 	"transferScreen_insufficientFunds": "There is not enough balance in %{currency} to pay the invoice amount and expected fees: %{amount} %{currency}",
 	"transferScreen_LUD18unsupported": "Minibits does not yet support entering of payer identity data (LUD18).",

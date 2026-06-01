@@ -7,6 +7,7 @@ import {log} from '../logService'
 import {WalletUtils} from './utils'
 import {MintUnit, formatCurrency, getCurrency} from './currency'
 import {NostrEvent} from '../nostrService'
+import { translate } from '../../i18n'
 
 const {transactionsStore} = rootStoreInstance
 
@@ -75,7 +76,9 @@ export const transferTask = async function (
                 taskFunction: TRANSFER_TASK,
                 mintUrl,
                 transaction: settled,
-                message: `Lightning invoice has been successfully paid and settled with your Minibits ecash. Fee has been ${formatCurrency(totalFeePaid, getCurrency(unit).code)} ${getCurrency(unit).code}.`,
+                message: translate('transactionResult_lightningInvoicePaidFee', {
+                                fee: `${formatCurrency(settled.fee, getCurrency(unit).code)} ${getCurrency(unit).code}`,
+                        }),
                 lightningFeePaid,
                 meltFeePaid,
                 totalFeePaid,

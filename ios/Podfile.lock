@@ -102,6 +102,27 @@ PODS:
     - nanopb/encode (= 3.30910.0)
   - nanopb/decode (3.30910.0)
   - nanopb/encode (3.30910.0)
+  - op-sqlite (16.2.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - OpenSSL-Universal (3.3.3001)
   - PromisesObjC (2.4.0)
   - RCT-Folly (2024.11.18.00):
@@ -1546,27 +1567,6 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - react-native-quick-sqlite (8.2.7):
-    - hermes-engine
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-jsi
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - ReactNativeDependencies
-    - Yoga
   - react-native-safe-area-context (5.6.1):
     - hermes-engine
     - RCTRequired
@@ -2430,6 +2430,7 @@ DEPENDENCIES:
   - glog (from `../node_modules/react-native/third-party-podspecs/glog.podspec`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
   - "HotUpdater (from `../node_modules/@hot-updater/react-native`)"
+  - "op-sqlite (from `../node_modules/@op-engineering/op-sqlite`)"
   - RCT-Folly (from `../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec`)
   - RCTDeprecation (from `../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)
   - RCTRequired (from `../node_modules/react-native/Libraries/Required`)
@@ -2474,7 +2475,6 @@ DEPENDENCIES:
   - react-native-nfc-manager (from `../node_modules/react-native-nfc-manager`)
   - react-native-pager-view (from `../node_modules/react-native-pager-view`)
   - react-native-quick-crypto (from `../node_modules/react-native-quick-crypto`)
-  - react-native-quick-sqlite (from `../node_modules/react-native-quick-sqlite`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-networking (from `../node_modules/react-native/ReactCommon/react/networking`)
@@ -2567,6 +2567,8 @@ EXTERNAL SOURCES:
     :tag: hermes-v250829098.0.8
   HotUpdater:
     :path: "../node_modules/@hot-updater/react-native"
+  op-sqlite:
+    :path: "../node_modules/@op-engineering/op-sqlite"
   RCT-Folly:
     :podspec: "../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec"
   RCTDeprecation:
@@ -2653,8 +2655,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-pager-view"
   react-native-quick-crypto:
     :path: "../node_modules/react-native-quick-crypto"
-  react-native-quick-sqlite:
-    :path: "../node_modules/react-native-quick-sqlite"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
   React-NativeModulesApple:
@@ -2778,6 +2778,7 @@ SPEC CHECKSUMS:
   HotUpdater: 9f8e5c8a20f82a7579e23d2015586aac6848f666
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
+  op-sqlite: 6426d38c0642bfcd4a35c9db7430ee774ca4ff9e
   OpenSSL-Universal: 6082b0bf950e5636fe0d78def171184e2b3899c2
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   RCT-Folly: 7449e39d08a22c7cfc6bbfc9f140168c61c5869d
@@ -2824,7 +2825,6 @@ SPEC CHECKSUMS:
   react-native-nfc-manager: eaf239774290388173427ee5110126de3c869cc3
   react-native-pager-view: 3940c389055f6b9b1d2559a73725765f9fdf61bc
   react-native-quick-crypto: 5f2867e0c2c910d0a9f6c86b1be29c9e2d80522f
-  react-native-quick-sqlite: 422218c3d135e3184e6a2b440b51edfb16d2ebd0
   react-native-safe-area-context: f660c52c843d3a1801ee62f0f336b17ea5fd9b7a
   React-NativeModulesApple: d570f50dfafab2739b85c07a5bc7626cb2218f39
   React-networking: cab300d7103b13de75986515710b3b9fa482a59e
@@ -2882,6 +2882,6 @@ SPEC CHECKSUMS:
   SwiftUIIntrospect: fee9aa07293ee280373a591e1824e8ddc869ba5d
   Yoga: e72e7f14bfa5278868f138a38b3186ce2e063bbf
 
-PODFILE CHECKSUM: e77951ce3c24463d20fa7e3bf0952994b496ddc5
+PODFILE CHECKSUM: b0586b3171b138dcb5bf4ed1b5b2d9ce209a4a48
 
 COCOAPODS: 1.16.2

@@ -1,0 +1,39 @@
+diff --git a/node_modules/react-native-quick-crypto/cpp/Cipher/MGLPublicCipher.h b/node_modules/react-native-quick-crypto/cpp/Cipher/MGLPublicCipher.h
+index 3b36e86..27190dd 100644
+--- a/node_modules/react-native-quick-crypto/cpp/Cipher/MGLPublicCipher.h
++++ b/node_modules/react-native-quick-crypto/cpp/Cipher/MGLPublicCipher.h
+@@ -21,7 +21,7 @@
+ #else
+ #include "MGLJSIUtils.h"
+ #include "MGLTypedArray.h"
+-#include "logs.h"
++#include "../Utils/logs.h"
+ #endif
+ 
+ namespace margelo {
+diff --git a/node_modules/react-native-quick-crypto/cpp/Sig/MGLSignInstaller.cpp b/node_modules/react-native-quick-crypto/cpp/Sig/MGLSignInstaller.cpp
+index 425642e..802038f 100644
+--- a/node_modules/react-native-quick-crypto/cpp/Sig/MGLSignInstaller.cpp
++++ b/node_modules/react-native-quick-crypto/cpp/Sig/MGLSignInstaller.cpp
+@@ -5,7 +5,7 @@
+ #include "JSIUtils/MGLJSIMacros.h"
+ #else
+ #include "MGLJSIMacros.h"
+-#include "logs.h"
++#include "../Utils/logs.h"
+ #endif
+ 
+ namespace margelo {
+diff --git a/node_modules/react-native-quick-crypto/cpp/Sig/MGLVerifyInstaller.cpp b/node_modules/react-native-quick-crypto/cpp/Sig/MGLVerifyInstaller.cpp
+index 980cbed..dbd5ed5 100644
+--- a/node_modules/react-native-quick-crypto/cpp/Sig/MGLVerifyInstaller.cpp
++++ b/node_modules/react-native-quick-crypto/cpp/Sig/MGLVerifyInstaller.cpp
+@@ -5,7 +5,7 @@
+ #include "JSIUtils/MGLJSIMacros.h"
+ #else
+ #include "MGLJSIMacros.h"
+-#include "logs.h"
++#include "../Utils/logs.h"
+ #endif
+ 
+ namespace margelo {

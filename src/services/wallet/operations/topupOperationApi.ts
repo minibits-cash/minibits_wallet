@@ -637,9 +637,7 @@ function _assertCompleted(tx: Transaction, transactionId: number): CompletedTran
  */
 export function topupSuccessMessage(amount: number, unit: MintUnit, paidAfterExpiry: boolean) {
     const currencyCode = getCurrency(unit).code
-    return `Topup successful: +${formatCurrency(amount, currencyCode)} ${currencyCode}${
-        paidAfterExpiry ? ' (paid after expiry)' : ''
-    }`
+    return `Your balance was credited with ${formatCurrency(amount, currencyCode)} ${currencyCode}`
 }
 
 export const TopupOperationApi = {

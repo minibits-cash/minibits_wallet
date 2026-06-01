@@ -624,6 +624,7 @@ const $headerContainer: TextStyle = {
 }
 
 const $amountContainer: ViewStyle = {
+  marginTop: -spacing.tiny,
   //height: spacing.screenHeight * 0.11,
 }
 

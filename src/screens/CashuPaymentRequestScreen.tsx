@@ -586,6 +586,7 @@ height: spacing.screenHeight * 0.2,
 }
 
 const $amountContainer: ViewStyle = {
+  marginTop: -spacing.tiny,
   // height: spacing.screenHeight * 0.11,
 }
 

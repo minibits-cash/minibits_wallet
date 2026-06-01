@@ -35,6 +35,7 @@ import {
     Wallet as CashuWallet,
 } from '@cashu/cashu-ts'
 import {log} from '../../logService'
+import {translate} from '../../../i18n'
 import {MintError, ValidationError, WalletError} from '../../../utils/AppError'
 import EventEmitter from '../../../utils/eventEmitter'
 import {rootStoreInstance} from '../../../models'
@@ -701,7 +702,9 @@ async function refresh(transactionId: number): Promise<Transaction> {
         EventEmitter.emit('ev_asyncMeltResult', {
             transactionId,
             status: TransactionStatus.COMPLETED,
-            message: `Lightning invoice paid. Fee: ${formatCurrency(tx.fee, getCurrency(tx.unit).code)} ${getCurrency(tx.unit).code}.`,
+            message: translate('transactionResult_lightningInvoicePaidFee', {
+                fee: `${formatCurrency(tx.fee, getCurrency(tx.unit).code)} ${getCurrency(tx.unit).code}`,
+            }),
         })
         return completed
     }
@@ -721,7 +724,7 @@ async function refresh(transactionId: number): Promise<Transaction> {
         const txData = _parseData(tx)
         txData.push({
             status: TransactionStatus.REVERTED,
-            message: 'Lightning payment failed – ecash returned to spendable balance',
+            message: translate('transactionResult_lightningPaymentFailed'),
             createdAt: new Date(),
         })
         tx.update({status: TransactionStatus.REVERTED, data: JSON.stringify(txData)})
@@ -731,7 +734,7 @@ async function refresh(transactionId: number): Promise<Transaction> {
         EventEmitter.emit('ev_asyncMeltResult', {
             transactionId,
             status: TransactionStatus.REVERTED,
-            message: 'Lightning payment failed. Ecash returned to spendable balance.',
+            message: translate('transactionResult_lightningPaymentFailed'),
         })
         return tx
     }

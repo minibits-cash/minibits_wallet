@@ -867,7 +867,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
             style={{
               color: amountInputColor, 
               textAlign: 'center',
-              marginTop: spacing.extraSmall               
+              // marginTop: spacing.extraSmall               
             }}
           />
         </View>
@@ -1457,6 +1457,7 @@ const $headerContainer: TextStyle = {
 }
 
 const $amountContainer: ViewStyle = {
+  marginTop: -spacing.tiny,
   // height: spacing.screenHeight * 0.11,
 }
 

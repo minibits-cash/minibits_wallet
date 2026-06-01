@@ -5,6 +5,7 @@ import {
     getEncodedToken,
 } from '@cashu/cashu-ts'
 import {log} from '../../logService'
+import {translate} from '../../../i18n'
 import {MintError, ValidationError} from '../../../utils/AppError'
 import EventEmitter from '../../../utils/eventEmitter'
 import {rootStoreInstance} from '../../../models'
@@ -344,7 +345,9 @@ const handlePendingMeltTask = async (params: {
         EventEmitter.emit('ev_asyncMeltResult', {
             transactionId,
             status: TransactionStatus.COMPLETED,
-            message: `Lightning invoice paid. Fee: ${formatCurrency(transaction.fee, getCurrency(unit).code)} ${getCurrency(unit).code}.`,
+            message: translate('transactionResult_lightningInvoicePaidFee', {
+                fee: `${formatCurrency(transaction.fee, getCurrency(unit).code)} ${getCurrency(unit).code}`,
+            }),
         })
 
     } else if (quote.state === MeltQuoteState.UNPAID) {
@@ -365,7 +368,7 @@ const handlePendingMeltTask = async (params: {
         EventEmitter.emit('ev_asyncMeltResult', {
             transactionId,
             status: TransactionStatus.ERROR,
-            message: 'Lightning payment failed. Ecash returned to spendable balance.',
+            message: translate('transactionResult_lightningPaymentFailed'),
         })
     }
     // MeltQuoteState.PENDING: no-op, ws/poller will call again
@@ -381,7 +384,7 @@ const expirePendingTransfers = (pendingTransfers: Transaction[]): void => {
 
             const update = {
                 status: TransactionStatus.EXPIRED,
-                message: 'Lightning invoice expired',
+                message: 'Lightning invoice expired.',
                 createdAt: new Date(),
             }
 

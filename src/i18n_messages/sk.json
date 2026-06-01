@@ -679,6 +679,8 @@
 	"transactionCommon_youPaid": "Zaplatil si",
 	"transactionCommon_youReceived": "Prijal si",
 	"transactionCommon_youSent": "Poslal si",
+	"transactionResult_lightningInvoicePaidFee": "Lightning faktúra bola zaplatená. Poplatok bol %{fee}.",
+	"transactionResult_lightningPaymentFailed": "Platba cez Lightning zlyhala. Rezervovaný ecash bol vrátený do disponibilného zostatku.",
 	"transferScreen_donationSuccessMessage": "Dar pre %{donationForName} bol úspešne zaplatený a vaša adresa peňaženky bola aktualizovaná. Ďakujeme!",
 	"transferScreen_insufficientFunds": "Nie je dostatočný zostatok %{currency} na zaplatenie sumy invoice a poplatku: %{amount} %{currency}",
 	"transferScreen_LUD18unsupported": "Minibits ešte nepodporuje zadanie údajov platiteľa (LUD1á)",

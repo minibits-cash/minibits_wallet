@@ -45,5 +45,47 @@ target 'minibits_wallet' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # fmt 11.0.2 (pinned by RN) has a broken consteval path that newer Clang
+    # (Xcode 26+) rejects with "Call to consteval function ... is not a constant
+    # expression" in fmt/format-inl.h. Force the non-consteval fallback that fmt
+    # already uses for older/buggy compilers, via a -DFMT_USE_CONSTEVAL=0 flag on
+    # every target (fmt headers are included transitively, so applying it project-
+    # wide avoids an ODR mismatch between translation units).
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        defs = Array(config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'])
+        defs << '$(inherited)' if defs.empty?
+        defs << 'FMT_USE_CONSTEVAL=0'
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs
+      end
+
+      # react-native-quick-crypto cross-includes headers across cpp/ subdirs by
+      # bare filename (e.g. cpp/Sig/*.cpp does #include "logs.h" living in
+      # cpp/Utils/). Xcode 26's stricter header lookup no longer resolves these
+      # via the implicit header map, so add cpp/** to the search path recursively.
+      if target.name == 'react-native-quick-crypto'
+        target.build_configurations.each do |config|
+          paths = Array(config.build_settings['HEADER_SEARCH_PATHS'])
+          paths << '$(inherited)' if paths.empty?
+          paths << '"$(PODS_TARGET_SRCROOT)/cpp/**"'
+          config.build_settings['HEADER_SEARCH_PATHS'] = paths
+        end
+      end
+    end
+
+    # base.h unconditionally #defines FMT_USE_CONSTEVAL from its own compiler
+    # detection, which overrides the -D flag above. Patch it to honor an
+    # externally-provided value so the flag actually takes effect. Idempotent.
+    fmt_base = File.join(installer.sandbox.root, 'fmt', 'include', 'fmt', 'base.h')
+    if File.exist?(fmt_base)
+      contents = File.read(fmt_base)
+      anchor = "// Detect consteval, C++20 constexpr extensions and std::is_constant_evaluated.\n#if !defined(__cpp_lib_is_constant_evaluated)"
+      if contents.include?(anchor)
+        contents.sub!(anchor,
+          "// Detect consteval, C++20 constexpr extensions and std::is_constant_evaluated.\n#ifdef FMT_USE_CONSTEVAL\n// Honor an externally-provided value (e.g. -DFMT_USE_CONSTEVAL=0 from build settings).\n#elif !defined(__cpp_lib_is_constant_evaluated)")
+        File.write(fmt_base, contents)
+      end
+    end
   end
 end

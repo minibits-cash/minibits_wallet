@@ -170,7 +170,7 @@ const isParamSets = (params: unknown[]): params is unknown[][] =>
 // is logged — NEVER the params, which may contain proof secrets.
 
 /** Master switch for per-query performance TRACE logging. Flip to false to disable. */
-const PERF_TRACKING = true
+const PERF_TRACKING = false
 
 const perfNow = (): number =>
   typeof performance !== 'undefined' && typeof performance.now === 'function'

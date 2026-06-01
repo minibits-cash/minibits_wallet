@@ -679,6 +679,8 @@
 	"transactionCommon_youPaid": "Você pagou",
 	"transactionCommon_youReceived": "Você recebeu",
 	"transactionCommon_youSent": "Você enviou",
+	"transactionResult_lightningInvoicePaidFee": "A fatura Lightning foi paga. A taxa foi %{fee}.",
+	"transactionResult_lightningPaymentFailed": "O pagamento Lightning falhou. O ecash reservado foi devolvido ao saldo disponível.",
 	"transferScreen_donationSuccessMessage": "Doação para %{donationForName} paga com sucesso e endereço atualizado. Obrigado!",
 	"transferScreen_insufficientFunds": "Saldo insuficiente em %{currency} para pagar invoice e taxas: %{amount} %{currency}",
 	"transferScreen_LUD18unsupported": "Minibits ainda não suporta dados de identidade do pagador (LUD18).",
