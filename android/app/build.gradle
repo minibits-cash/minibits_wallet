@@ -95,7 +95,7 @@ android {
         applicationId "com.minibits_wallet"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 58075
+        versionCode 58076
         versionName "0.4.3"
     }
 
