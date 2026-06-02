@@ -148,8 +148,8 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 // write back all on ONE continuous session, exactly like the foreground path that
                 // already works. The user just keeps the phones together (or taps once more).
                 const incomingData = route.params?.incomingData
+                let needsLiveWriteBack = false
                 if (incomingData) {
-                    let needsLiveWriteBack = false
                     try {
                         const parsed = IncomingParser.findAndExtract(incomingData)
                         if (parsed?.type === IncomingDataType.CASHU_PAYMENT_REQUEST && parsed.encoded) {
@@ -203,7 +203,13 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                     return
                 }
 
-                setNfcInfo('Hold your device close to the NFC reader.')
+                // On a cold/warm-launch write-back the OS consumed the launch tap, and a tag that
+                // is still coupled when reader mode starts is NOT re-delivered by Android — the
+                // user must lift and tap again to generate a fresh RF discovery. Tell them so,
+                // instead of "Hold your device close…" which implies it is already reading.
+                setNfcInfo(needsLiveWriteBack
+                    ? 'Tap the device again to send the payment.'
+                    : 'Hold your device close to the NFC reader.')
                 setIsNfcEnabled(true)
                 keepScanningRef.current = true
 
