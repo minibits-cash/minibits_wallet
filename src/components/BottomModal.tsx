@@ -1,5 +1,6 @@
 import React, { ComponentType, Fragment, ReactElement, useEffect } from "react"
 import Modal from 'react-native-modal'
+import { Portal } from '@gorhom/portal'
 import {
   StyleProp,
   TextStyle,
@@ -169,11 +170,20 @@ export function BottomModal(props: ModalProps) {
   // const keyboard = useAnimatedKeyboard()
   //log.trace({keyboard})
 
+  // On Android, render the modal inside the app's React tree via a Portal instead of as a
+  // native Dialog window. The native-window path forces RN core's enableEdgeToEdge() (when
+  // the edge-to-edge flag is on), which paints a buggy nav-bar contrast scrim on open/close.
+  // coverScreen={false} keeps the modal in-tree; the Portal hoists it above the bottom tab
+  // bar so the backdrop still covers the whole screen. iOS keeps the native modal path
+  // (no such issue there, and its keyboard avoidance depends on it).
+  const ModalWrapper = Platform.OS === 'android' ? Portal : View
+
   return (
-    <View>   
+    <ModalWrapper>
       <Modal
         isVisible={isVisible}
         statusBarTranslucent={Platform.OS === 'android'}
+        coverScreen={Platform.OS !== 'android'}
         avoidKeyboard={Platform.OS === 'ios'}
         onBackdropPress={onBackdropPress}
         onBackButtonPress={onBackButtonPress}
@@ -240,7 +250,7 @@ export function BottomModal(props: ModalProps) {
       </View>
       </KeyboardAvoidingView>
     </Modal>
-    </View>
+    </ModalWrapper>
   )
 }
 

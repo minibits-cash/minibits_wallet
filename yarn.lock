@@ -4439,6 +4439,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@gorhom/portal@npm:^1.0.14":
+  version: 1.0.14
+  resolution: "@gorhom/portal@npm:1.0.14"
+  dependencies:
+    nanoid: ^3.3.1
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 227bb96a2db854ab29bb9da8d4f3823c7f7448358de459709dd1b78522110da564c9a8734c6bc7d7153ed7c99320e0fb5d60b420c2ebb75ecaf2f0d757f410f9
+  languageName: node
+  linkType: hard
+
 "@grpc/grpc-js@npm:^1.10.9, @grpc/grpc-js@npm:^1.12.6":
   version: 1.14.2
   resolution: "@grpc/grpc-js@npm:1.14.2"
@@ -14821,6 +14833,7 @@ __metadata:
     "@gandlaf21/bc-ur": ^1.1.12
     "@gandlaf21/bolt11-decode": ^3.1.1
     "@gocodingnow/rn-size-matters": ^0.0.4
+    "@gorhom/portal": ^1.0.14
     "@hot-updater/bare": 0.32.0
     "@hot-updater/firebase": 0.32.0
     "@hot-updater/react-native": 0.32.0
@@ -15225,6 +15238,15 @@ __metadata:
   dependencies:
     node-gyp: latest
   checksum: ab4080188a2fe2bef0a1f3ce5c65a6c3d71fa23be08f4e0696dc256c5030c809d11569d5bcf28810148a7b0029c195c592b98b7b22c5e9e7e9aa0e71905a63b8
+  languageName: node
+  linkType: hard
+
+"nanoid@npm:^3.3.1":
+  version: 3.3.12
+  resolution: "nanoid@npm:3.3.12"
+  bin:
+    nanoid: bin/nanoid.cjs
+  checksum: 38699257447dc59e21e73e0510d0dfb16b7a610d9ca80633d5c3a68f9b4298c990513d30404ca8f163c2d03225ee01695ff8898bea6179183f38f0477b7635ac
   languageName: node
   linkType: hard
 

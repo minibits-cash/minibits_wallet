@@ -9,6 +9,7 @@ import {
 } from '@gocodingnow/rn-size-matters'
 import RNExitApp from 'react-native-exit-app'
 import { changeIcon } from 'react-native-change-icon'
+import { PortalProvider } from '@gorhom/portal'
 import {AppNavigator} from './navigation'
 import {useInitialRootStore, useStores} from './models'
 import {KeyChain, WalletKeys} from './services'
@@ -242,10 +243,14 @@ function App() {
 
   return (
     <SafeAreaProvider>
-      <ErrorBoundary catchErrors={Config.catchErrors}>
-        <AppNavigator />
-        <FlashMessage position="bottom" />
-      </ErrorBoundary>
+      {/* PortalProvider hosts in-tree modals (BottomModal on Android) above the
+          navigator + bottom tab bar, avoiding react-native Modal's native window. */}
+      <PortalProvider>
+        <ErrorBoundary catchErrors={Config.catchErrors}>
+          <AppNavigator />
+          <FlashMessage position="bottom" />
+        </ErrorBoundary>
+      </PortalProvider>
     </SafeAreaProvider>
   )
 }

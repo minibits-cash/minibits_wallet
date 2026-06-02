@@ -31,6 +31,7 @@
     "@gandlaf21/bc-ur": "^1.1.12",
     "@gandlaf21/bolt11-decode": "^3.1.1",
     "@gocodingnow/rn-size-matters": "^0.0.4",
+    "@gorhom/portal": "^1.0.14",
     "@hot-updater/react-native": "0.32.0",
     "@notifee/react-native": "^9.1.8",
     "@op-engineering/op-sqlite": "^16.2.0",
