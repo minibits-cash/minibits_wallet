@@ -74,6 +74,12 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     // Lightning invoice, which it has no way to know is paid) would then trigger the
     // "Complete action using…" chooser over our result modal. Also stops re-arming new taps.
     const paymentLockedRef = useRef<boolean>(false)
+    // Tracks whether a reader-mode technology session is currently open. The cold/warm-launch
+    // path (route.params.incomingData) processes the already-read payment request WITHOUT
+    // opening a reader session — the OS consumed the launch tap. A subsequent NFC write-back
+    // (Numo POS PR with no transport) would then fail with "no tech request available", so we
+    // use this flag to arm a session on demand before writing in that path.
+    const readerSessionActiveRef = useRef<boolean>(false)
 
     const isInternetReachable = useIsInternetReachable()
 
@@ -187,6 +193,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
         return () => {
             keepScanningRef.current = false
+            readerSessionActiveRef.current = false
             NfcManager.cancelTechnologyRequest().catch(() => {})
             NfcManager.setEventListener(NfcEvents.DiscoverTag, null)
             NfcManager.setEventListener(NfcEvents.SessionClosed, null)
@@ -404,6 +411,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         // Cancel the current (consumed or failed) session; a fresh requestTechnology would
         // otherwise collide with it (ERR_MULTI_REQ).
         await NfcManager.cancelTechnologyRequest().catch(() => {})
+        readerSessionActiveRef.current = false
         // Let reader mode tear down cleanly and throttle re-arming if the NFC stack errors.
         await new Promise(r => setTimeout(r, 300))
         if (keepScanningRef.current && !paymentLockedRef.current) {
@@ -419,6 +427,9 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             log.debug('[startNfcSession] Starting NFC session...')
 
             const tag = await NfcService.readNdefTag()
+            // requestTechnology has now opened a reader-mode session (kept alive below); record
+            // it so a later write-back can reuse it instead of arming a second one.
+            readerSessionActiveRef.current = true
 
             if (!tag || !tag.ndefMessage) {
                 return
@@ -480,6 +491,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 // iOS: close the CoreNFC scan sheet. Re-arming would reopen that popup, so iOS
                 // re-arms only on screen focus.
                 await NfcManager.cancelTechnologyRequest().catch(() => {})
+                readerSessionActiveRef.current = false
             }
         }
     }
@@ -620,6 +632,19 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         // NFC write back only if no transport methods specified (POS device)
         if(!transports || transports.length === 0) {
             setNfcInfo('Prepared ecash token to be sent via NFC.')
+
+            // On a cold/warm launch the PR was read by the OS (route.params.incomingData) and
+            // no reader session is open, so writeNdefMessage would throw "no tech request
+            // available". Arm one now: the OS only consumed the launch tap, and the POS keeps
+            // presenting its HCE tag, so holding the phones together re-establishes the ISO-DEP
+            // connection we write the token back onto. The live-tap path already has the session
+            // from the initial read open, so it skips this.
+            if (!readerSessionActiveRef.current) {
+                log.trace('[NfcScreen] handleSendTaskResult: no open reader session (cold/warm launch), arming one for write-back.')
+                setNfcInfo('Hold your device close to the payee to deliver the ecash...')
+                await NfcService.readNdefTag() // opens requestTechnology session, keeps it alive
+                readerSessionActiveRef.current = true
+            }
 
             log.trace('[NfcScreen] handleSendTaskResult: Starting NFC write of an ecash token.')
             await NfcService.writeNdefMessage(encodedTokenToSend)
