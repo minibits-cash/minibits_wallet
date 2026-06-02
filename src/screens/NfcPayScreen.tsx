@@ -133,28 +133,55 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 }
 
                 // Opened by an incoming NFC dispatch (cold/warm launch via the OS chooser):
-                // the tag was already read by the OS, so process the decoded data directly
-                // and skip arming the live reader.
+                // the tag was already read by the OS, so we can usually process the decoded
+                // data directly and skip arming the live reader.
+                //
+                // EXCEPTION: a cashu payment request with NO transport must be paid by writing
+                // the ecash back onto the payee's still-presented HCE tag (Numo POS). That write
+                // needs a live reader session — and on cold/warm launch the OS already consumed
+                // the tap that read the PR and closed that RF session, so there is NO session to
+                // write on. Arming a reader AFTER processing the pre-read text is racy: the user
+                // has no cue to keep holding, and preparing the token MAY add a mint swap
+                // (online-swap path; offline/online-no-swap are instant) that drops the coupling
+                // entirely — then the write hangs waiting for a tap. So we DISCARD the pre-read
+                // text for this case and run the normal live reader flow: read PR → prepare →
+                // write back all on ONE continuous session, exactly like the foreground path that
+                // already works. The user just keeps the phones together (or taps once more).
                 const incomingData = route.params?.incomingData
                 if (incomingData) {
-                    keepScanningRef.current = false
-                    setIsProcessing(true)
+                    let needsLiveWriteBack = false
                     try {
-                        await handleIncomingData(incomingData)
+                        const parsed = IncomingParser.findAndExtract(incomingData)
+                        if (parsed?.type === IncomingDataType.CASHU_PAYMENT_REQUEST && parsed.encoded) {
+                            const pr = decodePaymentRequest(parsed.encoded)
+                            needsLiveWriteBack = !pr.transport || pr.transport.length === 0
+                        }
                     } catch (e: any) {
-                        log.error(e.message, { params: e.params || {} })
-                        setResultModalInfo({
-                            status: TransactionStatus.ERROR,
-                            title: e.params?.message ? e.message : 'NFC Payment failed',
-                            message: e.params?.message || e.message || 'Unknown error during NFC payment processing.',
-                        })
-                        setNfcInfo(e.message)
-                        setIsError(true)
-                        toggleResultModal()
-                    } finally {
-                        setIsProcessing(false)
+                        log.warn('[initNfc] failed to pre-decode incoming data', { error: e.message })
                     }
-                    return
+
+                    if (!needsLiveWriteBack) {
+                        keepScanningRef.current = false
+                        setIsProcessing(true)
+                        try {
+                            await handleIncomingData(incomingData)
+                        } catch (e: any) {
+                            log.error(e.message, { params: e.params || {} })
+                            setResultModalInfo({
+                                status: TransactionStatus.ERROR,
+                                title: e.params?.message ? e.message : 'NFC Payment failed',
+                                message: e.params?.message || e.message || 'Unknown error during NFC payment processing.',
+                            })
+                            setNfcInfo(e.message)
+                            setIsError(true)
+                            toggleResultModal()
+                        } finally {
+                            setIsProcessing(false)
+                        }
+                        return
+                    }
+                    // needsLiveWriteBack: fall through to arm the live reader below.
+                    log.trace('[initNfc] transport-less cashu PR on cold/warm launch — arming live reader for single-session write-back')
                 }
 
                 /*setNfcInfo('Hold your device close to the NFC reader.')
