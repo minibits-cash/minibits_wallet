@@ -136,16 +136,21 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 }
 
                 if(!__DEV__) {
-                    setIsUpdateAvailable(true)
-                    setUpdateDescription(updateInfo.message || '')
-                    toggleUpdateModal()
-
                     if (updateInfo.shouldForceUpdate) {
-                        // apply emergency update immediately
+                        // Forced/emergency update: download and reload immediately WITHOUT
+                        // showing the update modal. The modal would only flash for the brief
+                        // moment before the bundle reloads, and mounting a Portal-hosted modal
+                        // right as HotUpdater.reload() tears down the JS runtime can trip
+                        // React's "Maximum update depth exceeded" guard.
                         const isDownloaded = await updateInfo.updateBundle()
                         if(isDownloaded) {
                             await HotUpdater.reload()
                         }
+                    } else {
+                        // Optional update: surface the modal so the user can choose to apply it.
+                        setIsUpdateAvailable(true)
+                        setUpdateDescription(updateInfo.message || '')
+                        toggleUpdateModal()
                     }
                 }
                 

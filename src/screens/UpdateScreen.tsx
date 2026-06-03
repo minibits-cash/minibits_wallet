@@ -46,7 +46,13 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
         prevScreen
     } = route.params
 
-    const { progress } = useHotUpdaterStore()
+    // Select only the rounded percentage (0-100) instead of the raw progress float.
+    // The native download fires onProgress events very rapidly; subscribing to the raw
+    // value re-renders this screen (and its Portal-hosted modal) on every tick, faster
+    // than the JS thread can commit. useSyncExternalStore then forces nested sync
+    // re-renders to stay consistent and trips "Maximum update depth exceeded". Rounding
+    // here means a re-render only when the integer percent actually changes.
+    const progressPercent = useHotUpdaterStore(state => Math.round(state.progress * 100))
 
     useHeader({
         leftIcon: 'faArrowLeft',
@@ -231,7 +237,7 @@ export const UpdateScreen = observer(function UpdateScreen({ route }: Props) {
                 <ResultModalInfo 
                     icon='faDownload'
                     iconColor={colors.palette.accent400}
-                    title={`${Math.round(progress * 100)}%`}
+                    title={`${progressPercent}%`}
                     message={translate('updateScreen_updateInProgress')}
                 />     
             }
