@@ -36,6 +36,30 @@ export type CounterSeed = {
   counter: number
 }
 
+/**
+ * Build the monotonic counter upsert as a batch tuple, so the exact same write
+ * can be used standalone (setCounter / seedCounters) or folded into another
+ * transaction (the proof-commit batch in reservationsRepo). The stored value
+ * only ever rises to MAX(existing, value); a lower value is a no-op.
+ */
+export const buildCounterUpsert = function (
+  mintUrl: string,
+  keysetId: string,
+  unit: string | undefined,
+  value: number,
+  now: string = new Date().toISOString(),
+): SQLBatchTuple {
+  return [
+    `INSERT INTO mint_counters (mintUrl, keysetId, unit, counter, updatedAt)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(mintUrl, keysetId) DO UPDATE SET
+       counter = MAX(counter, excluded.counter),
+       unit = excluded.unit,
+       updatedAt = excluded.updatedAt`,
+    [mintUrl, keysetId, unit ?? null, value, now],
+  ]
+}
+
 /** Read every counter row. Used to hydrate the in-memory MST cache on startup. */
 export const getCounters = function (): CounterRecord[] {
   try {
@@ -77,16 +101,8 @@ export const setCounter = function (
   value: number,
 ): void {
   try {
-    const db = getInstance()
-    db.execute(
-      `INSERT INTO mint_counters (mintUrl, keysetId, unit, counter, updatedAt)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(mintUrl, keysetId) DO UPDATE SET
-         counter = MAX(counter, excluded.counter),
-         unit = excluded.unit,
-         updatedAt = excluded.updatedAt`,
-      [mintUrl, keysetId, unit ?? null, value, new Date().toISOString()],
-    )
+    const [sql, params] = buildCounterUpsert(mintUrl, keysetId, unit, value)
+    getInstance().execute(sql, params)
   } catch (e: any) {
     throw dbError('Counter could not be saved to the database', e)
   }
@@ -133,15 +149,9 @@ export const seedCounters = function (seeds: CounterSeed[]): {seeded: number} {
   if (!seeds || seeds.length === 0) return {seeded: 0}
   try {
     const now = new Date().toISOString()
-    const batch: SQLBatchTuple[] = seeds.map(s => [
-      `INSERT INTO mint_counters (mintUrl, keysetId, unit, counter, updatedAt)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(mintUrl, keysetId) DO UPDATE SET
-         counter = MAX(counter, excluded.counter),
-         unit = excluded.unit,
-         updatedAt = excluded.updatedAt`,
-      [s.mintUrl, s.keysetId, s.unit ?? null, s.counter, now],
-    ])
+    const batch: SQLBatchTuple[] = seeds.map(s =>
+      buildCounterUpsert(s.mintUrl, s.keysetId, s.unit, s.counter, now),
+    )
 
     const db = getInstance()
     db.executeBatch(batch)

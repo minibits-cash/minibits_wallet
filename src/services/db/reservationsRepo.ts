@@ -6,6 +6,7 @@ import {log} from '../logService'
 import {SQLBatchTuple} from './connection'
 import {getInstance} from './instance'
 import {dbError} from './errors'
+import {buildCounterUpsert} from './countersRepo'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Proof reservations (Phase 5 of refactoring).
@@ -161,6 +162,19 @@ export const commitReservation = function (
       tId: number
     }>
     transactionUpdate?: ReservationTransactionUpdate
+    /**
+     * Per-keyset derivation counters to persist atomically with the proof
+     * writes. Folding the counter into this same transaction closes the
+     * proofs-table ↔ mint_counters atomicity window: a crash that committed
+     * the new proofs but not the advanced counter could otherwise let the next
+     * derivation reuse a blinded secret. Each upsert is monotonic.
+     */
+    counterUpdate?: Array<{
+      mintUrl: string
+      keysetId: string
+      unit?: string
+      counter: number
+    }>
   },
 ): void {
   try {
@@ -244,6 +258,10 @@ export const commitReservation = function (
       }
     }
 
+    for (const cu of changes.counterUpdate ?? []) {
+      batch.push(buildCounterUpsert(cu.mintUrl, cu.keysetId, cu.unit, cu.counter, now))
+    }
+
     batch.push([`DELETE FROM reservations WHERE id = ?`, [reservationId]])
 
     const db = getInstance()
@@ -255,6 +273,7 @@ export const commitReservation = function (
       toUnspent: changes.toUnspent?.length ?? 0,
       newGroups: changes.newProofs?.length ?? 0,
       txUpdate: changes.transactionUpdate ? changes.transactionUpdate.id : undefined,
+      counterUpdates: changes.counterUpdate?.length ?? 0,
     })
   } catch (e: any) {
     throw dbError('Could not commit proof reservation', e)

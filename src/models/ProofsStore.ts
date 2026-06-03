@@ -420,8 +420,33 @@ import {
                 })
             }
 
+            // Snapshot the current derivation counter for every keyset that the
+            // new proofs were derived under (a cashu proof's `id` IS its keyset
+            // id). At this point WalletStore has already advanced the model
+            // counter to `reservedCounters.next`, so persisting it in the SAME
+            // batch as the proofs guarantees the stored counter can never lag the
+            // proofs that consumed those indices. Monotonic, so a redundant write
+            // is harmless.
+            const counterUpdate: Array<{mintUrl: string; keysetId: string; unit?: string; counter: number}> = []
+            const seenKeysets = new Set<string>()
+            for (const group of changes.newProofs ?? []) {
+                for (const proof of group.proofs) {
+                    if (seenKeysets.has(proof.id)) continue
+                    seenKeysets.add(proof.id)
+                    const counter = mintInstance.getProofsCounter(proof.id)
+                    if (counter) {
+                        counterUpdate.push({
+                            mintUrl: reservation.mintUrl,
+                            keysetId: proof.id,
+                            unit: counter.unit,
+                            counter: counter.counter,
+                        })
+                    }
+                }
+            }
+
             // ATOMIC SQLite write of every state transition + (optional)
-            // transaction-row update + reservation deletion.
+            // transaction-row update + counter advance + reservation deletion.
             Database.commitReservation(reservation.id, {
                 toSpent: changes.toSpent,
                 toUnspent: changes.toUnspent,
@@ -433,6 +458,7 @@ import {
                     tId: group.tId,
                 })),
                 transactionUpdate: changes.transactionUpdate,
+                counterUpdate,
             })
 
             // Mirror to MST now that SQLite is durable.
