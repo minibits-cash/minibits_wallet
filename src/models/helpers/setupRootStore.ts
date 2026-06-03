@@ -63,7 +63,7 @@ export async function setupRootStore(rootStore: RootStore) {
         const stateHydrated = performance.now()
         log.trace(`Hydrating rooStoreModel took ${stateHydrated - mmkvLoaded} ms.`, {caller: 'setupRootStore'})
 
-        const {proofsStore, walletProfileStore, authStore, userSettingsStore, transactionsStore} = rootStore
+        const {proofsStore, walletProfileStore, authStore, userSettingsStore, transactionsStore, mintsStore} = rootStore
 
         if(walletProfileStore.walletId) {
             Sentry.setUser({ id: walletProfileStore.walletId })
@@ -76,6 +76,13 @@ export async function setupRootStore(rootStore: RootStore) {
 
         // hydrate unspent and pending ecash proofs to model from database
         await proofsStore.loadProofsFromDatabase()
+
+        // Derivation counters: one-time idempotent copy of the MMKV-backed
+        // counters into SQLite (the new authority), then hydrate the in-memory
+        // cache back from SQLite. Both directions are monotonic, so the order is
+        // safe and re-running every launch is a no-op once copied.
+        mintsStore.seedCountersToDatabase()
+        mintsStore.hydrateCountersFromDatabase()
 
         // Roll back any orphan proof reservations from the last session.
         // An orphan is a reservation row whose owning operation died before

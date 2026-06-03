@@ -10,7 +10,9 @@ import {
   } from 'mobx-state-tree'
   import {withSetPropAction} from './helpers/withSetPropAction'
   import {MintModel, Mint, MintProofsCounter, MintProofsCounterModel} from './Mint'
-  import {log} from '../services/logService'  
+  import {log} from '../services/logService'
+  import {Database} from '../services'
+  import type {CounterSeed} from '../services/db'
   import AppError, { Err } from '../utils/AppError'
   import {
     Mint as CashuMint,
@@ -91,17 +93,57 @@ export const MintsStoreModel = types
             const backup = self.counterBackups.find(
               (backup) => backup.mintUrl === newMint.mintUrl
             )
-      
+
             if (backup) {
                 newMint.proofsCounters!.forEach((proofsCounter) => {
                     const backupCounter = backup.counters.find(
                         (counter) => counter.keyset === proofsCounter.keyset
                     )
-        
+
                     if (backupCounter) {
                         proofsCounter.increaseProofsCounter(backupCounter.counter)
                     }
               })
+            }
+        },
+        /**
+         * One-time, idempotent copy of the in-memory (MMKV-backed) counters into
+         * SQLite. Includes counterBackups so a removed mint's counter isn't lost.
+         * The repo applies each value monotonically, so this is safe to run on
+         * every launch — after the first copy it is a no-op.
+         */
+        seedCountersToDatabase() {
+            const seeds: CounterSeed[] = []
+
+            for (const mint of self.mints) {
+                for (const c of mint.proofsCounters) {
+                    seeds.push({mintUrl: mint.mintUrl, keysetId: c.keyset, unit: c.unit, counter: c.counter})
+                }
+            }
+            for (const backup of self.counterBackups) {
+                for (const c of backup.counters) {
+                    seeds.push({mintUrl: backup.mintUrl, keysetId: c.keyset, unit: c.unit, counter: c.counter})
+                }
+            }
+
+            if (seeds.length > 0) {
+                Database.seedCounters(seeds)
+            }
+        },
+        /**
+         * Load the authoritative counter values from SQLite into the in-memory
+         * cache (startup / foreground resume). Monotonic per counter, so a value
+         * already advanced in memory is never lowered.
+         */
+        hydrateCountersFromDatabase() {
+            const rows = Database.getCounters()
+
+            for (const row of rows) {
+                const mint = self.mints.find(m => m.mintUrl === row.mintUrl)
+                const counter = mint?.proofsCounters.find(c => c.keyset === row.keysetId)
+                if (counter) {
+                    counter.hydrateCounterFromDb(row.counter)
+                }
             }
         },
     }))

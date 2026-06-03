@@ -8,7 +8,7 @@ import {
     type MeltPreview,
 } from '@cashu/cashu-ts'
 import {colors, getRandomIconColor} from '../theme'
-import { log } from '../services'
+import { log, Database } from '../services'
 
 import AppError, { Err } from '../utils/AppError'
 import { MintUnit, MintUnits } from '../services/wallet/currency'
@@ -99,6 +99,44 @@ const migrateSnapshot = (snapshot: any): any => {
     return snapshot
 }
 
+
+/**
+ * Write a counter mutation through to the SQLite authority.
+ *
+ * `mode: 'set'` persists an absolute value monotonically (never lowers);
+ * `mode: 'bump'` advances by a relative delta. The (mint, keyset) identity is
+ * read from the parent Mint node — a counter is always nested two levels up
+ * (counter -> proofsCounters array -> Mint).
+ *
+ * Failures are swallowed deliberately: a detached instance (e.g. a counter
+ * created for a CounterBackup, not yet attached to a Mint) has no parent, and a
+ * transient DB error must never break a wallet flow. The value stays in the MST
+ * cache and startup hydration reconciles from SQLite. Step 4 folds this write
+ * into the proof-commit transaction to make it atomic.
+ */
+const persistCounter = (self: any, mode: 'set' | 'bump', value: number): void => {
+    let mintUrl: string | undefined
+    try {
+        mintUrl = getParent<any>(self, 2)?.mintUrl
+    } catch {
+        return // not attached to a Mint (e.g. CounterBackup) — nothing to persist
+    }
+    if (!mintUrl) return
+
+    try {
+        if (mode === 'set') {
+            Database.setCounter(mintUrl, self.keyset, self.unit, value)
+        } else {
+            Database.bumpCounter(mintUrl, self.keyset, self.unit, value)
+        }
+    } catch (e: any) {
+        log.error('[persistCounter]', 'Counter write-through failed', {
+            error: e?.message,
+            mintUrl,
+            keyset: self.keyset,
+        })
+    }
+}
 
 export const MintProofsCounterModel = types
     .model('MintProofsCounter', {
@@ -197,9 +235,10 @@ export const MintProofsCounterModel = types
             }
         },
 
-        // === Counter mutations (unchanged) ===
+        // === Counter mutations (write through to the SQLite authority) ===
         increaseProofsCounter(numberOfProofs: number) {
             self.counter += numberOfProofs
+            persistCounter(self, 'bump', numberOfProofs)
             log.info('[increaseProofsCounter]', 'Increased proofsCounter', {
                 numberOfProofs,
                 counter: self.counter,
@@ -207,6 +246,8 @@ export const MintProofsCounterModel = types
         },
 
         decreaseProofsCounter(numberOfProofs: number) {
+            // Lowering is deliberately NOT written through: the SQLite counter is
+            // monotonic by design. No external caller uses this (recovery only).
             self.counter = Math.max(0, self.counter - numberOfProofs)
             log.trace('[decreaseProofsCounter]', 'Decreased proofsCounter', {
                 numberOfProofs,
@@ -216,9 +257,21 @@ export const MintProofsCounterModel = types
 
         setProofsCounter(newCounter: number) {
             self.counter = newCounter
+            persistCounter(self, 'set', newCounter)
             log.debug('[setProofsCounter]', 'Set proofsCounter', {
                 counter: self.counter,
             })
+        },
+
+        /**
+         * Load the authoritative value from SQLite into the in-memory cache on
+         * startup/resume. Monotonic (only raises) and does NOT write back, so it
+         * can't loop with the write-through above.
+         */
+        hydrateCounterFromDb(value: number) {
+            if (value > self.counter) {
+                self.counter = value
+            }
         },
     }))
     .views(self => ({
