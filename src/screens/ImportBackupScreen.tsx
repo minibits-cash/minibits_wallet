@@ -213,11 +213,11 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
 
         // import proofs into the db
         if(proofsStore.proofsCount > 0) {
-          Database.addOrUpdateProofs(proofsStore.allProofs, false, false)
+          Database.addOrUpdateProofs(proofsStore.allProofs, 'UNSPENT')
         }
-        
+
         if(proofsStore.pendingProofsCount > 0) {
-          Database.addOrUpdateProofs(proofsStore.allPendingProofs, true, false)
+          Database.addOrUpdateProofs(proofsStore.allPendingProofs, 'PENDING')
         }
 
         if(!mintsStore.mintExists(MINIBITS_MINT_URL)) {
