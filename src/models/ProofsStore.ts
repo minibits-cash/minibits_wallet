@@ -168,8 +168,6 @@ import {
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint not found in the wallet', { mintUrl })
             }
 
-            const proofsByKeyset = new Map<string, Proof[]>()
-
             for (const proof of proofs) {
 
                 let proofNode = self.getBySecret(proof.secret)
@@ -200,17 +198,15 @@ import {
 
                 updatedAmount += proofNode.amount
                 updatedProofs.push(proofNode)
-
-                proofsByKeyset.set(proof.id, (proofsByKeyset.get(proof.id) || []).concat(proofNode))
             }
 
-            // Increment counters only when proofs become freshly spendable
-            if (state === 'UNSPENT') {
-                for (const [keysetId, proofs] of proofsByKeyset) {
-                    const counter = mintInstance.getProofsCounterByKeysetId(keysetId)
-                    counter?.increaseProofsCounter(proofs.length)
-                }
-            }
+            // The keyset counter is NOT advanced here. Every caller already
+            // advanced it via the authoritative v3.x path before reaching this
+            // method: WalletStore.setProofsCounter(reservedCounters.next) for the
+            // inflight/mint/melt-recovery callers, and the whole-interval advance
+            // in SeedRecoveryScreen for seed recovery. The old
+            // `increaseProofsCounter(proofs.length)` here double-advanced the
+            // counter (a pre-v3.x leftover) and was removed.
 
             if (updatedProofs.length > 0) {
                 Database.addOrUpdateProofs(updatedProofs, state)
@@ -479,8 +475,6 @@ import {
                 )
             }
 
-            const proofsByKeyset = new Map<string, Proof[]>()
-
             for (const group of changes.newProofs ?? []) {
                 for (const proof of group.proofs) {
                     const existing = self.getBySecret(proof.secret)
@@ -492,12 +486,6 @@ import {
                             existing.setProp('unit', reservation.unit)
                             existing.setProp('state', group.state)
                             added.push(existing)
-                            if (group.state === 'UNSPENT') {
-                                proofsByKeyset.set(
-                                    proof.id,
-                                    (proofsByKeyset.get(proof.id) || []).concat(existing),
-                                )
-                            }
                         }
                     } else {
                         const node = ProofModel.create({
@@ -510,21 +498,17 @@ import {
                         })
                         self.proofs.put(node)
                         added.push(node)
-                        if (group.state === 'UNSPENT') {
-                            proofsByKeyset.set(
-                                proof.id,
-                                (proofsByKeyset.get(proof.id) || []).concat(node),
-                            )
-                        }
                     }
                 }
             }
 
-            // Increment keyset counters for proofs that became freshly spendable.
-            for (const [keysetId, addedProofs] of proofsByKeyset) {
-                const counter = mintInstance.getProofsCounterByKeysetId(keysetId)
-                counter?.increaseProofsCounter(addedProofs.length)
-            }
+            // The keyset counter is NOT advanced here. Under cashu-ts v3.x the
+            // operation already advanced it to `reservedCounters.next` (via
+            // WalletStore.setProofsCounter), covering every index these proofs
+            // consumed — and that value was persisted atomically with the proofs
+            // in the commit batch above (counterUpdate). The old post-commit
+            // `increaseProofsCounter(addedProofs.length)` here double-advanced the
+            // counter (a pre-v3.x leftover) and was removed.
 
             // Mirror the (already-durable) transaction update to MST so the
             // in-memory model reflects the new tx state immediately. Uses
