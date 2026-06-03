@@ -394,6 +394,14 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
                 // Real foreground – run your normal logic (e.g., unlock check, etc.)
                 log.trace('[handleAppStateChange] WalletScreen active again')
+
+                // Reconcile derivation counters from SQLite (the authority) before
+                // any foreground operation can derive proofs. A background path
+                // (e.g. an NWC payment processed while backgrounded) may have
+                // advanced a counter in the DB; hydration is monotonic so it only
+                // ever raises the in-memory value, never lowers a live one.
+                mintsStore.hydrateCountersFromDatabase()
+
                 performChecks()
                 NostrClient.reconnectToRelays({
                     hasDeviceId: !!walletProfileStore.device,
