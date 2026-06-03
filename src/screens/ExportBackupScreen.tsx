@@ -147,7 +147,17 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
             exportedMintsStore = JSON.parse(JSON.stringify(getSnapshot(mintsStore)))
 
             exportedMintsStore.mints.forEach((mint: any) => {
-              mint.keys = [];                
+              mint.keys = [];
+
+              // `counter` is stripped from snapshots (mastered in SQLite), so
+              // re-inject the live derivation index per keyset. Exporting a
+              // backup with counter 0 would risk blinded-secret reuse on the
+              // recovered wallet.
+              const liveMint = mintsStore.findByUrl(mint.mintUrl)
+              mint.proofsCounters?.forEach((pc: any) => {
+                const live = liveMint?.proofsCounters.find(c => c.keyset === pc.keyset)
+                if (live) pc.counter = live.counter
+              })
             })
 
             //log.trace({exportedMintsStore})

@@ -73,9 +73,17 @@ export const MintsStoreModel = types
                 (backup) => backup.mintUrl === mintToRemove.mintUrl
                 )
         
+                // `counter` is stripped from snapshots (mastered in SQLite), so
+                // re-inject the live cache value per keyset — otherwise the backup
+                // taken at removal time would capture zeros.
+                const counters = getSnapshot(mintToRemove.proofsCounters!).map((c: any) => ({
+                    ...c,
+                    counter: mintToRemove.proofsCounters!.find(pc => pc.keyset === c.keyset)?.counter ?? c.counter,
+                }))
+
                 const newCounterBackup = CounterBackupModel.create({
                 mintUrl: mintToRemove.mintUrl,
-                counters: getSnapshot(mintToRemove.proofsCounters!)
+                counters
                 })
         
                 if (existingIndex !== -1) {
@@ -208,13 +216,20 @@ export const MintsStoreModel = types
 
             log.trace('[addMint] updateMintCountersFromBackup')
             
-            self.updateMintCountersFromBackup(mintInstance)            
+            self.updateMintCountersFromBackup(mintInstance)
 
-            mintInstance.setHostname()      
-            yield mintInstance.setShortname()                           
-            
+            mintInstance.setHostname()
+            yield mintInstance.setShortname()
+
             self.mints.push(mintInstance)
-            
+
+            // SQLite retains derivation counters by (mintUrl, keysetId) across
+            // mint removal, so a re-added mint recovers its real counter from the
+            // authority — even when the snapshot-stripped counterBackup reloaded
+            // as zero after a restart. Monotonic, so a genuinely new mint (no row)
+            // simply stays at 0.
+            self.hydrateCountersFromDatabase()
+
             return mintInstance
         }),
         updateMint: flow(function* updateMint(mintUrl: string) {            

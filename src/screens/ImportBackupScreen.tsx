@@ -201,7 +201,13 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
           proofsStore.pendingByMintSecrets.push(secret)
         }
         applySnapshot(mintsStore, walletSnapshot.mintsStore)
-        applySnapshot(contactsStore, walletSnapshot.contactsStore)        
+        applySnapshot(contactsStore, walletSnapshot.contactsStore)
+
+        // The backup carries real derivation counters in the MST snapshot; the
+        // counter is mastered in SQLite, so copy the just-imported values into
+        // the mint_counters table immediately (monotonic, never lowers). Without
+        // this they would only reach SQLite on the next startup seed.
+        mintsStore.seedCountersToDatabase()
 
         log.trace('After import and mint keys hydration', {mintsStore})
 

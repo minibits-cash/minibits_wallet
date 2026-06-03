@@ -303,6 +303,16 @@ export const MintProofsCounterModel = types
             return Array.from(self.meltCounterValues.values())
         },
     }))
+    // The derivation counter is mastered in SQLite (mint_counters), hydrated
+    // into this model as an in-memory cache on startup/resume. Strip it from
+    // every persisted snapshot so the MMKV whole-tree save can never write a
+    // stale value back over the SQLite authority — exactly as ProofsStore strips
+    // `proofs`. Consumers that legitimately need the value (backup export,
+    // counter backups) re-inject it from the live model / SQLite.
+    .postProcessSnapshot(snapshot => ({
+        ...snapshot,
+        counter: 0,
+    }))
 
 export type MintProofsCounter = Instance<typeof MintProofsCounterModel>
 
