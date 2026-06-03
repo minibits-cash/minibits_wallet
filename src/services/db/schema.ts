@@ -68,6 +68,27 @@ export const RESERVATIONS_COLUMNS = `
   createdAt TEXT NOT NULL
 `
 
+/**
+ * Per-keyset deterministic-derivation counter (the BIP32 high-water mark).
+ *
+ * Authoritative store for the counter previously held only in the MST
+ * `MintProofsCounter` model and persisted to MMKV via the whole-tree snapshot.
+ * Moving it here lets a counter advance commit ATOMICALLY with the proofs it
+ * derives (same SQLite transaction) and makes SQLite the single source of truth,
+ * closing the cross-engine non-atomicity that risked blinded-secret reuse.
+ *
+ * Keyed by (mintUrl, keysetId): a keyset id is mint-scoped, and keying on the
+ * url keeps the row addressable across mint-url edits.
+ */
+export const MINT_COUNTERS_COLUMNS = `
+  mintUrl TEXT NOT NULL,
+  keysetId TEXT NOT NULL,
+  unit TEXT,
+  counter INTEGER NOT NULL DEFAULT 0,
+  updatedAt TEXT,
+  PRIMARY KEY (mintUrl, keysetId)
+`
+
 /** Build a CREATE TABLE statement from a column block. */
 export const createTable = (
   name: string,
@@ -88,4 +109,7 @@ export const createSchemaQueries: SQLBatchTuple[] = [
   // is in-flight (between reserve() and commit()/rollback()). Orphans (process
   // died mid-operation) are detected and rolled back at startup.
   [createTable('reservations', RESERVATIONS_COLUMNS)],
+  // Per-keyset deterministic-derivation counters. Seeded from the MST/MMKV
+  // counters on first run after this migration (see countersRepo).
+  [createTable('mint_counters', MINT_COUNTERS_COLUMNS)],
 ]

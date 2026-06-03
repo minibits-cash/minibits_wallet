@@ -44,6 +44,13 @@ import {
   rollbackReservation,
   getOpenReservations,
 } from './reservationsRepo'
+import {
+  getCounters,
+  getCounter,
+  setCounter,
+  bumpCounter,
+  seedCounters,
+} from './countersRepo'
 
 export type {TransactionSearchFilters} from './transactionsRepo'
 export type {
@@ -51,6 +58,7 @@ export type {
   ReservationRow,
   ReservationTransactionUpdate,
 } from './reservationsRepo'
+export type {CounterRecord, CounterSeed} from './countersRepo'
 
 export const Database = {
   getInstance,
@@ -87,4 +95,9 @@ export const Database = {
   commitReservation,
   rollbackReservation,
   getOpenReservations,
+  getCounters,
+  getCounter,
+  setCounter,
+  bumpCounter,
+  seedCounters,
 }
