@@ -59,6 +59,10 @@ export const cleanAll = function () {
     ['DROP TABLE transactions'],
     ['DROP TABLE proofs'],
     ['DROP TABLE dbversion'],
+    // IF EXISTS: these tables were added by later migrations, so a very old DB
+    // may lack them; without the guard a missing table aborts the atomic batch.
+    ['DROP TABLE IF EXISTS reservations'],
+    ['DROP TABLE IF EXISTS mint_counters'],
   ] as SQLBatchTuple[]
 
   try {
