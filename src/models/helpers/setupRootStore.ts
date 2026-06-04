@@ -77,11 +77,11 @@ export async function setupRootStore(rootStore: RootStore) {
         // hydrate unspent and pending ecash proofs to model from database
         await proofsStore.loadProofsFromDatabase()
 
-        // Derivation counters: one-time idempotent copy of the MMKV-backed
-        // counters into SQLite (the new authority), then hydrate the in-memory
-        // cache back from SQLite. Both directions are monotonic, so the order is
-        // safe and re-running every launch is a no-op once copied.
-        mintsStore.seedCountersToDatabase()
+        // Hydrate the in-memory derivation-counter cache from SQLite (the
+        // authority) on every launch. The MMKV snapshot stores counter:0 (it is
+        // stripped on save), so the real value lives only in mint_counters. The
+        // one-time MMKV→SQLite copy of pre-existing counters is a migration —
+        // see _runMigrations.
         mintsStore.hydrateCountersFromDatabase()
 
         // Roll back any orphan proof reservations from the last session.
@@ -144,29 +144,42 @@ export async function setupRootStore(rootStore: RootStore) {
  */
 
 async function _runMigrations(rootStore: RootStore) {
-    const { 
-        userSettingsStore,
+    const {
         mintsStore,
         transactionsStore,
     } = rootStore
-    
-    let currentVersion = rootStore.version
+
+    const currentVersion = rootStore.version
 
     try {
+        log.trace(`Starting rootStore migrations from v${currentVersion} -> v${rootStoreModelVersion}`)
+
         if(currentVersion < 29) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v29`)
-
             transactionsStore.addRecentByUnit()
-
-            rootStore.setVersion(rootStoreModelVersion)
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`, {caller: '_runMigrations'} )
         }
+
+        if(currentVersion < 33) {
+            // One-time copy of the MMKV-resident derivation counters into SQLite
+            // (the new authority for counters). Reads the LIVE MST counters,
+            // which still hold the real values loaded from the pre-upgrade MMKV
+            // snapshot — postProcessSnapshot strips `counter` only from saves, not
+            // from the in-memory model — and persists them via a monotonic,
+            // idempotent upsert (incl. counterBackups). After this, mint_counters
+            // is authoritative and the every-launch hydrate in setupRootStore
+            // fills the in-memory cache from it.
+            mintsStore.seedCountersToDatabase()
+        }
+
+        // Set once, after all steps succeed: if any step throws, the version is
+        // NOT bumped and the whole migration retries on the next launch.
+        rootStore.setVersion(rootStoreModelVersion)
+        log.info(`Completed rootStore migrations to v${rootStoreModelVersion}`, {caller: '_runMigrations'})
     } catch (e: any) {
         throw new AppError(
             Err.STORAGE_ERROR,
             'Error when executing rootStore migrations',
             e.message,
-        )    
+        )
     }
 
 }

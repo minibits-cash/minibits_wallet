@@ -115,22 +115,33 @@ export const MintsStoreModel = types
             }
         },
         /**
-         * One-time, idempotent copy of the in-memory (MMKV-backed) counters into
-         * SQLite. Includes counterBackups so a removed mint's counter isn't lost.
-         * The repo applies each value monotonically, so this is safe to run on
-         * every launch — after the first copy it is a no-op.
+         * One-time copy of the in-memory (MMKV-loaded) derivation counters into
+         * SQLite. Run from _runMigrations on upgrade, and on backup import.
+         * Includes counterBackups so a removed mint's counter isn't lost.
+         *
+         * Two safeguards make this safe even on a device that has ALREADY
+         * migrated (SQLite populated, MMKV stripped to 0, model not yet
+         * re-hydrated this launch):
+         *   1. only counters that have actually advanced (> 0) are seeded, so a
+         *      stripped/zero value is never written; and
+         *   2. the repo upsert is monotonic (MAX), so a seed can never lower an
+         *      existing SQLite counter.
          */
         seedCountersToDatabase() {
             const seeds: CounterSeed[] = []
 
             for (const mint of self.mints) {
                 for (const c of mint.proofsCounters) {
-                    seeds.push({mintUrl: mint.mintUrl, keysetId: c.keyset, unit: c.unit, counter: c.counter})
+                    if (c.counter > 0) {
+                        seeds.push({mintUrl: mint.mintUrl, keysetId: c.keyset, unit: c.unit, counter: c.counter})
+                    }
                 }
             }
             for (const backup of self.counterBackups) {
                 for (const c of backup.counters) {
-                    seeds.push({mintUrl: backup.mintUrl, keysetId: c.keyset, unit: c.unit, counter: c.counter})
+                    if (c.counter > 0) {
+                        seeds.push({mintUrl: backup.mintUrl, keysetId: c.keyset, unit: c.unit, counter: c.counter})
+                    }
                 }
             }
 
