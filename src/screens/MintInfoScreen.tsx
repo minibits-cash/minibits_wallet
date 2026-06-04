@@ -258,9 +258,20 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
               {isLocalInfoVisible && (
                 <JSONTree
                   hideRoot
-                  data={getSnapshot(
-                    mintsStore.findByUrl(route.params?.mintUrl) as Mint,
-                  ) as any}
+                  data={(() => {
+                    const m = mintsStore.findByUrl(route.params?.mintUrl) as Mint
+                    const snap = getSnapshot(m) as any
+                    // `counter` is stripped from every snapshot (it is mastered in
+                    // SQLite, not MMKV). Re-inject the live cache value per keyset
+                    // so this debug tree shows the real derivation index, not 0.
+                    return {
+                      ...snap,
+                      proofsCounters: snap.proofsCounters?.map((c: any) => ({
+                        ...c,
+                        counter: m?.proofsCounters?.find(pc => pc.keyset === c.keyset)?.counter ?? c.counter,
+                      })),
+                    }
+                  })() as any}
                   theme={{
                     scheme: 'default',
                     base00: '#eee',
