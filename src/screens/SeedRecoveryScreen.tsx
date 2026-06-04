@@ -25,7 +25,7 @@ import { useStores } from '../models'
 import { MintListItem } from './Mints/MintListItem'
 import { Mint } from '../models/Mint'
 import { MintKeyset } from '@cashu/cashu-ts'
-import { CashuUtils } from '../services/cashu/cashuUtils'
+import { CashuUtils, CashuProof } from '../services/cashu/cashuUtils'
 import { Proof } from '../models/Proof'
 import { Transaction, TransactionData, TransactionStatus, TransactionType } from '../models/Transaction'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
@@ -289,32 +289,36 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
 
                     transaction = await transactionsStore.addTransaction(newTransaction)
                     
-                    const { updatedAmount: addedAmount } = proofsStore.addOrUpdate(proofStates.UNSPENT, {
-                        mintUrl: recoveredMint.mintUrl,
-                        unit: selectedKeyset.unit as MintUnit,
-                        tId: transaction!.id,
-                        state: 'UNSPENT',
-                    })
+                    recoveredAmount = amount
 
-                    if (amount !== addedAmount) {
-                        transaction!.update({amount: addedAmount})
-                        recoveredAmount = addedAmount
-                    }
+                    const currentSpendable = proofsStore.getUnitBalance(selectedKeyset.unit as MintUnit)?.unitBalance ?? 0
+                    const balanceAfter = currentSpendable + amount
 
-                    // Finally, update completed transaction
                     transactionData.push({
                         status: TransactionStatus.COMPLETED,
                         recoveredAmount,
                         createdAt: new Date(),
                     })
 
-                    transaction!.update({
-                        status: TransactionStatus.COMPLETED,
-                        data: JSON.stringify(transactionData)
+                    // Add recovered proofs + finalize the tx atomically (one
+                    // SQLite txn, incl. the keyset counter). No inputs locked.
+                    const reservation = proofsStore.reserve([], {
+                        transactionId: transaction!.id,
+                        mintUrl: recoveredMint.mintUrl,
+                        unit: selectedKeyset.unit as MintUnit,
+                        operationType: 'seed-recovery',
+                        rollbackTo: 'UNSPENT',
                     })
-
-                    const balanceAfter = proofsStore.getUnitBalance(selectedKeyset.unit as MintUnit)?.unitBalance
-                    transaction!.update({balanceAfter})
+                    proofsStore.commitReservation(reservation, {
+                        newProofs: [{proofs: proofStates.UNSPENT as CashuProof[], state: 'UNSPENT', tId: transaction!.id}],
+                        transactionUpdate: {
+                            id: transaction!.id,
+                            status: TransactionStatus.COMPLETED,
+                            amount,
+                            balanceAfter,
+                            data: JSON.stringify(transactionData),
+                        },
+                    })
                 }
             
                 if(proofStates.PENDING.length > 0) {
@@ -344,26 +348,29 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
 
                     pendingTransaction = await transactionsStore.addTransaction(newTransaction)
 
-                    const { updatedAmount: addedAmount } = proofsStore.addOrUpdate(proofStates.PENDING, {
-                        mintUrl: recoveredMint.mintUrl,
-                        unit: selectedKeyset.unit as MintUnit,
-                        tId: pendingTransaction!.id,
-                        state: 'PENDING',
-                    })
-
-                    if (pendingAmount !== addedAmount) {
-                        pendingTransaction!.update({amount: addedAmount})
-                    }
-
                     // Finally, update pending transaction
                     pendingTransactionData.push({
                         status: TransactionStatus.PENDING,
                         createdAt: new Date(),
                     })
 
-                    pendingTransaction!.update({
-                        status: TransactionStatus.PENDING,
-                        data: JSON.stringify(pendingTransactionData)
+                    // Add recovered pending proofs + finalize the tx atomically
+                    // (one SQLite txn, incl. the keyset counter). No inputs locked.
+                    const reservation = proofsStore.reserve([], {
+                        transactionId: pendingTransaction!.id,
+                        mintUrl: recoveredMint.mintUrl,
+                        unit: selectedKeyset.unit as MintUnit,
+                        operationType: 'seed-recovery-pending',
+                        rollbackTo: 'PENDING',
+                    })
+                    proofsStore.commitReservation(reservation, {
+                        newProofs: [{proofs: proofStates.PENDING as CashuProof[], state: 'PENDING', tId: pendingTransaction!.id}],
+                        transactionUpdate: {
+                            id: pendingTransaction!.id,
+                            status: TransactionStatus.PENDING,
+                            amount: pendingAmount,
+                            data: JSON.stringify(pendingTransactionData),
+                        },
                     })
                 }
             }

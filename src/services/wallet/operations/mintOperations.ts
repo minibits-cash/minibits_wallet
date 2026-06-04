@@ -222,23 +222,32 @@ const recoverMintQuote = async (
                 throw new MintError('Mint returned no proofs to recover')
             }
 
-            const {updatedAmount: recoveredAmount} = proofsStore.addOrUpdate(proofs, {
-                mintUrl,
-                unit,
-                tId: tx.id,
-                state: 'UNSPENT',
-            })
-
-            const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
+            const recoveredAmount = CashuUtils.getProofsAmount(proofs)
+            const currentSpendable = proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
+            const balanceAfter = currentSpendable + recoveredAmount
 
             txData.push({status: TransactionStatus.RECOVERED, recoveredAmount, createdAt: new Date()})
 
-            tx.update({
-                status: TransactionStatus.RECOVERED,
-                amount: recoveredAmount,
-                keysetId: proofs[0].id,
-                balanceAfter,
-                data: JSON.stringify(txData),
+            // Add the recovered proofs + finalize the tx atomically (one SQLite
+            // txn, incl. the keyset counter). No input proofs are locked, so the
+            // empty reservation's rollback is a no-op.
+            const reservation = proofsStore.reserve([], {
+                transactionId: tx.id,
+                mintUrl,
+                unit,
+                operationType: 'topup-recover',
+                rollbackTo: 'UNSPENT',
+            })
+            proofsStore.commitReservation(reservation, {
+                newProofs: [{proofs, state: 'UNSPENT', tId: tx.id}],
+                transactionUpdate: {
+                    id: tx.id,
+                    status: TransactionStatus.RECOVERED,
+                    amount: recoveredAmount,
+                    keysetId: proofs[0].id,
+                    balanceAfter,
+                    data: JSON.stringify(txData),
+                },
             })
 
             log.debug('[recoverMintQuote] Success', {mintUrl, mintQuote, recoveredAmount})

@@ -136,14 +136,9 @@ const recoverMeltQuoteChange = async (
                     throw new MintError(`No new ecash proofs to recover from melt quote ${meltQuoteResponse.quote}, ${recoveredChange.length} proofs already in wallet.`)
                 }
 
-                const {updatedAmount: recoveredAmount} = proofsStore.addOrUpdate(newChange, {
-                    mintUrl,
-                    unit,
-                    tId: tx.id,
-                    state: 'UNSPENT',
-                })
-
-                const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
+                const recoveredAmount = CashuUtils.getProofsAmount(newChange)
+                const currentSpendable = proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
+                const balanceAfter = currentSpendable + recoveredAmount
                 const outputToken = getEncodedToken({mint: mintUrl, proofs: newChange, unit})
 
                 txData.push({
@@ -152,12 +147,26 @@ const recoverMeltQuoteChange = async (
                     createdAt: new Date(),
                 })
 
-                tx.update({
-                    status: TransactionStatus.RECOVERED,
-                    amount: recoveredAmount,
-                    balanceAfter,
-                    outputToken,
-                    data: JSON.stringify(txData),
+                // Add the recovered change + finalize the tx atomically (one
+                // SQLite txn, incl. the keyset counter). No inputs are locked
+                // here (the melt already spent them), so rollback is a no-op.
+                const reservation = proofsStore.reserve([], {
+                    transactionId: tx.id,
+                    mintUrl,
+                    unit,
+                    operationType: 'melt-change-recover',
+                    rollbackTo: 'UNSPENT',
+                })
+                proofsStore.commitReservation(reservation, {
+                    newProofs: [{proofs: newChange, state: 'UNSPENT', tId: tx.id}],
+                    transactionUpdate: {
+                        id: tx.id,
+                        status: TransactionStatus.RECOVERED,
+                        amount: recoveredAmount,
+                        balanceAfter,
+                        outputToken,
+                        data: JSON.stringify(txData),
+                    },
                 })
 
                 log.debug('[recoverMeltQuoteChange] Success', {meltQuote, recoveredAmount})

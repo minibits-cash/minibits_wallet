@@ -90,25 +90,33 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                             {inFlightRequest: inFlight},
                         )
 
-                        const {updatedAmount: receivedAmount} = proofsStore.addOrUpdate(proofs, {
-                            mintUrl,
-                            tId: tx.id,
-                            unit,
-                            state: 'UNSPENT',
-                        })
-
+                        const receivedAmount = CashuUtils.getProofsAmount(proofs)
                         const outputToken = getEncodedToken({mint: mintUrl, proofs: normalizeProofAmounts(proofs), unit})
-                        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
+                        const currentSpendable = proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
+                        const balanceAfter = currentSpendable + receivedAmount
 
                         txData.push({status: TransactionStatus.COMPLETED, receivedAmount, swapFeePaid, createdAt: new Date()})
 
-                        tx.update({
-                            amount: receivedAmount,
-                            status: TransactionStatus.COMPLETED,
-                            data: JSON.stringify(txData),
-                            outputToken,
-                            balanceAfter,
-                            fee: swapFeePaid > 0 ? swapFeePaid : tx.fee,
+                        // Add received proofs + complete the tx atomically (one
+                        // SQLite txn, incl. the keyset counter). No inputs locked.
+                        const reservation = proofsStore.reserve([], {
+                            transactionId: tx.id,
+                            mintUrl,
+                            unit,
+                            operationType: 'receive-retry',
+                            rollbackTo: 'UNSPENT',
+                        })
+                        proofsStore.commitReservation(reservation, {
+                            newProofs: [{proofs, state: 'UNSPENT', tId: tx.id}],
+                            transactionUpdate: {
+                                id: tx.id,
+                                amount: receivedAmount,
+                                status: TransactionStatus.COMPLETED,
+                                data: JSON.stringify(txData),
+                                outputToken,
+                                balanceAfter,
+                                fee: swapFeePaid > 0 ? swapFeePaid : tx.fee,
+                            },
                         })
 
                         break
@@ -214,23 +222,31 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                             {inFlightRequest: inFlight},
                         )
 
-                        proofsStore.addOrUpdate(proofs, {
-                            mintUrl,
-                            tId: tx.id,
-                            unit,
-                            state: 'UNSPENT',
-                        })
+                        const recoveredAmount = CashuUtils.getProofsAmount(proofs)
+                        const currentSpendable = proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
+                        const balanceAfter = currentSpendable + recoveredAmount
 
                         stopPolling(`handlePendingTopupPoller-${tx.paymentId}`)
 
-                        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
-
                         txData.push({status: TransactionStatus.COMPLETED, createdAt: new Date()})
 
-                        tx.update({
-                            status: TransactionStatus.COMPLETED,
-                            data: JSON.stringify(txData),
-                            balanceAfter,
+                        // Add minted proofs + complete the tx atomically (one
+                        // SQLite txn, incl. the keyset counter). No inputs locked.
+                        const reservation = proofsStore.reserve([], {
+                            transactionId: tx.id,
+                            mintUrl,
+                            unit,
+                            operationType: 'topup-retry',
+                            rollbackTo: 'UNSPENT',
+                        })
+                        proofsStore.commitReservation(reservation, {
+                            newProofs: [{proofs, state: 'UNSPENT', tId: tx.id}],
+                            transactionUpdate: {
+                                id: tx.id,
+                                status: TransactionStatus.COMPLETED,
+                                data: JSON.stringify(txData),
+                                balanceAfter,
+                            },
                         })
 
                         break
