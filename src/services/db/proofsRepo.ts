@@ -89,9 +89,7 @@ export const addOrUpdateProofs = function (
     const {rowsAffected} = db.executeBatch(insertQueries)
 
     // DO NOT log proof secrets to Sentry
-    log.info('[addOrUpdateProofs]',
-      `${rowsAffected} ${state} proofs were added or updated in the database`,
-    )
+    log.debug(`[addOrUpdateProofs] ${rowsAffected} ${state} proofs were added or updated in the database`)
 
     return rowsAffected
   } catch (e: any) {

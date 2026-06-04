@@ -109,7 +109,7 @@ export const openReservation = function (
     const db = getInstance()
     db.executeBatch(batch)
 
-    log.info('[openReservation]', 'Reservation opened', {
+    log.debug('[openReservation] Reservation opened', {
       id: reservation.id,
       transactionId: reservation.transactionId,
       lockedCount: proofsToLock.length,
@@ -267,7 +267,7 @@ export const commitReservation = function (
     const db = getInstance()
     db.executeBatch(batch)
 
-    log.info('[commitReservation] ', 'Reservation committed to DB', {
+    log.debug('[commitReservation] Reservation committed to DB', {
       id: reservationId,
       toSpent: changes.toSpent?.length ?? 0,
       toUnspent: changes.toUnspent?.length ?? 0,

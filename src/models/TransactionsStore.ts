@@ -198,7 +198,7 @@ export const TransactionsStoreModel = types
                         inputToken: dbTx.inputToken?.slice(0, 40) || '',
                         outputToken: dbTx.outputToken?.slice(0, 40) || '',
                     })
-                    log.trace('[addToHistory]', `${id} added to transactionsMap`)
+                    //log.trace('[addToHistory]', `${id} added to transactionsMap`)
                 }
 
                 const ref = self.transactionsMap.get(id)

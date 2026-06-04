@@ -464,8 +464,8 @@ import {
                 id: reservation.id,
                 toSpent: changes.toSpent?.length ?? 0,
                 toUnspent: changes.toUnspent?.length ?? 0,
-                addedCount: added.length,
-                txUpdate: changes.transactionUpdate?.id,
+                addedProofsCount: added.length,
+                txId: changes.transactionUpdate?.id,
             })
 
             return { added }

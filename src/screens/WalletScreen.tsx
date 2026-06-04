@@ -438,7 +438,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
 
     const toggleSendModal = () => {
-        log.trace('toggleSendModal')
+        log.trace('[WalletScreen.toggleSendModal]')
         setIsSendModalVisible(previousState => !previousState)
     }
 

@@ -104,7 +104,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
             setIsLoading(true)
             const countByStatus = Database.getTransactionsCount()
 
-            log.trace('Database transaction counts', {countByStatus})
+            log.trace('[TranHistoryScreen] Database transaction counts', {countByStatus})
 
             setExpiredDbCount(countByStatus[TransactionStatus.EXPIRED] || 0)
             setErroredDbCount(countByStatus[TransactionStatus.ERROR] || 0)

@@ -64,7 +64,7 @@ const extractZapSenderData = function (str: string) {
 }
 
 const handleClaimQueue = async function (): Promise<void> {
-    log.info('[handleClaimQueue] start')
+    log.debug('[handleClaimQueue] start')
     const {isOwnProfile} = walletProfileStore
 
     if (isOwnProfile) {

@@ -245,16 +245,6 @@ export const MintProofsCounterModel = types
             })
         },
 
-        decreaseProofsCounter(numberOfProofs: number) {
-            // Lowering is deliberately NOT written through: the SQLite counter is
-            // monotonic by design. No external caller uses this (recovery only).
-            self.counter = Math.max(0, self.counter - numberOfProofs)
-            log.trace('[decreaseProofsCounter]', 'Decreased proofsCounter', {
-                numberOfProofs,
-                counter: self.counter,
-            })
-        },
-
         setProofsCounter(newCounter: number) {
             self.counter = newCounter
             persistCounter(self, 'set', newCounter)

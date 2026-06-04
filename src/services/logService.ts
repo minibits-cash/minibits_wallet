@@ -59,23 +59,59 @@ const levelToSentry: Record<LogLevel, Sentry.SeverityLevel> = {
     [LogLevel.ERROR]: 'error',
 }
 
-const safeStringify = (msg: any): string => {
-    try {
-        if (msg === null || msg === undefined) return 'null'
-        if (typeof msg === 'string') return msg
-        if (msg instanceof Error) return `${msg.name}: ${msg.message}\n${msg.stack || ''}`
-        return JSON.stringify(msg, (_, v) => (typeof v === 'bigint' ? v.toString() : v), 2)
-    } catch {
-        return '[Unserializable]'
-    }
-}
-
 const redactSensitive = (text: string): string => {
     if (!text) return text
     return text
-        .replace(/lnurl\w{50,}/gi, 'lnurl[redacted]')
-        .replace(/nsec1[ac-hj-np-z02-9]{58,}/g, 'nsec1[redacted]')
-        .replace(/cashuB[ac-hj-np-z02-9]{58,}/g, 'cashuB[redacted]')
+        .replace(/lnurl1?[ac-hj-np-z02-9]{30,}/gi, 'lnurl[redacted]')
+        .replace(/nsec1[ac-hj-np-z02-9]{20,}/gi, 'nsec1[redacted]')
+        // cashu tokens are base64url (v4 CBOR / v3 JSON), not bech32
+        .replace(/cashu[AB][A-Za-z0-9_-]{40,}/g, 'cashu[redacted]')
+        // JWTs (header.payload.signature)
+        .replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, '[jwt redacted]')
+}
+
+// Object keys whose values must never be logged in cleartext (case-insensitive).
+const SENSITIVE_KEYS = new Set([
+    'seed', 'seedhash', 'mnemonic',
+    'privatekey', 'privkey', 'nsec', 'password',
+    'accesstoken', 'refreshtoken', 'token', 'tokens', 'inputtoken', 'outputtoken',
+    'secret', 'sig', 'signature', 'dleq', 'c',
+])
+
+const REDACT_MAX_DEPTH = 6
+
+// Recursively redact sensitive keys and string patterns from a params object.
+const redactParams = (value: any, depth = 0, seen = new WeakSet<object>()): any => {
+    if (value === null || value === undefined) return value
+    if (typeof value === 'bigint') return value.toString()
+    if (typeof value === 'string') return redactSensitive(value)
+    if (typeof value !== 'object') return value
+    if (seen.has(value)) return '[Circular]'
+    if (depth >= REDACT_MAX_DEPTH) return '[Truncated]'
+    seen.add(value)
+
+    if (Array.isArray(value)) return value.map((v) => redactParams(v, depth + 1, seen))
+
+    const out: Record<string, any> = {}
+    for (const [k, v] of Object.entries(value)) {
+        out[k] = SENSITIVE_KEYS.has(k.toLowerCase()) ? '[redacted]' : redactParams(v, depth + 1, seen)
+    }
+    return out
+}
+
+// Insert a space after a leading "[Tag]" when the author forgot one, e.g. "[getInstance]MMKV…".
+const fixTagSpacing = (s: string): string => s.replace(/^(\[[^\]]+\])(?=\S)/, '$1 ')
+
+const safeStringify = (msg: any): string => {
+    try {
+        if (msg === null || msg === undefined) return 'null'
+        if (typeof msg === 'string') return redactSensitive(fixTagSpacing(msg))
+        if (msg instanceof Error) return `${msg.name}: ${redactSensitive(msg.message)}\n${msg.stack || ''}`
+        // Leading space guarantees separation from the preceding message arg.
+        return ' ' + JSON.stringify(redactParams(msg), null, 2)
+    } catch {
+        return '[Unserializable]'
+    }
 }
 
 
@@ -130,6 +166,10 @@ const customSentryTransport: transportFunctionType<TransportOptions> = async (pr
         message = '[Object logged]'
         params = rawMessage
     }
+
+    // Normalize readability + strip secrets before anything leaves the device.
+    message = fixTagSpacing(message)
+    params = redactParams(params)
 
     //console.log(`[${level}] ${message}`, params)
 

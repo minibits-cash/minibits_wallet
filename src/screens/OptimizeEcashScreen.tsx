@@ -205,18 +205,18 @@ export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
               mintBalances={mintBalances}
               selectedMintBalance={selectedMintBalance}
               unit={unit}
-              title="Select mint to optimize"
+              title=""
               onMintBalanceSelect={onMintBalanceSelect}
             />
           ) : (
             <Card content="No mints with balance to optimize." style={$card} />
           )}
         </View>
-        <Text
+        {/*<Text
           text={`Only denominations with more than ${OPTIMIZE_DENOMINATION_THRESHOLD} proofs can be optimized - by swapping them with the mint for lower number of ecash notes with higher amounts.`}
           preset="formHelper"
           style={[$hintText, {color: hint}]}
-        />
+        />*/}
         <Card
           ContentComponent={
             <>

@@ -18,7 +18,7 @@ export const poller = async (
     const {interval, maxPolls, maxErrors} = config
 
     pollers.set(name, true); // Add poller to the Map
-    log.info('Starting new poller', {name, numOfPollers: pollers.size})
+    log.debug('[startPolling] Starting new poller', {name, numOfPollers: pollers.size})
 
     while (pollers.get(name) && pollCount < maxPolls && errorCount < maxErrors) {
         try {
@@ -38,7 +38,7 @@ export const poller = async (
 
 export const stopPolling = (name: string) => {
     pollers.delete(name) // Remove poller from the Map
-    log.info('Removing poller', {name, numOfPollers: pollers.size})
+    log.debug('[stopPolling] Removing poller', {name, numOfPollers: pollers.size})
 }
 
 export const pollerExists = (name: string) => {
