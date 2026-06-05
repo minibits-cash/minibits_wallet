@@ -994,14 +994,13 @@ async function _unblindMeltChange(params: {
         const mintInstance = mintsStore.findByUrl(mintUrl)
         if (!mintInstance || !transaction.keysetId) return {change: []}
 
-        const currentCounter = mintInstance.getProofsCounterByKeysetId!(transaction.keysetId)
-        const meltCounterValue = currentCounter?.getMeltCounterValue(transaction.id)
+        const meltRecovery = Database.getMeltRecovery(transaction.id)
 
-        if (!meltCounterValue?.meltPreview || !quoteChange?.length) {
+        if (!meltRecovery?.meltPreview || !quoteChange?.length) {
             return {change: []}
         }
 
-        const {meltPreview} = meltCounterValue
+        const {meltPreview} = meltRecovery
         const cashuWallet = await walletStore.getWallet(mintUrl, unit, {
             withSeed: true,
             keysetId: meltPreview.keysetId,
@@ -1019,7 +1018,7 @@ async function _unblindMeltChange(params: {
             change,
         })
 
-        currentCounter.removeMeltCounterValue(transaction.id)
+        Database.removeMeltRecovery(transaction.id)
         return {change}
     } catch (e: any) {
         log.error(

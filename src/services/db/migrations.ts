@@ -1,10 +1,10 @@
 import {DbConnection, SQLBatchTuple} from './connection'
-import {createTable, PROOFS_COLUMNS, PROOFS_COLUMN_NAMES, RESERVATIONS_COLUMNS, MINT_COUNTERS_COLUMNS} from './schema'
+import {createTable, PROOFS_COLUMNS, PROOFS_COLUMN_NAMES, RESERVATIONS_COLUMNS, MINT_COUNTERS_COLUMNS, MELT_RECOVERY_COLUMNS} from './schema'
 import {dbError} from './errors'
 import {log} from '../logService'
 
 /** Bump this when a schema change requires a migration, then add an entry below. */
-export const _dbVersion = 27
+export const _dbVersion = 28
 
 type Migration = {version: number; queries: SQLBatchTuple[]}
 
@@ -78,6 +78,13 @@ const MIGRATIONS: Migration[] = [
     // are populated on first hydration.
     version: 27,
     queries: [[createTable('mint_counters', MINT_COUNTERS_COLUMNS)]],
+  },
+  {
+    // Add per-transaction melt recovery table. Empty on creation; any in-flight
+    // meltCounterValues from the MST/MMKV snapshot are copied by a one-time JS
+    // seed (see setupRootStore._runMigrations).
+    version: 28,
+    queries: [[createTable('melt_recovery', MELT_RECOVERY_COLUMNS)]],
   },
 ]
 

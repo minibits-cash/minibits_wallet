@@ -51,6 +51,12 @@ import {
   bumpCounter,
   seedCounters,
 } from './countersRepo'
+import {
+  addMeltRecovery,
+  getMeltRecovery,
+  removeMeltRecovery,
+  seedMeltRecoveries,
+} from './meltRecoveryRepo'
 
 export type {TransactionSearchFilters} from './transactionsRepo'
 export type {
@@ -59,6 +65,7 @@ export type {
   ReservationTransactionUpdate,
 } from './reservationsRepo'
 export type {CounterRecord, CounterSeed} from './countersRepo'
+export type {MeltRecoveryRecord, MeltRecoverySeed} from './meltRecoveryRepo'
 
 export const Database = {
   getInstance,
@@ -100,4 +107,8 @@ export const Database = {
   setCounter,
   bumpCounter,
   seedCounters,
+  addMeltRecovery,
+  getMeltRecovery,
+  removeMeltRecovery,
+  seedMeltRecoveries,
 }

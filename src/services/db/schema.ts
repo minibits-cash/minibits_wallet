@@ -89,6 +89,26 @@ export const MINT_COUNTERS_COLUMNS = `
   PRIMARY KEY (mintUrl, keysetId)
 `
 
+/**
+ * Recovery data for outgoing lightning payments (melt).
+ *
+ * Holds the serialized `meltPreview` (the blinded change outputData) per
+ * transaction, written synchronously BEFORE the melt is submitted so a paid-
+ * but-unconfirmed melt can always be recovered and its change ecash unblinded —
+ * previously kept on the MST MintProofsCounter (debounced MMKV), which risked
+ * losing the preview (and the change) on a crash right after submission.
+ *
+ * Keyed by transactionId (globally unique). A row exists only while a melt is
+ * in-flight; it is deleted on terminal success/failure.
+ */
+export const MELT_RECOVERY_COLUMNS = `
+  transactionId INTEGER PRIMARY KEY NOT NULL,
+  mintUrl TEXT,
+  keysetId TEXT,
+  meltPreview TEXT NOT NULL,
+  createdAt TEXT
+`
+
 /** Build a CREATE TABLE statement from a column block. */
 export const createTable = (
   name: string,
@@ -112,4 +132,7 @@ export const createSchemaQueries: SQLBatchTuple[] = [
   // Per-keyset deterministic-derivation counters. Seeded from the MST/MMKV
   // counters on first run after this migration (see countersRepo).
   [createTable('mint_counters', MINT_COUNTERS_COLUMNS)],
+  // Per-transaction melt recovery data (serialized meltPreview). A row exists
+  // only while an outgoing lightning payment is in-flight (see meltRecoveryRepo).
+  [createTable('melt_recovery', MELT_RECOVERY_COLUMNS)],
 ]

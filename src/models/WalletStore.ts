@@ -20,7 +20,7 @@ import {
   MeltQuoteState,
 } from '@cashu/cashu-ts'
 import { JS_BUNDLE_VERSION } from '@env'
-import {KeyChain, MinibitsClient, WalletKeys} from '../services'
+import {Database, KeyChain, MinibitsClient, WalletKeys} from '../services'
 import {log} from '../services/logService'
 import AppError, { Err, MintError, NetworkError } from '../utils/AppError'
 import { Currencies, CurrencyCode, MintUnit } from '../services/wallet/currency'
@@ -488,7 +488,7 @@ export const WalletStoreModel = types
                     ...receiveParams.options,
                     onCountersReserved: (info: OperationCounters) => {
                       reservedCounters = info
-                      log.debug('[receive] Counters reserved', info)
+                      log.debug('[WalletStore.receive] Counters reserved', info)
                     }
                   }
                 )
@@ -500,7 +500,7 @@ export const WalletStoreModel = types
                 // Update our counter to match what the wallet used (v3.x)
                 if (reservedCounters) {
                     currentCounter.setProofsCounter(reservedCounters.next)
-                    log.debug('[receive] Updated counter', {
+                    log.debug('[WalletStore.receive] Updated counter', {
                         keysetId: reservedCounters.keysetId,
                         start: reservedCounters.start,
                         count: reservedCounters.count,
@@ -605,7 +605,7 @@ export const WalletStoreModel = types
                     ...sendParams.options,
                     onCountersReserved: (info: OperationCounters) => {
                       reservedCounters = info
-                      log.debug('[send] Counters reserved', info)
+                      log.debug('[WalletStore.send] Counters reserved', info)
                     }
                   }
                 )
@@ -615,7 +615,7 @@ export const WalletStoreModel = types
                 // Update our counter to match what the wallet used (v3.x)
                 if (reservedCounters) {
                     currentCounter.setProofsCounter(reservedCounters.next)
-                    log.debug('[send] Updated counter', {
+                    log.debug('[WalletStore.send] Updated counter', {
                         keysetId: reservedCounters.keysetId,
                         start: reservedCounters.start,
                         count: reservedCounters.count,
@@ -729,7 +729,7 @@ export const WalletStoreModel = types
                   description
               })
           
-              log.info('[createLightningMintQuote]', {mintQuoteResponse})
+              log.info('[WalletStore.createLightningMintQuote]', {mintQuoteResponse})
           
               return {
                   encodedInvoice: mintQuoteResponse.request,
@@ -759,7 +759,7 @@ export const WalletStoreModel = types
                   quote
               )
           
-              log.info('[checkLightningMintQuote]', {quoteResponse})
+              log.info('[WalletStore.checkLightningMintQuote]', {quoteResponse})
           
               return {
                   encodedInvoice: quoteResponse.request,
@@ -843,7 +843,7 @@ export const WalletStoreModel = types
                         keysetId: mintParams.options?.keysetId,
                         onCountersReserved: (info: OperationCounters) => {
                             reservedCounters = info
-                            log.debug('[mintProofsBolt11] Counters reserved', info)
+                            log.debug('[cashuWallet.mintProofsBolt11] Counters reserved', info)
                         }
                     }
                 )
@@ -853,7 +853,7 @@ export const WalletStoreModel = types
                 // Update our counter to match what the wallet used (v3.x)
                 if (reservedCounters) {
                     currentCounter.setProofsCounter(reservedCounters.next)
-                    log.debug('[mintProofs] Updated counter', {
+                    log.debug('[WalletStore.mintProofs] Updated counter', {
                         keysetId: reservedCounters.keysetId,
                         start: reservedCounters.start,
                         count: reservedCounters.count,
@@ -861,7 +861,7 @@ export const WalletStoreModel = types
                     })
                 }
 
-                log.debug('[mintProofs]', {amount: mintParams.amount, quote: mintParams.quote, proofs})
+                log.debug('[WalletStore.mintProofs]', {amount: mintParams.amount, quote: mintParams.quote, proofs})
 
                 return proofs
         
@@ -972,8 +972,15 @@ export const WalletStoreModel = types
                 }
             )
 
-            // Store the MeltPreview for potential recovery
-            currentCounter.addMeltCounterValue(transactionId, meltPreview)
+            // Store the MeltPreview for potential recovery. Synchronous SQLite
+            // write BEFORE completeMelt, so the change can always be recovered
+            // even if the app dies right after the payment is submitted.
+            Database.addMeltRecovery(
+                transactionId,
+                mintUrl,
+                cashuWallet.keysetId,
+                CashuUtils.serializeMeltPreview(meltPreview),
+            )
 
             // Update our counter to match what the wallet used (v3.x)
             if (reservedCounters) {
@@ -992,7 +999,7 @@ export const WalletStoreModel = types
 
                 // Keep the preview for PENDING async melts — handlePendingMeltTask needs it to unbind change later
                 if (meltResponse.quote.state !== MeltQuoteState.PENDING) {
-                    currentCounter.removeMeltCounterValue(transactionId)
+                    Database.removeMeltRecovery(transactionId)
                 }
 
                 log.trace('[payLightningMelt]', {meltResponse})
@@ -1002,7 +1009,7 @@ export const WalletStoreModel = types
                 if(!e.message.toLowerCase().includes('timeout') &&
                    !e.message.toLowerCase().includes('network request failed')) {
                   // remove only if it was not a timeout or network error
-                  currentCounter.removeMeltCounterValue(transactionId)
+                  Database.removeMeltRecovery(transactionId)
                 }   
 
                 let message = 'Lightning payment failed.'

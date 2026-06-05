@@ -16,7 +16,8 @@ import {
 } from 'mobx-state-tree'
 import * as Sentry from '@sentry/react-native'
 import type { RootStore } from '../RootStore'
-import { MMKVStorage } from '../../services'
+import { Database, MMKVStorage } from '../../services'
+import type { MeltRecoverySeed } from '../../services/db'
 import { log } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
@@ -124,7 +125,7 @@ export async function setupRootStore(rootStore: RootStore) {
             log.info(`RootStore loaded from MMKV, version is: ${rootStore.version}`, {caller: 'setupRootStore'})
 
             if(rootStore.version < rootStoreModelVersion) {
-                await _runMigrations(rootStore)
+                await _runMigrations(rootStore, restoredState)
             }
         } catch (e: any) {
             log.error(Err.STORAGE_ERROR, e.message)
@@ -143,7 +144,7 @@ export async function setupRootStore(rootStore: RootStore) {
  * Migrations code to execute based on code and on device model version.
  */
 
-async function _runMigrations(rootStore: RootStore) {
+async function _runMigrations(rootStore: RootStore, restoredState: any) {
     const {
         mintsStore,
         transactionsStore,
@@ -168,6 +169,33 @@ async function _runMigrations(rootStore: RootStore) {
             // is authoritative and the every-launch hydrate in setupRootStore
             // fills the in-memory cache from it.
             mintsStore.seedCountersToDatabase()
+        }
+
+        if(currentVersion < 34) {
+            // meltCounterValues moved to SQLite (melt_recovery). The model no
+            // longer holds them and applySnapshot strips them, so read straight
+            // from the RAW pre-upgrade snapshot to carry over any melt that was
+            // in-flight at upgrade time (usually none). Idempotent.
+            const seeds: MeltRecoverySeed[] = []
+            for (const mint of restoredState?.mintsStore?.mints ?? []) {
+                for (const counter of mint?.proofsCounters ?? []) {
+                    const mcv = counter?.meltCounterValues ?? {}
+                    for (const key of Object.keys(mcv)) {
+                        const entry = mcv[key]
+                        if (entry?.meltPreview && typeof entry.transactionId === 'number') {
+                            seeds.push({
+                                transactionId: entry.transactionId,
+                                mintUrl: mint.mintUrl,
+                                keysetId: counter.keyset,
+                                meltPreview: entry.meltPreview,
+                            })
+                        }
+                    }
+                }
+            }
+            if (seeds.length > 0) {
+                Database.seedMeltRecoveries(seeds)
+            }
         }
 
         // Set once, after all steps succeed: if any step throws, the version is

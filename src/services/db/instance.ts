@@ -63,6 +63,7 @@ export const cleanAll = function () {
     // may lack them; without the guard a missing table aborts the atomic batch.
     ['DROP TABLE IF EXISTS reservations'],
     ['DROP TABLE IF EXISTS mint_counters'],
+    ['DROP TABLE IF EXISTS melt_recovery'],
   ] as SQLBatchTuple[]
 
   try {
