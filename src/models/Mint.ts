@@ -101,18 +101,28 @@ const migrateSnapshot = (snapshot: any): any => {
 
 
 /**
- * Write a counter mutation through to the SQLite authority.
+ * Write a counter mutation through to the SQLite authority — the PRIMARY
+ * counter persistence ("W1").
  *
  * `mode: 'set'` persists an absolute value monotonically (never lowers);
  * `mode: 'bump'` advances by a relative delta. The (mint, keyset) identity is
  * read from the parent Mint node — a counter is always nested two levels up
  * (counter -> proofsCounters array -> Mint).
  *
- * Failures are swallowed deliberately: a detached instance (e.g. a counter
- * created for a CounterBackup, not yet attached to a Mint) has no parent, and a
- * transient DB error must never break a wallet flow. The value stays in the MST
- * cache and startup hydration reconciles from SQLite. Step 4 folds this write
- * into the proof-commit transaction to make it atomic.
+ * This fires the instant cashu derives (right after onCountersReserved, BEFORE
+ * the reservation commit), so the advance is durable the moment the mint could
+ * have seen those outputs — covering a crash before commit AND an explicit
+ * rollback. Those indices are consumed at the mint and must never be reused even
+ * if the operation aborts, which is exactly why rollback does NOT rewind the
+ * counter.
+ *
+ * Errors are logged (→ Sentry in prod) but never rethrown: a counter write must
+ * not break a wallet flow, and there is a complementary safety net —
+ * commitReservation re-persists this same value ATOMICALLY with the proofs
+ * ("W2", see reservationsRepo), so even if this write is dropped a successful
+ * commit cannot leave the counter behind its proofs. A detached instance (e.g. a
+ * counter created for a CounterBackup, not yet attached to a Mint) has no parent
+ * and is a no-op here.
  */
 const persistCounter = (self: any, mode: 'set' | 'bump', value: number): void => {
     let mintUrl: string | undefined

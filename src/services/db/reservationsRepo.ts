@@ -164,10 +164,13 @@ export const commitReservation = function (
     transactionUpdate?: ReservationTransactionUpdate
     /**
      * Per-keyset derivation counters to persist atomically with the proof
-     * writes. Folding the counter into this same transaction closes the
-     * proofs-table ↔ mint_counters atomicity window: a crash that committed
-     * the new proofs but not the advanced counter could otherwise let the next
-     * derivation reuse a blinded secret. Each upsert is monotonic.
+     * writes — the "W2" backstop to the write-through in Mint.persistCounter
+     * ("W1"). W1 already persists this value the instant cashu derives, BEFORE
+     * this commit, so on the normal path this upsert is a monotonic no-op. Its
+     * job is the failure case: if W1's write was dropped (logged, not thrown),
+     * folding the counter into the SAME transaction as the proofs guarantees a
+     * committed proof can never outlive its counter advance — which would let the
+     * next derivation reuse a blinded secret. Each upsert is monotonic.
      */
     counterUpdate?: Array<{
       mintUrl: string

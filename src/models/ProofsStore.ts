@@ -346,13 +346,14 @@ import {
                 })
             }
 
-            // Snapshot the current derivation counter for every keyset that the
-            // new proofs were derived under (a cashu proof's `id` IS its keyset
-            // id). At this point WalletStore has already advanced the model
-            // counter to `reservedCounters.next`, so persisting it in the SAME
-            // batch as the proofs guarantees the stored counter can never lag the
-            // proofs that consumed those indices. Monotonic, so a redundant write
-            // is harmless.
+            // Snapshot the current derivation counter for every keyset the new
+            // proofs were derived under (a cashu proof's `id` IS its keyset id).
+            // WalletStore already advanced the model counter to
+            // `reservedCounters.next` and wrote it through to SQLite (W1); this
+            // folds the same value into the proof-commit batch (W2) as an atomic
+            // backstop, so a committed proof can never outlive its counter even if
+            // the W1 write-through was dropped. Monotonic, so the normal-path
+            // double write is a harmless no-op.
             const counterUpdate: Array<{mintUrl: string; keysetId: string; unit?: string; counter: number}> = []
             const seenKeysets = new Set<string>()
             for (const group of changes.newProofs ?? []) {
