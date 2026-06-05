@@ -259,16 +259,25 @@ const _receiveToLnurlHandler = async function(remoteData: NotifyReceiveToLnurlDa
 }
 
 
-const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {    
-    log.trace('[_nwcRequestHandler] start')    
+const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
+    log.trace('[_nwcRequestHandler] start')
 
     const {requestEvent} = remoteData.data
     const {nwcStore} = rootStoreInstance
-    
-    if(nwcStore.all.length === 0) {        
-        await setupRootStore(rootStoreInstance)        
+
+    if(nwcStore.all.length === 0) {
+        await setupRootStore(rootStoreInstance)
     }
 
+    // Process the command carried IN the push payload directly — no need to wait
+    // for the WebSocket listener to re-fetch it from the relay. This dedup-marks
+    // the event, so the follow-up listener started below skips it. Must run
+    // BEFORE createNwcListenerNotification so the same event can't be processed
+    // twice.
+    nwcStore.receivePushedEvent(requestEvent)
+
+    // Keep a short-lived listener open for any follow-up commands that arrive in
+    // the next window without their own push (faster than push round-trips).
     await createNwcListenerNotification()
 
 }

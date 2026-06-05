@@ -749,8 +749,49 @@ export const NwcStoreModel = types
                 log.debug('[remove]', 'Connection removed from NwcStore')
             }
         },
+        /**
+         * Process an NWC request event delivered IN the FCM push payload, without
+         * waiting for the WebSocket listener to re-fetch it. Dedup-marks the event
+         * synchronously (so the follow-up listener, started right after, skips it),
+         * sets the listener window to start from this event, and dispatches it on
+         * the SyncQueue — exactly the same handler the WS path uses.
+         *
+         * MUST be called BEFORE the follow-up listener is opened, so the dedup mark
+         * is in place and the same event can never be processed twice (a double
+         * pay_invoice would be a double payment).
+         */
+        receivePushedEvent (event: NostrEvent) {
+            if (!event || !event.id) {
+                log.warn('[receivePushedEvent] No event in push payload, skipping')
+                return
+            }
+
+            const relaysStore = getRootStore(self).relaysStore
+            if (relaysStore.eventAlreadyReceived(event.id)) {
+                log.trace('[receivePushedEvent] Event already processed, skipping', {id: event.id})
+                return
+            }
+            relaysStore.addReceivedEventId(event.id)
+
+            // Follow-up listener should start from this event (it is now deduped).
+            self.setRetrieveEventsSince(event.created_at)
+
+            const targetConnection = self.nwcConnections.find(c =>
+                c.connectionPubkey === event.pubkey
+            )
+            if (!targetConnection) {
+                log.error('[receivePushedEvent] No NWC connection for pushed event', {pubkey: event.pubkey})
+                return
+            }
+
+            const now = new Date().getTime()
+            SyncQueue.addTask(
+                `handleNwcRequestTask-${now}`,
+                async () => await targetConnection.handleNwcRequestTask(event)
+            )
+        },
         listenForNwcEvents () {
-            log.debug('[listenForNwcEvents] got request to start nwcListener', {                
+            log.debug('[listenForNwcEvents] got request to start nwcListener', {
                 walletPubkey: self.walletPubkey,
                 isNwcListenerActive: self.isNwcListenerActive,
                 relays: self.connectionRelays
@@ -790,19 +831,17 @@ export const NwcStoreModel = types
                         log.trace('[listenForNwcEvents]', `onEvent`)
                         if (event.kind != NWCWalletRequest) {
                             return
-                        }                    
-            
-                        eventsBatch.push(event)
+                        }
 
                         if(relaysStore.eventAlreadyReceived(event.id)) {
                             log.warn(
-                                Err.ALREADY_EXISTS_ERROR, 
-                                '[listenForNwcEvents] Event has been processed in the past, skipping...', 
+                                Err.ALREADY_EXISTS_ERROR,
+                                '[listenForNwcEvents] Event has been processed in the past, skipping...',
                                 {id: event.id, created_at: event.created_at}
                             )
                             return
                         }
-                        
+
                         eventsBatch.push(event)
                         relaysStore.addReceivedEventId(event.id)
                         

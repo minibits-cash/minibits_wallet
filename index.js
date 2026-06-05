@@ -7,7 +7,7 @@ import 'message-port-polyfill' // nostr-tools
 import notifee from '@notifee/react-native'
 import messaging from '@react-native-firebase/messaging'
 import {AppRegistry} from 'react-native'
-import { rootStoreInstance, setupRootStore } from './src/models'
+import { rootStoreInstance } from './src/models'
 import {
   WalletTask,
   NotificationService,
@@ -15,7 +15,6 @@ import {
   SWAP_DENOMINATION_TASK,
   TEST_TASK,
   SYNC_STATE_WITH_ALL_MINTS_TASK,
-  HANDLE_NWC_REQUEST_TASK
 } from './src/services'
 import {
   LISTEN_FOR_NWC_EVENTS
@@ -33,25 +32,14 @@ notifee.registerForegroundService(async (notification) => {
   return new Promise(async (resolve) => {
     log.trace('[registerForegroundService] Foreground service starting for task:', notification.data.task)
 
-    try {      
+    try {
 
-      // NWC command received by push notification
-      if(notification.data.task === HANDLE_NWC_REQUEST_TASK) {
-        log.info(`[registerForegroundService] Submitting task ${HANDLE_NWC_REQUEST_TASK} to the queue.`)
-        
-        const {nwcStore} = rootStoreInstance
-        // if an app is in killed state, state is not loaded
-        if(nwcStore.all.length === 0) {        
-            await setupRootStore(rootStoreInstance)        
-        }
-        
-        WalletTask.handleNwcRequestQueue({requestEvent: notification.data.data})        
-      }
-
-      // Listen for NWC commands from minibits relay over ws if push notifications are not enabled
+      // Listen for NWC commands over ws (started by the push handler AFTER it has
+      // processed the pushed command directly; this catches any follow-ups that
+      // arrive in the window without their own push).
       if(notification.data.task === LISTEN_FOR_NWC_EVENTS) {
         const {nwcStore} = rootStoreInstance
-        nwcStore.listenForNwcEvents() 
+        nwcStore.listenForNwcEvents()
       }
       
       if(notification.data.task === SYNC_STATE_WITH_ALL_MINTS_TASK) {
