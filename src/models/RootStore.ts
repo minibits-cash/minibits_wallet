@@ -11,7 +11,7 @@ import {NwcStoreModel} from './NwcStore'
 import {AuthStoreModel} from './AuthStore'
 import { log } from '../services'
 
-export const rootStoreModelVersion = 34 // Update this if model changes require migrations defined in setupRootStore.ts
+export const rootStoreModelVersion = 35 // Update this if model changes require migrations defined in setupRootStore.ts
 /**
  * A RootStore model.
  */

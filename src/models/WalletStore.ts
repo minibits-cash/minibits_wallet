@@ -476,7 +476,7 @@ export const WalletStoreModel = types
 
             // @ts-ignore
             if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
-                currentCounter.addInFlightRequest(transactionId, receiveParams)
+                Database.addInFlightRequest(transactionId, mintUrl, cashuWallet.keysetId, receiveParams)
             }
 
             let reservedCounters: OperationCounters | undefined
@@ -495,7 +495,7 @@ export const WalletStoreModel = types
 
                 log.trace('[WalletStore.receive]', {proofs})
 
-                currentCounter.removeInFlightRequest(transactionId)
+                Database.removeInFlightRequest(transactionId)
 
                 // Update our counter to match what the wallet used (v3.x)
                 if (reservedCounters) {
@@ -524,7 +524,7 @@ export const WalletStoreModel = types
                 if(!e.message.toLowerCase().includes('timeout') &&
                    !e.message.toLowerCase().includes('network request failed')) {
                   // remove in-flight request only if it was not a timeout or network error
-                  currentCounter.removeInFlightRequest(transactionId)
+                  Database.removeInFlightRequest(transactionId)
                 }                
                 throw new AppError(
                     Err.MINT_ERROR, 
@@ -591,7 +591,7 @@ export const WalletStoreModel = types
 
             // @ts-ignore
             if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
-                currentCounter.addInFlightRequest(transactionId, sendParams)
+                Database.addInFlightRequest(transactionId, mintUrl, cashuWallet.keysetId, sendParams)
             }
 
             let reservedCounters: OperationCounters | undefined
@@ -610,7 +610,7 @@ export const WalletStoreModel = types
                   }
                 )
 
-                currentCounter.removeInFlightRequest(transactionId)
+                Database.removeInFlightRequest(transactionId)
 
                 // Update our counter to match what the wallet used (v3.x)
                 if (reservedCounters) {
@@ -642,7 +642,7 @@ export const WalletStoreModel = types
               if(!e.message.toLowerCase().includes('timeout') &&
                  !e.message.toLowerCase().includes('network request failed')) {
                 // remove in-flight request only if it was not a timeout or network error
-                currentCounter.removeInFlightRequest(transactionId)
+                Database.removeInFlightRequest(transactionId)
               }  
 
                 let message = 'Swap to prepare ecash to send has failed.'
@@ -829,7 +829,7 @@ export const WalletStoreModel = types
 
             // @ts-ignore
             if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
-                currentCounter.addInFlightRequest(transactionId, mintParams)
+                Database.addInFlightRequest(transactionId, mintUrl, cashuWallet.keysetId, mintParams)
             }
 
             let reservedCounters: OperationCounters | undefined
@@ -848,7 +848,7 @@ export const WalletStoreModel = types
                     }
                 )
 
-                currentCounter.removeInFlightRequest(transactionId)
+                Database.removeInFlightRequest(transactionId)
 
                 // Update our counter to match what the wallet used (v3.x)
                 if (reservedCounters) {
@@ -869,7 +869,7 @@ export const WalletStoreModel = types
                 if(!e.message.toLowerCase().includes('timeout') &&
                    !e.message.toLowerCase().includes('network request failed')) {
                   // remove in-flight request only if it was not a timeout or network error
-                  currentCounter.removeInFlightRequest(transactionId)
+                  Database.removeInFlightRequest(transactionId)
                 }       
                 
                 let message = 'Error on request to mint new ecash.'

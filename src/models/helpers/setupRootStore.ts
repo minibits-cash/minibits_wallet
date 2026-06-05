@@ -17,7 +17,7 @@ import {
 import * as Sentry from '@sentry/react-native'
 import type { RootStore } from '../RootStore'
 import { Database, MMKVStorage } from '../../services'
-import type { MeltRecoverySeed } from '../../services/db'
+import type { MeltRecoverySeed, InFlightRequestSeed } from '../../services/db'
 import { log } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
@@ -195,6 +195,32 @@ async function _runMigrations(rootStore: RootStore, restoredState: any) {
             }
             if (seeds.length > 0) {
                 Database.seedMeltRecoveries(seeds)
+            }
+        }
+
+        if(currentVersion < 35) {
+            // inFlightRequests moved to SQLite (inflight_requests). Same as the
+            // melt seed above: read from the RAW pre-upgrade snapshot to carry
+            // over any request in-flight at upgrade time (usually none). Idempotent.
+            const seeds: InFlightRequestSeed[] = []
+            for (const mint of restoredState?.mintsStore?.mints ?? []) {
+                for (const counter of mint?.proofsCounters ?? []) {
+                    const ifr = counter?.inFlightRequests ?? {}
+                    for (const key of Object.keys(ifr)) {
+                        const entry = ifr[key]
+                        if (entry?.request && typeof entry.transactionId === 'number') {
+                            seeds.push({
+                                transactionId: entry.transactionId,
+                                mintUrl: mint.mintUrl,
+                                keysetId: counter.keyset,
+                                request: entry.request,
+                            })
+                        }
+                    }
+                }
+            }
+            if (seeds.length > 0) {
+                Database.seedInFlightRequests(seeds)
             }
         }
 

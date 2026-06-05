@@ -43,46 +43,15 @@ export type InFlightRequest<TRequest = any>  = {
     request: TRequest
 }
 
-const InFlightRequestModel = types.model('InFlightRequest', {
-    transactionId: types.number,
-    request: types.frozen<any>(), // or replace `any` with your actual request type
-})
-
 // === Migration function ===
+// inFlightRequests and meltCounterValues moved to SQLite (inflight_requests /
+// melt_recovery tables). Strip both from any old snapshot so applySnapshot does
+// not choke on the removed fields. A MintProofsCounter snapshot is now just
+// {keyset, unit, counter}.
 const migrateSnapshot = (snapshot: any): any => {
     if (!snapshot) return snapshot
-
-    // 1. Convert old inFlightRequests array → map (if needed)
-    if (Array.isArray(snapshot.inFlightRequests)) {
-        const oldArray = snapshot.inFlightRequests as Array<{ transactionId: number; request: any }>
-        const newMap: Record<string, any> = {}
-
-        oldArray.forEach(item => {
-            if (item && typeof item.transactionId === 'number') {
-                newMap[item.transactionId.toString()] = {
-                    transactionId: item.transactionId,
-                    request: item.request ?? null,
-                }
-            }
-        })
-
-        snapshot = {
-            ...snapshot,
-            inFlightRequests: newMap,
-        }
-    } else if (snapshot.inFlightRequests == null) {
-        // Ensure it's an object (empty map)
-        snapshot = { ...snapshot, inFlightRequests: {} }
-    }
-
-    // 2. meltCounterValues moved to SQLite (melt_recovery table). Strip it from
-    // any old snapshot so applySnapshot doesn't choke on the removed field.
-    if (snapshot.meltCounterValues !== undefined) {
-        const {meltCounterValues, ...rest} = snapshot
-        snapshot = rest
-    }
-
-    return snapshot
+    const {inFlightRequests, meltCounterValues, ...rest} = snapshot
+    return rest
 }
 
 
@@ -139,45 +108,9 @@ export const MintProofsCounterModel = types
         keyset: types.string,
         unit: types.optional(types.frozen<MintUnit>(), 'sat'),
         counter: types.optional(types.number, 0),
-
-        // In-flight mint requests
-        inFlightRequests: types.map(InFlightRequestModel),
     })
     .preProcessSnapshot(migrateSnapshot)
     .actions(self => ({
-        // === In-flight mint requests (unchanged) ===
-        addInFlightRequest(transactionId: number, request: any) {
-            self.inFlightRequests.set(transactionId.toString(), {
-                transactionId,
-                request,
-            })
-            log.trace('[addInFlightRequest]', { transactionId, request })
-        },
-
-        removeInFlightRequest(transactionId: number) {
-            if (!isAlive(self)) {
-                log.error('[removeInFlightRequest]', 'ProofsCounter is not alive')
-                return
-            }
-            const key = transactionId.toString()
-            if (self.inFlightRequests.has(key)) {
-                self.inFlightRequests.delete(key)
-                log.trace('[removeInFlightRequest]', { transactionId })
-            }
-        },
-
-        clearAllInFlightRequests() {
-            if (!isAlive(self)) {
-                log.error('[clearAllInFlightRequests]', 'ProofsCounter is not alive')
-                return
-            }
-            const count = self.inFlightRequests.size
-            if (count > 0) {
-                self.inFlightRequests.clear()
-                log.info('[clearAllInFlightRequests]', `Cleared ${count} in-flight request(s)`)
-            }
-        },
-
         // === Counter mutations (write through to the SQLite authority) ===
         increaseProofsCounter(numberOfProofs: number) {
             self.counter += numberOfProofs
@@ -205,21 +138,6 @@ export const MintProofsCounterModel = types
             if (value > self.counter) {
                 self.counter = value
             }
-        },
-    }))
-    .views(self => ({
-        // === In-flight requests ===
-        inFlightRequestExists(transactionId: number): boolean {
-            return self.inFlightRequests.has(transactionId.toString())
-        },
-        getInFlightRequest(transactionId: number): InFlightRequest | undefined {
-            return self.inFlightRequests.get(transactionId.toString())
-        },
-        get inFlightRequestCount(): number {
-            return self.inFlightRequests.size
-        },
-        get allInFlightRequests(): Instance<typeof InFlightRequestModel>[] {
-            return Array.from(self.inFlightRequests.values())
         },
     }))
     // The derivation counter is mastered in SQLite (mint_counters), hydrated
@@ -590,35 +508,8 @@ export const MintModel = types
             log.trace('[getMintFeeReserve]', {feeReserve})
             return feeReserve
         },
-        removeAllInFlightRequests() {
-            log.trace('[removeAllInFlightRequests] Removing all inFlight requests', {mintUrl: self.mintUrl})
-            for(const counter of self.proofsCounters) {
-                counter.clearAllInFlightRequests() 
-            }            
-        },
     }))
     .views(self => ({
-        findInFlightRequestByTId: (transactionId: number) => {            
-            const inFlightCounters = self.proofsCounters.filter(c => c.inFlightRequests && c.inFlightRequests.size > 0)                    
-            let inFlightRequest: InFlightRequest | undefined = undefined
-
-            for (const counter of inFlightCounters) {
-                const request = counter.getInFlightRequest(transactionId)
-                if(request) {
-                    inFlightRequest = request
-                    break
-                }
-            }
-
-            return inFlightRequest
-        },
-        get proofsCountersWithInFlightRequests() {            
-            const counters = self.proofsCounters.filter(c => c.inFlightRequests && c.inFlightRequests.size > 0)                       
-            return counters || []
-        },
-        get allInFlightRequests() {
-            return self.proofsCounters.flatMap((counter) => counter.allInFlightRequests)
-        },
         get balances(): MintBalance | undefined {
             const mintBalance: MintBalance | undefined = getRootStore(self).proofsStore.getMintBalance(self.mintUrl)
             return mintBalance

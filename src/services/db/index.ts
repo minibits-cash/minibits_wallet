@@ -57,6 +57,13 @@ import {
   removeMeltRecovery,
   seedMeltRecoveries,
 } from './meltRecoveryRepo'
+import {
+  addInFlightRequest,
+  getInFlightRequest,
+  getInFlightRequestsByMint,
+  removeInFlightRequest,
+  seedInFlightRequests,
+} from './inFlightRepo'
 
 export type {TransactionSearchFilters} from './transactionsRepo'
 export type {
@@ -66,6 +73,7 @@ export type {
 } from './reservationsRepo'
 export type {CounterRecord, CounterSeed} from './countersRepo'
 export type {MeltRecoveryRecord, MeltRecoverySeed} from './meltRecoveryRepo'
+export type {InFlightRequestRecord, InFlightRequestSeed} from './inFlightRepo'
 
 export const Database = {
   getInstance,
@@ -111,4 +119,9 @@ export const Database = {
   getMeltRecovery,
   removeMeltRecovery,
   seedMeltRecoveries,
+  addInFlightRequest,
+  getInFlightRequest,
+  getInFlightRequestsByMint,
+  removeInFlightRequest,
+  seedInFlightRequests,
 }

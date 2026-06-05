@@ -1,10 +1,10 @@
 import {DbConnection, SQLBatchTuple} from './connection'
-import {createTable, PROOFS_COLUMNS, PROOFS_COLUMN_NAMES, RESERVATIONS_COLUMNS, MINT_COUNTERS_COLUMNS, MELT_RECOVERY_COLUMNS} from './schema'
+import {createTable, PROOFS_COLUMNS, PROOFS_COLUMN_NAMES, RESERVATIONS_COLUMNS, MINT_COUNTERS_COLUMNS, MELT_RECOVERY_COLUMNS, INFLIGHT_REQUESTS_COLUMNS} from './schema'
 import {dbError} from './errors'
 import {log} from '../logService'
 
 /** Bump this when a schema change requires a migration, then add an entry below. */
-export const _dbVersion = 28
+export const _dbVersion = 29
 
 type Migration = {version: number; queries: SQLBatchTuple[]}
 
@@ -85,6 +85,13 @@ const MIGRATIONS: Migration[] = [
     // seed (see setupRootStore._runMigrations).
     version: 28,
     queries: [[createTable('melt_recovery', MELT_RECOVERY_COLUMNS)]],
+  },
+  {
+    // Add per-transaction in-flight request table. Empty on creation; any
+    // in-flight requests from the MST/MMKV snapshot are copied by a one-time JS
+    // seed (see setupRootStore._runMigrations).
+    version: 29,
+    queries: [[createTable('inflight_requests', INFLIGHT_REQUESTS_COLUMNS)]],
   },
 ]
 

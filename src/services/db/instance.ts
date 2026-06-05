@@ -64,6 +64,7 @@ export const cleanAll = function () {
     ['DROP TABLE IF EXISTS reservations'],
     ['DROP TABLE IF EXISTS mint_counters'],
     ['DROP TABLE IF EXISTS melt_recovery'],
+    ['DROP TABLE IF EXISTS inflight_requests'],
   ] as SQLBatchTuple[]
 
   try {

@@ -109,6 +109,25 @@ export const MELT_RECOVERY_COLUMNS = `
   createdAt TEXT
 `
 
+/**
+ * In-flight mint/swap request data for idempotent retry (NUT-19).
+ *
+ * Holds the op's request params per transaction, written before the network
+ * call so a lost response can be safely retried against the mint's cached
+ * (idempotent) endpoint. Previously kept on the MST MintProofsCounter; moved
+ * here so retries work with no MST loaded (off-MST background).
+ *
+ * Keyed by transactionId. A row exists only while a request is in-flight; it is
+ * deleted on success or terminal failure.
+ */
+export const INFLIGHT_REQUESTS_COLUMNS = `
+  transactionId INTEGER PRIMARY KEY NOT NULL,
+  mintUrl TEXT,
+  keysetId TEXT,
+  request TEXT NOT NULL,
+  createdAt TEXT
+`
+
 /** Build a CREATE TABLE statement from a column block. */
 export const createTable = (
   name: string,
@@ -135,4 +154,7 @@ export const createSchemaQueries: SQLBatchTuple[] = [
   // Per-transaction melt recovery data (serialized meltPreview). A row exists
   // only while an outgoing lightning payment is in-flight (see meltRecoveryRepo).
   [createTable('melt_recovery', MELT_RECOVERY_COLUMNS)],
+  // Per-transaction in-flight mint/swap request data for idempotent retry
+  // (see inFlightRepo). A row exists only while a request is in-flight.
+  [createTable('inflight_requests', INFLIGHT_REQUESTS_COLUMNS)],
 ]
