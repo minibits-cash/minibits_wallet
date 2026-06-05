@@ -74,6 +74,7 @@ export async function setupRootStore(rootStore: RootStore) {
             // hydrate auth tokens to model from keychain
             await authStore.loadTokensFromKeyChain()
         }
+        const tokensLoaded = performance.now()
 
         // hydrate unspent and pending ecash proofs to model from database
         await proofsStore.loadProofsFromDatabase()
@@ -108,7 +109,8 @@ export async function setupRootStore(rootStore: RootStore) {
         log.info('[setupRootStore] cold hydration phase timings (ms)', {
             mmkvLoad: Math.round(mmkvLoaded - start),
             applySnapshot: Math.round(stateHydrated - mmkvLoaded),
-            loadProofs: Math.round(proofsHydrated - stateHydrated),
+            loadTokens: Math.round(tokensLoaded - stateHydrated),
+            loadProofs: Math.round(proofsHydrated - tokensLoaded),
             hydrateCounters: Math.round(countersHydrated - proofsHydrated),
             recoverOrphans: Math.round(orphansRecovered - countersHydrated),
             loadRecentTx: Math.round(txHydrated - orphansRecovered),
