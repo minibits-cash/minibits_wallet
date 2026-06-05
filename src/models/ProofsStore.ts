@@ -540,6 +540,22 @@ import {
         },
     }))
 
+    .actions(self => ({
+        /**
+         * Lazily initialize the proof subsystem when it was NOT hydrated at
+         * startup — i.e. a lean background NWC wake (setupRootStore skipProofs).
+         * Loads proofs from SQLite and rolls back orphan reservations. No-op once
+         * proofs are already in memory (warm session, or a full foreground setup).
+         * Mutating NWC commands call this before selecting proofs.
+         */
+        ensureProofsLoaded: flow(function* ensureProofsLoaded() {
+            if (self.proofs.size > 0) return
+            log.trace('[ensureProofsLoaded] Lean wake — loading proofs on demand')
+            yield self.loadProofsFromDatabase()
+            self.recoverOrphanReservations()
+        }),
+    }))
+
     // ───────────────────── DERIVED VIEWS ─────────────────────
     .views(self => ({
       get proofsCount() { return self.unspentProofs.length },

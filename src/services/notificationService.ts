@@ -266,7 +266,12 @@ const _nwcRequestHandler = async function(remoteData: NotifyNwcRequestData) {
     const {nwcStore} = rootStoreInstance
 
     if(nwcStore.all.length === 0) {
-        await setupRootStore(rootStoreInstance)
+        // Lean cold-wake hydration: skip the keychain JWT (NWC never uses it) and
+        // the bulk proof load. Read-only commands (get_balance) read SQLite;
+        // mutating commands call proofsStore.ensureProofsLoaded() on demand. The
+        // foreground app-open runs a FULL setup and SQLite is authoritative, so
+        // anything skipped here is reconciled when the user opens the app.
+        await setupRootStore(rootStoreInstance, { skipTokens: true, skipProofs: true })
     }
 
     // Process the command carried IN the push payload directly — no need to wait

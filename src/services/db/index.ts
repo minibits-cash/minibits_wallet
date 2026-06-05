@@ -37,6 +37,7 @@ import {
   getProofById,
   getProofs,
   getProofsByTransaction,
+  getMintBalanceWithMaxBalance,
 } from './proofsRepo'
 import {
   openReservation,
@@ -106,6 +107,7 @@ export const Database = {
   getProofById,
   getProofs,
   getProofsByTransaction,
+  getMintBalanceWithMaxBalance,
   openReservation,
   commitReservation,
   rollbackReservation,

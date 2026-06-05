@@ -197,3 +197,26 @@ export const getProofsByTransaction = function (transactionId: number): ProofRec
     throw dbError('Proofs could not be retrieved from the database', e)
   }
 }
+
+/**
+ * Highest spendable (UNSPENT) balance for a unit across mints, computed in SQL.
+ * SQLite-only counterpart of the MST proofsStore.getMintBalanceWithMaxBalance —
+ * the single highest-balance mint (an NWC payment is made from one mint) — so
+ * read-only NWC commands (get_balance) can answer without loading the proof map.
+ * Returns the balance amount (0 when there are no unspent proofs for the unit).
+ */
+export const getMintBalanceWithMaxBalance = function (unit: string): number {
+  try {
+    const {rows} = getInstance().execute(
+      `SELECT SUM(amount) AS bal FROM proofs
+       WHERE state = 'UNSPENT' AND unit = ?
+       GROUP BY mintUrl
+       ORDER BY bal DESC
+       LIMIT 1`,
+      [unit],
+    )
+    return (rows?.item(0)?.bal as number) ?? 0
+  } catch (e: any) {
+    throw dbError('Could not compute max mint balance', e)
+  }
+}

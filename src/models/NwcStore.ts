@@ -11,15 +11,16 @@ import { NWCWalletResponse, NWCWalletInfo, NWCWalletRequest } from 'nostr-tools/
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {log} from '../services/logService'
 import { getRootStore } from './helpers/getRootStore'
-import { 
+import {
+    Database,
     HANDLE_NWC_REQUEST_TASK,
-    KeyChain,      
-    NostrClient, 
-    NostrEvent, 
-    NostrKeyPair, 
-    NostrUnsignedEvent, 
-    SyncQueue, 
-    TransactionTaskResult, 
+    KeyChain,
+    NostrClient,
+    NostrEvent,
+    NostrKeyPair,
+    NostrUnsignedEvent,
+    SyncQueue,
+    TransactionTaskResult,
     WalletTaskResult
 } from '../services'
 import AppError, { Err } from '../utils/AppError'
@@ -395,7 +396,9 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         return nwcResponse   
     },
     handleGetBalance(nwcRequest: NwcRequest) {
-        const balance = self.getProofsStore().getMintBalanceWithMaxBalance('sat')?.balances.sat
+        // Read from SQLite so this works on a lean NWC wake (proof map not
+        // hydrated). Mirrors proofsStore.getMintBalanceWithMaxBalance('sat').
+        const balance = Database.getMintBalanceWithMaxBalance('sat')
         const limit = self.remainingDailyLimit
         let resultBalanceMsat = 0
 
@@ -582,6 +585,13 @@ export const NwcConnectionModel = types.model('NwcConnection', {
 
         log.trace('[Nwc.handleRequest] request event', {requestEvent})
         log.trace('[Nwc.handleRequest] decrypted nwc command', {nwcRequest})
+
+        // A lean background NWC wake skips bulk proof loading. Mutating commands
+        // select/derive against the in-memory proof map, so load it on demand
+        // here (no-op when already hydrated — warm session or full setup).
+        if (['pay_invoice', 'multi_pay_invoice', 'make_invoice'].includes(nwcRequest.method)) {
+            yield self.getProofsStore().ensureProofsLoaded()
+        }
 
         switch (nwcRequest.method) {
             case 'get_info':                

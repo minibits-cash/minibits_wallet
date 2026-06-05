@@ -33,7 +33,22 @@ export const ROOT_STORAGE_KEY = 'minibits-root-storage'
  * Setup the root state.
  */
 
-export async function setupRootStore(rootStore: RootStore) {
+/**
+ * Lean-hydration options for the background NWC cold wake. The foreground always
+ * runs a FULL setup (App mount → useInitialRootStore), and SQLite is the
+ * authority, so anything skipped here is reconciled when the app is opened.
+ *
+ *  - skipTokens: don't load the minibits JWT from keychain (NWC never uses it).
+ *  - skipProofs: don't bulk-load proofs into MST (nor run orphan recovery).
+ *    Read-only NWC commands read SQLite directly; mutating commands call
+ *    proofsStore.ensureProofsLoaded() on demand before selecting proofs.
+ */
+export type SetupRootStoreOptions = {
+    skipTokens?: boolean
+    skipProofs?: boolean
+}
+
+export async function setupRootStore(rootStore: RootStore, opts: SetupRootStoreOptions = {}) {
     let restoredState: any
     let _disposer: IDisposer | undefined
     // let latestSnapshot: any
@@ -70,14 +85,16 @@ export async function setupRootStore(rootStore: RootStore) {
             Sentry.setUser({ id: walletProfileStore.walletId })
         }
 
-        if(userSettingsStore.isOnboarded) {
+        if(userSettingsStore.isOnboarded && !opts.skipTokens) {
             // hydrate auth tokens to model from keychain
             await authStore.loadTokensFromKeyChain()
         }
         const tokensLoaded = performance.now()
 
         // hydrate unspent and pending ecash proofs to model from database
-        await proofsStore.loadProofsFromDatabase()
+        if(!opts.skipProofs) {
+            await proofsStore.loadProofsFromDatabase()
+        }
         const proofsHydrated = performance.now()
 
         // Hydrate the in-memory derivation-counter cache from SQLite (the
@@ -92,9 +109,14 @@ export async function setupRootStore(rootStore: RootStore) {
         // An orphan is a reservation row whose owning operation died before
         // it could commit or rollback (process crash, force-quit, etc.).
         // Each orphan restores its locked proofs to their original state.
-        const { recoveredCount } = proofsStore.recoverOrphanReservations()
-        if (recoveredCount > 0) {
-            log.warn(`[setupRootStore] Rolled back ${recoveredCount} orphan proof reservations`)
+        // Bundled with proof loading: when proofs are skipped (lean NWC wake),
+        // this runs on demand via proofsStore.ensureProofsLoaded() before the
+        // first mutating command, and fully on the next foreground app open.
+        if(!opts.skipProofs) {
+            const { recoveredCount } = proofsStore.recoverOrphanReservations()
+            if (recoveredCount > 0) {
+                log.warn(`[setupRootStore] Rolled back ${recoveredCount} orphan proof reservations`)
+            }
         }
         const orphansRecovered = performance.now()
 
