@@ -406,19 +406,44 @@ const createNwcListenerNotification = async function () {
     if(Platform.OS === 'ios') {
         nwcStore.listenForNwcEvents()
     }
-    
-    const timer = setTimeout(async () => {
+
+    // Adaptive lifetime: close ~8s after the SyncQueue goes idle (no NWC command
+    // queued or running), capped at 30s. An in-flight task keeps the window open
+    // (never closes mid-pay_invoice) and each follow-up command extends it. This
+    // trims the idle tail versus flatly holding the foreground service / WS
+    // subscription for the full 30s after a single quick command.
+    const startedAt = Date.now()
+    const HARD_CAP_MS = 30 * 1000
+    const IDLE_GRACE_MS = 8 * 1000
+    let lastBusyAt = Date.now()
+
+    const closeListener = async () => {
         if(Platform.OS === 'android') {
-            log.trace('[createNwcListenerNotification] Terminating Android foreground service after timeout')
-            // this should close the sub
+            log.trace('[createNwcListenerNotification] Terminating Android foreground service')
             await stopForegroundService()
         } else {
-            log.trace('[createNwcListenerNotification] Closing iOS nwcSubscription after timeout')
+            log.trace('[createNwcListenerNotification] Closing iOS nwcSubscription')
             nwcStore.resetSubscription()
             cancelNotification(listenerNotification)
         }
-    }, 30 * 1000)
-    
+    }
+
+    const poll = setInterval(async () => {
+        const inFlight = SyncQueue.getSyncQueue().getAllTasksDetails(['idle', 'running']).length
+        const now = Date.now()
+        if (inFlight > 0) {
+            lastBusyAt = now
+        }
+        const idleFor = now - lastBusyAt
+        const elapsed = now - startedAt
+
+        if (elapsed >= HARD_CAP_MS || (inFlight === 0 && idleFor >= IDLE_GRACE_MS)) {
+            clearInterval(poll)
+            log.trace('[createNwcListenerNotification] Closing NWC listener', {elapsed, idleFor, inFlight})
+            await closeListener()
+        }
+    }, 2000)
+
 }
 
 
