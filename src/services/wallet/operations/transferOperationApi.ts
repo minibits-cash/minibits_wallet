@@ -416,7 +416,6 @@ async function execute(
         proofsToMeltFrom,
         proofsToMeltFromAmount,
         meltFeeReserve,
-        nwcEvent,
     } = prepared
 
     tx.update({status: TransactionStatus.EXECUTING})
@@ -429,7 +428,12 @@ async function execute(
             meltQuote,
             proofsToMeltFrom,
             tx.id,
-            {preferAsync: nwcEvent ? false : true},
+            // Always async — including NWC. The mint ACKs immediately and the
+            // monitor finalizes on settlement, so the background isn't held for
+            // the lightning round-trip. NWC pay_invoice waits a bounded time for
+            // the preimage (see NwcStore.payInvoice); zaps confirm via the NIP-57
+            // receipt regardless.
+            {preferAsync: true},
         )
     } catch (e: any) {
         if (WalletUtils.shouldHealOutputsError(e)) {
@@ -443,7 +447,7 @@ async function execute(
                     meltQuote,
                     proofsToMeltFrom,
                     tx.id,
-                    {increaseCounterBy: 10, preferAsync: nwcEvent ? false : true},
+                    {increaseCounterBy: 10, preferAsync: true},
                 )
             } catch (e2: any) {
                 return _handleExecuteError(e2, {

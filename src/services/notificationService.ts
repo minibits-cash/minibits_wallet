@@ -13,6 +13,7 @@ import { rootStoreInstance, setupRootStore } from '../models'
 import { LISTEN_FOR_NWC_EVENTS, NwcRequest, nwcPngUrl } from '../models/NwcStore';
 import { HANDLE_NWC_REQUEST_TASK, WalletTask, WalletTaskResult } from './walletService'
 import { SyncQueue } from './syncQueueService'
+import EventEmitter from '../utils/eventEmitter'
 import { delay } from '../utils/delay'
 import TaskQueue, { Task, TaskId, TaskStatus } from 'taskon'
 import { minibitsPngIcon } from '../components/MinibitsIcon'
@@ -419,10 +420,15 @@ const createNwcListenerNotification = async function () {
     // subscription for the full 30s after a single quick command.
     const startedAt = Date.now()
     const HARD_CAP_MS = 30 * 1000
-    const IDLE_GRACE_MS = 8 * 1000
+    const IDLE_GRACE_MS = 10 * 1000
     let lastBusyAt = Date.now()
 
     const closeListener = async () => {
+        // Tell any in-flight NWC pay_invoice that the background context is going
+        // away, so it can stop waiting for its async melt result (no separate
+        // timeout needed — the wait is bound to this listener's lifetime).
+        EventEmitter.emit('ev_nwcListenerClosing', undefined)
+
         if(Platform.OS === 'android') {
             log.trace('[createNwcListenerNotification] Terminating Android foreground service')
             await stopForegroundService()

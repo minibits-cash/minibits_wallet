@@ -25,6 +25,7 @@ import {
 } from '../services'
 import AppError, { Err } from '../utils/AppError'
 import { LightningUtils } from '../services/lightning/lightningUtils'
+import EventEmitter from '../utils/eventEmitter'
 import { addSeconds } from 'date-fns/addSeconds'
 import { Transaction, TransactionStatus, TransactionType } from './Transaction'
 import { MeltQuoteBolt11Response } from '@cashu/cashu-ts'
@@ -60,6 +61,20 @@ type NwcResponse = {
     result: any
 }
 
+// Internal-only outcome: an NWC command resolved to "no reply" — an async melt
+// still pending when the background (NWC listener / foreground service) tore
+// down. NIP-47 has no pending wire response, so this is NEVER sent; it just
+// tells the dispatcher to skip replying for this command (the payment finalizes
+// later; zaps confirm via the NIP-57 receipt).
+type NwcPending = {
+    result_type: string,
+    pending: true
+}
+
+const isNwcPending = (
+    r: NwcResponse | NwcError | NwcPending,
+): r is NwcPending => (r as NwcPending).pending === true
+
 type NwcTransaction = {
     type: string,
     invoice: string,
@@ -87,6 +102,47 @@ export const LISTEN_FOR_NWC_EVENTS = 'listenForNwcEvents'
 export const MIN_LIGHTNING_FEE = 2 // sats
 export const LIGHTNING_FEE_PERCENT = 1
 const MAX_MULTI_PAY_INVOICES = 5
+
+// Safety cap so an in-flight NWC pay_invoice can never hang the SyncQueue forever
+// if the listener-closing signal is missed. Normally the wait ends earlier — the
+// async melt settles (ev_asyncMeltResult) or the NWC listener / foreground
+// service tears down (ev_nwcListenerClosing). Kept just above the 30s listener
+// hard cap so it only ever acts as a backstop.
+const NWC_ASYNC_MELT_SAFETY_MS = 35 * 1000
+
+/**
+ * Wait for the async melt of `transactionId` to settle, OR until the NWC listener
+ * / foreground service is torn down — whichever comes first. This binds the wait
+ * to the background lifetime instead of a separate timeout: the common fast case
+ * resolves on settlement (→ preimage reply); on teardown it resolves undefined
+ * (payment still in flight, finalized later; zaps confirm via the NIP-57 receipt).
+ */
+const waitForAsyncMeltResult = (
+    transactionId: number,
+): Promise<{transactionId: number; status: TransactionStatus; message: string} | undefined> =>
+    new Promise((resolve) => {
+        const cleanup = () => {
+            clearTimeout(timer)
+            EventEmitter.off('ev_asyncMeltResult', onResult)
+            EventEmitter.off('ev_nwcListenerClosing', onClosing)
+        }
+        const onResult = (result: {transactionId: number; status: TransactionStatus; message: string}) => {
+            if (result?.transactionId === transactionId) {
+                cleanup()
+                resolve(result)
+            }
+        }
+        const onClosing = () => {
+            cleanup()
+            resolve(undefined)
+        }
+        const timer = setTimeout(() => {
+            cleanup()
+            resolve(undefined)
+        }, NWC_ASYNC_MELT_SAFETY_MS)
+        EventEmitter.on('ev_asyncMeltResult', onResult)
+        EventEmitter.on('ev_nwcListenerClosing', onClosing)
+    })
 
 const getSupportedMethods = function () {
     return [
@@ -298,40 +354,77 @@ export const NwcConnectionModel = types.model('NwcConnection', {
 
             self.setLastMeltQuoteId(result.meltQuote?.quote)
 
+            let txStatus: TransactionStatus | undefined = result.transaction?.status
+            let completedAmount: number = result.transaction?.amount ?? 0
+            let completedFee: number = result.transaction?.fee ?? 0
+            let preimage: string | undefined = result.preimage
+
+            // Async melt: the mint ACKed and the payment is in flight. Wait for
+            // settlement only as long as the background (NWC listener / foreground
+            // service) is alive. Fast common case → reply with preimage; if the
+            // background tears down first → no reply (payment finalizes later; zaps
+            // confirm via the NIP-57 receipt, non-zap clients retry + mint dedups).
+            if(txStatus === TransactionStatus.PENDING) {
+                const settled = yield waitForAsyncMeltResult(result.transaction.id)
+
+                if(!settled) {
+                    // Still in flight at teardown. Reserve the daily limit
+                    // (conservative — never lets the cap be exceeded) and resolve
+                    // to a typed 'pending' outcome (no wire reply).
+                    self.setRemainingDailyLimit(self.remainingDailyLimit - totalAmountToPay)
+                    log.info('[Nwc.payInvoice] Async melt still pending at teardown; limit reserved, no NWC reply', {tId: result.transaction.id})
+                    return { result_type: nwcRequest.method, pending: true } as NwcPending
+                }
+
+                if(settled.status !== TransactionStatus.COMPLETED) {
+                    return {
+                        result_type: nwcRequest.method,
+                        error: { code: 'INTERNAL', message: settled.message || 'Lightning payment failed.'}
+                    } as NwcError
+                }
+
+                // Settled within the window — read the finalized tx for the
+                // preimage and actual amount/fee.
+                const finalTx = Database.getTransactionById(result.transaction.id)
+                completedAmount = finalTx?.amount ?? completedAmount
+                completedFee = finalTx?.fee ?? completedFee
+                preimage = finalTx?.proof ?? preimage
+                txStatus = TransactionStatus.COMPLETED
+            }
+
             let nwcResponse: NwcResponse | NwcError
-    
-            if(result.transaction?.status === TransactionStatus.COMPLETED) {
-                const updatedLimit = self.remainingDailyLimit - 
-                (result.transaction.amount + result.transaction.fee)
-    
+
+            if(txStatus === TransactionStatus.COMPLETED) {
+                const updatedLimit = self.remainingDailyLimit - (completedAmount + completedFee)
+
                 nwcResponse = {
                     result_type: nwcRequest.method,
                     result: {
-                      preimage: result.preimage || 'not-provided',
+                      preimage: preimage || 'not-provided',
                     }
                 } as NwcResponse
-    
+
                 log.trace('[handleTransferTaskResult] Updating remainingLimit', {
                     connection: self.name,
                     beforeUpdate: self.remainingDailyLimit,
                     afterUpdate: updatedLimit
                 })
-    
-                self.setRemainingDailyLimit(updatedLimit)            
-    
+
+                self.setRemainingDailyLimit(updatedLimit)
+
                 yield NotificationService.createLocalNotification(
                     Platform.OS === 'android' ? `<b>${self.name}</b> - Nostr Wallet Connect` : `${self.name} - Nostr Wallet Connect`,
-                    `Paid ${result.transaction.amount} SAT${result.transaction.fee > 0 ? ', fee ' + result.transaction.fee + ' SAT' : ''}. Remaining today's limit is ${self.remainingDailyLimit} SAT`,
+                    `Paid ${completedAmount} SAT${completedFee > 0 ? ', fee ' + completedFee + ' SAT' : ''}. Remaining today's limit is ${self.remainingDailyLimit} SAT`,
                     nwcPngUrl
                 )
-                
+
             } else {
                 nwcResponse = {
                     result_type: nwcRequest.method,
                     error: { code: 'INTERNAL', message: result.message}
                 } as NwcError
             }
-    
+
             return nwcResponse
 
         } catch (e: any) {            
@@ -530,7 +623,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         }
 
         const nwcResponse = yield self.payInvoice(nwcRequest, nwcRequest.params.invoice, requestEvent)
-        return nwcResponse as NwcResponse | NwcError
+        return nwcResponse as NwcResponse | NwcError | NwcPending
     }),
     handleMultiPayInvoice: flow(function* handleMultiPayInvoice(nwcRequest: NwcRequest, requestEvent: NostrEvent) {
         log.debug('[Nwc.handleMultiPayInvoice] start')       
@@ -552,10 +645,12 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             self.setCurrentDay()
         }
 
-        const nwcResponses: (NwcResponse | NwcError)[] = []
+        const nwcResponses: (NwcResponse | NwcError | NwcPending)[] = []
 
         for (const invoice of encodedInvoices) {
             const nwcResponse = yield self.payInvoice(nwcRequest, invoice, requestEvent)
+            // May be a typed 'pending' outcome (async melt unresolved at teardown);
+            // the dispatcher skips sending those.
             nwcResponses.push(nwcResponse)
         }
 
@@ -580,8 +675,8 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             nwcRequest = decryptedNwcRequest
         }
         
-        let nwcResponse: NwcResponse | NwcError | undefined = undefined
-        let nwcResponses: (NwcResponse | NwcError)[] = []       
+        let nwcResponse: NwcResponse | NwcError | NwcPending | undefined = undefined
+        let nwcResponses: (NwcResponse | NwcError | NwcPending)[] = []
 
         log.trace('[Nwc.handleRequest] request event', {requestEvent})
         log.trace('[Nwc.handleRequest] decrypted nwc command', {nwcRequest})
@@ -632,8 +727,10 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         }
 
         for (const response of nwcResponses) {
+            // 'pending' outcomes have no NIP-47 wire response — skip them.
+            if (isNwcPending(response)) continue
             yield self.sendResponse(response, requestEvent)
-        }        
+        }
 
         return nwcResponses[0]
     }),
