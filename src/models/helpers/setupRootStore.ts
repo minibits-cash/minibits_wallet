@@ -17,7 +17,7 @@ import {
 import * as Sentry from '@sentry/react-native'
 import type { RootStore } from '../RootStore'
 import { Database, MMKVStorage } from '../../services'
-import type { MeltRecoverySeed, InFlightRequestSeed } from '../../services/db'
+import type { MeltRecoverySeed, InFlightRequestSeed, CounterSeed } from '../../services/db'
 import { log } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
@@ -221,6 +221,24 @@ async function _runMigrations(rootStore: RootStore, restoredState: any) {
             }
             if (seeds.length > 0) {
                 Database.seedInFlightRequests(seeds)
+            }
+        }
+
+        if(currentVersion < 36) {
+            // counterBackups removed: counters are now retained in SQLite across
+            // mint removal. Carry over any removed-mint counters that were only
+            // held in the (now-removed) counterBackups of the RAW pre-upgrade
+            // snapshot, so re-adding such a mint restores its counter. Monotonic.
+            const seeds: CounterSeed[] = []
+            for (const backup of restoredState?.mintsStore?.counterBackups ?? []) {
+                for (const c of backup?.counters ?? []) {
+                    if (c?.keyset && typeof c.counter === 'number' && c.counter > 0) {
+                        seeds.push({mintUrl: backup.mintUrl, keysetId: c.keyset, unit: c.unit, counter: c.counter})
+                    }
+                }
+            }
+            if (seeds.length > 0) {
+                Database.seedCounters(seeds)
             }
         }
 

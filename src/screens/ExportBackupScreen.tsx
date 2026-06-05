@@ -121,9 +121,8 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
           }
 
           let exportedMintsStore: MintsStoreSnapshot = {
-              mints: [], 
-              blockedMintUrls: [], 
-              counterBackups: []
+              mints: [],
+              blockedMintUrls: [],
           }
 
           let exportedContactsStore: ContactsStoreSnapshot = {

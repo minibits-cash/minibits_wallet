@@ -75,16 +75,16 @@ const migrateSnapshot = (snapshot: any): any => {
  * not break a wallet flow, and there is a complementary safety net —
  * commitReservation re-persists this same value ATOMICALLY with the proofs
  * ("W2", see reservationsRepo), so even if this write is dropped a successful
- * commit cannot leave the counter behind its proofs. A detached instance (e.g. a
- * counter created for a CounterBackup, not yet attached to a Mint) has no parent
- * and is a no-op here.
+ * commit cannot leave the counter behind its proofs. A detached instance (a
+ * counter freshly created by createProofsCounter, not yet pushed onto a Mint)
+ * has no parent and is a no-op here.
  */
 const persistCounter = (self: any, mode: 'set' | 'bump', value: number): void => {
     let mintUrl: string | undefined
     try {
         mintUrl = getParent<any>(self, 2)?.mintUrl
     } catch {
-        return // not attached to a Mint (e.g. CounterBackup) — nothing to persist
+        return // not attached to a Mint (freshly created counter) — nothing to persist
     }
     if (!mintUrl) return
 

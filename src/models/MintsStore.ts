@@ -5,11 +5,10 @@ import {
     destroy,
     isStateTreeNode,
     detach,
-    flow,    
-    getSnapshot,    
+    flow,
   } from 'mobx-state-tree'
   import {withSetPropAction} from './helpers/withSetPropAction'
-  import {MintModel, Mint, MintProofsCounter, MintProofsCounterModel} from './Mint'
+  import {MintModel, Mint} from './Mint'
   import {log} from '../services/logService'
   import {Database} from '../services'
   import type {CounterSeed} from '../services/db'
@@ -34,22 +33,20 @@ export type MintsByUnit = {
     mints: Mint[]
 }
 
-export type CounterBackup = {
-    mintUrl: string
-    proofCounters: MintProofsCounter
-}
-
-// Define the CounterBackup model
-const CounterBackupModel = types.model('CounterBackup', {
-    mintUrl: types.string,
-    counters: types.array(MintProofsCounterModel)
-})
-
 export const MintsStoreModel = types
     .model('MintsStore', {
         mints: types.array(MintModel),
         blockedMintUrls: types.array(types.string),
-        counterBackups: types.array(CounterBackupModel)        
+    })
+    // counterBackups removed: a removed mint's counters are retained in SQLite
+    // (mint_counters rows are never deleted) and restored on re-add via
+    // hydrateCountersFromDatabase. Strip the field from any old snapshot so
+    // applySnapshot tolerates it; pre-upgrade backup values are migrated into
+    // SQLite by a one-time seed in setupRootStore._runMigrations.
+    .preProcessSnapshot((s: any) => {
+        if (!s) return s
+        const {counterBackups, ...rest} = s
+        return rest
     })
     .views(self => ({
         findByUrl: (mintUrl: string | URL) => {
@@ -67,57 +64,9 @@ export const MintsStoreModel = types
             const mint = self.mints.find(m => m.mintUrl.replace(/\/$/, '') === normalized)
             if(mint) {return true} else {return false}
         },
-        addOrUpdateCounterBackup(mintToRemove: Mint) {
-            try {
-                const existingIndex = self.counterBackups.findIndex(
-                (backup) => backup.mintUrl === mintToRemove.mintUrl
-                )
-        
-                // `counter` is stripped from snapshots (mastered in SQLite), so
-                // re-inject the live cache value per keyset — otherwise the backup
-                // taken at removal time would capture zeros.
-                const counters = getSnapshot(mintToRemove.proofsCounters!).map((c: any) => ({
-                    ...c,
-                    counter: mintToRemove.proofsCounters!.find(pc => pc.keyset === c.keyset)?.counter ?? c.counter,
-                }))
-
-                const newCounterBackup = CounterBackupModel.create({
-                mintUrl: mintToRemove.mintUrl,
-                counters
-                })
-        
-                if (existingIndex !== -1) {
-                // Replace existing backup
-                self.counterBackups[existingIndex] = newCounterBackup
-                } else {
-                // Add new backup
-                self.counterBackups.push(newCounterBackup)
-                }
-            } catch (e: any) {
-                throw new AppError(Err.STORAGE_ERROR, e.message)
-            }
-        },
-        updateMintCountersFromBackup(newMint: Mint) {
-            const backup = self.counterBackups.find(
-              (backup) => backup.mintUrl === newMint.mintUrl
-            )
-
-            if (backup) {
-                newMint.proofsCounters!.forEach((proofsCounter) => {
-                    const backupCounter = backup.counters.find(
-                        (counter) => counter.keyset === proofsCounter.keyset
-                    )
-
-                    if (backupCounter) {
-                        proofsCounter.increaseProofsCounter(backupCounter.counter)
-                    }
-              })
-            }
-        },
         /**
          * One-time copy of the in-memory (MMKV-loaded) derivation counters into
          * SQLite. Run from _runMigrations on upgrade, and on backup import.
-         * Includes counterBackups so a removed mint's counter isn't lost.
          *
          * Two safeguards make this safe even on a device that has ALREADY
          * migrated (SQLite populated, MMKV stripped to 0, model not yet
@@ -134,13 +83,6 @@ export const MintsStoreModel = types
                 for (const c of mint.proofsCounters) {
                     if (c.counter > 0) {
                         seeds.push({mintUrl: mint.mintUrl, keysetId: c.keyset, unit: c.unit, counter: c.counter})
-                    }
-                }
-            }
-            for (const backup of self.counterBackups) {
-                for (const c of backup.counters) {
-                    if (c.counter > 0) {
-                        seeds.push({mintUrl: backup.mintUrl, keysetId: c.keyset, unit: c.unit, counter: c.counter})
                     }
                 }
             }
@@ -222,12 +164,8 @@ export const MintsStoreModel = types
                     continue                    
                 }
 
-                mintInstance.initKeys(key)                    
+                mintInstance.initKeys(key)
             }
-
-            log.trace('[addMint] updateMintCountersFromBackup')
-            
-            self.updateMintCountersFromBackup(mintInstance)
 
             mintInstance.setHostname()
             yield mintInstance.setShortname()
@@ -235,10 +173,9 @@ export const MintsStoreModel = types
             self.mints.push(mintInstance)
 
             // SQLite retains derivation counters by (mintUrl, keysetId) across
-            // mint removal, so a re-added mint recovers its real counter from the
-            // authority — even when the snapshot-stripped counterBackup reloaded
-            // as zero after a restart. Monotonic, so a genuinely new mint (no row)
-            // simply stays at 0.
+            // mint removal (rows are never deleted), so a re-added mint recovers
+            // its real counter from the authority here. Monotonic, so a genuinely
+            // new mint (no row) simply stays at 0.
             self.hydrateCountersFromDatabase()
 
             return mintInstance
@@ -304,7 +241,8 @@ export const MintsStoreModel = types
             }
 
             if (mintInstance) {
-                self.addOrUpdateCounterBackup(mintInstance)
+                // No counter backup needed: the mint's mint_counters rows are
+                // retained in SQLite and restored on re-add via hydrate.
                 detach(mintInstance)
                 destroy(mintInstance)
                 log.info('[removeMint]', 'Mint removed from MintsStore')
