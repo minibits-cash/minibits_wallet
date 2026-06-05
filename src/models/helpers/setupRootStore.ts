@@ -77,6 +77,7 @@ export async function setupRootStore(rootStore: RootStore) {
 
         // hydrate unspent and pending ecash proofs to model from database
         await proofsStore.loadProofsFromDatabase()
+        const proofsHydrated = performance.now()
 
         // Hydrate the in-memory derivation-counter cache from SQLite (the
         // authority) on every launch. The MMKV snapshot stores counter:0 (it is
@@ -84,6 +85,7 @@ export async function setupRootStore(rootStore: RootStore) {
         // one-time MMKV→SQLite copy of pre-existing counters is a migration —
         // see _runMigrations.
         mintsStore.hydrateCountersFromDatabase()
+        const countersHydrated = performance.now()
 
         // Roll back any orphan proof reservations from the last session.
         // An orphan is a reservation row whose owning operation died before
@@ -93,13 +95,27 @@ export async function setupRootStore(rootStore: RootStore) {
         if (recoveredCount > 0) {
             log.warn(`[setupRootStore] Rolled back ${recoveredCount} orphan proof reservations`)
         }
+        const orphansRecovered = performance.now()
 
         // hydrate last transactions from database
         await transactionsStore.loadRecentFromDatabase()
+        const txHydrated = performance.now()
 
-        const proofsLoaded = performance.now()
-        log.trace(`Loading proofs and transactions from DB and hydrating took ${proofsLoaded - stateHydrated} ms.`, {
-            caller: 'setupRootStore'
+        // Cold-hydration phase breakdown. Read this off a background NWC wake to
+        // see where the time goes — it drives the Stage 4 lean-hydration decision
+        // (hypothesis: applySnapshot + loadProofs dominate). Emitted at info so it
+        // shows without trace logging.
+        log.info('[setupRootStore] cold hydration phase timings (ms)', {
+            mmkvLoad: Math.round(mmkvLoaded - start),
+            applySnapshot: Math.round(stateHydrated - mmkvLoaded),
+            loadProofs: Math.round(proofsHydrated - stateHydrated),
+            hydrateCounters: Math.round(countersHydrated - proofsHydrated),
+            recoverOrphans: Math.round(orphansRecovered - countersHydrated),
+            loadRecentTx: Math.round(txHydrated - orphansRecovered),
+            total: Math.round(txHydrated - start),
+            proofCount: proofsStore.proofs.size,
+            stateBytes: dataSize,
+            caller: 'setupRootStore',
         })
 
     } catch (e: any) {
