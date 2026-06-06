@@ -169,29 +169,54 @@ export const WalletStoreModel = types
       resetExchangeRate () {
         self.exchangeRate = undefined
       }
-    })) 
+    }))
+    .volatile(() => ({
+      // In-flight KeyChain read shared by concurrent getCachedWalletKeys callers.
+      // Reading secure storage is slow (~2s cold on Android), and several NWC
+      // pushes can wake the app at once — without this, each push would trigger
+      // its own KeyChain read. Volatile (never persisted), so it resets on a
+      // fresh cold start, which is exactly when we want a single fresh read.
+      walletKeysInFlight: null as Promise<WalletKeys> | null,
+    }))
     .actions(self => ({
-      getCachedWalletKeys: flow(function* getWalletKeys() {    
-        if (self.walletKeys) {        
+      getCachedWalletKeys: flow(function* getWalletKeys() {
+        if (self.walletKeys) {
           log.trace('[getCachedWalletKeys]', 'Returning cached walletKeys')
-          return self.walletKeys     
-        }    
-        
-        const keys: WalletKeys | undefined = yield KeyChain.getWalletKeys()
-    
-        if (!keys) {
+          return self.walletKeys
+        }
+
+        // Coalesce concurrent cold reads onto a single KeyChain fetch.
+        if (self.walletKeysInFlight) {
+          log.trace('[getCachedWalletKeys]', 'Awaiting in-flight KeyChain read')
+          return yield self.walletKeysInFlight
+        }
+
+        // The shared promise resolves to validated keys so that both this
+        // originator and any concurrent awaiters get identical success/error.
+        const fetch = (async (): Promise<WalletKeys> => {
+          const keys: WalletKeys | undefined = await KeyChain.getWalletKeys()
+          if (!keys) {
             throw new AppError(
-              Err.NOTFOUND_ERROR, 
+              Err.NOTFOUND_ERROR,
               'Device secure storage could not return wallet keys, please reinstall and use your seed phrase to recover wallet.'
             )
+          }
+          return keys
+        })()
+
+        self.walletKeysInFlight = fetch
+
+        try {
+          const keys: WalletKeys = yield fetch
+          self.walletKeys = keys
+          return keys
+        } finally {
+          self.walletKeysInFlight = null
         }
-    
-        self.walletKeys = keys
-        return keys
       }),
-      cleanCachedWalletKeys() {    
+      cleanCachedWalletKeys() {
         self.walletKeys = undefined
-      },      
+      },
     }))
     .actions(self => ({
       getCachedSeed: flow(function* getCachedSeed() {    
