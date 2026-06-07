@@ -469,7 +469,7 @@ export const addTransactionAsync = async function (tx: Partial<Transaction>): Pr
     const db = getInstance()
     const result = await db.executeAsync(query, params)
 
-    log.info('[addTransactionAsync]', 'New transaction added to the database', {id: result.insertId, type, mint, status})
+    log.debug('[addTransactionAsync] New transaction added to the database', {id: result.insertId, type, mint, status})
 
     return getTransactionById(result.insertId as number) // already normalized
 

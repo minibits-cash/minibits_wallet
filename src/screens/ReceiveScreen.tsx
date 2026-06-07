@@ -84,7 +84,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
     useFocusEffect(
         useCallback(() => {
             if (!route.params?.encodedToken) {
-                log.trace('nothing scanned')
+                log.trace('[ReceiveScreen.useFocusEffect] No token in route params, skipping')
                 return
             }
 
@@ -160,7 +160,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
           isLockedToWallet = lockedToPK === '02' + keys.NOSTR.publicKey
         }
 
-        log.trace('decoded tokenMetadata', {
+        log.trace('[ReceiveScreen.onEncodedToken] Decoded token metadata', {
           mint: tokenInfo.mint,
           unit: tokenInfo.unit,
           amount: tokenInfo.amount.toString(),
@@ -169,7 +169,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
           isLocked,
           isLockedToWallet,
         })
-        log.trace('tokenAmount', {amount, unit})  
+        log.trace('[ReceiveScreen.onEncodedToken] Token amount', {amount, unit})
 
         const currency = getCurrency(unit as MintUnit)
 

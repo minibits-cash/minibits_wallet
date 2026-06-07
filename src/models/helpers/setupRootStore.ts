@@ -16,7 +16,8 @@ import {
 } from 'mobx-state-tree'
 import * as Sentry from '@sentry/react-native'
 import type { RootStore } from '../RootStore'
-import { MMKVStorage } from '../../services'
+import { Database, MMKVStorage } from '../../services'
+import type { MeltRecoverySeed, InFlightRequestSeed, CounterSeed } from '../../services/db'
 import { log } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
@@ -32,7 +33,22 @@ export const ROOT_STORAGE_KEY = 'minibits-root-storage'
  * Setup the root state.
  */
 
-export async function setupRootStore(rootStore: RootStore) {
+/**
+ * Lean-hydration options for the background NWC cold wake. The foreground always
+ * runs a FULL setup (App mount → useInitialRootStore), and SQLite is the
+ * authority, so anything skipped here is reconciled when the app is opened.
+ *
+ *  - skipTokens: don't load the minibits JWT from keychain (NWC never uses it).
+ *  - skipProofs: don't bulk-load proofs into MST (nor run orphan recovery).
+ *    Read-only NWC commands read SQLite directly; mutating commands call
+ *    proofsStore.ensureProofsLoaded() on demand before selecting proofs.
+ */
+export type SetupRootStoreOptions = {
+    skipTokens?: boolean
+    skipProofs?: boolean
+}
+
+export async function setupRootStore(rootStore: RootStore, opts: SetupRootStoreOptions = {}) {
     let restoredState: any
     let _disposer: IDisposer | undefined
     // let latestSnapshot: any
@@ -63,35 +79,67 @@ export async function setupRootStore(rootStore: RootStore) {
         const stateHydrated = performance.now()
         log.trace(`Hydrating rooStoreModel took ${stateHydrated - mmkvLoaded} ms.`, {caller: 'setupRootStore'})
 
-        const {proofsStore, walletProfileStore, authStore, userSettingsStore, transactionsStore} = rootStore
+        const {proofsStore, walletProfileStore, authStore, userSettingsStore, transactionsStore, mintsStore} = rootStore
 
         if(walletProfileStore.walletId) {
             Sentry.setUser({ id: walletProfileStore.walletId })
         }
 
-        if(userSettingsStore.isOnboarded) {
+        if(userSettingsStore.isOnboarded && !opts.skipTokens) {
             // hydrate auth tokens to model from keychain
             await authStore.loadTokensFromKeyChain()
         }
+        const tokensLoaded = performance.now()
 
         // hydrate unspent and pending ecash proofs to model from database
-        await proofsStore.loadProofsFromDatabase()
+        if(!opts.skipProofs) {
+            await proofsStore.loadProofsFromDatabase()
+        }
+        const proofsHydrated = performance.now()
+
+        // Hydrate the in-memory derivation-counter cache from SQLite (the
+        // authority) on every launch. The MMKV snapshot stores counter:0 (it is
+        // stripped on save), so the real value lives only in mint_counters. The
+        // one-time MMKV→SQLite copy of pre-existing counters is a migration —
+        // see _runMigrations.
+        mintsStore.hydrateCountersFromDatabase()
+        const countersHydrated = performance.now()
 
         // Roll back any orphan proof reservations from the last session.
         // An orphan is a reservation row whose owning operation died before
         // it could commit or rollback (process crash, force-quit, etc.).
         // Each orphan restores its locked proofs to their original state.
-        const { recoveredCount } = proofsStore.recoverOrphanReservations()
-        if (recoveredCount > 0) {
-            log.warn(`[setupRootStore] Rolled back ${recoveredCount} orphan proof reservations`)
+        // Bundled with proof loading: when proofs are skipped (lean NWC wake),
+        // this runs on demand via proofsStore.ensureProofsLoaded() before the
+        // first mutating command, and fully on the next foreground app open.
+        if(!opts.skipProofs) {
+            const { recoveredCount } = proofsStore.recoverOrphanReservations()
+            if (recoveredCount > 0) {
+                log.warn(`[setupRootStore] Rolled back ${recoveredCount} orphan proof reservations`)
+            }
         }
+        const orphansRecovered = performance.now()
 
         // hydrate last transactions from database
         await transactionsStore.loadRecentFromDatabase()
+        const txHydrated = performance.now()
 
-        const proofsLoaded = performance.now()
-        log.trace(`Loading proofs and transactions from DB and hydrating took ${proofsLoaded - stateHydrated} ms.`, {
-            caller: 'setupRootStore'
+        // Cold-hydration phase breakdown. Read this off a background NWC wake to
+        // see where the time goes — it drives the Stage 4 lean-hydration decision
+        // (hypothesis: applySnapshot + loadProofs dominate). Emitted at info so it
+        // shows without trace logging.
+        log.info('[setupRootStore] cold hydration phase timings (ms)', {
+            mmkvLoad: Math.round(mmkvLoaded - start),
+            applySnapshot: Math.round(stateHydrated - mmkvLoaded),
+            loadTokens: Math.round(tokensLoaded - stateHydrated),
+            loadProofs: Math.round(proofsHydrated - tokensLoaded),
+            hydrateCounters: Math.round(countersHydrated - proofsHydrated),
+            recoverOrphans: Math.round(orphansRecovered - countersHydrated),
+            loadRecentTx: Math.round(txHydrated - orphansRecovered),
+            total: Math.round(txHydrated - start),
+            proofCount: proofsStore.proofs.size,
+            stateBytes: dataSize,
+            caller: 'setupRootStore',
         })
 
     } catch (e: any) {
@@ -117,7 +165,7 @@ export async function setupRootStore(rootStore: RootStore) {
             log.info(`RootStore loaded from MMKV, version is: ${rootStore.version}`, {caller: 'setupRootStore'})
 
             if(rootStore.version < rootStoreModelVersion) {
-                await _runMigrations(rootStore)
+                await _runMigrations(rootStore, restoredState)
             }
         } catch (e: any) {
             log.error(Err.STORAGE_ERROR, e.message)
@@ -136,30 +184,114 @@ export async function setupRootStore(rootStore: RootStore) {
  * Migrations code to execute based on code and on device model version.
  */
 
-async function _runMigrations(rootStore: RootStore) {
-    const { 
-        userSettingsStore,
+async function _runMigrations(rootStore: RootStore, restoredState: any) {
+    const {
         mintsStore,
         transactionsStore,
     } = rootStore
-    
-    let currentVersion = rootStore.version
+
+    const currentVersion = rootStore.version
 
     try {
+        log.trace(`Starting rootStore migrations from v${currentVersion} -> v${rootStoreModelVersion}`)
+
         if(currentVersion < 29) {
-            log.trace(`Starting rootStore migrations from version v${currentVersion} -> v29`)
-
             transactionsStore.addRecentByUnit()
-
-            rootStore.setVersion(rootStoreModelVersion)
-            log.info(`Completed rootStore migrations to the version v${rootStoreModelVersion}`, {caller: '_runMigrations'} )
         }
+
+        if(currentVersion < 33) {
+            // One-time copy of the MMKV-resident derivation counters into SQLite
+            // (the new authority for counters). Reads the LIVE MST counters,
+            // which still hold the real values loaded from the pre-upgrade MMKV
+            // snapshot — postProcessSnapshot strips `counter` only from saves, not
+            // from the in-memory model — and persists them via a monotonic,
+            // idempotent upsert (incl. counterBackups). After this, mint_counters
+            // is authoritative and the every-launch hydrate in setupRootStore
+            // fills the in-memory cache from it.
+            mintsStore.seedCountersToDatabase()
+        }
+
+        if(currentVersion < 34) {
+            // meltCounterValues moved to SQLite (melt_recovery). The model no
+            // longer holds them and applySnapshot strips them, so read straight
+            // from the RAW pre-upgrade snapshot to carry over any melt that was
+            // in-flight at upgrade time (usually none). Idempotent.
+            const seeds: MeltRecoverySeed[] = []
+            for (const mint of restoredState?.mintsStore?.mints ?? []) {
+                for (const counter of mint?.proofsCounters ?? []) {
+                    const mcv = counter?.meltCounterValues ?? {}
+                    for (const key of Object.keys(mcv)) {
+                        const entry = mcv[key]
+                        if (entry?.meltPreview && typeof entry.transactionId === 'number') {
+                            seeds.push({
+                                transactionId: entry.transactionId,
+                                mintUrl: mint.mintUrl,
+                                keysetId: counter.keyset,
+                                meltPreview: entry.meltPreview,
+                            })
+                        }
+                    }
+                }
+            }
+            if (seeds.length > 0) {
+                Database.seedMeltRecoveries(seeds)
+            }
+        }
+
+        if(currentVersion < 35) {
+            // inFlightRequests moved to SQLite (inflight_requests). Same as the
+            // melt seed above: read from the RAW pre-upgrade snapshot to carry
+            // over any request in-flight at upgrade time (usually none). Idempotent.
+            const seeds: InFlightRequestSeed[] = []
+            for (const mint of restoredState?.mintsStore?.mints ?? []) {
+                for (const counter of mint?.proofsCounters ?? []) {
+                    const ifr = counter?.inFlightRequests ?? {}
+                    for (const key of Object.keys(ifr)) {
+                        const entry = ifr[key]
+                        if (entry?.request && typeof entry.transactionId === 'number') {
+                            seeds.push({
+                                transactionId: entry.transactionId,
+                                mintUrl: mint.mintUrl,
+                                keysetId: counter.keyset,
+                                request: entry.request,
+                            })
+                        }
+                    }
+                }
+            }
+            if (seeds.length > 0) {
+                Database.seedInFlightRequests(seeds)
+            }
+        }
+
+        if(currentVersion < 36) {
+            // counterBackups removed: counters are now retained in SQLite across
+            // mint removal. Carry over any removed-mint counters that were only
+            // held in the (now-removed) counterBackups of the RAW pre-upgrade
+            // snapshot, so re-adding such a mint restores its counter. Monotonic.
+            const seeds: CounterSeed[] = []
+            for (const backup of restoredState?.mintsStore?.counterBackups ?? []) {
+                for (const c of backup?.counters ?? []) {
+                    if (c?.keyset && typeof c.counter === 'number' && c.counter > 0) {
+                        seeds.push({mintUrl: backup.mintUrl, keysetId: c.keyset, unit: c.unit, counter: c.counter})
+                    }
+                }
+            }
+            if (seeds.length > 0) {
+                Database.seedCounters(seeds)
+            }
+        }
+
+        // Set once, after all steps succeed: if any step throws, the version is
+        // NOT bumped and the whole migration retries on the next launch.
+        rootStore.setVersion(rootStoreModelVersion)
+        log.info(`Completed rootStore migrations to v${rootStoreModelVersion}`, {caller: '_runMigrations'})
     } catch (e: any) {
         throw new AppError(
             Err.STORAGE_ERROR,
             'Error when executing rootStore migrations',
             e.message,
-        )    
+        )
     }
 
 }

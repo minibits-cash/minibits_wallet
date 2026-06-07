@@ -5,24 +5,16 @@ import {
     type MintKeys as CashuMintKeys,
     type MintKeyset as CashuMintKeyset,
     Mint as CashuMint,
-    type MeltPreview,
 } from '@cashu/cashu-ts'
 import {colors, getRandomIconColor} from '../theme'
-import { log } from '../services'
+import { log, Database } from '../services'
 
 import AppError, { Err } from '../utils/AppError'
 import { MintUnit, MintUnits } from '../services/wallet/currency'
 import { getRootStore } from './helpers/getRootStore'
 import { generateId } from '../utils/utils'
 import { Proof } from './Proof'
-import { CashuProof, CashuUtils, StoredMeltPreview } from '../services/cashu/cashuUtils'
-
-function serializeMeltPreview(meltPreview: MeltPreview): StoredMeltPreview {
-    return {
-        keysetId: meltPreview.keysetId,
-        outputData: CashuUtils.serializeOutputData(meltPreview.outputData),
-    }
-}
+import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
 
 export type MintBalance = {
     mintUrl: string
@@ -51,164 +43,79 @@ export type InFlightRequest<TRequest = any>  = {
     request: TRequest
 }
 
-const InFlightRequestModel = types.model('InFlightRequest', {
-    transactionId: types.number,
-    request: types.frozen<any>(), // or replace `any` with your actual request type
-})
-
-// Sub-model for melt previews (v3.x uses MeltPreview instead of just counter)
-const MeltCounterValueModel = types.model('MeltCounterValue', {
-    transactionId: types.number,
-    counterAtMelt: types.number,        // the counter value when melt started (kept for backward compatibility)
-    meltPreview: types.maybe(types.frozen<StoredMeltPreview>()),
-    createdAt: types.optional(types.Date, () => new Date()), // optional: when it was added
-})
-
 // === Migration function ===
+// inFlightRequests and meltCounterValues moved to SQLite (inflight_requests /
+// melt_recovery tables). Strip both from any old snapshot so applySnapshot does
+// not choke on the removed fields. A MintProofsCounter snapshot is now just
+// {keyset, unit, counter}.
 const migrateSnapshot = (snapshot: any): any => {
     if (!snapshot) return snapshot
-
-    // 1. Convert old inFlightRequests array → map (if needed)
-    if (Array.isArray(snapshot.inFlightRequests)) {
-        const oldArray = snapshot.inFlightRequests as Array<{ transactionId: number; request: any }>
-        const newMap: Record<string, any> = {}
-
-        oldArray.forEach(item => {
-            if (item && typeof item.transactionId === 'number') {
-                newMap[item.transactionId.toString()] = {
-                    transactionId: item.transactionId,
-                    request: item.request ?? null,
-                }
-            }
-        })
-
-        snapshot = {
-            ...snapshot,
-            inFlightRequests: newMap,
-        }
-    } else if (snapshot.inFlightRequests == null) {
-        // Ensure it's an object (empty map)
-        snapshot = { ...snapshot, inFlightRequests: {} }
-    }
-
-    // 2. Add missing meltCounterValues map (new in v2+)
-    if (snapshot.meltCounterValues === undefined) {
-        snapshot = { ...snapshot, meltCounterValues: {} }
-    }
-
-    return snapshot
+    const {inFlightRequests, meltCounterValues, ...rest} = snapshot
+    return rest
 }
 
+
+/**
+ * Write a counter mutation through to the SQLite authority — the PRIMARY
+ * counter persistence ("W1").
+ *
+ * `mode: 'set'` persists an absolute value monotonically (never lowers);
+ * `mode: 'bump'` advances by a relative delta. The (mint, keyset) identity is
+ * read from the parent Mint node — a counter is always nested two levels up
+ * (counter -> proofsCounters array -> Mint).
+ *
+ * This fires the instant cashu derives (right after onCountersReserved, BEFORE
+ * the reservation commit), so the advance is durable the moment the mint could
+ * have seen those outputs — covering a crash before commit AND an explicit
+ * rollback. Those indices are consumed at the mint and must never be reused even
+ * if the operation aborts, which is exactly why rollback does NOT rewind the
+ * counter.
+ *
+ * Errors are logged (→ Sentry in prod) but never rethrown: a counter write must
+ * not break a wallet flow, and there is a complementary safety net —
+ * commitReservation re-persists this same value ATOMICALLY with the proofs
+ * ("W2", see reservationsRepo), so even if this write is dropped a successful
+ * commit cannot leave the counter behind its proofs. A detached instance (a
+ * counter freshly created by createProofsCounter, not yet pushed onto a Mint)
+ * has no parent and is a no-op here.
+ */
+const persistCounter = (self: any, mode: 'set' | 'bump', value: number): void => {
+    let mintUrl: string | undefined
+    try {
+        mintUrl = getParent<any>(self, 2)?.mintUrl
+    } catch {
+        return // not attached to a Mint (freshly created counter) — nothing to persist
+    }
+    if (!mintUrl) return
+
+    try {
+        if (mode === 'set') {
+            Database.setCounter(mintUrl, self.keyset, self.unit, value)
+        } else {
+            Database.bumpCounter(mintUrl, self.keyset, self.unit, value)
+        }
+    } catch (e: any) {
+        log.error('[persistCounter]', 'Counter write-through failed', {
+            error: e?.message,
+            mintUrl,
+            keyset: self.keyset,
+        })
+    }
+}
 
 export const MintProofsCounterModel = types
     .model('MintProofsCounter', {
         keyset: types.string,
         unit: types.optional(types.frozen<MintUnit>(), 'sat'),
         counter: types.optional(types.number, 0),
-
-        // In-flight mint requests
-        inFlightRequests: types.map(InFlightRequestModel),
-
-        // Melt transactions that have started (counter value frozen at start)
-        meltCounterValues: types.map(MeltCounterValueModel),
     })
     .preProcessSnapshot(migrateSnapshot)
     .actions(self => ({
-        // === In-flight mint requests (unchanged) ===
-        addInFlightRequest(transactionId: number, request: any) {
-            self.inFlightRequests.set(transactionId.toString(), {
-                transactionId,
-                request,
-            })
-            log.trace('[addInFlightRequest]', { transactionId, request })
-        },
-
-        removeInFlightRequest(transactionId: number) {
-            if (!isAlive(self)) {
-                log.error('[removeInFlightRequest]', 'ProofsCounter is not alive')
-                return
-            }
-            const key = transactionId.toString()
-            if (self.inFlightRequests.has(key)) {
-                self.inFlightRequests.delete(key)
-                log.trace('[removeInFlightRequest]', { transactionId })
-            }
-        },
-
-        clearAllInFlightRequests() {
-            if (!isAlive(self)) {
-                log.error('[clearAllInFlightRequests]', 'ProofsCounter is not alive')
-                return
-            }
-            const count = self.inFlightRequests.size
-            if (count > 0) {
-                self.inFlightRequests.clear()
-                log.info('[clearAllInFlightRequests]', `Cleared ${count} in-flight request(s)`)
-            }
-        },
-
-        // === Melt counter tracking ===
-        addMeltCounterValue(transactionId: number, meltPreview?: MeltPreview): number {
-            const key = transactionId.toString()
-            if (self.meltCounterValues.has(key)) {
-                log.warn('[addMeltCounterValue]', 'Melt already tracked', { transactionId })
-                return self.meltCounterValues.get(key)!.counterAtMelt
-            }
-
-            self.meltCounterValues.set(key, {
-                transactionId,
-                counterAtMelt: self.counter,
-                meltPreview: meltPreview ? serializeMeltPreview(meltPreview) : undefined,
-                createdAt: new Date(),
-            })
-
-            log.trace('[addMeltCounterValue]', {
-                transactionId,
-                counterAtMelt: self.counter,
-                hasMeltPreview: !!meltPreview,
-            })
-
-            return self.counter
-        },
-
-        removeMeltCounterValue(transactionId: number) {
-            if (!isAlive(self)) {
-                log.error('[removeMeltCounterValue]', 'ProofsCounter is not alive')
-                return
-            }
-
-            const key = transactionId.toString()
-            if (self.meltCounterValues.has(key)) {
-                self.meltCounterValues.delete(key)
-                log.trace('[removeMeltCounterValue]', { transactionId })
-            }
-        },
-
-        clearAllMeltCounterValues() {
-            if (!isAlive(self)) {
-                log.error('[clearAllMeltCounterValues]', 'ProofsCounter is not alive')
-                return
-            }
-
-            const count = self.meltCounterValues.size
-            if (count > 0) {
-                self.meltCounterValues.clear()
-                log.info('[clearAllMeltCounterValues]', `Cleared ${count} melt tracking entries`)
-            }
-        },
-
-        // === Counter mutations (unchanged) ===
+        // === Counter mutations (write through to the SQLite authority) ===
         increaseProofsCounter(numberOfProofs: number) {
             self.counter += numberOfProofs
+            persistCounter(self, 'bump', numberOfProofs)
             log.info('[increaseProofsCounter]', 'Increased proofsCounter', {
-                numberOfProofs,
-                counter: self.counter,
-            })
-        },
-
-        decreaseProofsCounter(numberOfProofs: number) {
-            self.counter = Math.max(0, self.counter - numberOfProofs)
-            log.trace('[decreaseProofsCounter]', 'Decreased proofsCounter', {
                 numberOfProofs,
                 counter: self.counter,
             })
@@ -216,39 +123,32 @@ export const MintProofsCounterModel = types
 
         setProofsCounter(newCounter: number) {
             self.counter = newCounter
+            persistCounter(self, 'set', newCounter)
             log.debug('[setProofsCounter]', 'Set proofsCounter', {
                 counter: self.counter,
             })
         },
-    }))
-    .views(self => ({
-        // === In-flight requests ===
-        inFlightRequestExists(transactionId: number): boolean {
-            return self.inFlightRequests.has(transactionId.toString())
-        },
-        getInFlightRequest(transactionId: number): InFlightRequest | undefined {
-            return self.inFlightRequests.get(transactionId.toString())
-        },
-        get inFlightRequestCount(): number {
-            return self.inFlightRequests.size
-        },
-        get allInFlightRequests(): Instance<typeof InFlightRequestModel>[] {
-            return Array.from(self.inFlightRequests.values())
-        },
 
-        // === Melt counter values ===
-        meltCounterValueExists(transactionId: number): boolean {
-            return self.meltCounterValues.has(transactionId.toString())
+        /**
+         * Load the authoritative value from SQLite into the in-memory cache on
+         * startup/resume. Monotonic (only raises) and does NOT write back, so it
+         * can't loop with the write-through above.
+         */
+        hydrateCounterFromDb(value: number) {
+            if (value > self.counter) {
+                self.counter = value
+            }
         },
-        getMeltCounterValue(transactionId: number): Instance<typeof MeltCounterValueModel> | undefined {
-            return self.meltCounterValues.get(transactionId.toString())
-        },
-        get meltCounterValueCount(): number {
-            return self.meltCounterValues.size
-        },
-        get allMeltCounterValues(): Instance<typeof MeltCounterValueModel>[] {
-            return Array.from(self.meltCounterValues.values())
-        },
+    }))
+    // The derivation counter is mastered in SQLite (mint_counters), hydrated
+    // into this model as an in-memory cache on startup/resume. Strip it from
+    // every persisted snapshot so the MMKV whole-tree save can never write a
+    // stale value back over the SQLite authority — exactly as ProofsStore strips
+    // `proofs`. Consumers that legitimately need the value (backup export,
+    // counter backups) re-inject it from the live model / SQLite.
+    .postProcessSnapshot(snapshot => ({
+        ...snapshot,
+        counter: 0,
     }))
 
 export type MintProofsCounter = Instance<typeof MintProofsCounterModel>
@@ -608,35 +508,8 @@ export const MintModel = types
             log.trace('[getMintFeeReserve]', {feeReserve})
             return feeReserve
         },
-        removeAllInFlightRequests() {
-            log.trace('[removeAllInFlightRequests] Removing all inFlight requests', {mintUrl: self.mintUrl})
-            for(const counter of self.proofsCounters) {
-                counter.clearAllInFlightRequests() 
-            }            
-        },
     }))
     .views(self => ({
-        findInFlightRequestByTId: (transactionId: number) => {            
-            const inFlightCounters = self.proofsCounters.filter(c => c.inFlightRequests && c.inFlightRequests.size > 0)                    
-            let inFlightRequest: InFlightRequest | undefined = undefined
-
-            for (const counter of inFlightCounters) {
-                const request = counter.getInFlightRequest(transactionId)
-                if(request) {
-                    inFlightRequest = request
-                    break
-                }
-            }
-
-            return inFlightRequest
-        },
-        get proofsCountersWithInFlightRequests() {            
-            const counters = self.proofsCounters.filter(c => c.inFlightRequests && c.inFlightRequests.size > 0)                       
-            return counters || []
-        },
-        get allInFlightRequests() {
-            return self.proofsCounters.flatMap((counter) => counter.allInFlightRequests)
-        },
         get balances(): MintBalance | undefined {
             const mintBalance: MintBalance | undefined = getRootStore(self).proofsStore.getMintBalance(self.mintUrl)
             return mintBalance

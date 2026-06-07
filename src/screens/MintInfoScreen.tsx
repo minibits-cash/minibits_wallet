@@ -97,7 +97,7 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
           throw new AppError(Err.VALIDATION_ERROR, 'Missing mintUrl')
         }
 
-        log.trace('useEffect', { mintUrl: route.params.mintUrl })
+        log.trace('[MintInfoScreen] useEffect', { mintUrl: route.params.mintUrl })
 
         //setIsLoading(true)
         const mint = mintsStore.findByUrl(route.params.mintUrl)
@@ -258,9 +258,20 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
               {isLocalInfoVisible && (
                 <JSONTree
                   hideRoot
-                  data={getSnapshot(
-                    mintsStore.findByUrl(route.params?.mintUrl) as Mint,
-                  ) as any}
+                  data={(() => {
+                    const m = mintsStore.findByUrl(route.params?.mintUrl) as Mint
+                    const snap = getSnapshot(m) as any
+                    // `counter` is stripped from every snapshot (it is mastered in
+                    // SQLite, not MMKV). Re-inject the live cache value per keyset
+                    // so this debug tree shows the real derivation index, not 0.
+                    return {
+                      ...snap,
+                      proofsCounters: snap.proofsCounters?.map((c: any) => ({
+                        ...c,
+                        counter: m?.proofsCounters?.find(pc => pc.keyset === c.keyset)?.counter ?? c.counter,
+                      })),
+                    }
+                  })() as any}
                   theme={{
                     scheme: 'default',
                     base00: '#eee',
@@ -310,7 +321,7 @@ function MOTDCard(props: {info: GetInfoResponse}) {
 
 function MintLimitsCard(props: { info: GetInfoResponse, limitInfo: ReturnType<typeof getMintLimits> }) {
   if (props.limitInfo.mintSats === false && props.limitInfo.mintSats === false) return;
-  log.trace('MintLimtsCard', props.limitInfo)
+  log.trace('[MintLimitsCard]', props.limitInfo)
 
   const limitText = (m: MethodLimit) => {
     const min = `${formatCurrency(m.min as number, CurrencyCode.SAT)}`
@@ -564,7 +575,6 @@ function getMintLimits(info: GetInfoResponse) {
   // later this can be adjusted to show USD/other units as well. for now only shows limits if they are in sats
   let mintSats: false | MethodLimit = false
   let meltSats: false | MethodLimit = false
-  console.log('runs')
   for (const method of info.nuts['4'].methods) {
     if ((typeof method.min_amount !== 'undefined' || typeof method.max_amount !== 'undefined') && method.unit === 'sat') {
       mintSats = {

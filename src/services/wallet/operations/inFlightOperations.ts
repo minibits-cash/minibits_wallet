@@ -1,6 +1,7 @@
 import {isAlive} from 'mobx-state-tree'
 import {getEncodedToken, normalizeProofAmounts} from '@cashu/cashu-ts'
 import {log} from '../../logService'
+import {Database} from '../../sqlite'
 import {CashuUtils} from '../../cashu/cashuUtils'
 import {rootStoreInstance} from '../../../models'
 import {Mint} from '../../../models/Mint'
@@ -30,15 +31,12 @@ const {
  */
 const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> => {
     const mintUrl = mint.mintUrl
-    const countersWithInFlight = mint.proofsCountersWithInFlightRequests || []
+    const inFlightRequests = Database.getInFlightRequestsByMint(mintUrl)
+    const totalRequests = inFlightRequests.length
 
-    log.trace('[handleInFlightByMintTask] start', {
-        mintUrl,
-        counters: countersWithInFlight?.length,
-        totalRequests: mint.allInFlightRequests?.length ?? 0,
-    })
+    log.trace('[handleInFlightByMintTask] start', {mintUrl, totalRequests})
 
-    if (countersWithInFlight.length === 0) {
+    if (totalRequests === 0) {
         return {
             taskFunction: HANDLE_INFLIGHT_BY_MINT_TASK,
             mintUrl,
@@ -48,17 +46,11 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
 
     const errors: string[] = []
 
-    for (const counter of countersWithInFlight) {
-        for (const inFlight of counter.allInFlightRequests) {
-
-            if (!isAlive(inFlight)) {
-                log.error('[handleInFlightByMintTask]', 'InFlightRequest is not alive', {mintUrl})
-                continue
-            }
+    for (const inFlight of inFlightRequests) {
 
             const tx = transactionsStore.findById(inFlight.transactionId)
             if (!tx) {
-                counter.removeInFlightRequest(inFlight.transactionId)
+                Database.removeInFlightRequest(inFlight.transactionId)
                 continue
             }
 
@@ -66,7 +58,7 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
             // the tx): nothing to recover. Drop the lingering in-flight request so it isn't
             // retried on every sweep.
             if (tx.status === TransactionStatus.COMPLETED || tx.status === TransactionStatus.REVERTED) {
-                counter.removeInFlightRequest(inFlight.transactionId)
+                Database.removeInFlightRequest(inFlight.transactionId)
                 continue
             }
 
@@ -90,25 +82,33 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                             {inFlightRequest: inFlight},
                         )
 
-                        const {updatedAmount: receivedAmount} = proofsStore.addOrUpdate(proofs, {
-                            mintUrl,
-                            tId: tx.id,
-                            unit,
-                            state: 'UNSPENT',
-                        })
-
+                        const receivedAmount = CashuUtils.getProofsAmount(proofs)
                         const outputToken = getEncodedToken({mint: mintUrl, proofs: normalizeProofAmounts(proofs), unit})
-                        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
+                        const currentSpendable = proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
+                        const balanceAfter = currentSpendable + receivedAmount
 
                         txData.push({status: TransactionStatus.COMPLETED, receivedAmount, swapFeePaid, createdAt: new Date()})
 
-                        tx.update({
-                            amount: receivedAmount,
-                            status: TransactionStatus.COMPLETED,
-                            data: JSON.stringify(txData),
-                            outputToken,
-                            balanceAfter,
-                            fee: swapFeePaid > 0 ? swapFeePaid : tx.fee,
+                        // Add received proofs + complete the tx atomically (one
+                        // SQLite txn, incl. the keyset counter). No inputs locked.
+                        const reservation = proofsStore.reserve([], {
+                            transactionId: tx.id,
+                            mintUrl,
+                            unit,
+                            operationType: 'receive-retry',
+                            rollbackTo: 'UNSPENT',
+                        })
+                        proofsStore.commitReservation(reservation, {
+                            newProofs: [{proofs, state: 'UNSPENT', tId: tx.id}],
+                            transactionUpdate: {
+                                id: tx.id,
+                                amount: receivedAmount,
+                                status: TransactionStatus.COMPLETED,
+                                data: JSON.stringify(txData),
+                                outputToken,
+                                balanceAfter,
+                                fee: swapFeePaid > 0 ? swapFeePaid : tx.fee,
+                            },
                         })
 
                         break
@@ -214,23 +214,31 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                             {inFlightRequest: inFlight},
                         )
 
-                        proofsStore.addOrUpdate(proofs, {
-                            mintUrl,
-                            tId: tx.id,
-                            unit,
-                            state: 'UNSPENT',
-                        })
+                        const recoveredAmount = CashuUtils.getProofsAmount(proofs)
+                        const currentSpendable = proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
+                        const balanceAfter = currentSpendable + recoveredAmount
 
                         stopPolling(`handlePendingTopupPoller-${tx.paymentId}`)
 
-                        const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
-
                         txData.push({status: TransactionStatus.COMPLETED, createdAt: new Date()})
 
-                        tx.update({
-                            status: TransactionStatus.COMPLETED,
-                            data: JSON.stringify(txData),
-                            balanceAfter,
+                        // Add minted proofs + complete the tx atomically (one
+                        // SQLite txn, incl. the keyset counter). No inputs locked.
+                        const reservation = proofsStore.reserve([], {
+                            transactionId: tx.id,
+                            mintUrl,
+                            unit,
+                            operationType: 'topup-retry',
+                            rollbackTo: 'UNSPENT',
+                        })
+                        proofsStore.commitReservation(reservation, {
+                            newProofs: [{proofs, state: 'UNSPENT', tId: tx.id}],
+                            transactionUpdate: {
+                                id: tx.id,
+                                status: TransactionStatus.COMPLETED,
+                                data: JSON.stringify(txData),
+                                balanceAfter,
+                            },
                         })
 
                         break
@@ -248,7 +256,7 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                         log.error('[handleInFlightByMintTask] Unknown tx type', {type: tx.type, tId: tx.id})
                 }
 
-                counter.removeInFlightRequest(inFlight.transactionId)
+                Database.removeInFlightRequest(inFlight.transactionId)
 
             } catch (e: any) {
                 log.error(`[handleInFlightByMintTask] ${tx.type} failed`, {
@@ -258,10 +266,9 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                 })
                 errors.push(`${tx.type} tId=${tx.id}: ${e.message}`)
             }
-        }
     }
 
-    const totalProcessed = mint.allInFlightRequests?.length ?? 0
+    const totalProcessed = totalRequests
 
     return {
         taskFunction: HANDLE_INFLIGHT_BY_MINT_TASK,
@@ -279,8 +286,8 @@ const handleInFlightQueue = async function (): Promise<void> {
 
     for (const mint of mintsStore.allMints) {
 
-        if (mint.proofsCountersWithInFlightRequests.length === 0) {
-            log.trace('No proofCounters with inFlight requests, skipping...')
+        if (Database.getInFlightRequestsByMint(mint.mintUrl).length === 0) {
+            log.trace('No inFlight requests for mint, skipping...')
             continue
         }
 

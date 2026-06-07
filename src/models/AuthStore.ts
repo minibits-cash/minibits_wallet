@@ -144,7 +144,7 @@ export const AuthStoreModel = types
           
           log.trace('[loadTokensFromKeyChain] Tokens loaded successfully')
         } else {
-          log.warn('[loadTokensFromKeyChain] No tokens found in the KeyChain')
+          log.debug('[loadTokensFromKeyChain] No tokens found in the KeyChain')
         }
       } catch (e: any) {
         log.error(`Failed to load tokens: ${e.message}`, {caller: 'loadTokensFromKeyChain'})

@@ -362,14 +362,14 @@ const getExchangeRate = async function (currency: CurrencyCode) {
         jwtAuthRequired: true            
     }) as {currency: CurrencyCode, rate: number}
 
-    log.info(`[getExchangeRate] Got response`, rate)
+    log.debug(`[getExchangeRate] Got response`, rate)
 
     return rate
 }
 
 
 const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 15000) => { //ms
-    log.info('Start', {url, caller: 'fetchApi'})
+    log.debug('[fetchApi] HTTP request', {url})
     
     const controller = new AbortController()
     const body = options.body ? JSON.stringify(options.body) : undefined

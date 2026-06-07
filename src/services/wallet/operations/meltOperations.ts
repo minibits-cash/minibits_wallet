@@ -5,6 +5,7 @@ import {
     getEncodedToken,
 } from '@cashu/cashu-ts'
 import {log} from '../../logService'
+import {Database} from '../../sqlite'
 import {translate} from '../../../i18n'
 import {MintError, ValidationError} from '../../../utils/AppError'
 import EventEmitter from '../../../utils/eventEmitter'
@@ -93,10 +94,7 @@ const recoverMeltQuoteChange = async (
 
     switch (state) {
         case MeltQuoteState.UNPAID:
-            if (tx.keysetId) {
-                const currentCounter = mintInstance.getProofsCounterByKeysetId!(tx.keysetId)
-                currentCounter.removeMeltCounterValue(tx.id)
-            }
+            Database.removeMeltRecovery(tx.id)
 
             throw new ValidationError(`Melt quote ${meltQuote} was not paid`)
 
@@ -115,20 +113,19 @@ const recoverMeltQuoteChange = async (
                     throw new ValidationError('Missing keysetId on transaction', {meltQuote})
                 }
 
-                const currentCounter = mintInstance.getProofsCounterByKeysetId!(tx.keysetId)
-                const meltCounterValue = currentCounter?.getMeltCounterValue(tx.id)
+                const meltRecovery = Database.getMeltRecovery(tx.id)
 
-                if (!meltCounterValue?.meltPreview) {
+                if (!meltRecovery?.meltPreview) {
                     throw new ValidationError('MeltPreview not found – this transaction may be from an older version', {meltQuote})
                 }
 
-                const meltPreview = meltCounterValue.meltPreview
+                const meltPreview = meltRecovery.meltPreview
                 const cashuWallet = await walletStore.getWallet(mintUrl, unit, {withSeed: true, keysetId: meltPreview.keysetId})
                 const keyset = cashuWallet.getKeyset(meltPreview.keysetId)
 
                 const reconstructedOutputData = CashuUtils.deserializeOutputData(meltPreview.outputData)
                 const recoveredChange = change.map((sig, i) => reconstructedOutputData[i].toProof(sig, keyset))
-                currentCounter.removeMeltCounterValue(tx.id)
+                Database.removeMeltRecovery(tx.id)
 
                 const newChange = recoveredChange.filter(proof => !proofsStore.alreadyExists(proof))
 
@@ -136,14 +133,9 @@ const recoverMeltQuoteChange = async (
                     throw new MintError(`No new ecash proofs to recover from melt quote ${meltQuoteResponse.quote}, ${recoveredChange.length} proofs already in wallet.`)
                 }
 
-                const {updatedAmount: recoveredAmount} = proofsStore.addOrUpdate(newChange, {
-                    mintUrl,
-                    unit,
-                    tId: tx.id,
-                    state: 'UNSPENT',
-                })
-
-                const balanceAfter = proofsStore.getUnitBalance(unit)?.unitBalance
+                const recoveredAmount = CashuUtils.getProofsAmount(newChange)
+                const currentSpendable = proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
+                const balanceAfter = currentSpendable + recoveredAmount
                 const outputToken = getEncodedToken({mint: mintUrl, proofs: newChange, unit})
 
                 txData.push({
@@ -152,12 +144,26 @@ const recoverMeltQuoteChange = async (
                     createdAt: new Date(),
                 })
 
-                tx.update({
-                    status: TransactionStatus.RECOVERED,
-                    amount: recoveredAmount,
-                    balanceAfter,
-                    outputToken,
-                    data: JSON.stringify(txData),
+                // Add the recovered change + finalize the tx atomically (one
+                // SQLite txn, incl. the keyset counter). No inputs are locked
+                // here (the melt already spent them), so rollback is a no-op.
+                const reservation = proofsStore.reserve([], {
+                    transactionId: tx.id,
+                    mintUrl,
+                    unit,
+                    operationType: 'melt-change-recover',
+                    rollbackTo: 'UNSPENT',
+                })
+                proofsStore.commitReservation(reservation, {
+                    newProofs: [{proofs: newChange, state: 'UNSPENT', tId: tx.id}],
+                    transactionUpdate: {
+                        id: tx.id,
+                        status: TransactionStatus.RECOVERED,
+                        amount: recoveredAmount,
+                        balanceAfter,
+                        outputToken,
+                        data: JSON.stringify(txData),
+                    },
                 })
 
                 log.debug('[recoverMeltQuoteChange] Success', {meltQuote, recoveredAmount})
@@ -212,10 +218,9 @@ const unblindPendingMeltChange = async function (params: {
         const mintInstance = mintsStore.findByUrl(mintUrl)
         if (!mintInstance || !transaction.keysetId) return {change: []}
 
-        const currentCounter = mintInstance.getProofsCounterByKeysetId!(transaction.keysetId)
-        const meltCounterValue = currentCounter?.getMeltCounterValue(transaction.id)
+        const meltRecovery = Database.getMeltRecovery(transaction.id)
 
-        if (!meltCounterValue?.meltPreview || !quoteChange?.length) {
+        if (!meltRecovery?.meltPreview || !quoteChange?.length) {
             return {change: []}
         }
 
@@ -225,7 +230,7 @@ const unblindPendingMeltChange = async function (params: {
             changeCount: quoteChange.length,
         })
 
-        const {meltPreview} = meltCounterValue
+        const {meltPreview} = meltRecovery
         const cashuWallet = await walletStore.getWallet(mintUrl, unit, {
             withSeed: true,
             keysetId: meltPreview.keysetId,
@@ -237,7 +242,7 @@ const unblindPendingMeltChange = async function (params: {
 
         log.trace('[handlePendingMelt] Change unblinded', {transactionId: transaction.id, quoteId, change})
 
-        currentCounter.removeMeltCounterValue(transaction.id)
+        Database.removeMeltRecovery(transaction.id)
 
         return {change}
     } catch (e: any) {

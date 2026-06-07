@@ -68,6 +68,66 @@ export const RESERVATIONS_COLUMNS = `
   createdAt TEXT NOT NULL
 `
 
+/**
+ * Per-keyset deterministic-derivation counter (the BIP32 high-water mark).
+ *
+ * Authoritative store for the counter previously held only in the MST
+ * `MintProofsCounter` model and persisted to MMKV via the whole-tree snapshot.
+ * Moving it here lets a counter advance commit ATOMICALLY with the proofs it
+ * derives (same SQLite transaction) and makes SQLite the single source of truth,
+ * closing the cross-engine non-atomicity that risked blinded-secret reuse.
+ *
+ * Keyed by (mintUrl, keysetId): a keyset id is mint-scoped, and keying on the
+ * url keeps the row addressable across mint-url edits.
+ */
+export const MINT_COUNTERS_COLUMNS = `
+  mintUrl TEXT NOT NULL,
+  keysetId TEXT NOT NULL,
+  unit TEXT,
+  counter INTEGER NOT NULL DEFAULT 0,
+  updatedAt TEXT,
+  PRIMARY KEY (mintUrl, keysetId)
+`
+
+/**
+ * Recovery data for outgoing lightning payments (melt).
+ *
+ * Holds the serialized `meltPreview` (the blinded change outputData) per
+ * transaction, written synchronously BEFORE the melt is submitted so a paid-
+ * but-unconfirmed melt can always be recovered and its change ecash unblinded —
+ * previously kept on the MST MintProofsCounter (debounced MMKV), which risked
+ * losing the preview (and the change) on a crash right after submission.
+ *
+ * Keyed by transactionId (globally unique). A row exists only while a melt is
+ * in-flight; it is deleted on terminal success/failure.
+ */
+export const MELT_RECOVERY_COLUMNS = `
+  transactionId INTEGER PRIMARY KEY NOT NULL,
+  mintUrl TEXT,
+  keysetId TEXT,
+  meltPreview TEXT NOT NULL,
+  createdAt TEXT
+`
+
+/**
+ * In-flight mint/swap request data for idempotent retry (NUT-19).
+ *
+ * Holds the op's request params per transaction, written before the network
+ * call so a lost response can be safely retried against the mint's cached
+ * (idempotent) endpoint. Previously kept on the MST MintProofsCounter; moved
+ * here so retries work with no MST loaded (off-MST background).
+ *
+ * Keyed by transactionId. A row exists only while a request is in-flight; it is
+ * deleted on success or terminal failure.
+ */
+export const INFLIGHT_REQUESTS_COLUMNS = `
+  transactionId INTEGER PRIMARY KEY NOT NULL,
+  mintUrl TEXT,
+  keysetId TEXT,
+  request TEXT NOT NULL,
+  createdAt TEXT
+`
+
 /** Build a CREATE TABLE statement from a column block. */
 export const createTable = (
   name: string,
@@ -88,4 +148,13 @@ export const createSchemaQueries: SQLBatchTuple[] = [
   // is in-flight (between reserve() and commit()/rollback()). Orphans (process
   // died mid-operation) are detected and rolled back at startup.
   [createTable('reservations', RESERVATIONS_COLUMNS)],
+  // Per-keyset deterministic-derivation counters. Seeded from the MST/MMKV
+  // counters on first run after this migration (see countersRepo).
+  [createTable('mint_counters', MINT_COUNTERS_COLUMNS)],
+  // Per-transaction melt recovery data (serialized meltPreview). A row exists
+  // only while an outgoing lightning payment is in-flight (see meltRecoveryRepo).
+  [createTable('melt_recovery', MELT_RECOVERY_COLUMNS)],
+  // Per-transaction in-flight mint/swap request data for idempotent retry
+  // (see inFlightRepo). A row exists only while a request is in-flight.
+  [createTable('inflight_requests', INFLIGHT_REQUESTS_COLUMNS)],
 ]

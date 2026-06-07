@@ -20,7 +20,7 @@ import {
   MeltQuoteState,
 } from '@cashu/cashu-ts'
 import { JS_BUNDLE_VERSION } from '@env'
-import {KeyChain, MinibitsClient, WalletKeys} from '../services'
+import {Database, KeyChain, MinibitsClient, WalletKeys} from '../services'
 import {log} from '../services/logService'
 import AppError, { Err, MintError, NetworkError } from '../utils/AppError'
 import { Currencies, CurrencyCode, MintUnit } from '../services/wallet/currency'
@@ -169,29 +169,54 @@ export const WalletStoreModel = types
       resetExchangeRate () {
         self.exchangeRate = undefined
       }
-    })) 
+    }))
+    .volatile(() => ({
+      // In-flight KeyChain read shared by concurrent getCachedWalletKeys callers.
+      // Reading secure storage is slow (~2s cold on Android), and several NWC
+      // pushes can wake the app at once — without this, each push would trigger
+      // its own KeyChain read. Volatile (never persisted), so it resets on a
+      // fresh cold start, which is exactly when we want a single fresh read.
+      walletKeysInFlight: null as Promise<WalletKeys> | null,
+    }))
     .actions(self => ({
-      getCachedWalletKeys: flow(function* getWalletKeys() {    
-        if (self.walletKeys) {        
+      getCachedWalletKeys: flow(function* getWalletKeys() {
+        if (self.walletKeys) {
           log.trace('[getCachedWalletKeys]', 'Returning cached walletKeys')
-          return self.walletKeys     
-        }    
-        
-        const keys: WalletKeys | undefined = yield KeyChain.getWalletKeys()
-    
-        if (!keys) {
+          return self.walletKeys
+        }
+
+        // Coalesce concurrent cold reads onto a single KeyChain fetch.
+        if (self.walletKeysInFlight) {
+          log.trace('[getCachedWalletKeys]', 'Awaiting in-flight KeyChain read')
+          return yield self.walletKeysInFlight
+        }
+
+        // The shared promise resolves to validated keys so that both this
+        // originator and any concurrent awaiters get identical success/error.
+        const fetch = (async (): Promise<WalletKeys> => {
+          const keys: WalletKeys | undefined = await KeyChain.getWalletKeys()
+          if (!keys) {
             throw new AppError(
-              Err.NOTFOUND_ERROR, 
+              Err.NOTFOUND_ERROR,
               'Device secure storage could not return wallet keys, please reinstall and use your seed phrase to recover wallet.'
             )
+          }
+          return keys
+        })()
+
+        self.walletKeysInFlight = fetch
+
+        try {
+          const keys: WalletKeys = yield fetch
+          self.walletKeys = keys
+          return keys
+        } finally {
+          self.walletKeysInFlight = null
         }
-    
-        self.walletKeys = keys
-        return keys
       }),
-      cleanCachedWalletKeys() {    
+      cleanCachedWalletKeys() {
         self.walletKeys = undefined
-      },      
+      },
     }))
     .actions(self => ({
       getCachedSeed: flow(function* getCachedSeed() {    
@@ -476,7 +501,7 @@ export const WalletStoreModel = types
 
             // @ts-ignore
             if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
-                currentCounter.addInFlightRequest(transactionId, receiveParams)
+                Database.addInFlightRequest(transactionId, mintUrl, cashuWallet.keysetId, receiveParams)
             }
 
             let reservedCounters: OperationCounters | undefined
@@ -488,19 +513,19 @@ export const WalletStoreModel = types
                     ...receiveParams.options,
                     onCountersReserved: (info: OperationCounters) => {
                       reservedCounters = info
-                      log.debug('[receive] Counters reserved', info)
+                      log.debug('[WalletStore.receive] Counters reserved', info)
                     }
                   }
                 )
 
                 log.trace('[WalletStore.receive]', {proofs})
 
-                currentCounter.removeInFlightRequest(transactionId)
+                Database.removeInFlightRequest(transactionId)
 
                 // Update our counter to match what the wallet used (v3.x)
                 if (reservedCounters) {
                     currentCounter.setProofsCounter(reservedCounters.next)
-                    log.debug('[receive] Updated counter', {
+                    log.debug('[WalletStore.receive] Updated counter', {
                         keysetId: reservedCounters.keysetId,
                         start: reservedCounters.start,
                         count: reservedCounters.count,
@@ -524,7 +549,7 @@ export const WalletStoreModel = types
                 if(!e.message.toLowerCase().includes('timeout') &&
                    !e.message.toLowerCase().includes('network request failed')) {
                   // remove in-flight request only if it was not a timeout or network error
-                  currentCounter.removeInFlightRequest(transactionId)
+                  Database.removeInFlightRequest(transactionId)
                 }                
                 throw new AppError(
                     Err.MINT_ERROR, 
@@ -591,7 +616,7 @@ export const WalletStoreModel = types
 
             // @ts-ignore
             if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
-                currentCounter.addInFlightRequest(transactionId, sendParams)
+                Database.addInFlightRequest(transactionId, mintUrl, cashuWallet.keysetId, sendParams)
             }
 
             let reservedCounters: OperationCounters | undefined
@@ -605,17 +630,17 @@ export const WalletStoreModel = types
                     ...sendParams.options,
                     onCountersReserved: (info: OperationCounters) => {
                       reservedCounters = info
-                      log.debug('[send] Counters reserved', info)
+                      log.debug('[WalletStore.send] Counters reserved', info)
                     }
                   }
                 )
 
-                currentCounter.removeInFlightRequest(transactionId)
+                Database.removeInFlightRequest(transactionId)
 
                 // Update our counter to match what the wallet used (v3.x)
                 if (reservedCounters) {
                     currentCounter.setProofsCounter(reservedCounters.next)
-                    log.debug('[send] Updated counter', {
+                    log.debug('[WalletStore.send] Updated counter', {
                         keysetId: reservedCounters.keysetId,
                         start: reservedCounters.start,
                         count: reservedCounters.count,
@@ -642,7 +667,7 @@ export const WalletStoreModel = types
               if(!e.message.toLowerCase().includes('timeout') &&
                  !e.message.toLowerCase().includes('network request failed')) {
                 // remove in-flight request only if it was not a timeout or network error
-                currentCounter.removeInFlightRequest(transactionId)
+                Database.removeInFlightRequest(transactionId)
               }  
 
                 let message = 'Swap to prepare ecash to send has failed.'
@@ -729,7 +754,7 @@ export const WalletStoreModel = types
                   description
               })
           
-              log.info('[createLightningMintQuote]', {mintQuoteResponse})
+              log.info('[WalletStore.createLightningMintQuote]', {mintQuoteResponse})
           
               return {
                   encodedInvoice: mintQuoteResponse.request,
@@ -759,7 +784,7 @@ export const WalletStoreModel = types
                   quote
               )
           
-              log.info('[checkLightningMintQuote]', {quoteResponse})
+              log.info('[WalletStore.checkLightningMintQuote]', {quoteResponse})
           
               return {
                   encodedInvoice: quoteResponse.request,
@@ -829,7 +854,7 @@ export const WalletStoreModel = types
 
             // @ts-ignore
             if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
-                currentCounter.addInFlightRequest(transactionId, mintParams)
+                Database.addInFlightRequest(transactionId, mintUrl, cashuWallet.keysetId, mintParams)
             }
 
             let reservedCounters: OperationCounters | undefined
@@ -843,17 +868,17 @@ export const WalletStoreModel = types
                         keysetId: mintParams.options?.keysetId,
                         onCountersReserved: (info: OperationCounters) => {
                             reservedCounters = info
-                            log.debug('[mintProofsBolt11] Counters reserved', info)
+                            log.debug('[cashuWallet.mintProofsBolt11] Counters reserved', info)
                         }
                     }
                 )
 
-                currentCounter.removeInFlightRequest(transactionId)
+                Database.removeInFlightRequest(transactionId)
 
                 // Update our counter to match what the wallet used (v3.x)
                 if (reservedCounters) {
                     currentCounter.setProofsCounter(reservedCounters.next)
-                    log.debug('[mintProofs] Updated counter', {
+                    log.debug('[WalletStore.mintProofs] Updated counter', {
                         keysetId: reservedCounters.keysetId,
                         start: reservedCounters.start,
                         count: reservedCounters.count,
@@ -861,7 +886,7 @@ export const WalletStoreModel = types
                     })
                 }
 
-                log.debug('[mintProofs]', {amount: mintParams.amount, quote: mintParams.quote, proofs})
+                log.debug('[WalletStore.mintProofs]', {amount: mintParams.amount, quote: mintParams.quote, proofs})
 
                 return proofs
         
@@ -869,7 +894,7 @@ export const WalletStoreModel = types
                 if(!e.message.toLowerCase().includes('timeout') &&
                    !e.message.toLowerCase().includes('network request failed')) {
                   // remove in-flight request only if it was not a timeout or network error
-                  currentCounter.removeInFlightRequest(transactionId)
+                  Database.removeInFlightRequest(transactionId)
                 }       
                 
                 let message = 'Error on request to mint new ecash.'
@@ -972,8 +997,15 @@ export const WalletStoreModel = types
                 }
             )
 
-            // Store the MeltPreview for potential recovery
-            currentCounter.addMeltCounterValue(transactionId, meltPreview)
+            // Store the MeltPreview for potential recovery. Synchronous SQLite
+            // write BEFORE completeMelt, so the change can always be recovered
+            // even if the app dies right after the payment is submitted.
+            Database.addMeltRecovery(
+                transactionId,
+                mintUrl,
+                cashuWallet.keysetId,
+                CashuUtils.serializeMeltPreview(meltPreview),
+            )
 
             // Update our counter to match what the wallet used (v3.x)
             if (reservedCounters) {
@@ -992,7 +1024,7 @@ export const WalletStoreModel = types
 
                 // Keep the preview for PENDING async melts — handlePendingMeltTask needs it to unbind change later
                 if (meltResponse.quote.state !== MeltQuoteState.PENDING) {
-                    currentCounter.removeMeltCounterValue(transactionId)
+                    Database.removeMeltRecovery(transactionId)
                 }
 
                 log.trace('[payLightningMelt]', {meltResponse})
@@ -1002,7 +1034,7 @@ export const WalletStoreModel = types
                 if(!e.message.toLowerCase().includes('timeout') &&
                    !e.message.toLowerCase().includes('network request failed')) {
                   // remove only if it was not a timeout or network error
-                  currentCounter.removeMeltCounterValue(transactionId)
+                  Database.removeMeltRecovery(transactionId)
                 }   
 
                 let message = 'Lightning payment failed.'

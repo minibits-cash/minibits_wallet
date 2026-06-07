@@ -113,7 +113,7 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
 
                 const decodedData = Buffer.from(decodedBuffer).toString('utf8')
 
-                log.trace('Scanned animated', {scanned: decodedData})
+                log.trace('[ScanScreen] Scanned animated', {scanned: decodedData})
 
                 return onIncomingData(decodedData)
             } else {

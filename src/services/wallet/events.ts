@@ -53,6 +53,12 @@ export type WalletEvents = {
         status: TransactionStatus
         message: string
     }
+
+    // Emitted by NotificationService when the NWC listener / foreground service
+    // is torn down (adaptive idle close or 30s hard cap). Lets an in-flight NWC
+    // pay_invoice stop waiting for its async melt exactly when the background
+    // context is going away, instead of using a separate timeout.
+    ev_nwcListenerClosing: void
 }
 
 declare module '../../utils/eventEmitter' {

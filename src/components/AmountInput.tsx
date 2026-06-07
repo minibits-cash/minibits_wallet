@@ -138,7 +138,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
 
     // keep internal state in sync with external `value`
     useEffect(() => {
-      log.trace(`[useEffect] setTopValue call`, value)
+      log.trace(`[AmountInput.useEffect:mount] setTopValue`, value)
       setTopValue(value)
 
       // only show if
@@ -153,7 +153,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
           setIsConvertedValueVisible(!!canShow)
 
       if (canShow) {
-        log.trace(`[useEffect] recalcBottom call`, value)
+        log.trace(`[AmountInput.useEffect:mount] recalcBottom`, value)
         setBottomValue(recalcBottom(value)) // ✅ always compute bottom from current top
       } else {
         setBottomValue("0")
@@ -161,7 +161,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
     }, [])
 
     useEffect(() => {
-      log.trace(`[useEffect] setTopValue call`, value)
+      log.trace(`[AmountInput.useEffect:value] setTopValue`, value)
       setTopValue(value)
       if(!hasBeenFirstTimeConverted && value && toNumber(value) > 0) {
         setBottomValue(recalcBottom(value))

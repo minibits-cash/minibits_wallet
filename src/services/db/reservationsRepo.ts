@@ -6,6 +6,7 @@ import {log} from '../logService'
 import {SQLBatchTuple} from './connection'
 import {getInstance} from './instance'
 import {dbError} from './errors'
+import {buildCounterUpsert} from './countersRepo'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Proof reservations (Phase 5 of refactoring).
@@ -108,7 +109,7 @@ export const openReservation = function (
     const db = getInstance()
     db.executeBatch(batch)
 
-    log.info('[openReservation]', 'Reservation opened', {
+    log.debug('[openReservation] Reservation opened', {
       id: reservation.id,
       transactionId: reservation.transactionId,
       lockedCount: proofsToLock.length,
@@ -161,6 +162,22 @@ export const commitReservation = function (
       tId: number
     }>
     transactionUpdate?: ReservationTransactionUpdate
+    /**
+     * Per-keyset derivation counters to persist atomically with the proof
+     * writes — the "W2" backstop to the write-through in Mint.persistCounter
+     * ("W1"). W1 already persists this value the instant cashu derives, BEFORE
+     * this commit, so on the normal path this upsert is a monotonic no-op. Its
+     * job is the failure case: if W1's write was dropped (logged, not thrown),
+     * folding the counter into the SAME transaction as the proofs guarantees a
+     * committed proof can never outlive its counter advance — which would let the
+     * next derivation reuse a blinded secret. Each upsert is monotonic.
+     */
+    counterUpdate?: Array<{
+      mintUrl: string
+      keysetId: string
+      unit?: string
+      counter: number
+    }>
   },
 ): void {
   try {
@@ -244,17 +261,22 @@ export const commitReservation = function (
       }
     }
 
+    for (const cu of changes.counterUpdate ?? []) {
+      batch.push(buildCounterUpsert(cu.mintUrl, cu.keysetId, cu.unit, cu.counter, now))
+    }
+
     batch.push([`DELETE FROM reservations WHERE id = ?`, [reservationId]])
 
     const db = getInstance()
     db.executeBatch(batch)
 
-    log.info('[commitReservation] ', 'Reservation committed to DB', {
+    log.debug('[commitReservation] Reservation committed to DB', {
       id: reservationId,
       toSpent: changes.toSpent?.length ?? 0,
       toUnspent: changes.toUnspent?.length ?? 0,
       newGroups: changes.newProofs?.length ?? 0,
       txUpdate: changes.transactionUpdate ? changes.transactionUpdate.id : undefined,
+      counterUpdates: changes.counterUpdate?.length ?? 0,
     })
   } catch (e: any) {
     throw dbError('Could not commit proof reservation', e)

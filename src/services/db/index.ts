@@ -37,6 +37,7 @@ import {
   getProofById,
   getProofs,
   getProofsByTransaction,
+  getMintBalanceWithMaxBalance,
 } from './proofsRepo'
 import {
   openReservation,
@@ -44,6 +45,26 @@ import {
   rollbackReservation,
   getOpenReservations,
 } from './reservationsRepo'
+import {
+  getCounters,
+  getCounter,
+  setCounter,
+  bumpCounter,
+  seedCounters,
+} from './countersRepo'
+import {
+  addMeltRecovery,
+  getMeltRecovery,
+  removeMeltRecovery,
+  seedMeltRecoveries,
+} from './meltRecoveryRepo'
+import {
+  addInFlightRequest,
+  getInFlightRequest,
+  getInFlightRequestsByMint,
+  removeInFlightRequest,
+  seedInFlightRequests,
+} from './inFlightRepo'
 
 export type {TransactionSearchFilters} from './transactionsRepo'
 export type {
@@ -51,6 +72,9 @@ export type {
   ReservationRow,
   ReservationTransactionUpdate,
 } from './reservationsRepo'
+export type {CounterRecord, CounterSeed} from './countersRepo'
+export type {MeltRecoveryRecord, MeltRecoverySeed} from './meltRecoveryRepo'
+export type {InFlightRequestRecord, InFlightRequestSeed} from './inFlightRepo'
 
 export const Database = {
   getInstance,
@@ -83,8 +107,23 @@ export const Database = {
   getProofById,
   getProofs,
   getProofsByTransaction,
+  getMintBalanceWithMaxBalance,
   openReservation,
   commitReservation,
   rollbackReservation,
   getOpenReservations,
+  getCounters,
+  getCounter,
+  setCounter,
+  bumpCounter,
+  seedCounters,
+  addMeltRecovery,
+  getMeltRecovery,
+  removeMeltRecovery,
+  seedMeltRecoveries,
+  addInFlightRequest,
+  getInFlightRequest,
+  getInFlightRequestsByMint,
+  removeInFlightRequest,
+  seedInFlightRequests,
 }

@@ -102,7 +102,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
     useFocusEffect(useCallback(() => {
       try {        
         const tx = transactionsStore.findById(id, true) // load full tokens
-        log.trace('Transaction loaded', {tx})
+        log.trace('[TranDetailScreen] Transaction loaded', {tx})
 
       if (!tx) {
           throw new AppError(

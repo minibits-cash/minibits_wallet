@@ -13,6 +13,7 @@ import type {
   PaymentRequestPayload,
   TokenMetadata,
   OutputDataLike,
+  MeltPreview,
 } from '@cashu/cashu-ts'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
 import AppError, {Err} from '../../utils/AppError'
@@ -521,6 +522,12 @@ const deserializeOutputData = (serialized: SerializedOutputData[]): OutputData[]
         od.ephemeralE,
     ))
 
+/** Serialize a cashu-ts MeltPreview into the JSON-safe shape stored for recovery. */
+const serializeMeltPreview = (meltPreview: MeltPreview): StoredMeltPreview => ({
+    keysetId: meltPreview.keysetId,
+    outputData: serializeOutputData(meltPreview.outputData),
+})
+
 export const CashuUtils = {
     findEncodedCashuToken,
     findEncodedCashuPaymentRequest,
@@ -545,6 +552,7 @@ export const CashuUtils = {
     sumProofs,
     serializeOutputData,
     deserializeOutputData,
+    serializeMeltPreview,
 }
 
 

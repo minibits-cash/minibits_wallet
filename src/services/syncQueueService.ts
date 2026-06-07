@@ -50,7 +50,7 @@ const addPrioritizedTask = function <T>(
 ): Promise<T> {
     const queue = getSyncQueue()
 
-    log.info(`Adding new high priority task ${taskId} to the queue`)
+    log.debug(`[addPrioritizedTask] Queued high-priority task ${taskId}`)
 
     const promise = queue.addPrioritizedTask(
         task,
@@ -67,9 +67,11 @@ const addPrioritizedTask = function <T>(
 
 // retrieve result of wallet transaction by listening to ev_taskFuncion event
 const _handleTaskResult = async (taskId: TaskId, result: WalletTaskResult | TransactionTaskResult) => {
-    log.info(
-      `[_handleTaskResult] The result of task ${taskId}`, result
-    )    
+    log.info(`[_handleTaskResult] Task ${taskId} finished`, {
+      taskFunction: result.taskFunction,
+      message: result.message,
+    })
+    log.trace('[_handleTaskResult] Full result', result)
 
     EventEmitter.emit(`ev_${result.taskFunction}_result`, result)
 

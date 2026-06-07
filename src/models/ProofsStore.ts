@@ -105,120 +105,46 @@ import {
       }))
 
         // ───────────────────── ACTIONS ─────────────────────
-        .actions(self => ({
-            loadProofsFromDatabase: flow(function* loadProofsFromDatabase(includeSpent: boolean = false) {
-                const proofRecords: ProofRecord[] = yield Database.getProofs(
-                  true,   // includeUnspent
-                  true,   // includePending
-                  includeSpent
-                )
+    .actions(self => ({
+        loadProofsFromDatabase: flow(function* loadProofsFromDatabase(includeSpent: boolean = false) {
+            const proofRecords: ProofRecord[] = yield Database.getProofs(
+                true,   // includeUnspent
+                true,   // includePending
+                includeSpent
+            )
 
-                self.proofs.clear()
+            self.proofs.clear()
 
-                for (const record of proofRecords) {
-                  const {
-                    state,
-                    dleq_e,
-                    dleq_r,
-                    dleq_s,
-                    updatedAt,
-                    ...coreProof
-                  } = record
+            for (const record of proofRecords) {
+                const {
+                state,
+                dleq_e,
+                dleq_r,
+                dleq_s,
+                updatedAt,
+                ...coreProof
+                } = record
 
-                  const dleq = dleq_e && dleq_s
-                    ? { e: dleq_e as string, r: dleq_r as string, s: dleq_s as string }
-                    : undefined
+                const dleq = dleq_e && dleq_s
+                ? { e: dleq_e as string, r: dleq_r as string, s: dleq_s as string }
+                : undefined
 
-                  self.proofs.put(
-                    ProofModel.create({
-                      ...coreProof,
-                      state: state ?? 'UNSPENT',
-                      dleq,
-                    })
-                  )
-                }
-
-                log.trace('[loadProofsFromDatabase]', {
-                  loaded: self.proofs.size,
-                  unspent: Array.from(self.proofs.values()).filter(p => p.state === 'UNSPENT').length,
-                  pending: Array.from(self.proofs.values()).filter(p => p.state === 'PENDING').length,
-                  spent: Array.from(self.proofs.values()).filter(p => p.state === 'SPENT').length,
+                self.proofs.put(
+                ProofModel.create({
+                    ...coreProof,
+                    state: state ?? 'UNSPENT',
+                    dleq,
                 })
-              }),
-
-        addOrUpdate(
-            proofs: CashuProof[] | Proof[],
-            update: {
-                mintUrl: string,
-                tId: number,
-                unit: MintUnit
-                state: ProofState,
-        }): { updatedAmount: number; updatedProofs: Proof[] } {
-
-            if (proofs.length === 0) return { updatedAmount: 0, updatedProofs: [] }
-
-            let updatedAmount = 0
-            const updatedProofs: Proof[] = []
-            const { state, tId, unit, mintUrl } = update
-
-            const mintsStore = getRootStore(self).mintsStore
-            const mintInstance = mintsStore.findByUrl(mintUrl)
-
-            if (!mintInstance) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Mint not found in the wallet', { mintUrl })
+                )
             }
 
-            const proofsByKeyset = new Map<string, Proof[]>()
-
-            for (const proof of proofs) {
-
-                let proofNode = self.getBySecret(proof.secret)
-
-                if (proofNode) {
-                    if (proofNode.state === 'SPENT') continue // never move a spent proof backward
-
-                    if (!isAlive(proofNode)) {
-                        log.error('[addOrUpdate]', 'Proof instance is not alive, aborting state update', { secret: proofNode.secret })
-                        continue
-                    }
-
-                    proofNode?.setProp('mintUrl', mintUrl)
-                    proofNode?.setProp('tId', tId)
-                    proofNode?.setProp('unit', unit)
-                    proofNode?.setProp('state', state)
-                } else {
-                    proofNode = ProofModel.create({
-                        ...proof,
-                        amount: Number(proof.amount),
-                        mintUrl,
-                        tId,
-                        unit,
-                        state,
-                    })
-                    self.proofs.put(proofNode)
-                }
-
-                updatedAmount += proofNode.amount
-                updatedProofs.push(proofNode)
-
-                proofsByKeyset.set(proof.id, (proofsByKeyset.get(proof.id) || []).concat(proofNode))
-            }
-
-            // Increment counters only when proofs become freshly spendable
-            if (state === 'UNSPENT') {
-                for (const [keysetId, proofs] of proofsByKeyset) {
-                    const counter = mintInstance.getProofsCounterByKeysetId(keysetId)
-                    counter?.increaseProofsCounter(proofs.length)
-                }
-            }
-
-            if (updatedProofs.length > 0) {
-                Database.addOrUpdateProofs(updatedProofs, state)
-            }
-
-            log.trace('[addOrUpdate]', `Added or updated ${updatedProofs.length} ${state} proofs`)
-            return { updatedAmount, updatedProofs }
-        },
+            log.trace('[loadProofsFromDatabase]', {
+                loaded: self.proofs.size,
+                unspent: Array.from(self.proofs.values()).filter(p => p.state === 'UNSPENT').length,
+                pending: Array.from(self.proofs.values()).filter(p => p.state === 'PENDING').length,
+                spent: Array.from(self.proofs.values()).filter(p => p.state === 'SPENT').length,
+            })
+            }),
 
         // Lock proofs locally during an outgoing operation (send, melt prepare, etc.)
         // Does NOT touch pendingByMintSecrets — that is mint-reported pending.
@@ -420,8 +346,34 @@ import {
                 })
             }
 
+            // Snapshot the current derivation counter for every keyset the new
+            // proofs were derived under (a cashu proof's `id` IS its keyset id).
+            // WalletStore already advanced the model counter to
+            // `reservedCounters.next` and wrote it through to SQLite (W1); this
+            // folds the same value into the proof-commit batch (W2) as an atomic
+            // backstop, so a committed proof can never outlive its counter even if
+            // the W1 write-through was dropped. Monotonic, so the normal-path
+            // double write is a harmless no-op.
+            const counterUpdate: Array<{mintUrl: string; keysetId: string; unit?: string; counter: number}> = []
+            const seenKeysets = new Set<string>()
+            for (const group of changes.newProofs ?? []) {
+                for (const proof of group.proofs) {
+                    if (seenKeysets.has(proof.id)) continue
+                    seenKeysets.add(proof.id)
+                    const counter = mintInstance.getProofsCounter(proof.id)
+                    if (counter) {
+                        counterUpdate.push({
+                            mintUrl: reservation.mintUrl,
+                            keysetId: proof.id,
+                            unit: counter.unit,
+                            counter: counter.counter,
+                        })
+                    }
+                }
+            }
+
             // ATOMIC SQLite write of every state transition + (optional)
-            // transaction-row update + reservation deletion.
+            // transaction-row update + counter advance + reservation deletion.
             Database.commitReservation(reservation.id, {
                 toSpent: changes.toSpent,
                 toUnspent: changes.toUnspent,
@@ -433,6 +385,7 @@ import {
                     tId: group.tId,
                 })),
                 transactionUpdate: changes.transactionUpdate,
+                counterUpdate,
             })
 
             // Mirror to MST now that SQLite is durable.
@@ -453,8 +406,6 @@ import {
                 )
             }
 
-            const proofsByKeyset = new Map<string, Proof[]>()
-
             for (const group of changes.newProofs ?? []) {
                 for (const proof of group.proofs) {
                     const existing = self.getBySecret(proof.secret)
@@ -466,12 +417,6 @@ import {
                             existing.setProp('unit', reservation.unit)
                             existing.setProp('state', group.state)
                             added.push(existing)
-                            if (group.state === 'UNSPENT') {
-                                proofsByKeyset.set(
-                                    proof.id,
-                                    (proofsByKeyset.get(proof.id) || []).concat(existing),
-                                )
-                            }
                         }
                     } else {
                         const node = ProofModel.create({
@@ -484,21 +429,17 @@ import {
                         })
                         self.proofs.put(node)
                         added.push(node)
-                        if (group.state === 'UNSPENT') {
-                            proofsByKeyset.set(
-                                proof.id,
-                                (proofsByKeyset.get(proof.id) || []).concat(node),
-                            )
-                        }
                     }
                 }
             }
 
-            // Increment keyset counters for proofs that became freshly spendable.
-            for (const [keysetId, addedProofs] of proofsByKeyset) {
-                const counter = mintInstance.getProofsCounterByKeysetId(keysetId)
-                counter?.increaseProofsCounter(addedProofs.length)
-            }
+            // The keyset counter is NOT advanced here. Under cashu-ts v3.x the
+            // operation already advanced it to `reservedCounters.next` (via
+            // WalletStore.setProofsCounter), covering every index these proofs
+            // consumed — and that value was persisted atomically with the proofs
+            // in the commit batch above (counterUpdate). The old post-commit
+            // `increaseProofsCounter(addedProofs.length)` here double-advanced the
+            // counter (a pre-v3.x leftover) and was removed.
 
             // Mirror the (already-durable) transaction update to MST so the
             // in-memory model reflects the new tx state immediately. Uses
@@ -524,8 +465,8 @@ import {
                 id: reservation.id,
                 toSpent: changes.toSpent?.length ?? 0,
                 toUnspent: changes.toUnspent?.length ?? 0,
-                addedCount: added.length,
-                txUpdate: changes.transactionUpdate?.id,
+                addedProofsCount: added.length,
+                txId: changes.transactionUpdate?.id,
             })
 
             return { added }
@@ -597,6 +538,22 @@ import {
 
             return { recoveredCount: orphans.length }
         },
+    }))
+
+    .actions(self => ({
+        /**
+         * Lazily initialize the proof subsystem when it was NOT hydrated at
+         * startup — i.e. a lean background NWC wake (setupRootStore skipProofs).
+         * Loads proofs from SQLite and rolls back orphan reservations. No-op once
+         * proofs are already in memory (warm session, or a full foreground setup).
+         * Mutating NWC commands call this before selecting proofs.
+         */
+        ensureProofsLoaded: flow(function* ensureProofsLoaded() {
+            if (self.proofs.size > 0) return
+            log.trace('[ensureProofsLoaded] Lean wake — loading proofs on demand')
+            yield self.loadProofsFromDatabase()
+            self.recoverOrphanReservations()
+        }),
     }))
 
     // ───────────────────── DERIVED VIEWS ─────────────────────

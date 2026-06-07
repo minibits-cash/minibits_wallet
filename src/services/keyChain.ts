@@ -221,7 +221,7 @@ const saveWalletKeys = async function (
       if (result) {        
         const keys: WalletKeys = JSON.parse(result.password)
 
-        log.trace('[getWalletKeys]', 'Returning walletKeys from KeyChain', {keys})
+        log.trace('[getWalletKeys] Returning walletKeys from KeyChain', {walletId: keys.walletId})
 
         return keys
       }
