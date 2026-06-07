@@ -1,5 +1,4 @@
 PODS:
-  - BitByteData (2.0.4)
   - boost (1.84.0)
   - DoubleConversion (1.1.6)
   - fast_float (8.0.0)
@@ -63,7 +62,7 @@ PODS:
   - hermes-engine (250829098.0.7):
     - hermes-engine/Pre-built (= 250829098.0.7)
   - hermes-engine/Pre-built (250829098.0.7)
-  - HotUpdater (0.23.0):
+  - HotUpdater (0.32.0):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -83,7 +82,6 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
-    - SWCompression (~> 4.8.0)
     - Yoga
   - libwebp (1.5.0):
     - libwebp/demux (= 1.5.0)
@@ -123,7 +121,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - OpenSSL-Universal (3.3.3001)
+  - OpenSSL-Universal (3.6.2000)
   - PromisesObjC (2.4.0)
   - RCT-Folly (2024.11.18.00):
     - boost
@@ -2377,47 +2375,6 @@ PODS:
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.10)
   - Sentry/HybridSDK (8.57.3)
-  - SWCompression (4.8.6):
-    - BitByteData (~> 2.0)
-    - SWCompression/BZip2 (= 4.8.6)
-    - SWCompression/Deflate (= 4.8.6)
-    - SWCompression/GZip (= 4.8.6)
-    - SWCompression/LZ4 (= 4.8.6)
-    - SWCompression/LZMA (= 4.8.6)
-    - SWCompression/LZMA2 (= 4.8.6)
-    - SWCompression/SevenZip (= 4.8.6)
-    - SWCompression/TAR (= 4.8.6)
-    - SWCompression/XZ (= 4.8.6)
-    - SWCompression/ZIP (= 4.8.6)
-    - SWCompression/Zlib (= 4.8.6)
-  - SWCompression/BZip2 (4.8.6):
-    - BitByteData (~> 2.0)
-  - SWCompression/Deflate (4.8.6):
-    - BitByteData (~> 2.0)
-  - SWCompression/GZip (4.8.6):
-    - BitByteData (~> 2.0)
-    - SWCompression/Deflate
-  - SWCompression/LZ4 (4.8.6):
-    - BitByteData (~> 2.0)
-  - SWCompression/LZMA (4.8.6):
-    - BitByteData (~> 2.0)
-  - SWCompression/LZMA2 (4.8.6):
-    - BitByteData (~> 2.0)
-    - SWCompression/LZMA
-  - SWCompression/SevenZip (4.8.6):
-    - BitByteData (~> 2.0)
-    - SWCompression/LZMA2
-  - SWCompression/TAR (4.8.6):
-    - BitByteData (~> 2.0)
-  - SWCompression/XZ (4.8.6):
-    - BitByteData (~> 2.0)
-    - SWCompression/LZMA2
-  - SWCompression/ZIP (4.8.6):
-    - BitByteData (~> 2.0)
-    - SWCompression/Deflate
-  - SWCompression/Zlib (4.8.6):
-    - BitByteData (~> 2.0)
-    - SWCompression/Deflate
   - SwiftUIIntrospect (1.3.0)
   - Yoga (0.0.0)
 
@@ -2529,7 +2486,6 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
-    - BitByteData
     - Firebase
     - FirebaseCore
     - FirebaseCoreExtension
@@ -2546,7 +2502,6 @@ SPEC REPOS:
     - SDWebImage
     - SDWebImageWebPCoder
     - Sentry
-    - SWCompression
     - SwiftUIIntrospect
 
 EXTERNAL SOURCES:
@@ -2759,7 +2714,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
-  BitByteData: 2422ed269fcddc44976d97f171a183d25ef535ce
   boost: 7e761d76ca2ce687f7cc98e698152abd03a18f90
   DoubleConversion: cb417026b2400c8f53ae97020b2be961b59470cb
   fast_float: b32c788ed9c6a8c584d114d0047beda9664e7cc6
@@ -2771,15 +2725,15 @@ SPEC CHECKSUMS:
   FirebaseInstallations: ae9f4902cb5bf1d0c5eaa31ec1f4e5495a0714e2
   FirebaseMessaging: d33971b7bb252745ea6cd31ab190d1a1df4b8ed5
   fmt: a40bb5bd0294ea969aaaba240a927bd33d878cdd
-  glog: 5683914934d5b6e4240e497e0f4a3b42d1854183
+  glog: e56ede4028c4b7418e6b1195a36b1656bb35e225
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
   hermes-engine: 58df1e0c617059234b43c78bc3c7a9c99c8533b5
-  HotUpdater: 9f8e5c8a20f82a7579e23d2015586aac6848f666
+  HotUpdater: aff72491bb3d00fe199c429170549cee1b56ef9f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   op-sqlite: 6426d38c0642bfcd4a35c9db7430ee774ca4ff9e
-  OpenSSL-Universal: 6082b0bf950e5636fe0d78def171184e2b3899c2
+  OpenSSL-Universal: ecee7b138fa75a74ecf00d7ffd248fb584739b9e
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   RCT-Folly: 7449e39d08a22c7cfc6bbfc9f140168c61c5869d
   RCTDeprecation: 8ae59687fd548d481aa5ce8014ac7cd9b47e7316
@@ -2878,7 +2832,6 @@ SPEC CHECKSUMS:
   SDWebImage: a7f831e1a65eb5e285e3fb046a23fcfbf08e696d
   SDWebImageWebPCoder: 908b83b6adda48effe7667cd2b7f78c897e5111d
   Sentry: c643eb180df401dd8c734c5036ddd9dd9218daa6
-  SWCompression: 9379873ad5e9f25b31db88c441649b59a4c2bab7
   SwiftUIIntrospect: fee9aa07293ee280373a591e1824e8ddc869ba5d
   Yoga: e72e7f14bfa5278868f138a38b3186ce2e063bbf
 
