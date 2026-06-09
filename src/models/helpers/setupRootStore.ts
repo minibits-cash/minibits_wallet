@@ -152,8 +152,61 @@ export async function setupRootStore(rootStore: RootStore, opts: SetupRootStoreO
     }
 
     if (snapshotApplied) {
+        // Skip MMKV writes whose serialized payload is identical to the last one.
+        // postProcessSnapshot strips ephemeral, SQLite/KeyChain-mastered data
+        // (proofs, transactions, derivation counters, tokens…) from the saved
+        // snapshot, but MST still fires onSnapshot on every action that touches
+        // those fields — each producing a byte-identical payload. Comparing the
+        // serialized string here collapses that storm of redundant writes during
+        // wallet transactions into a single write when something persisted
+        // actually changes. We stringify once and persist the raw string so the
+        // write path doesn't serialize a second time.
+        let lastSerialized = MMKVStorage.loadString(ROOT_STORAGE_KEY)
+
+        // Flip to true to trace snapshot-persistence profiling. When off, the
+        // callback is just the lean equality-guarded write (the counters and
+        // performance.now() calls below never run). Typed `boolean` so the
+        // disabled profiling block isn't flagged as unreachable.
+        const PROFILE_SNAPSHOT_PERSISTENCE: boolean = false
+
+        // Cumulative session counters, flushed at most once per PROF_FLUSH_MS so
+        // the trace adds no per-fire logging overhead (used only when profiling):
+        // `invocations` is every onSnapshot fire (≈ one per persisted-or-stripped
+        // MST action), `writes` are the MMKV writes actually performed, `skipped`
+        // are the redundant byte-identical payloads the equality guard avoided,
+        // and `totalMs` is the wall time spent serializing (+ writing, when not
+        // skipped).
+        const prof = {invocations: 0, writes: 0, skipped: 0, totalMs: 0}
+        const PROF_FLUSH_MS = 5000
+        let profFlushAt = performance.now()
+
         _disposer = onSnapshot(rootStore, snapshot => {
-            MMKVStorage.save(ROOT_STORAGE_KEY, snapshot)
+            const t0 = PROFILE_SNAPSHOT_PERSISTENCE ? performance.now() : 0
+
+            const serialized = JSON.stringify(snapshot)
+            const changed = serialized !== lastSerialized
+            if (changed) {
+                lastSerialized = serialized
+                MMKVStorage.saveString(ROOT_STORAGE_KEY, serialized)
+            }
+
+            if (!PROFILE_SNAPSHOT_PERSISTENCE) return
+
+            prof.invocations++
+            prof.totalMs += performance.now() - t0
+            if (changed) { prof.writes++ } else { prof.skipped++ }
+
+            if (t0 - profFlushAt >= PROF_FLUSH_MS) {
+                profFlushAt = t0
+                log.trace('[setupRootStore] snapshot persistence profile (cumulative)', {
+                    invocations: prof.invocations,
+                    writes: prof.writes,
+                    skipped: prof.skipped,
+                    totalMs: Math.round(prof.totalMs),
+                    avgWriteMs: prof.writes ? +(prof.totalMs / prof.writes).toFixed(3) : 0,
+                    caller: 'setupRootStore',
+                })
+            }
         })
     } else {
         log.error('[setupRootStore]', 'State restore failed — skipping onSnapshot to preserve MMKV data', {caller: 'setupRootStore'})
@@ -186,7 +239,6 @@ export async function setupRootStore(rootStore: RootStore, opts: SetupRootStoreO
 
 async function _runMigrations(rootStore: RootStore, restoredState: any) {
     const {
-        mintsStore,
         transactionsStore,
     } = rootStore
 
@@ -201,14 +253,30 @@ async function _runMigrations(rootStore: RootStore, restoredState: any) {
 
         if(currentVersion < 33) {
             // One-time copy of the MMKV-resident derivation counters into SQLite
-            // (the new authority for counters). Reads the LIVE MST counters,
-            // which still hold the real values loaded from the pre-upgrade MMKV
-            // snapshot — postProcessSnapshot strips `counter` only from saves, not
-            // from the in-memory model — and persists them via a monotonic,
-            // idempotent upsert (incl. counterBackups). After this, mint_counters
-            // is authoritative and the every-launch hydrate in setupRootStore
-            // fills the in-memory cache from it.
-            mintsStore.seedCountersToDatabase()
+            // (the new authority for counters). `counter` is VOLATILE in the
+            // model, so applySnapshot no longer loads the pre-upgrade values into
+            // the live tree — read them straight from the RAW pre-upgrade snapshot
+            // (same pattern as the v34/35/36 seeds below). Monotonic + only > 0,
+            // so a stripped/zero value is never written and an existing SQLite
+            // counter is never lowered. After this, mint_counters is authoritative
+            // and the every-launch hydrate fills the in-memory cache from it.
+            const seeds: CounterSeed[] = []
+            for (const mint of restoredState?.mintsStore?.mints ?? []) {
+                for (const counter of mint?.proofsCounters ?? []) {
+                    if (counter?.keyset && typeof counter.counter === 'number' && counter.counter > 0) {
+                        seeds.push({mintUrl: mint.mintUrl, keysetId: counter.keyset, unit: counter.unit, counter: counter.counter})
+                    }
+                }
+            }
+            if (seeds.length > 0) {
+                Database.seedCounters(seeds)
+                // The earlier startup hydrate (setupRootStore) ran against an
+                // empty mint_counters and left the volatile in-memory counters at
+                // 0. Now that SQLite is seeded, refresh the cache so a transaction
+                // in THIS first post-upgrade session reads the real index rather
+                // than 0 (which would risk blinded-secret reuse). Monotonic.
+                rootStore.mintsStore.hydrateCountersFromDatabase()
+            }
         }
 
         if(currentVersion < 34) {
