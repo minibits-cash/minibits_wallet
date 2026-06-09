@@ -3,6 +3,8 @@ import {
   Amount,
   OutputData,
   hasValidDleq,
+  pointFromHex,
+  verifyDLEQProof,
 } from '@cashu/cashu-ts'
 import type {
   Token,
@@ -14,6 +16,8 @@ import type {
   TokenMetadata,
   OutputDataLike,
   MeltPreview,
+  SerializedBlindedSignature,
+  HasKeysetKeys,
 } from '@cashu/cashu-ts'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
 import AppError, {Err} from '../../utils/AppError'
@@ -528,6 +532,134 @@ const serializeMeltPreview = (meltPreview: MeltPreview): StoredMeltPreview => ({
     outputData: serializeOutputData(meltPreview.outputData),
 })
 
+export interface MeltChangeRecoveryStats {
+    /** Signatures turned into spendable proofs (matched or fallback). */
+    recovered: number
+    /** Signatures whose matched blank was at a different index than received. */
+    reordered: number
+    /** Signatures recovered WITHOUT a passing DLEQ proof (best-effort). */
+    noDleqFallback: number
+    /** Signatures that could not be assigned a blank at all (lost). */
+    unmatched: number
+}
+
+/** True when the recovery hit a genuine error (not just benign reordering). */
+const meltChangeRecoveryHasError = (s: MeltChangeRecoveryStats): boolean =>
+    s.noDleqFallback > 0 || s.unmatched > 0
+
+/**
+ * Reconstruct spendable NUT-08 change proofs from a melt quote's blinded
+ * signatures, using the blank `outputData` captured in the meltPreview at melt
+ * time. Resilient and NEVER throws — it recovers as much as possible.
+ *
+ * Why this exists: some mints (e.g. nutshell < 0.20.1) return the `change[]`
+ * signatures of a paid melt quote in an order that does NOT match the blank
+ * outputs the wallet sent. cashu-ts `OutputData.toProof` assumes positional
+ * pairing (`change[i] ↔ outputData[i]`) and runs a DLEQ check that THROWS on
+ * mismatch. Mapped over the whole array, a single reorder aborted everything and
+ * the change was silently discarded — recorded as fee (real funds lost).
+ *
+ * Strategy, per returned signature:
+ *   1+2. Find the blank whose blinded message makes the mint's DLEQ proof
+ *        verify. `verifyDLEQProof` is the alignment oracle: a signature verifies
+ *        against exactly one blank, so this both REORDERS correctly and keeps
+ *        DLEQ as a hard guarantee. Handles in-order and shuffled change alike.
+ *   3.   If no blank verifies (a genuine DLEQ failure — mint/lib bug, not a
+ *        reorder), unblind the positional blank WITHOUT DLEQ so the (still very
+ *        likely valid) proof is recovered rather than dropped. Such proofs get
+ *        validated naturally the next time they are spent.
+ *
+ * @returns recovered proofs plus stats the caller can log / persist to tx.data.
+ */
+const recoverMeltChange = function (params: {
+    outputData: OutputData[]
+    quoteChange: SerializedBlindedSignature[]
+    keyset: HasKeysetKeys
+}): {change: CashuDecodedProof[]; stats: MeltChangeRecoveryStats} {
+    const {outputData, quoteChange, keyset} = params
+    const pool = outputData.map((od, idx) => ({od, idx, used: false}))
+    const change: CashuDecodedProof[] = []
+    const stats: MeltChangeRecoveryStats = {
+        recovered: 0,
+        reordered: 0,
+        noDleqFallback: 0,
+        unmatched: 0,
+    }
+
+    quoteChange.forEach((sig, sigIndex) => {
+        const amount = sig.amount.toString()
+        const pubkeyHex = keyset.keys[amount]
+
+        // ── Layers 1+2: DLEQ-matched pairing (in-order or reordered change) ──
+        if (sig.dleq && pubkeyHex) {
+            let A: ReturnType<typeof pointFromHex> | undefined
+            let C_: ReturnType<typeof pointFromHex> | undefined
+            try {
+                A = pointFromHex(pubkeyHex)
+                C_ = pointFromHex(sig.C_)
+            } catch {
+                A = undefined
+            }
+
+            if (A && C_) {
+                const dleq = {s: hexToBytes(sig.dleq.s), e: hexToBytes(sig.dleq.e)}
+                const match = pool.find(p => {
+                    if (p.used) return false
+                    try {
+                        return verifyDLEQProof(
+                            dleq,
+                            pointFromHex(p.od.blindedMessage.B_),
+                            C_!,
+                            A!,
+                        )
+                    } catch {
+                        return false
+                    }
+                })
+
+                if (match) {
+                    match.used = true
+                    if (match.idx !== sigIndex) stats.reordered++
+                    change.push(match.od.toProof(sig, keyset))
+                    stats.recovered++
+                    return
+                }
+            }
+        }
+
+        // ── Layer 3: no blank's DLEQ verifies → not a reorder. Recover the proof
+        // WITHOUT DLEQ from the positional blank (best guess) so funds aren't
+        // lost. Prefer the same-index blank; fall back to any remaining one.
+        const fallback =
+            pool.find(p => !p.used && p.idx === sigIndex) ??
+            pool.find(p => !p.used)
+
+        if (!fallback) {
+            stats.unmatched++
+            log.error(
+                '[CashuUtils.recoverMeltChange] No blank left for change signature; funds for this output are lost',
+                {sigIndex, amount, keysetId: keyset.id},
+            )
+            return
+        }
+
+        // Logged at ERROR: a genuine DLEQ failure (mint/lib bug), not a mere
+        // reorder. The proof is still recovered, but the mint's honesty for this
+        // output is unverified — surface it for investigation.
+        log.error(
+            '[CashuUtils.recoverMeltChange] DLEQ unverifiable for change signature; recovering proof without DLEQ',
+            {sigIndex, amount, keysetId: keyset.id, fallbackBlankIndex: fallback.idx},
+        )
+
+        fallback.used = true
+        stats.noDleqFallback++
+        stats.recovered++
+        change.push(fallback.od.toProof({...sig, dleq: undefined}, keyset))
+    })
+
+    return {change, stats}
+}
+
 export const CashuUtils = {
     findEncodedCashuToken,
     findEncodedCashuPaymentRequest,
@@ -553,6 +685,8 @@ export const CashuUtils = {
     serializeOutputData,
     deserializeOutputData,
     serializeMeltPreview,
+    recoverMeltChange,
+    meltChangeRecoveryHasError,
 }
 
 
