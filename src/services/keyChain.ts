@@ -64,7 +64,7 @@ const generateNostrKeyPair = function () {
       const privateKey = bytesToHex(privateKeyBytes)
       const publicKey = getPublicKey(privateKeyBytes)
 
-      log.trace('New random Nostr keypair created', {publicKey, privateKey})
+      log.trace('New random Nostr keypair created', {publicKey, privateKey: privateKey.slice(0, 8) + '...'})  
 
       return {publicKey, privateKey} as NostrKeyPair
   } catch (e: any) {
@@ -138,7 +138,7 @@ const generateWalletKeys = function (accountIndex: number = DEFAULT_NOSTR_ACCOUN
 
       const seedBytesArray = bip39.mnemonicToSeedSync(mnemonic)
       const seed = Buffer.from(seedBytesArray).toString('base64')
-      log.trace('[generateWalletKeys] Seed generated from mnemonic (base64)', {seed})
+      log.trace('[generateWalletKeys] Seed generated from mnemonic (base64)', {seed: seed.slice(0, 8) + '...'})
 
       const seedHash = QuickCrypto
       .createHash('sha256')
@@ -197,7 +197,7 @@ const saveWalletKeys = async function (
         },
     )   
 
-    log.trace('[saveWalletKeys]', 'Saved wallet keys to the KeyChain', {walletKeys})
+    log.trace('[saveWalletKeys]', 'Saved wallet keys to the KeyChain', {walletId: walletKeys.walletId})
 
     return result
   } catch (e: any) {
@@ -284,7 +284,7 @@ const generateAuthToken = (): string => {
       const uint8Array = new Uint8Array(tokenBytes)
       const tokenBase64 = btoa(String.fromCharCode(...uint8Array))
 
-      log.trace('New Base64 authToken created:', tokenBase64)
+      log.trace('New Base64 authToken created:', tokenBase64.slice(0, 8) + '...')
 
       return tokenBase64
   } catch (e: any) {
