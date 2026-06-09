@@ -50,7 +50,9 @@ export type InFlightRequest<TRequest = any>  = {
 // {keyset, unit, counter}.
 const migrateSnapshot = (snapshot: any): any => {
     if (!snapshot) return snapshot
-    const {inFlightRequests, meltCounterValues, ...rest} = snapshot
+    // `counter` is now VOLATILE (mastered in SQLite, see model below) — drop it
+    // from any incoming snapshot so applySnapshot never carries a stale value.
+    const {inFlightRequests, meltCounterValues, counter, ...rest} = snapshot
     return rest
 }
 
@@ -107,8 +109,19 @@ export const MintProofsCounterModel = types
     .model('MintProofsCounter', {
         keyset: types.string,
         unit: types.optional(types.frozen<MintUnit>(), 'sat'),
-        counter: types.optional(types.number, 0),
     })
+    // The derivation counter is mastered in SQLite (mint_counters) and kept here
+    // only as an in-memory cache, hydrated from the authority on startup/resume.
+    // It is VOLATILE — deliberately NOT part of the MST snapshot — so the many
+    // per-derivation bumps during a wallet transaction never invalidate the root
+    // snapshot, and therefore never trigger a serialize + MMKV write. It used to
+    // be a persisted prop stripped to 0 in postProcessSnapshot, but MST still
+    // fired onSnapshot (and thus a redundant whole-tree write) on every bump.
+    // Persistence of the real value happens through the SQLite write-through in
+    // the counter actions below; this field is a cache only.
+    .volatile(() => ({
+        counter: 0,
+    }))
     .preProcessSnapshot(migrateSnapshot)
     .actions(self => ({
         // === Counter mutations (write through to the SQLite authority) ===
@@ -139,16 +152,6 @@ export const MintProofsCounterModel = types
                 self.counter = value
             }
         },
-    }))
-    // The derivation counter is mastered in SQLite (mint_counters), hydrated
-    // into this model as an in-memory cache on startup/resume. Strip it from
-    // every persisted snapshot so the MMKV whole-tree save can never write a
-    // stale value back over the SQLite authority — exactly as ProofsStore strips
-    // `proofs`. Consumers that legitimately need the value (backup export,
-    // counter backups) re-inject it from the live model / SQLite.
-    .postProcessSnapshot(snapshot => ({
-        ...snapshot,
-        counter: 0,
     }))
 
 export type MintProofsCounter = Instance<typeof MintProofsCounterModel>

@@ -11,7 +11,6 @@ import {
   import {MintModel, Mint} from './Mint'
   import {log} from '../services/logService'
   import {Database} from '../services'
-  import type {CounterSeed} from '../services/db'
   import AppError, { Err } from '../utils/AppError'
   import {
     Mint as CashuMint,
@@ -63,33 +62,6 @@ export const MintsStoreModel = types
             const normalized = String(mintUrl).replace(/\/$/, '')
             const mint = self.mints.find(m => m.mintUrl.replace(/\/$/, '') === normalized)
             if(mint) {return true} else {return false}
-        },
-        /**
-         * One-time copy of the in-memory (MMKV-loaded) derivation counters into
-         * SQLite. Run from _runMigrations on upgrade, and on backup import.
-         *
-         * Two safeguards make this safe even on a device that has ALREADY
-         * migrated (SQLite populated, MMKV stripped to 0, model not yet
-         * re-hydrated this launch):
-         *   1. only counters that have actually advanced (> 0) are seeded, so a
-         *      stripped/zero value is never written; and
-         *   2. the repo upsert is monotonic (MAX), so a seed can never lower an
-         *      existing SQLite counter.
-         */
-        seedCountersToDatabase() {
-            const seeds: CounterSeed[] = []
-
-            for (const mint of self.mints) {
-                for (const c of mint.proofsCounters) {
-                    if (c.counter > 0) {
-                        seeds.push({mintUrl: mint.mintUrl, keysetId: c.keyset, unit: c.unit, counter: c.counter})
-                    }
-                }
-            }
-
-            if (seeds.length > 0) {
-                Database.seedCounters(seeds)
-            }
         },
         /**
          * Load the authoritative counter values from SQLite into the in-memory

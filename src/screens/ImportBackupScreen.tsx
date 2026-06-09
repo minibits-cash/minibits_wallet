@@ -29,6 +29,7 @@ import { applySnapshot} from 'mobx-state-tree'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { translate } from '../i18n'
 import { MintsStoreSnapshot } from '../models/MintsStore'
+import { CounterSeed } from '../services/db'
 import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { Mint as CashuMint, GetKeysResponse } from '@cashu/cashu-ts'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
@@ -203,11 +204,27 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
         applySnapshot(mintsStore, walletSnapshot.mintsStore)
         applySnapshot(contactsStore, walletSnapshot.contactsStore)
 
-        // The backup carries real derivation counters in the MST snapshot; the
-        // counter is mastered in SQLite, so copy the just-imported values into
-        // the mint_counters table immediately (monotonic, never lowers). Without
-        // this they would only reach SQLite on the next startup seed.
-        mintsStore.seedCountersToDatabase()
+        // The backup carries real derivation counters in its raw MST snapshot.
+        // `counter` is VOLATILE in the model (mastered in SQLite), so the
+        // applySnapshot above does NOT load it — read the values straight from
+        // the backup snapshot, seed SQLite (monotonic, never lowers), then
+        // hydrate the in-memory cache from the authority. Seeding 0 from the
+        // live (just-reset) model would risk blinded-secret reuse on restore.
+        const counterSeeds: CounterSeed[] = []
+        for (const mint of walletSnapshot.mintsStore?.mints ?? []) {
+          for (const pc of mint?.proofsCounters ?? []) {
+            // `counter` is no longer on the typed snapshot (it's volatile); the
+            // backup JSON still carries it, so read it off the raw value.
+            const counter = (pc as any).counter
+            if (pc?.keyset && typeof counter === 'number' && counter > 0) {
+              counterSeeds.push({mintUrl: mint.mintUrl, keysetId: pc.keyset, unit: pc.unit, counter})
+            }
+          }
+        }
+        if (counterSeeds.length > 0) {
+          Database.seedCounters(counterSeeds)
+        }
+        mintsStore.hydrateCountersFromDatabase()
 
         log.trace('After import and mint keys hydration', {mintsStore})
 
