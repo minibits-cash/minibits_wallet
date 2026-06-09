@@ -238,13 +238,17 @@ const unblindPendingMeltChange = async function (params: {
         const keyset = cashuWallet.getKeyset(meltPreview.keysetId)
 
         const reconstructedOutputData = CashuUtils.deserializeOutputData(meltPreview.outputData)
-        const change = quoteChange.map((sig, i) => reconstructedOutputData[i].toProof(sig, keyset))
+        const {change, stats} = CashuUtils.recoverMeltChange({
+            outputData: reconstructedOutputData,
+            quoteChange,
+            keyset,
+        })
 
-        log.trace('[handlePendingMelt] Change unblinded', {transactionId: transaction.id, quoteId, change})
+        log.trace('[handlePendingMelt] Change unblinded', {transactionId: transaction.id, quoteId, stats, change})
 
         Database.removeMeltRecovery(transaction.id)
 
-        return {change}
+        return {change, stats}
     } catch (e: any) {
         log.error('[handlePendingMelt] change recovery failed, completing without change', {
             message: e.message,
@@ -317,6 +321,19 @@ const handlePendingMeltTask = async (params: {
             preimage: quote.payment_preimage,
             createdAt: new Date(),
         })
+
+        // Surface change-recovery anomalies onto the (still COMPLETED) tx. Only
+        // genuine errors (proofs recovered without a verifiable DLEQ, or change
+        // that couldn't be reconstructed) are recorded — benign reordering
+        // against pre-0.20.1 mints is not an error.
+        if (unblinded.stats && CashuUtils.meltChangeRecoveryHasError(unblinded.stats)) {
+            txData.push({
+                status: TransactionStatus.COMPLETED,
+                error: 'Melt change recovery completed with unverifiable DLEQ',
+                meltChangeRecovery: unblinded.stats,
+                createdAt: new Date(),
+            })
+        }
 
         const reservation = proofsStore.reserve(proofsToMeltFrom, {
             transactionId,
