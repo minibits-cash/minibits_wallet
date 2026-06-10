@@ -4,8 +4,6 @@ import { log } from './logService'
 import AppError, { Err } from '../utils/AppError'
 
 
-const NFC_STALE_DELAY_MS = 120
-
 // Android NfcAdapter reader-mode flags (react-native-nfc-manager passes these through
 // to NfcAdapter.enableReaderMode). HCE peers present as ISO-DEP over NFC-A/NFC-B, so we
 // must enable those. Enabling reader mode is what makes our foreground session take
@@ -56,17 +54,25 @@ const goToNfcSetting = function () {
 }*/
 
 
+
 const readNdefTag = async () => {
     log.trace('[readNdefTag] start')
     try {
-        await NfcManager.requestTechnology(NfcTech.Ndef, {
-            isReaderModeEnabled: true, // use NfcAdapter.enableReaderMode, not enableForegroundDispatch
-            readerModeFlags: READER_MODE_FLAGS,
-        }) // needs to run only once per read/write session
+        if (Platform.OS === 'ios') {
+            await NfcManager.requestTechnology(NfcTech.Ndef)
+        } else {
+            await NfcManager.requestTechnology(NfcTech.Ndef, {
+                isReaderModeEnabled: true, // use NfcAdapter.enableReaderMode, not enableForegroundDispatch
+                readerModeFlags: READER_MODE_FLAGS,
+            }) // needs to run only once per read/write session*/
+        }
         log.trace('[readNdefTag] requestTechnology completed')
         const tag = await NfcManager.getTag()
-        log.trace('[readNdefTag] tag read') // do not close session
-        
+        log.trace('[readNdefTag] tag read', {
+            tech: (tag as any)?.tech,
+            hasNdef: !!tag?.ndefMessage,
+        }) // do not close session
+
         return tag
     } catch(e: any) {
         throw new AppError(Err.NFC_ERROR, e.message, {caller: 'readNdefTag', error: String(e)})
