@@ -465,7 +465,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             readerSessionActiveRef.current = true
 
             if (!tag || !tag.ndefMessage) {
-                throw new AppError(Err.NFC_ERROR, 'NFC tag reading failed', { tag, message: 'No NDEF message found on the tag.' })
+                throw new AppError(Err.NFC_ERROR, 'NFC tag reading failed', { tag: JSON.stringify(tag), message: 'No NDEF message found on the tag.' })
             }
 
             // Lock onto this tag and hand it to the payment flow. From here we keep the
