@@ -418,11 +418,11 @@ function NutsCard(props: {info: GetInfoResponse}) {
 
   // detailed nuts are separated from simple ones if we want to show more info abt them in the future
   for (const [nut, info] of Object.entries(props.info.nuts)) {
-    if (nut === '15' && Array.isArray(info) && info.length > 0) {
+    if (nut === '15' && 'methods' in info && Array.isArray(info.methods) && info.methods.length > 0) {
       // see https://github.com/cashubtc/nuts/blob/main/15.md - multipath payments
       // in the future, it might be nice to show for which currencies are multipath payments supported
       // for example by extending NutItem
-      nutsSimple.push(['15', info[0].mpp ?? false])
+      nutsSimple.push(['15', true])
       continue;
     }    
     // see https://github.com/cashubtc/nutshell/issues/588
@@ -437,6 +437,10 @@ function NutsCard(props: {info: GetInfoResponse}) {
     }
     if (nut === '19' && 'cached_endpoints' in info && Array.isArray(info.cached_endpoints) && info.cached_endpoints.length > 0) {
       nutsSimple.push(['19', info.cached_endpoints.some(e => e.method === 'POST')])
+      continue;
+    }
+    if (nut === '29' && ('supported' in info && info.supported === true) || ('methods' in info && Array.isArray(info.methods) && info.methods.length > 0)) {
+      nutsSimple.push(['29', true])
       continue;
     }
     if ('disabled' in info && info.disabled === false) { // detailed

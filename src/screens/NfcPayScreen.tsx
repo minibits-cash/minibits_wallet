@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
     ViewStyle,
     View,
     TextStyle,
     Platform,
+    Pressable,
+    StyleSheet,
 } from 'react-native'
 import { PaymentRequest as CashuPaymentRequest, MeltQuoteBolt11Response, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
 import NfcManager, { Ndef, NfcEvents } from 'react-native-nfc-manager'
@@ -13,7 +15,7 @@ import { log } from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError, { Err } from '../utils/AppError'
 import { AmountInput, BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, ScanIcon, Screen, Text } from '../components'
-import { SvgXml } from 'react-native-svg'
+import { SvgXml, Svg, Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg'
 import { formatCurrency, getCurrency, MintUnit, MintUnits } from '../services/wallet/currency'
 import { useStores } from '../models'
 import { MintHeader } from './Mints/MintHeader'
@@ -56,6 +58,37 @@ type Props = StaticScreenProps<{
 }>
 
 const SYNC_STATE_WITH_MINT_TIMEOUT = 10 * 1000
+
+// Visual phases of the NFC session. Each drives the header color band so progress is readable
+// at arm's length. `waiting` is the special Android case: the app was woken by the NFC field
+// (cold/warm launch) and the OS already consumed the launch tap, so delivering the ecash needs
+// a SECOND deliberate tap — we signal that with its own attention color and message, distinct
+// from the initial `ready` arming. Order also defines the dev stepper sequence below.
+const NFC_PHASES = ['idle', 'ready', 'processing', 'waiting', 'success', 'error'] as const
+type NfcPhase = (typeof NFC_PHASES)[number]
+
+// Base phase colors. `ready` is a calm neutral (just darker than the screen background) and is
+// resolved per-theme in the component (see `phaseColors`); the value here is only a fallback.
+const PHASE_COLORS: Record<NfcPhase, string> = {
+    idle: colors.palette.neutral500,
+    ready: colors.palette.neutral400,
+    processing: colors.palette.primary400,
+    waiting: colors.palette.accent400,
+    success: colors.palette.success200,
+    error: colors.palette.angry300,
+}
+
+// Representative nfcInfo text shown when previewing a phase via the dev stepper. These mirror
+// the actual strings the screen sets via setNfcInfo (idle/error reuse the messages from the
+// disabled-NFC and failure paths).
+const PHASE_DEV_INFO: Record<NfcPhase, string> = {
+    idle: 'Please enable NFC in your device settings',
+    ready: 'Hold your device close to the NFC reader.',
+    processing: 'Processing, keep your device still...',
+    waiting: 'Tap the device again to send the payment.',
+    success: 'Ecash token sent successfully.',
+    error: 'NFC Payment failed',
+}
 
 export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const navigation = useNavigation<any>()
@@ -113,7 +146,13 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     const [isProcessing, setIsProcessing] = useState(false)
     const [isPaid, setIsPaid] = useState(false)
     const [isError, setIsError] = useState(false)
+    // True while we need the user to deliberately tap AGAIN to deliver the ecash — the Android
+    // wake-by-NFC case where the OS consumed the launch tap (see `waiting` phase note above).
+    const [isWaitingForTap, setIsWaitingForTap] = useState(false)
     const [nfcInfo, setNfcInfo] = useState<string | undefined>()
+    // Dev-only: when set, overrides the derived phase so each state can be previewed on a
+    // simulator without real NFC hardware. Cleared by the "live" button in the dev stepper.
+    const [devPhase, setDevPhase] = useState<NfcPhase | undefined>()
     //const [readNfcData, setReadNfcData] = useState<string | undefined>()
 
     const [error, setError] = useState<AppError | undefined>()
@@ -210,6 +249,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                 setNfcInfo(needsLiveWriteBack
                     ? 'Tap the device again to send the payment.'
                     : 'Hold your device close to the NFC reader.')
+                setIsWaitingForTap(needsLiveWriteBack)
                 setIsNfcEnabled(true)
                 keepScanningRef.current = true
 
@@ -472,6 +512,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             // reader-mode session alive (see finally) so the OS chooser can't pop over the
             // result modal, and we stop re-arming for new taps.
             paymentLockedRef.current = true
+            setIsWaitingForTap(false)
             setIsProcessing(true)
 
             //log.info('NFC Tag found', {tag});
@@ -674,8 +715,12 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             // from the initial read open, so it skips this.
             if (!readerSessionActiveRef.current) {
                 log.trace('[NfcScreen] handleSendTaskResult: no open reader session (cold/warm launch), arming one for write-back.')
-                setNfcInfo('Hold your device close to the payee to deliver the ecash...')
+                setNfcInfo('Hold your device close to the reader...')
+                // Token is prepared but undelivered — surface the dedicated "tap again" phase
+                // (takes priority over processing) so the user knows to physically tap once more.
+                setIsWaitingForTap(true)
                 await NfcService.readNdefTag() // opens requestTechnology session, keeps it alive
+                setIsWaitingForTap(false)
                 readerSessionActiveRef.current = true
             }
 
@@ -1043,13 +1088,6 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         })
     }
 
-
-    const handleError = (e: AppError) => {
-        setError(e)
-        setInfo('')
-        setIsProcessing(false)
-    }
-
     const gotoScan = () => {
         navigation.navigate('Scan', { unit: unitRef.current })
     }
@@ -1062,7 +1100,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     }
     
     const resetState = function () {
-        //ßsetEncodedInvoice('')
+        //setEncodedInvoice('')
         setInvoice(undefined)      
         setInvoiceExpiry(undefined)
         setMeltQuote(undefined)
@@ -1075,6 +1113,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         setIsResultModalVisible(false)
         setResultModalInfo(undefined)
         setIsPaid(false)
+        setIsWaitingForTap(false)
         setPendingAsyncMeltId(undefined)
     }
 
@@ -1097,14 +1136,39 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     // Theme
     const hintText = useThemeColor('textDim')
     const headerBg = useThemeColor('background')
+    //const headerBg = useThemeColor('header')
     const headerTitle = useThemeColor('headerTitle')
     const scanIcon = useThemeColor('text')
     const nfcText = useThemeColor('text')
-    const indicatorStandby = colors.palette.primary400
-    const indicatorProcessing = useThemeColor('button')
+    const isLightTheme = headerBg === colors.light.background
+
+    // Derive the current visual phase from session state. `waiting` ranks above `processing`
+    // so the "tap again to deliver" prompt (set while isProcessing is also true) wins. A dev
+    // override lets the simulator step through every phase without NFC hardware.
+    const realPhase: NfcPhase =
+        isError ? 'error'
+        : isPaid ? 'success'
+        : isWaitingForTap ? 'waiting'
+        : isProcessing ? 'processing'
+        : isNfcEnabled ? 'ready'
+        : 'idle'
+    const phase: NfcPhase = devPhase ?? realPhase
+
+    // Resolve per-theme phase colors: `ready` is a neutral band just a step darker than the
+    // screen background (light → darker grey, dark → darker charcoal), fading to the background.
+    const phaseColors = useMemo<Record<NfcPhase, string>>(() => ({
+        ...PHASE_COLORS,
+        ready: isLightTheme ? colors.palette.neutral400 : colors.palette.neutral800,
+    }), [isLightTheme])
+
+    // Ink on the band. The band stays fully opaque through its upper portion (where the icon
+    // and text sit), so white reads cleanly on every phase — including the darker-neutral idle
+    // and ready bands in light theme.
+    const onPhaseColor = 'white'
+    // Translucent white disc behind the NFC icon for subtle depth on any band.
+    const phaseDiscColor = 'rgba(255, 255, 255, 0.18)'
 
     // Metallic card colors - subtle gradient effect via borders
-    const isLightTheme = headerBg === colors.light.background
     const metalHighlight = isLightTheme ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.12)'
     const metalShadow = isLightTheme ? 'rgba(0, 0, 0, 0.15)' : 'rgba(0, 0, 0, 0.5)'
     const metalBase = isLightTheme ? colors.palette.neutral200 : colors.palette.neutral700
@@ -1113,28 +1177,36 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
     return (
         <Screen preset="fixed" contentContainerStyle={$screen}>
-            <MintHeader
-                mint={undefined}
-                unit={unitRef.current}
-                onBackPress={gotoWallet}
-                textColor={nfcText as string}
-                backgroundColor={headerBg as string}
-                leftIconColor={nfcText as string}
-            />
-            <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
-                    {!isOnline.current && !isPaid && ( 
+            {/* Solid phase color behind the header, cross-fading in step with the band below
+                so the whole top region reads as one continuous, phase-aware color block. */}
+            <View>
+                <PhaseColorBand phase={phase} colorsMap={phaseColors} solid />
+                <MintHeader
+                    mint={undefined}
+                    unit={unitRef.current}
+                    onBackPress={gotoWallet}
+                    textColor={onPhaseColor}
+                    backgroundColor={'transparent'}
+                    leftIconColor={onPhaseColor}
+                />
+            </View>
+            <View style={[$headerContainer, {backgroundColor: headerBg}]}>
+                    {/* Color band that communicates the session phase, fading into the screen
+                        background at the bottom edge. Cross-fades smoothly between phases. */}
+                    <PhaseColorBand phase={phase} colorsMap={phaseColors} />
+                    {!isOnline.current && !isPaid && (
                         <>
                         <Text
                             tx="commonOffline"
                             style={$warning}
                             size="xxs"
                         />
-                        </>    
+                        </>
                     )}
                     {isPaid ? (
                         <AmountInput
-                            //ref={amountInputRef}                                               
-                            value={`${amountToPay || amountToReceive}`}                    
+                            //ref={amountInputRef}
+                            value={`${amountToPay || amountToReceive}`}
                             onChangeText={() => {}}
                             unit={unitRef.current}
                             editable={false}
@@ -1148,14 +1220,17 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                                     justifyContent: 'center',
                                     width: moderateScale(80),
                                     height: moderateScale(80),
-                                    backgroundColor:isProcessing ? indicatorProcessing : isNfcEnabled ? indicatorStandby : hintText,
+                                    // Translucent well behind the icon for subtle depth against
+                                    // whatever phase band is showing (tint follows the ink).
+                                    backgroundColor: phaseDiscColor,
                                     borderRadius: moderateScale(80) / 2,
-                                    marginVertical: spacing.medium,                                    
+                                    marginBottom: spacing.medium,
                                 }}
                             >
-                                <PulsingContactlessIcon 
+                                <PulsingContactlessIcon
                                     isNfcEnabled={isNfcEnabled}
                                     size={moderateScale(40)}
+                                    color={onPhaseColor}
                                 />
                             </View>
                             <Text
@@ -1164,7 +1239,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                                     textAlign: 'center',
                                     marginBottom: spacing.medium,
                                     paddingHorizontal: spacing.medium,
-                                    color: isProcessing ? indicatorProcessing : isNfcEnabled ? indicatorStandby : hintText,
+                                    color: onPhaseColor,
                                     //minHeight: moderateScale(52),
                                 }}
                                 preset='heading'
@@ -1328,8 +1403,18 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                             onPress={gotoWallet}
                             //style={{backgroundColor: scanButtonColor}}
                             text='Close'
-                        />)}  
+                        />)}
                     </View>
+                    {__DEV__ && (
+                        <PhaseDevStepper
+                            current={phase}
+                            colorsMap={phaseColors}
+                            onSelect={(p) => {
+                                setDevPhase(p)
+                                if (p) setNfcInfo(PHASE_DEV_INFO[p])
+                            }}
+                        />
+                    )}
                 </View>
             </View>
             <BottomModal
@@ -1443,14 +1528,116 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
     )
 })
 
+// A single full-bleed phase-color layer whose opacity is animated, so stacked layers cross-fade
+// smoothly when the phase changes. `solid` paints a flat fill (used behind the header);
+// otherwise it's a vertical gradient: phase color (opaque, top) → transparent (bottom), so it
+// dissolves into the screen background below the header band.
+const PhaseLayer = function ({ color, active, solid }: { color: string; active: boolean; solid?: boolean }) {
+    const opacity = useSharedValue(active ? 1 : 0)
+
+    useEffect(() => {
+        opacity.value = withTiming(active ? 1 : 0, {
+            duration: 600,
+            easing: Easing.inOut(Easing.quad),
+        })
+    }, [active, opacity])
+
+    const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }))
+    // Gradient ids must be unique per layer; phase colors are already distinct.
+    const gradientId = useMemo(() => `nfcPhaseGrad-${color.replace(/[^a-zA-Z0-9]/g, '')}`, [color])
+
+    if (solid) {
+        return (
+            <Animated.View
+                style={[StyleSheet.absoluteFill, { backgroundColor: color }, animatedStyle]}
+                pointerEvents="none"
+            />
+        )
+    }
+
+    return (
+        <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]} pointerEvents="none">
+            <Svg width="100%" height="100%">
+                <Defs>
+                    <SvgLinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0" stopColor={color} stopOpacity={1} />
+                        <Stop offset="0.6" stopColor={color} stopOpacity={1} />
+                        <Stop offset="0.85" stopColor={color} stopOpacity={0.4} />
+                        <Stop offset="1" stopColor={color} stopOpacity={0} />
+                    </SvgLinearGradient>
+                </Defs>
+                <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${gradientId})`} />
+            </Svg>
+        </Animated.View>
+    )
+}
+
+// Stacks one layer per phase and lights up the active one. Only the active layer is at full
+// opacity, so the others sit invisible underneath and a phase change reads as a smooth color
+// cross-fade rather than a hard swap. `solid` selects the flat (header) vs gradient variant.
+const PhaseColorBand = function ({
+    phase,
+    colorsMap,
+    solid,
+}: {
+    phase: NfcPhase
+    colorsMap: Record<NfcPhase, string>
+    solid?: boolean
+}) {
+    return (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            {NFC_PHASES.map((p) => (
+                <PhaseLayer key={p} color={colorsMap[p]} active={p === phase} solid={solid} />
+            ))}
+        </View>
+    )
+}
+
+// Dev-only control to preview each phase on a simulator without NFC hardware. "live" releases
+// the override and returns to the real session-derived phase.
+const PhaseDevStepper = function ({
+    current,
+    colorsMap,
+    onSelect,
+}: {
+    current: NfcPhase
+    colorsMap: Record<NfcPhase, string>
+    onSelect: (phase: NfcPhase | undefined) => void
+}) {
+    return (
+        <View style={$devStepper}>
+            {NFC_PHASES.map((p) => (
+                <Pressable
+                    key={p}
+                    onPress={() => onSelect(p)}
+                    style={[
+                        $devChip,
+                        { backgroundColor: colorsMap[p], opacity: current === p ? 1 : 0.4 },
+                    ]}
+                >
+                    <Text text={p} size="xxs" style={$devChipText} />
+                </Pressable>
+            ))}
+            <Pressable
+                onPress={() => onSelect(undefined)}
+                style={[$devChip, { backgroundColor: colors.palette.neutral800 }]}
+            >
+                <Text text="live" size="xxs" style={$devChipText} />
+            </Pressable>
+        </View>
+    )
+}
+
 interface PulsingContactlessIconProps {
   isNfcEnabled: boolean;
   size?: number;
+  color?: string;
 }
 
 export const PulsingContactlessIcon: React.FC<PulsingContactlessIconProps> = ({
     isNfcEnabled,
     size,
+    color = 'white',
 }) => {
   const scale = useSharedValue(1);
 
@@ -1474,18 +1661,14 @@ export const PulsingContactlessIcon: React.FC<PulsingContactlessIconProps> = ({
     transform: [{ scale: scale.value }],
   }));
 
-  const color = isNfcEnabled
-    ? colors.palette.success300
-    : colors.light.text
-
   return (
     <Animated.View style={[animatedStyle, { alignSelf: 'center' }]}>
       <SvgXml
         width={size || spacing.medium}
         height={size || spacing.medium}
         xml={NfcIcon}
-        stroke={'white'}
-        fill={'white'}
+        stroke={color}
+        fill={color}
       />
     </Animated.View>
   );
@@ -1493,8 +1676,8 @@ export const PulsingContactlessIcon: React.FC<PulsingContactlessIconProps> = ({
 
 
 const $screen: ViewStyle = { }
-const $contentContainer: ViewStyle = { flex: 1, padding: spacing.extraSmall }
-const $headerContainer: TextStyle = { alignItems: 'center', paddingVertical: spacing.medium,}
+const $contentContainer: ViewStyle = { flex: 1, padding: spacing.extraSmall, marginTop: -spacing.extraLarge * 2 }
+const $headerContainer: TextStyle = { alignItems: 'center', paddingVertical: spacing.medium, height: spacing.screenHeight * 0.3}    
 const $buttonContainer: ViewStyle = { flexDirection: 'row', alignSelf: 'center' }
 const $bottomContainer: ViewStyle = {
     position: 'absolute',
@@ -1565,4 +1748,20 @@ const $cardBalanceRow: ViewStyle = {
 }
 const $cardBottomRow: ViewStyle = {
     marginTop: spacing.small,
+}
+const $devStepper: ViewStyle = {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginTop: spacing.small,
+}
+const $devChip: ViewStyle = {
+    paddingHorizontal: spacing.small,
+    paddingVertical: spacing.tiny,
+    borderRadius: spacing.extraSmall,
+    margin: spacing.tiny,
+}
+const $devChipText: TextStyle = {
+    color: 'white',
 }

@@ -1,9 +1,9 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
 import {Image, Pressable, View, ViewStyle} from 'react-native'
-import { TabBar, TabView, Route } from 'react-native-tab-view'
-import {colors, spacing, typography, useThemeColor} from '../theme'
-import {Header, Icon, Screen} from '../components'
+import { TabView, Route } from 'react-native-tab-view'
+import {spacing, typography, useThemeColor} from '../theme'
+import {Header, Icon, Screen, SegmentedTabBar} from '../components'
 import {useStores} from '../models'
 import { PrivateContacts } from './Contacts/PrivateContacts'
 import { PublicContacts } from './Contacts/PublicContacts'
@@ -54,16 +54,12 @@ export const ContactsScreen = observer(function ({ route }: Props) {
     }
 
     const headerBg = useThemeColor('header')
-    const activeTabIndicator = colors.palette.accent400
     const {nip05} = walletProfileStore
 
     const renderTabBar = (props: any) => (
-        <TabBar
-          key={props.key}
-          {...props}
-          indicatorStyle={{ backgroundColor: activeTabIndicator }}
-          style={{ backgroundColor: headerBg }}
-        />
+        <View style={{ backgroundColor: headerBg, paddingHorizontal: spacing.medium }}>
+            <SegmentedTabBar {...props} />
+        </View>
     )
 
     return (

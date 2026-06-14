@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { TouchableOpacity } from "react-native"
-import { Header, Text } from "../../components"
+import { Header, Text, SEGMENTED_PILL_COLOR, SEGMENTED_PILL_RADIUS } from "../../components"
 import { spacing, useThemeColor } from "../../theme"
 import { Mint } from "../../models/Mint"
 import { MintUnit } from "../../services/wallet/currency"
@@ -45,9 +45,10 @@ export const MintHeader = observer(function(props: {
                         mintUnit={unit}
                         textStyle={{color: resolvedTextColor}}
                         containerStyle={{
-                            borderBottomWidth: 2,
-                            paddingVertical: mint ? spacing.tiny : spacing.small,
-                            borderBottomColor: resolvedTextColor,
+                            backgroundColor: SEGMENTED_PILL_COLOR,
+                            borderRadius: SEGMENTED_PILL_RADIUS,
+                            paddingVertical: spacing.extraSmall,
+                            marginTop: mint ? spacing.tiny : 0,
                             width: tabWidth
                         }}
                     />

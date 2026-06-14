@@ -14,7 +14,7 @@ import {
 } from 'react-native'
 import {moderateScale, verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
-import { TabBar, TabView } from 'react-native-tab-view'
+import { TabView } from 'react-native-tab-view'
 import {useThemeColor, spacing, colors, typography} from '../theme'
 import {
   Button,
@@ -29,7 +29,8 @@ import {
   ErrorModal,
   Header,
   ScanIcon,
-  MintIcon
+  MintIcon,
+  SegmentedTabBar,
 } from '../components'
 import EventEmitter from '../utils/eventEmitter'
 import {useStores} from '../models'
@@ -661,32 +662,27 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         return null
     }
 
-    const tabWidth = moderateScale(75)
+    const tabWidth = moderateScale(82)
 
     const renderTabBar = useCallback((props: any) => {
+        // A single unit tab needs no switcher.
+        if (routes.length <= 1) return null
         return(
-            <View style={{
-                backgroundColor: headerBg,
-                marginTop: -spacing.small,
-            }}>
-                <View style={{width: routes.length * tabWidth, alignSelf: 'center', backgroundColor: headerBg}}>
-                    <TabBar
-                        {...props}
-                        tabStyle={{width: tabWidth}}
-                        renderTabBarItem={({ route }) => (
-                            <CurrencySign
-                                mintUnit={route.key as MintUnit}
-                                textStyle={{color: 'white'}}
-                                containerStyle={{padding: spacing.small, width: tabWidth}}
-                            />
-                        )}
-                        indicatorStyle={{backgroundColor: headerTitleColor}}
-                        style={{backgroundColor: headerBg, shadowColor: 'transparent'}}
-                    />
-                </View>
+            <View style={{backgroundColor: headerBg, marginTop: -spacing.small}}>
+                <SegmentedTabBar
+                    {...props}
+                    segmentWidth={tabWidth}
+                    renderItem={({ route, focused }) => (
+                        <CurrencySign
+                            mintUnit={route.key as MintUnit}
+                            textStyle={{color: 'white', opacity: focused ? 1 : 0.6}}
+                            //containerStyle={{paddingVertical: spacing.extraSmall}}
+                        />
+                    )}
+                />
             </View>
         )
-    }, [headerBg, routes.length, tabWidth, headerTitleColor])
+    }, [headerBg, routes.length, tabWidth])
 
 
     const HeaderTitle = function (props: any) {
@@ -726,7 +722,8 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
 
     return (        
       <Screen contentContainerStyle={$screen} preset='fixed'>
-            <Header 
+            <Header
+                //style={{borderBottomWidth: 2, borderBottomColor: 'white'}}
                 LeftActionComponent={<LeftProfileHeader 
                     gotoProfile={gotoProfile}
                     isAvatarVisible={false}
@@ -1009,6 +1006,7 @@ const MintsByUnitSummary = observer(function (props: {
     useEffect(() => {        
         const setSelected  = async () => {            
             const balance = proofsStore.getMintBalanceWithMaxBalance(props.mintsByUnit.unit)
+            
             if(!balance) return
 
             const mint = mintsStore.findByUrl(balance?.mintUrl)            

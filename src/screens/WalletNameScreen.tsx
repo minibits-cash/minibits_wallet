@@ -1,9 +1,9 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useCallback, useState} from 'react'
 import {TextStyle, View, ViewStyle } from 'react-native'
-import { TabView, Route, TabBar } from 'react-native-tab-view'
-import {colors, spacing, useThemeColor} from '../theme'
-import {Screen, Text} from '../components'
+import { TabView, Route } from 'react-native-tab-view'
+import {spacing, useThemeColor} from '../theme'
+import {Screen, Text, SegmentedTabBar} from '../components'
 import {RandomName} from './Contacts/RandomName'
 import {OwnName} from './Contacts/OwnName'
 import {useStores} from '../models'
@@ -41,15 +41,11 @@ export const WalletNameScreen = observer(function WalletNameScreen({ route }: Pr
     ])
 
     const headerBg = useThemeColor('header')
-    const activeTabIndicator = colors.palette.accent400    
 
     const renderTabBar = (props: any) => (
-        <TabBar
-          key={props.key}
-          {...props}
-          indicatorStyle={{ backgroundColor: activeTabIndicator }}
-          style={{ backgroundColor: headerBg }}
-        />
+        <View style={{ backgroundColor: headerBg, paddingHorizontal: spacing.medium }}>
+            <SegmentedTabBar {...props} />
+        </View>
     )
 
     return (

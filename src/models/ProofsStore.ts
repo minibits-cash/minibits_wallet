@@ -647,18 +647,13 @@ import {
           .filter(b => unit in b.balances)
           .sort((a, b) => (b.balances[unit] || 0) - (a.balances[unit] || 0)),
 
-      getMintBalanceWithMaxBalance: (unit: MintUnit) => {
-        let max: MintBalance | undefined
-        let maxAmt = -1
-        for (const b of self.balances.mintBalances) {
-          const amt = b.balances[unit] || 0
-          if (amt > maxAmt) {
-            maxAmt = amt
-            max = b
-          }
-        }
-        return max
-      },
+      // Highest-balance mint that actually holds the unit (undefined if none do).
+      // Only mints that list the unit are candidates, so a unit whose sole mint
+      // has a zero balance still resolves to that mint rather than an unrelated one.
+      getMintBalanceWithMaxBalance: (unit: MintUnit): MintBalance | undefined =>
+        self.balances.mintBalances
+          .filter(b => unit in b.balances)
+          .sort((a, b) => (b.balances[unit] || 0) - (a.balances[unit] || 0))[0],
 
       getUnitBalance: (unit: MintUnit) =>
         self.balances.unitBalances.find(b => b.unit === unit) || { unit, unitBalance: 0 },
