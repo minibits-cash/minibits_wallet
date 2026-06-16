@@ -108,6 +108,10 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const [updateSize, setUpdateSize] = useState<string>('')
     const [isNativeUpdateAvailable, setIsNativeUpdateAvailable] = useState<boolean>(false)
     const [isOnline, setIsOnline] = useState(false)
+    // Measured heights used to size the TabView so it hugs the active tab's
+    // content (header balance block + transactions card) without clipping it.
+    const [tabSceneHeight, setTabSceneHeight] = useState(0)
+    const [tabBarHeight, setTabBarHeight] = useState(0)
     
     useEffect(() => {
       if (isInternetReachable !== null) {
@@ -594,7 +598,17 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 const recentTransactions = transactionsStore.getRecentByUnit(unitMints.unit)
 
                 return (
-                    <>
+                    <View
+                        onLayout={(e) => {
+                            // Report the active tab's natural content height (the
+                            // height stays correct even while visually clipped) so
+                            // the TabView can be sized to fit it exactly.
+                            if (route.key === routes[tabIndex]?.key) {
+                                const h = e.nativeEvent.layout.height
+                                setTabSceneHeight(prev => (Math.abs(prev - h) > 1 ? h : prev))
+                            }
+                        }}
+                    >
                         <View style={[
                             $headerContainer, {
                                 backgroundColor: headerBg,
@@ -654,8 +668,8 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                                     style={[$card, {paddingTop: spacing.extraSmall, minHeight: 80}]}
                                 />
                             )}
-                        </View>                
-                    </>            
+                        </View>
+                    </View>
                 )
             }
         }
@@ -665,10 +679,14 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const tabWidth = moderateScale(82)
 
     const renderTabBar = useCallback((props: any) => {
-        // A single unit tab needs no switcher.
-        if (routes.length <= 1) return null
         return(
-            <View style={{backgroundColor: headerBg, marginTop: -spacing.small}}>
+            <View
+                style={{backgroundColor: headerBg, marginTop: -spacing.small}}
+                onLayout={(e) => {
+                    const h = e.nativeEvent.layout.height
+                    setTabBarHeight(prev => (Math.abs(prev - h) > 1 ? h : prev))
+                }}
+            >
                 <SegmentedTabBar
                     {...props}
                     segmentWidth={tabWidth}
@@ -720,6 +738,14 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const isNwcVisible = nwcStore.all.some(c => c.remainingDailyLimit !== c.dailyLimit)
     const nwcCardsData = nwcStore.all.filter(c => c.remainingDailyLimit !== c.dailyLimit)
 
+    // Size the TabView to the measured tab bar + active scene content so it hugs
+    // the transactions card (the tab bar's negative top margin overlaps the
+    // header by spacing.small). Falls back to a generous height until measured,
+    // which never clips. All space beyond this goes to the centered NWC band.
+    const tabViewHeight = tabSceneHeight > 0 && tabBarHeight > 0
+        ? tabSceneHeight + tabBarHeight - spacing.small
+        : spacing.screenHeight * 0.5
+
     return (        
       <Screen contentContainerStyle={$screen} preset='fixed'>
             <Header
@@ -755,51 +781,74 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 </View>
                 }                
             />
-            {groupedMints.length > 0 && (                              
-                <TabView
-                    renderTabBar={renderTabBar}
-                    navigationState={{ index: tabIndex, routes }}
-                    renderScene={renderUnitTabs}
-                    onIndexChange={onTabChange}
-                    initialLayout={{ width: spacing.screenWidth }}
-                    // style={{borderWidth: 1, borderColor: 'red'}}                                       
-                />
-            )}
-            {isNwcVisible && (
-                <View style={$nwcContainer}>
-                    <FlatList
-                        data={nwcCardsData}
-                        horizontal={true}
-                        renderItem={({item, index}) => {
-                            return (
-                                <Card
-                                    HeadingComponent={<Text text={item.name} size='xs'/>}                                        
-                                    ContentComponent={
-                                        <>
-                                        <Text tx='walletScreen_spentToday' size='xxs' preset='formHelper' style={{color: label, overflow: 'hidden'}}/>
-                                        <CurrencyAmount 
-                                            amount={item.dailyLimit - item.remainingDailyLimit}
-                                            currencyCode={CurrencyCode.SAT}
-                                            containerStyle={{marginLeft: -spacing.tiny, marginTop: spacing.small}}
-                                            size='medium'
-                                        />
-                                        </>
-                                    }
-                                    style={{
-                                        width: spacing.screenWidth * 0.28,
-                                        marginRight: spacing.small,
-                                        marginBottom: spacing.extraSmall                                                                                                                                 
-                                    }}                                        
-                                />
-                            )}
-                        }
-                        style={{
-                            
-
-                        }}                                        
+            {groupedMints.length > 0 && ( 
+                                           
+                <View style={[$tabView, {height: tabViewHeight}]}>
+                    <TabView
+                        renderTabBar={renderTabBar}
+                        navigationState={{ index: tabIndex, routes }}
+                        renderScene={renderUnitTabs}
+                        onIndexChange={onTabChange}
+                        initialLayout={{ width: spacing.screenWidth }}
                     />
                 </View>
-            )} 
+                
+            )}
+            {/* Flexible band between the transactions card and the bottom buttons.
+                It absorbs all leftover vertical space and keeps the NWC card(s)
+                vertically centered, so the gap above (to the card) and below
+                (to the Scan button) stays even. The TabView no longer grows into
+                this space, so the transactions card is never clipped. */}
+            <View style={$middleContainer}>
+                {/* Stub to preview the NWC card UI in the simulator (NWC unavailable there). */}
+                {__DEV__ && (
+                    <View style={$nwcContainer}>
+                        <Card
+                            HeadingComponent={<Text text={'NWC conn'} size='xs'/>}
+                            ContentComponent={
+                                <>
+                                <Text tx='walletScreen_spentToday' size='xxs' preset='formHelper' style={{color: label, overflow: 'hidden'}}/>
+                                <CurrencyAmount
+                                    amount={100}
+                                    currencyCode={CurrencyCode.SAT}
+                                    containerStyle={{marginLeft: -spacing.tiny, marginTop: spacing.small}}
+                                    size='medium'
+                                />
+                                </>
+                            }
+                            style={$nwcCard}
+                        />
+                    </View>
+                )}
+                {isNwcVisible && (
+                    <View style={$nwcContainer}>
+                        <FlatList
+                            data={nwcCardsData}
+                            horizontal={true}
+                            showsHorizontalScrollIndicator={false}
+                            renderItem={({item, index}) => {
+                                return (
+                                    <Card
+                                        HeadingComponent={<Text text={item.name} size='xs'/>}
+                                        ContentComponent={
+                                            <>
+                                            <Text tx='walletScreen_spentToday' size='xxs' preset='formHelper' style={{color: label, overflow: 'hidden'}}/>
+                                            <CurrencyAmount
+                                                amount={item.dailyLimit - item.remainingDailyLimit}
+                                                currencyCode={CurrencyCode.SAT}
+                                                containerStyle={{marginLeft: -spacing.tiny, marginTop: spacing.small}}
+                                                size='medium'
+                                            />
+                                            </>
+                                        }
+                                        style={$nwcCard}
+                                    />
+                                )}
+                            }
+                        />
+                    </View>
+                )}
+            </View>
             <View style={[$bottomContainer]}>                               
                 <View style={$buttonContainer}>
                     <Button
@@ -1240,9 +1289,37 @@ const $item: ViewStyle = {
 }
 
 
+// Bounds the TabView so it hugs the header + transactions card unit instead of
+// greedily filling all remaining space (which clipped the card when anything was
+// placed below it). The actual height is measured and applied inline; flexShrink
+// is disabled so the column never squeezes it back down and re-clips the card.
+const $tabView: ViewStyle = {
+    flexGrow: 0,
+    flexShrink: 0,
+    //borderWidth: 1,
+    //borderColor: 'red',
+}
+
+// Flexible band that takes the space left between the TabView and the buttons.
+// Centering keeps the NWC card(s) evenly spaced from the card above and the
+// Scan button below.
+const $middleContainer: ViewStyle = {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingVertical: spacing.small,
+}
+
 const $nwcContainer: ViewStyle = {
-    justifyContent: 'flex-start',
+    //flexShrink: 1,
     paddingHorizontal: spacing.extraSmall,
+    //borderWidth: 1,
+    //borderColor: 'red',
+}
+
+const $nwcCard: ViewStyle = {
+    width: spacing.screenWidth * 0.28,
+    marginRight: spacing.small,
+    //marginBottom: 0,
 }
 
 const $bottomContainer: ViewStyle = {
