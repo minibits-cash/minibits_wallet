@@ -213,21 +213,29 @@ async function prepare(input: PrepareSendInput): Promise<PreparedSendData> {
         const exactMatch = candidatesAmount === amount
 
         if (isP2PK || !exactMatch) {
-            // Swap needed
+            // Swap needed. Select proofs covering the send amount + the mint's
+            // per-proof input fee on the selected proofs. The helper iterates to
+            // a fixed point so the locked set always covers its own swap fee —
+            // without it, the fee computed on the first selection can be too low
+            // for the (larger) re-selected set, and cashu-ts (called with
+            // includeFees:false) then rejects with
+            // "Not enough funds available for swap".
             const walletInstance = await walletStore.getWallet(mintUrl, unit, {withSeed: true}) as CashuWallet
-            swapFeeReserve = walletInstance.getFeesForProofs(candidates).toNumber()
-            const amountWithFees = amount + swapFeeReserve
-
-            if (totalAmountFromMint < amountWithFees) {
+            try {
+                ;({proofsToSend: candidates, feeReserve: swapFeeReserve} =
+                    CashuUtils.selectProofsToSendWithFeeReserve(
+                        amount,
+                        proofsFromMint,
+                        selected => walletInstance.getFeesForProofs(selected).toNumber(),
+                        {caller: 'SendOperationApi.prepare'},
+                    ))
+            } catch (e: any) {
                 throw new ValidationError('There is not enough funds to send this amount.', {
                     totalAmountFromMint,
-                    amountWithFees,
                     transactionId: transaction.id,
                     caller: 'SendOperationApi.prepare',
+                    message: e.message,
                 })
-            }
-            if (swapFeeReserve > 0) {
-                candidates = CashuUtils.getProofsToSend(amountWithFees, proofsFromMint)
             }
             path = 'online-swap'
             proofsToLock = candidates

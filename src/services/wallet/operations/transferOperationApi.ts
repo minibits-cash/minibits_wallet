@@ -207,29 +207,34 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
     const proofsFromMint = proofsStore.getByMint(mintUrl, {state: 'UNSPENT', unit})
     const totalAmountFromMint = CashuUtils.getProofsAmount(proofsFromMint)
 
-    let proofsToMeltFrom = CashuUtils.getProofsToSend(
-        amount + lightningFeeReserve,
-        proofsFromMint,
-    )
-    let proofsToMeltFromAmount = CashuUtils.getProofsAmount(proofsToMeltFrom)
-
     const walletInstance = (await walletStore.getWallet(mintUrl, unit, {withSeed: true})) as CashuWallet
-    let meltFeeReserve = walletInstance.getFeesForProofs(proofsToMeltFrom).toNumber()
-    const amountWithFees = amount + lightningFeeReserve + meltFeeReserve
 
-    if (totalAmountFromMint < amountWithFees) {
+    // Select proofs covering amount + lightning fee_reserve + the mint's
+    // per-proof input fee on the selected proofs. The helper iterates to a fixed
+    // point so the inputs always cover their own input fee — without it, the fee
+    // computed on the first selection can be too low for the (larger) re-selected
+    // set and the mint rejects with "not enough inputs provided for melt".
+    let proofsToMeltFrom: Proof[]
+    let meltFeeReserve: number
+    try {
+        ;({proofsToSend: proofsToMeltFrom, feeReserve: meltFeeReserve} =
+            CashuUtils.selectProofsToSendWithFeeReserve(
+                amount + lightningFeeReserve,
+                proofsFromMint,
+                selected => walletInstance.getFeesForProofs(selected).toNumber(),
+                {caller: 'TransferOperationApi.prepare'},
+            ))
+    } catch (e: any) {
         throw new ValidationError('There is not enough funds to send this amount.', {
             totalAmountFromMint,
-            amountWithFees,
             transactionId,
             caller: 'TransferOperationApi.prepare',
+            message: e.message,
         })
     }
 
-    if (meltFeeReserve > 0) {
-        proofsToMeltFrom = CashuUtils.getProofsToSend(amountWithFees, proofsFromMint)
-        proofsToMeltFromAmount = CashuUtils.getProofsAmount(proofsToMeltFrom)
-    }
+    let amountWithFees = amount + lightningFeeReserve + meltFeeReserve
+    let proofsToMeltFromAmount = CashuUtils.getProofsAmount(proofsToMeltFrom)
 
     // ── Preemptive swap path ────────────────────────────────────────────
     // Inputs that overshoot needed amount by >20% get swapped for tighter
@@ -238,7 +243,7 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
     let path: TransferPath = 'direct-melt'
     let preemptiveSwapFeePaid = 0
 
-    if (proofsToMeltFromAmount > amountWithFees * 1.2) {
+    if (proofsToMeltFromAmount > amountWithFees * 1.1) {
         log.info(
             '[TransferOperationApi.prepare] proofsToMeltFromAmount overshoots amountWithFees by >20%, running preemptive swap',
             {proofsToMeltFromAmount, amountWithFees},

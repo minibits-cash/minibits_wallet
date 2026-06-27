@@ -251,6 +251,70 @@ const getProofsToSend = function (requestedAmount: number, proofs: Proof[]): Pro
   return findMinExcess(requestedAmount, proofs)
 }
 
+/**
+ * Select proofs that cover `targetAmount` PLUS the mint's per-proof input fee on
+ * the selected proofs themselves.
+ *
+ * A mint charges an input fee that grows with the NUMBER of proofs spent
+ * (NUT-02: `fee = ceil(Σ input_fee_ppk / 1000)`). Selecting proofs for a larger,
+ * fee-inclusive target can pull in additional proofs, which raises the fee,
+ * which raises the required amount again. A single fee recompute is therefore
+ * not enough — the second selection's true fee can exceed the budgeted reserve,
+ * leaving the inputs short. The mint then rejects with "not enough inputs
+ * provided for melt" (melt) or cashu-ts throws "Not enough funds available for
+ * swap" (send, called with `includeFees:false`).
+ *
+ * This iterates to a fixed point so the returned set always satisfies:
+ *
+ *     sum(proofsToSend) >= targetAmount + getFeesForProofs(proofsToSend)
+ *
+ * @param targetAmount   Amount that must remain AFTER the input fee (e.g. send
+ *                       amount, or melt `amount + lightning fee_reserve`).
+ * @param proofs         Spendable proofs to select from.
+ * @param getFeesForProofs  Mint fee for a given proof set (wraps
+ *                       `cashuWallet.getFeesForProofs`).
+ * @param options.maxIterations  Convergence guard (default 32).
+ * @throws VALIDATION_ERROR if available proofs cannot cover the converged total.
+ */
+const selectProofsToSendWithFeeReserve = function (
+  targetAmount: number,
+  proofs: Proof[],
+  getFeesForProofs: (selected: Proof[]) => number,
+  options?: {maxIterations?: number; caller?: string},
+): {proofsToSend: Proof[]; feeReserve: number} {
+  const maxIterations = options?.maxIterations ?? 32
+  const caller = options?.caller ?? 'selectProofsToSendWithFeeReserve'
+  const totalAvailable = getProofsAmount(proofs)
+
+  let proofsToSend = getProofsToSend(targetAmount, proofs)
+  let feeReserve = getFeesForProofs(proofsToSend)
+  let amountWithFees = targetAmount + feeReserve
+
+  let guard = 0
+  while (getProofsAmount(proofsToSend) < amountWithFees && guard++ < maxIterations) {
+    if (totalAvailable < amountWithFees) {
+      throw new AppError(
+        Err.VALIDATION_ERROR,
+        'There is not enough funds to send this amount.',
+        {totalAvailable, amountWithFees, caller},
+      )
+    }
+    proofsToSend = getProofsToSend(amountWithFees, proofs)
+    feeReserve = getFeesForProofs(proofsToSend)
+    amountWithFees = targetAmount + feeReserve
+  }
+
+  if (getProofsAmount(proofsToSend) < amountWithFees) {
+    throw new AppError(
+      Err.VALIDATION_ERROR,
+      'There is not enough funds to send this amount.',
+      {totalAvailable, amountWithFees, caller},
+    )
+  }
+
+  return {proofsToSend, feeReserve}
+}
+
 
 /**
  * removes a set of tokens from another set of tokens, and returns the remaining.
@@ -671,6 +735,7 @@ export const CashuUtils = {
     findExactMatch,
     findMinExcess,
     getProofsToSend,
+    selectProofsToSendWithFeeReserve,
     exportProofs,
     getProofsSubset,
     verifyProofsDleqOrThrow,
