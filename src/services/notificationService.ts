@@ -37,6 +37,53 @@ export type NotifyNwcRequestData = {
 
 let _nwcQueue: any = undefined
 
+// Tracks the active NWC foreground-service teardown loop so it can never run
+// twice and a stray poll can always be cleared. The poll is the ONLY automatic
+// closer of the shared foreground service, so its teardown must be idempotent
+// and exception-safe — a missed stop leaves the service to hit Android's
+// shortService timeout → ANR.
+let _nwcListenerPoll: ReturnType<typeof setInterval> | undefined = undefined
+let _nwcListenerClosing = false
+let _nwcListenerNotificationId: string | undefined = undefined
+
+// Tear down the NWC listener / shared foreground service. Shared by the adaptive
+// poll AND the notification "Stop" action (index.js), so the Stop press releases
+// any in-flight pay_invoice immediately instead of waiting for the next poll tick.
+// Idempotent for the duration of a single teardown (guards a poll/Stop race), then
+// resets so a later task foreground service can still be stopped by its own Stop.
+const closeNwcListener = async function (): Promise<void> {
+    if (_nwcListenerClosing) return
+    _nwcListenerClosing = true
+
+    if (_nwcListenerPoll) {
+        clearInterval(_nwcListenerPoll)
+        _nwcListenerPoll = undefined
+    }
+
+    // Tell any in-flight NWC pay_invoice that the background context is going away,
+    // so it can stop waiting for its async melt result (no separate timeout needed —
+    // the wait is bound to this listener's lifetime).
+    EventEmitter.emit('ev_nwcListenerClosing', undefined)
+
+    try {
+        if(Platform.OS === 'android') {
+            log.trace('[closeNwcListener] Terminating Android foreground service')
+            await stopForegroundService()
+        } else {
+            log.trace('[closeNwcListener] Closing iOS nwcSubscription')
+            rootStoreInstance.nwcStore.resetSubscription()
+            if(_nwcListenerNotificationId) {
+                await cancelNotification(_nwcListenerNotificationId)
+            }
+        }
+    } catch (e: any) {
+        log.warn('[closeNwcListener] Failed to close NWC listener', {message: e.message})
+    } finally {
+        _nwcListenerNotificationId = undefined
+        _nwcListenerClosing = false
+    }
+}
+
 const getNwcQueue = function () {
     if(!_nwcQueue) {
         _nwcQueue = new TaskQueue({
@@ -383,31 +430,44 @@ const createNwcListenerNotification = async function () {
         }   
     } 
         
-    const listenerNotification = await notifee.displayNotification({
-        title: NWC_LISTENER_NAME,
-        body: 'Listening for NWC commands...',
-        android: {
-            channelId: NWC_CHANNEL_ID,
-            asForegroundService: true,
-            largeIcon: minibitsPngIcon,
-            importance: AndroidImportance.HIGH,
-            /*progress: {
-                indeterminate: true,
-            },*/
-            actions: [
-                {
-                title: 'Stop',
-                pressAction: {
-                    id: 'stop',
-                },
-                },
-            ],
-        },
-        ios: {
-            categoryId: NWC_CHANNEL_ID,
-        },
-        data: {task: LISTEN_FOR_NWC_EVENTS}
-    })
+    let listenerNotification: string | undefined = undefined
+
+    try {
+        listenerNotification = await notifee.displayNotification({
+            title: NWC_LISTENER_NAME,
+            body: 'Listening for NWC commands...',
+            android: {
+                channelId: NWC_CHANNEL_ID,
+                asForegroundService: true,
+                largeIcon: minibitsPngIcon,
+                importance: AndroidImportance.HIGH,
+                /*progress: {
+                    indeterminate: true,
+                },*/
+                actions: [
+                    {
+                    title: 'Stop',
+                    pressAction: {
+                        id: 'stop',
+                    },
+                    },
+                ],
+            },
+            ios: {
+                categoryId: NWC_CHANNEL_ID,
+            },
+            data: {task: LISTEN_FOR_NWC_EVENTS}
+        })
+    } catch (e: any) {
+        // Most likely ForegroundServiceStartNotAllowedException: the OS background
+        // FGS-start grace window (granted by the high-priority FCM push) expired
+        // before we reached here. Nothing started, so release any pay_invoice that
+        // may be waiting on the listener lifetime and bail — do NOT start the poll,
+        // or it would call stopForegroundService() on a service that never ran.
+        log.warn('[createNwcListenerNotification] Failed to start foreground service', {message: e.message})
+        EventEmitter.emit('ev_nwcListenerClosing', undefined)
+        return
+    }
 
     if(Platform.OS === 'ios') {
         nwcStore.listenForNwcEvents()
@@ -423,23 +483,17 @@ const createNwcListenerNotification = async function () {
     const IDLE_GRACE_MS = 10 * 1000
     let lastBusyAt = Date.now()
 
-    const closeListener = async () => {
-        // Tell any in-flight NWC pay_invoice that the background context is going
-        // away, so it can stop waiting for its async melt result (no separate
-        // timeout needed — the wait is bound to this listener's lifetime).
-        EventEmitter.emit('ev_nwcListenerClosing', undefined)
-
-        if(Platform.OS === 'android') {
-            log.trace('[createNwcListenerNotification] Terminating Android foreground service')
-            await stopForegroundService()
-        } else {
-            log.trace('[createNwcListenerNotification] Closing iOS nwcSubscription')
-            nwcStore.resetSubscription()
-            cancelNotification(listenerNotification)
-        }
+    // Defensive: kill any leftover poll from a prior listener so we never run two
+    // teardown loops against the one shared foreground service. Record this
+    // listener's notification id so closeNwcListener (poll or Stop action) can
+    // cancel it on iOS.
+    if (_nwcListenerPoll) {
+        clearInterval(_nwcListenerPoll)
+        _nwcListenerPoll = undefined
     }
+    _nwcListenerNotificationId = listenerNotification
 
-    const poll = setInterval(async () => {
+    _nwcListenerPoll = setInterval(async () => {
         const inFlight = SyncQueue.getSyncQueue().getAllTasksDetails(['idle', 'running']).length
         const now = Date.now()
         if (inFlight > 0) {
@@ -449,12 +503,10 @@ const createNwcListenerNotification = async function () {
         const elapsed = now - startedAt
 
         if (elapsed >= HARD_CAP_MS || (inFlight === 0 && idleFor >= IDLE_GRACE_MS)) {
-            clearInterval(poll)
             log.trace('[createNwcListenerNotification] Closing NWC listener', {elapsed, idleFor, inFlight})
-            await closeListener()
+            await closeNwcListener()
         }
     }, 2000)
-
 }
 
 
@@ -532,9 +584,16 @@ const areNotificationsEnabled = async function (): Promise<boolean> {
 }
 
 
-const stopForegroundService = async function (): Promise<void> {    
-    await notifee.stopForegroundService()
-    log.trace('[stopForegroundService] completed')
+const stopForegroundService = async function (): Promise<void> {
+    try {
+        await notifee.stopForegroundService()
+        log.trace('[stopForegroundService] completed')
+    } catch (e: any) {
+        // notifee throws if no foreground service is currently running (already
+        // stopped by a finished task, the Stop action, or a prior teardown).
+        // Harmless — callers treat stopping as best-effort and idempotent.
+        log.warn('[stopForegroundService] Failed to stop foreground service', {message: e.message})
+    }
 }
 
 
@@ -552,5 +611,6 @@ export const NotificationService = {
     onForegroundNotification,    
     areNotificationsEnabled,
     getDisplayedNotifications,
-    stopForegroundService
+    stopForegroundService,
+    closeNwcListener
 }

@@ -81,14 +81,29 @@ const _handleTaskResult = async (taskId: TaskId, result: WalletTaskResult | Tran
 
     if(queue.getAllTasksDetails(['idle', 'running']).length === 0) {
         const notifications = await NotificationService.getDisplayedNotifications()
-        // Do not stop the listener for NWC events, this one is handled via timeout
-        for (const n of notifications) {            
-            if(n.notification.android?.asForegroundService) {
-                if(n.notification.title && n.notification.title !== NWC_LISTENER_NAME) {
-                    log.trace('[_handleTaskResult] Stopping foreground service')
-                    await NotificationService.stopForegroundService()
-                }
-            }
+
+        // The NWC listener and task notifications share ONE Android foreground
+        // service, and stopForegroundService() is all-or-nothing. If the NWC
+        // listener is up, never stop here — it owns teardown via its own adaptive
+        // poll, and stopping now would kill it mid-listen. Otherwise stop once for
+        // a finished task's foreground service.
+        const hasNwcListener = notifications.some(
+            n => n.notification.android?.asForegroundService &&
+                 n.notification.title === NWC_LISTENER_NAME
+        )
+
+        if(hasNwcListener) {
+            log.trace('[_handleTaskResult] NWC listener active, leaving foreground service running')
+            return
+        }
+
+        const hasTaskForegroundService = notifications.some(
+            n => n.notification.android?.asForegroundService
+        )
+
+        if(hasTaskForegroundService) {
+            log.trace('[_handleTaskResult] Stopping foreground service')
+            await NotificationService.stopForegroundService()
         }
     }
 }

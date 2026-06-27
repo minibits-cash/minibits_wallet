@@ -81,7 +81,11 @@ notifee.onForegroundEvent(async ({ type, detail }) => {
   
   if (detail.pressAction && detail.pressAction.id === 'stop') {
     log.trace('[onForegroundEvent] Stopping foreground service')
-    await notifee.stopForegroundService()
+    // Route through closeNwcListener (not raw stopForegroundService) so pressing
+    // Stop also tears down the adaptive poll and releases any in-flight NWC
+    // pay_invoice immediately. It's a superset of stopping the service, and is
+    // harmless for non-NWC task foreground services (which share the one service).
+    await NotificationService.closeNwcListener()
   }
 })
 
