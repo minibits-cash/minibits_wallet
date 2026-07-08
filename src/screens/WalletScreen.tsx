@@ -112,6 +112,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     // content (header balance block + transactions card) without clipping it.
     const [tabSceneHeight, setTabSceneHeight] = useState(0)
     const [tabBarHeight, setTabBarHeight] = useState(0)
+    const [nwcBandHeight, setNwcBandHeight] = useState(0)
     
     useEffect(() => {
       if (isInternetReachable !== null) {
@@ -738,12 +739,40 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const isNwcVisible = nwcStore.all.some(c => c.remainingDailyLimit !== c.dailyLimit)
     const nwcCardsData = nwcStore.all.filter(c => c.remainingDailyLimit !== c.dailyLimit)
 
+    // When the leftover band (measured) can't fit a full-height NWC card plus its
+    // gaps, fall back to a compact card: the blank space between the "spent today"
+    // label and the amount is collapsed and the card padding is tightened, so the
+    // card shrinks to fit instead of overflowing up into the transactions card's
+    // shadow. The label and amount themselves are kept intact.
+    const nwcAvailableHeight = nwcBandHeight - NWC_BAND_TOP_GAP - NWC_BAND_BOTTOM_GAP
+    const isNwcCompact = nwcBandHeight > 0 && nwcAvailableHeight < NWC_CARD_FULL_HEIGHT
+
+    const renderNwcCard = (name: string, spentAmount: number) => (
+        <Card
+            HeadingComponent={<Text text={name} size='xs'/>}
+            ContentComponent={
+                <>
+                <Text tx='walletScreen_spentToday' size='xxs' preset='formHelper' style={{color: label, overflow: 'hidden'}}/>
+                <CurrencyAmount
+                    amount={spentAmount}
+                    currencyCode={CurrencyCode.SAT}
+                    containerStyle={{marginLeft: -spacing.tiny, marginTop: isNwcCompact ? spacing.tiny : spacing.small}}
+                    size='medium'
+                />
+                </>
+            }
+            style={isNwcCompact ? [$nwcCard, $nwcCardCompact] : $nwcCard}
+        />
+    )
+
     // Size the TabView to the measured tab bar + active scene content so it hugs
     // the transactions card (the tab bar's negative top margin overlaps the
-    // header by spacing.small). Falls back to a generous height until measured,
-    // which never clips. All space beyond this goes to the centered NWC band.
+    // header by spacing.small). CARD_SHADOW_ALLOWANCE keeps the pager tall enough
+    // below the card for its drop shadow to fully fade instead of being clipped
+    // into a hard line. Falls back to a generous height until measured, which
+    // never clips. All space beyond this goes to the centered NWC band.
     const tabViewHeight = tabSceneHeight > 0 && tabBarHeight > 0
-        ? tabSceneHeight + tabBarHeight - spacing.small
+        ? tabSceneHeight + tabBarHeight - spacing.small + CARD_SHADOW_ALLOWANCE
         : spacing.screenHeight * 0.5
 
     return (        
@@ -799,25 +828,17 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 vertically centered, so the gap above (to the card) and below
                 (to the Scan button) stays even. The TabView no longer grows into
                 this space, so the transactions card is never clipped. */}
-            <View style={$middleContainer}>
+            <View
+                style={$middleContainer}
+                onLayout={(e) => {
+                    const h = e.nativeEvent.layout.height
+                    setNwcBandHeight(prev => (Math.abs(prev - h) > 1 ? h : prev))
+                }}
+            >
                 {/* Stub to preview the NWC card UI in the simulator (NWC unavailable there). */}
                 {__DEV__ && (
                     <View style={$nwcContainer}>
-                        <Card
-                            HeadingComponent={<Text text={'NWC conn'} size='xs'/>}
-                            ContentComponent={
-                                <>
-                                <Text tx='walletScreen_spentToday' size='xxs' preset='formHelper' style={{color: label, overflow: 'hidden'}}/>
-                                <CurrencyAmount
-                                    amount={100}
-                                    currencyCode={CurrencyCode.SAT}
-                                    containerStyle={{marginLeft: -spacing.tiny, marginTop: spacing.small}}
-                                    size='medium'
-                                />
-                                </>
-                            }
-                            style={$nwcCard}
-                        />
+                        {renderNwcCard('NWC conn', 100)}
                     </View>
                 )}
                 {isNwcVisible && (
@@ -826,25 +847,9 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                             data={nwcCardsData}
                             horizontal={true}
                             showsHorizontalScrollIndicator={false}
-                            renderItem={({item, index}) => {
-                                return (
-                                    <Card
-                                        HeadingComponent={<Text text={item.name} size='xs'/>}
-                                        ContentComponent={
-                                            <>
-                                            <Text tx='walletScreen_spentToday' size='xxs' preset='formHelper' style={{color: label, overflow: 'hidden'}}/>
-                                            <CurrencyAmount
-                                                amount={item.dailyLimit - item.remainingDailyLimit}
-                                                currencyCode={CurrencyCode.SAT}
-                                                containerStyle={{marginLeft: -spacing.tiny, marginTop: spacing.small}}
-                                                size='medium'
-                                            />
-                                            </>
-                                        }
-                                        style={$nwcCard}
-                                    />
-                                )}
-                            }
+                            renderItem={({item, index}) => (
+                                renderNwcCard(item.name, item.dailyLimit - item.remainingDailyLimit)
+                            )}
                         />
                     </View>
                 )}
@@ -1293,6 +1298,12 @@ const $item: ViewStyle = {
 // greedily filling all remaining space (which clipped the card when anything was
 // placed below it). The actual height is measured and applied inline; flexShrink
 // is disabled so the column never squeezes it back down and re-clips the card.
+// Extra height below the transactions card so its drop shadow (offset 10 +
+// radius 8) fully fades within the pager instead of being clipped into a hard
+// line at the TabView's bottom edge. Not vertical-scaled: the shadow offset and
+// radius in Card are raw px.
+const CARD_SHADOW_ALLOWANCE = 20
+
 const $tabView: ViewStyle = {
     flexGrow: 0,
     flexShrink: 0,
@@ -1301,12 +1312,17 @@ const $tabView: ViewStyle = {
 }
 
 // Flexible band that takes the space left between the TabView and the buttons.
-// Centering keeps the NWC card(s) evenly spaced from the card above and the
-// Scan button below.
+// The top gap must clear the transactions card's drop shadow (offset 10 +
+// radius 8 ≈ 18px), otherwise on shorter/wider screens the NWC card gets pushed
+// up under the shadow. The bottom gap keeps the card off the Scan button.
+const NWC_BAND_TOP_GAP = spacing.large
+const NWC_BAND_BOTTOM_GAP = spacing.small
+
 const $middleContainer: ViewStyle = {
     flex: 1,
     justifyContent: 'flex-end',
-    paddingVertical: spacing.small,
+    paddingTop: NWC_BAND_TOP_GAP,
+    paddingBottom: NWC_BAND_BOTTOM_GAP,
 }
 
 const $nwcContainer: ViewStyle = {
@@ -1320,6 +1336,18 @@ const $nwcCard: ViewStyle = {
     width: spacing.screenWidth * 0.28,
     marginRight: spacing.small,
     //marginBottom: 0,
+}
+
+// Approx. natural height of a full NWC card (heading + label + gap + amount +
+// padding). Below this available height the band switches to the compact card.
+const NWC_CARD_FULL_HEIGHT = verticalScale(84)
+
+// Compact NWC card: tighter vertical padding and a lower minHeight floor so the
+// card can shrink when the band is squeezed on shorter/wider screens. Combined
+// with the collapsed label→amount gap in renderNwcCard.
+const $nwcCardCompact: ViewStyle = {
+    minHeight: verticalScale(48),
+    paddingVertical: spacing.tiny,
 }
 
 const $bottomContainer: ViewStyle = {
