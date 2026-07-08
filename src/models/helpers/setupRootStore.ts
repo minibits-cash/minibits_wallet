@@ -240,6 +240,7 @@ export async function setupRootStore(rootStore: RootStore, opts: SetupRootStoreO
 async function _runMigrations(rootStore: RootStore, restoredState: any) {
     const {
         transactionsStore,
+        userSettingsStore
     } = rootStore
 
     const currentVersion = rootStore.version
@@ -348,6 +349,11 @@ async function _runMigrations(rootStore: RootStore, restoredState: any) {
             if (seeds.length > 0) {
                 Database.seedCounters(seeds)
             }
+        }
+
+        if(currentVersion < 37) {
+            // New onboarding and TCs agreement
+            userSettingsStore.setIsOnboarded(false)
         }
 
         // Set once, after all steps succeed: if any step throws, the version is
