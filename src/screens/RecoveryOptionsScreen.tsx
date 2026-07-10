@@ -3,7 +3,6 @@ import React, {useState, useEffect, useRef, useLayoutEffect} from 'react'
 import {Platform, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import Animated, {
   useSharedValue,
-  useAnimatedScrollHandler,
 } from 'react-native-reanimated'
 import notifee, { AndroidImportance } from '@notifee/react-native'
 import {spacing, useThemeColor, colors} from '../theme'
@@ -33,6 +32,7 @@ import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import { MintBalance } from '../models/Mint'
 import { MintUnit } from '../services/wallet/currency'
 import Clipboard from '@react-native-clipboard/clipboard'
+import { useTabBarInset, useTabBarScrollHandler } from '../navigation/tabBarVisibility'
 
 type Props = StaticScreenProps<undefined>
 
@@ -315,17 +315,15 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
     const mintsModalBg = useThemeColor('background')
     const inputText = useThemeColor('text')
 
-    const scrollHandler = useAnimatedScrollHandler({
-      onScroll: (event) => {
-        scrollY.value = event.contentOffset.y
-      },
-    })
+    const scrollHandler = useTabBarScrollHandler(scrollY)
+    const tabBarInset = useTabBarInset()
 
     return (
-      <Screen preset="fixed" contentContainerStyle={$screen}>
+      <Screen contentContainerStyle={$screen} contentUnderTabBar>
         <Animated.ScrollView
           style={$contentContainer}
           //contentContainerStyle={{ paddingBottom: HEADER_SCROLL_DISTANCE }}
+          contentContainerStyle={{paddingBottom: tabBarInset}}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
         >
@@ -334,7 +332,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
             scrollY={scrollY}
           />
           <Card
-            style={[$card, {marginTop: -spacing.extraLarge * 2}]}
+            style={[$card, {marginTop: -spacing.extraLarge * 1.5}]}
             HeadingComponent={
               <ListItem
                 tx="seedRecoveryOptions"
@@ -592,14 +590,11 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
 )
 
 const $screen: ViewStyle = {
-  // flex: 1,
+
 }
 
 const $contentContainer: TextStyle = {
-  //flex: 1,
-  // marginTop: -spacing.extraLarge * 2,
-  // padding: spacing.extraSmall,
-  // alignItems: 'center',
+
 }
 
 const $mintsContainer: TextStyle = {

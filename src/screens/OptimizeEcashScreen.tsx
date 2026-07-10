@@ -7,7 +7,6 @@ import {
 } from 'react-native'
 import Animated, {
   useSharedValue,
-  useAnimatedScrollHandler,
 } from 'react-native-reanimated'
 import notifee from '@notifee/react-native'
 import {useThemeColor, spacing, colors} from '../theme'
@@ -34,6 +33,7 @@ import {StaticScreenProps, useNavigation} from '@react-navigation/native'
 import {MintBalanceSelector} from './Mints/MintBalanceSelector'
 import {MintBalance} from '../models/Mint'
 import {MintUnit} from '../services/wallet/currency'
+import { useTabBarInset, useTabBarScrollHandler } from '../navigation/tabBarVisibility'
 
 const OPTIMIZE_DENOMINATION_THRESHOLD = 5
 
@@ -182,16 +182,14 @@ export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
 
   const hint = useThemeColor('textDim')
 
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y
-    },
-  })
+  const scrollHandler = useTabBarScrollHandler(scrollY)
+  const tabBarInset = useTabBarInset()
 
   return (
-    <Screen contentContainerStyle={$screen} preset="fixed">
+    <Screen contentContainerStyle={$screen} contentUnderTabBar>
       <Animated.ScrollView
         style={$contentContainer}
+        contentContainerStyle={{paddingBottom: tabBarInset}}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
       >
@@ -313,11 +311,11 @@ export const OptimizeEcashScreen = function OptimizeEcash(_props: Props) {
 }
 
 const $screen: ViewStyle = {
-  // flex: 1,
+  //flex: 1,
 }
 
 const $contentContainer: TextStyle = {
-  //flex: 1,
+  //flex: 1,  
 }
 
 const $card: ViewStyle = {

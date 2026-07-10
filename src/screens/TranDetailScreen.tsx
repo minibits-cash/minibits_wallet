@@ -6,8 +6,7 @@ import {
   LayoutAnimation,
   Linking,
   Platform,
-  Pressable,  
-  ScrollView,  
+  Pressable,
   TextInput,
   TextStyle,
   UIManager,
@@ -16,6 +15,13 @@ import {
 } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import JSONTree from 'react-native-json-tree'
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated'
+import {useTabBarInset, useTabBarScrollHandler} from '../navigation/tabBarVisibility'
 import {colors, spacing, typography, useThemeColor} from '../theme'
 import EventEmitter from '../utils/eventEmitter'
 import {
@@ -76,7 +82,10 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
     const navigation = useNavigation()
     const {id, prevScreen} = route.params
     const {transactionsStore, mintsStore} = useStores()
-    
+
+    const scrollY = useSharedValue(0)
+    const HEADER_SCROLL_DISTANCE = spacing.screenHeight * 0.15
+
     const noteInputRef = useRef<TextInput>(null)
 
     const [transaction, setTransaction] = useState<Transaction>()
@@ -233,8 +242,22 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
     const inputText = useThemeColor('text')
     const statusColor = useThemeColor('header')
 
+    const scrollHandler = useTabBarScrollHandler(scrollY)
+    const tabBarInset = useTabBarInset()
+
+    // Mirrors AnimatedHeader: the amount fades over the first half of the header's
+    // height while the block itself scrolls away, so there is no layout jitter.
+    const animatedAmount = useAnimatedStyle(() => ({
+      opacity: interpolate(
+        scrollY.value,
+        [0, HEADER_SCROLL_DISTANCE * 0.5],
+        [1, 0],
+        Extrapolation.CLAMP,
+      ),
+    }))
+
   return (
-      <Screen contentContainerStyle={$screen} preset="fixed">        
+      <Screen contentContainerStyle={$screen} preset="fixed" contentUnderTabBar>
         {transaction && (
           <>
             <MintHeader 
@@ -243,9 +266,15 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                 hideBalance={true} 
                 onBackPress={onBack}           
             />
-            <View style={[$headerContainer, {
-                backgroundColor: headerBg, 
-                justifyContent: 'space-around', 
+            <Animated.ScrollView
+              style={$contentContainer}
+              contentContainerStyle={{paddingBottom: tabBarInset}}
+              onScroll={scrollHandler}
+              scrollEventThrottle={16}
+            >
+            <Animated.View style={[$headerContainer, animatedAmount, {
+                backgroundColor: headerBg,
+                justifyContent: 'space-around',
                 paddingBottom: spacing.huge
               }]}
             >
@@ -278,11 +307,10 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                       ]}
                     />
                   </View>
-              )}           
-            </View>
-            <ScrollView style={$contentContainer}>
+              )}
+            </Animated.View>
               <Card
-                style={$actionCard}
+                style={[$actionCard, {marginTop: -spacing.extraLarge * 1.5}]}
                 ContentComponent={
                     <View style={$noteContainer}>    
                         <TextInput
@@ -480,7 +508,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                   }
                 />
               )}              
-            </ScrollView>
+            </Animated.ScrollView>
           </>
         )}        
         {error && <ErrorModal error={error} />}
@@ -1974,12 +2002,16 @@ const $headerContainer: TextStyle = {
     alignItems: 'center',
     paddingBottom: spacing.medium,
     height: spacing.screenHeight * 0.15,
+    // Cancels $contentContainer's padding so the header's background still meets the
+    // MintHeader above it and spans the full width, now that it scrolls inside the
+    // scroll view rather than sitting above it.
+    marginHorizontal: -spacing.extraSmall,
+    marginTop: -spacing.extraSmall,
 }
 
 const $contentContainer: TextStyle = {
-    // flex: 1,
+    flex: 1,
     padding: spacing.extraSmall,
-    marginTop: -spacing.extraLarge * 1.5,
     paddingBottom: spacing.medium,
 }
 

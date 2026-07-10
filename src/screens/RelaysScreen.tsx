@@ -214,14 +214,14 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
                     LeftAccessory={() => (
                         <Icon
                             icon='faPlus'
-                            size={spacing.large}
+                            size={spacing.medium}
                             color={mainButtonIcon}
                         />
                     )}
                     onPress={gotoAdd}                        
-                    style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonNew]}
+                    //style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonNew]}
                     preset='tertiary'
-                    text='Add'
+                    tx='buttonAdd'
                 />
             </View>
         </View>

@@ -755,7 +755,8 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 />
                 </>
             }
-            style={isNwcCompact ? [$nwcCard, $nwcCardCompact] : $nwcCard}
+            //style={isNwcCompact ? [$nwcCard, $nwcCardCompact] : $nwcCard}
+            style={$nwcCardCompact}
         />
     )
 
@@ -1241,8 +1242,8 @@ const $headerContainer: TextStyle = {
 const $tabContainer: TextStyle = {
     marginTop: -spacing.extraLarge * 1.5,
     paddingTop: spacing.small,
-    //borderWidth: 1,
-    //borderColor: 'green',
+    // borderWidth: 1,
+    // borderColor: 'green',
 }
 
 
@@ -1253,7 +1254,7 @@ const $rightContainer: ViewStyle = {
 }
 
 const $card: ViewStyle = {    
-    marginBottom: spacing.small,
+    //marginBottom: spacing.small,
     marginHorizontal: spacing.extraSmall,    
 }
 
@@ -1285,26 +1286,29 @@ const CARD_SHADOW_ALLOWANCE = 20
 const $tabView: ViewStyle = {
     flexGrow: 0,
     flexShrink: 0,
-    //borderWidth: 1,
-    //borderColor: 'red',
+    // borderWidth: 1,
+    // borderColor: 'red',
+    marginBottom: 0,
+    paddingBottom: 0,
 }
 
 // Flexible band that takes the space left between the TabView and the buttons.
 // The top gap must clear the transactions card's drop shadow (offset 10 +
 // radius 8 ≈ 18px), otherwise on shorter/wider screens the NWC card gets pushed
 // up under the shadow. The bottom gap keeps the card off the Scan button.
-const NWC_BAND_TOP_GAP = spacing.large
+const NWC_BAND_TOP_GAP = 0
 const NWC_BAND_BOTTOM_GAP = spacing.small
 
 const $middleContainer: ViewStyle = {
     flex: 1,
-    justifyContent: 'flex-end',
-    paddingTop: NWC_BAND_TOP_GAP,
+    //justifyContent: 'flex-start',
+    //paddingTop: NWC_BAND_TOP_GAP,
     paddingBottom: NWC_BAND_BOTTOM_GAP,
+    //borderWidth: 1,
 }
 
 const $nwcContainer: ViewStyle = {
-    //flexShrink: 1,
+    flexShrink: 1,
     paddingHorizontal: spacing.extraSmall,
     //borderWidth: 1,
     //borderColor: 'red',
@@ -1324,6 +1328,8 @@ const NWC_CARD_FULL_HEIGHT = verticalScale(84)
 // card can shrink when the band is squeezed on shorter/wider screens. Combined
 // with the collapsed label→amount gap in renderNwcCard.
 const $nwcCardCompact: ViewStyle = {
+    width: spacing.screenWidth * 0.28,
+    marginRight: spacing.small,
     minHeight: verticalScale(48),
     paddingVertical: spacing.tiny,
 }

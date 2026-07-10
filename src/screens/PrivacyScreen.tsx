@@ -3,8 +3,8 @@ import React, {FC, useEffect, useState, useLayoutEffect} from 'react'
 import {Switch, TextStyle, View, ViewStyle} from 'react-native'
 import Animated, {
   useSharedValue,
-  useAnimatedScrollHandler,
 } from 'react-native-reanimated'
+import {useTabBarInset, useTabBarScrollHandler} from '../navigation/tabBarVisibility'
 import {colors, spacing, useThemeColor} from '../theme'
 import {
   ListItem,
@@ -197,16 +197,14 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
     
     const iconColor = useThemeColor('textDim')
 
-    const scrollHandler = useAnimatedScrollHandler({
-      onScroll: (event) => {
-        scrollY.value = event.contentOffset.y
-      },
-    })
+    const scrollHandler = useTabBarScrollHandler(scrollY)
+    const tabBarInset = useTabBarInset()
 
     return (
-      <Screen style={$screen} preset='fixed'>
+      <Screen style={$screen} preset='fixed' contentUnderTabBar>
         <Animated.ScrollView
           style={$contentContainer}
+          contentContainerStyle={{paddingBottom: tabBarInset}}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
         >
@@ -287,7 +285,7 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
                 }
             />*/}
             <Card
-                style={[$card, {marginTop: -spacing.extraLarge * 2}]}
+                style={[$card, {marginTop: -spacing.extraLarge * 1.5}]}
                 ContentComponent={
                 <>                    
                     <ListItem
@@ -422,11 +420,7 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
 
 const $screen: ViewStyle = {}
 
-const $contentContainer: TextStyle = {
-  flex: 1,
-  // marginTop: -spacing.extraLarge * 2,
-  // padding: spacing.extraSmall,
-  // alignItems: 'center',
+const $contentContainer: TextStyle = {  
 }
 
 const $card: ViewStyle = {

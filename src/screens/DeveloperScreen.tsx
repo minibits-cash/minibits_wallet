@@ -1,6 +1,8 @@
 import {observer} from 'mobx-react-lite'
-import React, {FC, useEffect, useState} from 'react'
-import {Alert, Platform, ScrollView, TextStyle, View, ViewStyle} from 'react-native'
+import React, {FC, useEffect, useLayoutEffect, useState} from 'react'
+import {Alert, Platform, TextStyle, View, ViewStyle} from 'react-native'
+import Animated, {useSharedValue} from 'react-native-reanimated'
+import {useTabBarInset, useTabBarScrollHandler} from '../navigation/tabBarVisibility'
 import {colors, spacing, useThemeColor} from '../theme'
 import {
     APP_ENV,        
@@ -20,8 +22,9 @@ import {
   InfoModal,
   BottomModal,
   Button,
+  Header,
+  AnimatedHeader,
 } from '../components'
-import {useHeader} from '../utils/useHeader'
 import {rootStoreInstance, useStores} from '../models'
 import {translate} from '../i18n'
 import AppError from '../utils/AppError'
@@ -41,10 +44,23 @@ type Props = StaticScreenProps<undefined>
 
 export const DeveloperScreen = observer(function DeveloperScreen({ route }: Props) {
     const navigation = useNavigation()
-    useHeader({
-      leftIcon: 'faArrowLeft',
-      onLeftPress: () => navigation.goBack(),
-    })
+    const scrollY = useSharedValue(0)
+    const HEADER_SCROLL_DISTANCE = spacing.screenHeight * 0.15
+
+    useLayoutEffect(() => {
+      navigation.setOptions({
+        headerShown: true,
+        header: () => (
+          <Header
+            titleTx="developerScreen_title"
+            leftIcon="faArrowLeft"
+            onLeftPress={() => navigation.goBack()}
+            scrollY={scrollY}
+            scrollDistance={HEADER_SCROLL_DISTANCE}
+          />
+        ),
+      })
+    }, [])
 
     const {transactionsStore, userSettingsStore, proofsStore, walletProfileStore, authStore} = useStores()
     const rootStore = useStores()
@@ -286,23 +302,26 @@ export const DeveloperScreen = observer(function DeveloperScreen({ route }: Prop
       setError(e)
     }
     
-    const headerBg = useThemeColor('header')
     const iconSelectedColor = useThemeColor('button')
     const iconColor = useThemeColor('textDim')
-    const headerTitle = useThemeColor('headerTitle')
+
+    const scrollHandler = useTabBarScrollHandler(scrollY)
+    const tabBarInset = useTabBarInset()
 
     return (
-      <Screen style={$screen} preset='fixed'>
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <Text
-            preset="heading"
-            tx="developerScreen_title"
-            style={{color: headerTitle}}
+      <Screen style={$screen} preset='fixed' contentUnderTabBar>
+        <Animated.ScrollView
+          style={$contentContainer}
+          contentContainerStyle={{paddingBottom: tabBarInset}}
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+        >
+          <AnimatedHeader
+            titleTx="developerScreen_title"
+            scrollY={scrollY}
           />
-        </View>
-        <ScrollView style={$contentContainer}>          
           <Card
-            style={[$card]}
+            style={[$card, {marginTop: -spacing.extraLarge * 1.5}]}
             HeadingComponent={
                 <ListItem
                   tx="developerScreen_info"
@@ -423,7 +442,7 @@ Sentry id: ${walletProfileStore.walletId}
               </>
             }
             />
-        </ScrollView>
+        </Animated.ScrollView>
         <BottomModal
           isVisible={isLogLevelSelectorVisible ? true : false}
           style={{alignItems: 'stretch'}}          
@@ -477,24 +496,18 @@ Sentry id: ${walletProfileStore.walletId}
   })
 
 const $screen: ViewStyle = {
-  flex: 1,
-}
-
-const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  paddingBottom: spacing.medium,
-  height: spacing.screenHeight * 0.15,
+  
 }
 
 const $contentContainer: TextStyle = {
-  flex: 1,
-  marginTop: -spacing.extraLarge * 2,
-  padding: spacing.extraSmall,
-  // alignItems: 'center',
+  
 }
 
+// The horizontal inset used to come from $contentContainer's padding, which now has
+// to stay clear so the AnimatedHeader's background spans the full width.
 const $card: ViewStyle = {
   marginBottom: 0,
+  marginHorizontal: spacing.extraSmall,
 }
 
 const $item: ViewStyle = {

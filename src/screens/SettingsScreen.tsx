@@ -307,7 +307,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
   const tabBarInset = useTabBarInset()
 
     return (
-      <Screen contentContainerStyle={$screen} preset='fixed' contentUnderTabBar>
+      <Screen contentContainerStyle={$screen} contentUnderTabBar>
         <Animated.ScrollView
           style={$contentContainer}
           contentContainerStyle={{paddingBottom: tabBarInset}}
