@@ -194,6 +194,7 @@
 	"mintInfo_descriptionHeading": "Descripción",
 	"mintInfo_emptyValueParam": "No se proporcionó %{param} .",
 	"mintInfo_keyValueInfoCardHeading": "Más información",
+	"mintInfo_loadFailed": "No se pudo cargar la información del mint. El mint no está disponible en este momento.",
 	"mintInfo_loadingNamePlaceholder": "Cargando nombre...",
 	"mintInfo_loadingUnitsPlaceholder": "Cargando unidades...",
 	"mintInfo_mintMeltHeading": "Límites",

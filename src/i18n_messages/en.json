@@ -195,6 +195,7 @@
 	"mintInfo_descriptionHeading": "Description",
 	"mintInfo_emptyValueParam": "No %{param} provided.",
 	"mintInfo_keyValueInfoCardHeading": "More Info",
+	"mintInfo_loadFailed": "Mint information could not be loaded. The mint is currently unreachable.",
 	"mintInfo_loadingNamePlaceholder": "Loading name...",
 	"mintInfo_loadingUnitsPlaceholder": "Loading units...",
 	"mintInfo_mintMeltHeading": "Limits",

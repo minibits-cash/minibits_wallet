@@ -195,6 +195,7 @@
 	"mintInfo_descriptionHeading": "Popis",
 	"mintInfo_emptyValueParam": "%{param} neposkytnutý.",
 	"mintInfo_keyValueInfoCardHeading": "Viac info",
+	"mintInfo_loadFailed": "Informácie o minte sa nepodarilo načítať. Mint je momentálne nedostupný.",
 	"mintInfo_loadingNamePlaceholder": "Načítavam...",
 	"mintInfo_loadingUnitsPlaceholder": "Načítavam...",
 	"mintInfo_mintMeltHeading": "Limity",
