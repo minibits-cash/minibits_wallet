@@ -28,7 +28,6 @@ import {
   BottomModal,
   ErrorModal,
   Header,
-  ScanIcon,
   MintIcon,
   SegmentedTabBar,
 } from '../components'
@@ -479,11 +478,6 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         }
     }
 
-    const gotoScan = function () {
-        // @ts-ignore
-        navigation.navigate('Scan', {unit: currentUnit})
-    }
-
     const gotoTokenReceive = async function () {
         toggleReceiveModal()
         // @ts-ignore
@@ -866,24 +860,10 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                         )}
                         onPress={toggleSendModal}                        
                         style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonSend]}
-                        textStyle={{marginRight: spacing.tiny}}
+                        //textStyle={{marginRight: spacing.tiny}}
                         preset='secondary'
                         tx='payCommon_send'
                     />             
-                    <Button
-                        RightAccessory={() => (
-                            <SvgXml 
-                                width={spacing.large} 
-                                height={spacing.large} 
-                                xml={ScanIcon}
-                                fill={mainButtonIcon}
-                                style={Platform.OS === 'ios' ? {marginLeft: -spacing.tiny} : {}}
-                            />
-                        )}
-                        onPress={gotoScan}
-                        style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonScan]}
-                        preset='secondary'
-                    />
                     <Button
                         RightAccessory={() => (
                             <Icon
@@ -895,7 +875,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                         )}
                         onPress={toggleReceiveModal}
                         tx='payCommon_receive'
-                        style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg}, $buttonReceive]}
+                        style={[{backgroundColor: mainButtonColor, borderWidth: 1, borderColor: screenBg, borderLeftWidth: 0}, $buttonReceive]}
                         textStyle={{marginLeft: spacing.tiny}}
                         preset='secondary'
                     /> 
@@ -1025,7 +1005,7 @@ const UnitBalanceBlock = observer(function (props: {
                 mintUnit={unitBalance.unit}
                 symbolStyle={{display: 'none'}}
                 amountStyle={[$unitBalance, {color: balanceColor}]}
-                containerStyle={{marginTop: spacing.small}}
+                //containerStyle={{marginTop: spacing.small}}
             />
             <>            
             {walletStore.exchangeRate 
@@ -1254,18 +1234,15 @@ const $screen: ViewStyle = {
 
 const $headerContainer: TextStyle = {
     alignItems: 'center',
-    // padding: spacing.tiny,  
-    height: spacing.screenHeight * 0.25,
+    //marginBottom: spacing.small,  
+    height: spacing.screenHeight * 0.22,
 }
 
 const $tabContainer: TextStyle = {
     marginTop: -spacing.extraLarge * 1.5,
-    // alignSelf: 'stretch',
-    // padding: spacing.extraSmall,    
-    // flex: 1,
-    // paddingTop: spacing.extraSmall - 3,
-    // borderWidth: 1,
-    // borderColor: 'green',
+    paddingTop: spacing.small,
+    //borderWidth: 1,
+    //borderColor: 'green',
 }
 
 
@@ -1286,6 +1263,7 @@ const $unitBalance: TextStyle = {
     lineHeight: verticalScale(56),
     fontFamily: typography.primary?.bold,
     fontWeight: 'bold', // android
+    //borderWidth: 1,
 }
 
 
@@ -1363,21 +1341,16 @@ const $buttonContainer: ViewStyle = {
     alignItems: 'center',    
 }
 
+// The two buttons meet to form one pill: outer edges fully rounded, inner edges
+// square. They used to overlap by 40pt so the Scan circle could straddle the seam;
+// now that Scan lives in the tab bar, the overlap only clipped the Send label.
 const $buttonSend: ViewStyle = {
-  borderTopLeftRadius: verticalScale(60 / 2),
-  borderBottomLeftRadius: verticalScale(60 / 2),
+  borderTopLeftRadius: verticalScale(30),
+  borderBottomLeftRadius: verticalScale(30),
   borderTopRightRadius: 0,
-  borderBottomRightRadius: 0,  
+  borderBottomRightRadius: 0,
   width: verticalScale(130),
   height: verticalScale(55),
-  marginRight: verticalScale(-25),  
-}
-
-const $buttonScan: ViewStyle = {
-  borderRadius: verticalScale(70 / 2),
-  width: verticalScale(70),
-  height: verticalScale(70),
-  zIndex: 99,  
 }
 
 const $buttonReceive: ViewStyle = {
@@ -1387,7 +1360,6 @@ const $buttonReceive: ViewStyle = {
   borderBottomRightRadius: verticalScale(30),
   width: verticalScale(130),
   height: verticalScale(55),
-  marginLeft: verticalScale(-15), 
 }
 
 const $headerTitle: TextStyle = {

@@ -184,6 +184,11 @@ export const colors = {
      */
     tabIcon: palette.neutral800,
     /**
+     * Colour of the floating tab bar's drop shadow. A black glow disappears
+     * against the dark themes' background, so they carry it at higher opacity.
+     */
+    tabBarShadow: 'rgba(0, 0, 0, 0.14)',
+    /**
      * The default color of the active tab icon.
      */
     tabActiveIcon: palette.primary400,
@@ -315,6 +320,11 @@ export const colors = {
      */
     tabIcon: palette.neutral200,
     /**
+     * Colour of the floating tab bar's drop shadow. A black glow disappears
+     * against the dark themes' background, so they carry it at higher opacity.
+     */
+    tabBarShadow: 'rgba(0, 0, 0, 0.45)',
+    /**
      * The default color of the active tab icon.
      */
     tabActiveIcon: palette.primary400,
@@ -445,6 +455,11 @@ export const colors = {
      * The default color of the tab icon.
      */
     tabIcon: palette.neutral200,
+    /**
+     * Colour of the floating tab bar's drop shadow. A black glow disappears
+     * against the dark themes' background, so they carry it at higher opacity.
+     */
+    tabBarShadow: 'rgba(0, 0, 0, 0.45)',
     /**
      * The default color of the active tab icon.
      */
