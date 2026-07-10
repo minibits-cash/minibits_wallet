@@ -64,7 +64,7 @@ export const ContactListItem = observer(function (props: ContactListProps) {
   
   const $mintText: TextStyle = {
     overflow: 'hidden', 
-    fontSize: 14,  
+    //fontSize: 14,  
   }
 
   const $iconContainer: ImageStyle = {

@@ -5,8 +5,9 @@ import {verticalScale} from '@gocodingnow/rn-size-matters'
 import { Metadata, Contacts } from 'nostr-tools/kinds'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {colors, spacing, useThemeColor} from '../../theme'
+import {useTabBarInset, useTabBarScrollHandler} from '../../navigation/tabBarVisibility'
 import useCallbackState from '../../utils/useCallbackState'
-import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
+import {BottomModal, Button, Card, cardBoxShadow, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
 import {NostrClient, NostrEvent, NostrFilter, NostrProfile} from '../../services'
 import AppError, { Err } from '../../utils/AppError'
@@ -103,9 +104,9 @@ export const PublicContactsNew = observer(function (props: {
             relaysStore.addDefaultRelays()
         }
 
-        InteractionManager.runAfterInteractions(async () => {        
-            subscribeToOwnProfileAndPubkeys()
-        })
+        
+        subscribeToOwnProfileAndPubkeys()
+        
     }, [])
 
     useEffect(() => {
@@ -119,10 +120,8 @@ export const PublicContactsNew = observer(function (props: {
             return
         }
         log.trace('Reloading...')        
-        InteractionManager.runAfterInteractions(async () => {        
-            subscribeToOwnProfileAndPubkeys()
-            setShouldReload(false)
-        })
+        subscribeToOwnProfileAndPubkeys()
+        setShouldReload(false)
         
     }, [shouldReload])
 
@@ -656,20 +655,21 @@ export const PublicContactsNew = observer(function (props: {
     const buttonBorder = useThemeColor('card')
 
 
+    const cardBg = useThemeColor('card')
+    const scrollHandler = useTabBarScrollHandler()
+    const tabBarInset = useTabBarInset()
+
     const isOwnProfileVisible = useSharedValue(true)
     const profileHeight = useSharedValue(100)
-    const followsListHeight = useSharedValue(spacing.screenHeight * 0.55)
 
     const collapseProfile = () => {
         profileHeight.value = 0
         isOwnProfileVisible.value = false
-        followsListHeight.value = spacing.screenHeight * 0.68
     }
-    
+
     const expandProfile = () => {
         profileHeight.value = 100
         isOwnProfileVisible.value = true
-        followsListHeight.value = spacing.screenHeight * 0.55
     }
 
     const animatedOwnProfile = useAnimatedStyle(() => {
@@ -679,14 +679,8 @@ export const PublicContactsNew = observer(function (props: {
         }
     })
 
-    const animatedFollowsListHeight = useAnimatedStyle(() => {
-        return {
-            maxHeight: withTiming(followsListHeight.value, { duration: 300 }),
-        }
-    })
-    
     return (
-    <Screen contentContainerStyle={$screen}>
+    <Screen contentContainerStyle={$screen} contentUnderTabBar>
         <View style={[$contentContainer]}>
         {!contactsStore.publicPubkey && (
             <Card
@@ -773,7 +767,7 @@ export const PublicContactsNew = observer(function (props: {
                             }}
                             keyExtractor={(item) => item.pubkey}
                             contentInset={insets}
-                            style={{ maxHeight: spacing.screenHeight * 0.55}}
+                            // style={{ maxHeight: spacing.screenHeight * 0.55}}
                             //contentContainerStyle={{paddingBottom: 70}}                           
                         />
                     )}
@@ -808,47 +802,46 @@ export const PublicContactsNew = observer(function (props: {
                 />
             </Animated.View>            
         )}
-        {followingProfiles.length > 0 && (                           
-            <Card
-                ContentComponent={
-                <>
-                    <Animated.FlatList<NostrProfile>
-                        data={followingProfiles}
-                        renderItem={({ item, index }) => {
-                            const isFirst= index === 0
-                            return(
-                                <ListItem 
-                                    key={item.pubkey}
-                                    LeftComponent={
-                                        <View style={{marginRight: spacing.medium, borderRadius: 20, overflow: 'hidden'}}>
-                                            {item.picture ? (
-                                                <FastImage 
-                                                    source={{uri: item.picture}}
-                                                    style={{width: 40, height: 40}}
-                                                />
-                                            ) : (
-                                                <Icon icon='faCircleUser' size={35} color={inputBg} />
-                                            )}
-                                        </View>}
-                                    text={item.name}
-                                    subText={(item.nip05) ? item.nip05 : undefined}
-                                    topSeparator={isFirst ? false : true}
-                                    onPress={() => gotoContactDetail(item as Contact)}                                  
-                                />
-                            ) 
-                        }}
-                        onEndReached={collapseProfile}
-                        onStartReached={expandProfile}                       
-                        keyExtractor={(item) => item.pubkey}
-                        contentInset={insets}
-                        style={animatedFollowsListHeight}
-                        // contentContainerStyle={{paddingBottom: 200}}
-                    />
-                </>
-                }
-                style={$card}                
+        {followingProfiles.length > 0 && (
+            <Animated.FlatList<NostrProfile>
+                data={followingProfiles}
+                renderItem={({ item, index }) => {
+                    const isFirst= index === 0
+                    return(
+                        <ListItem
+                            key={item.pubkey}
+                            LeftComponent={
+                                <View style={{marginRight: spacing.medium, borderRadius: 20, overflow: 'hidden'}}>
+                                    {item.picture ? (
+                                        <FastImage
+                                            source={{uri: item.picture}}
+                                            style={{width: 40, height: 40}}
+                                        />
+                                    ) : (
+                                        <Icon icon='faCircleUser' size={35} color={inputBg} />
+                                    )}
+                                </View>}
+                            text={item.name}
+                            subText={(item.nip05) ? item.nip05 : undefined}
+                            topSeparator={isFirst ? false : true}
+                            onPress={() => gotoContactDetail(item as Contact)}
+                        />
+                    )
+                }}
+                onEndReached={collapseProfile}
+                onStartReached={expandProfile}
+                keyExtractor={(item) => item.pubkey}
+                onScroll={scrollHandler}
+                scrollEventThrottle={16}
+                style={$followsList}
+                contentContainerStyle={[
+                    $followsListContent,
+                    {backgroundColor: cardBg, 
+                    //    paddingBottom: spacing.extraSmall + tabBarInset
+                    },
+                ]}
             />
-        )}        
+        )}
         </View>
         {isLoading && <Loading />}
         <BottomModal
@@ -1036,27 +1029,30 @@ const $saveButton: ViewStyle = {
     // marginLeft: spacing.small,
 }
 
-const $contentContainer: TextStyle = {
-    //flex: 0.85,
+const $contentContainer: ViewStyle = {
+    flex: 1,
     padding: spacing.extraSmall,
   }
+
+// The list is the page scroller, so it fills the space left below the profile card.
+const $followsList: ViewStyle = {
+    flex: 1,
+}
+
+// Reproduces the Card look on the scroll content, so the contacts scroll under the
+// floating tab bar instead of being clipped inside a fixed-height card.
+const $followsListContent: ViewStyle = {
+    borderRadius: spacing.medium,
+    paddingHorizontal: spacing.medium,
+    paddingTop: spacing.extraSmall,
+    boxShadow: cardBoxShadow,
+}
 
 const $card: ViewStyle = {
     marginBottom: spacing.small,
     // flex: 1,  
 }
 
-const $bottomModal: ViewStyle = {
-  // flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.large,
-    paddingHorizontal: spacing.small,
-}
-
-const $item: ViewStyle = {
-    paddingHorizontal: spacing.small,
-    paddingLeft: 0,
-}
 
 const $newContainer: TextStyle = {
     padding: spacing.small,
@@ -1078,26 +1074,4 @@ const $buttonContainer: ViewStyle = {
     flexDirection: 'row',
     alignSelf: 'center',
 }
-  
-const $qrCodeContainer: ViewStyle = {
-    backgroundColor: 'white',
-    padding: spacing.small,
-    margin: spacing.small,
-}
-
-const $bottomContainer: ViewStyle = {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flex: 1,
-    justifyContent: 'flex-end',
-    marginBottom: spacing.medium,
-    alignSelf: 'stretch',
-    // opacity: 0,
-  }
-  
-  const $buttonNew: ViewStyle = {
-    borderRadius: 30,    
-    minWidth: verticalScale(130),    
-  }  
+ 

@@ -3,8 +3,8 @@ import React, {FC, useEffect, useLayoutEffect, useRef, useState} from 'react'
 import {AppState, Platform, TextStyle, View, ViewStyle, useColorScheme} from 'react-native'
 import Animated, {
     useSharedValue,
-    useAnimatedScrollHandler,
 } from 'react-native-reanimated'
+import {useTabBarInset, useTabBarScrollHandler} from '../navigation/tabBarVisibility'
 import notifee, { AuthorizationStatus } from '@notifee/react-native'
 import messaging from '@react-native-firebase/messaging'
 import { HotUpdater } from '@hot-updater/react-native'
@@ -303,16 +303,14 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
   const colorScheme = useColorScheme()
   const defaultThemeColor = colorScheme === 'dark' ? Themes[ThemeCode.DARK]?.color : Themes[ThemeCode.LIGHT]?.color
 
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y
-    },
-  })
+  const scrollHandler = useTabBarScrollHandler(scrollY)
+  const tabBarInset = useTabBarInset()
 
     return (
-      <Screen contentContainerStyle={$screen} preset='fixed'>
+      <Screen contentContainerStyle={$screen} preset='fixed' contentUnderTabBar>
         <Animated.ScrollView
           style={$contentContainer}
+          contentContainerStyle={{paddingBottom: tabBarInset}}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
         >

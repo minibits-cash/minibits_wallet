@@ -305,16 +305,24 @@ export const Card = function (props: CardProps) {
   )
 }
 
+/**
+ * The card's drop shadow, as a single cross-platform declaration.
+ *
+ * `elevation` would draw Android's own Material shadow, which ignores the iOS
+ * shadow* props and renders darker and lower. boxShadow is honoured identically on
+ * both platforms. Its blur is twice the iOS shadowRadius it maps to, hence 16px.
+ *
+ * Exported so views that reproduce the card look on scrollable content — where a
+ * Card cannot wrap the list — stay in step with it.
+ */
+export const cardBoxShadow = '0px 8px 8px rgba(86, 78, 74, 0.2)'
+
 const $containerBase: ViewStyle = {
   borderRadius: spacing.medium,
   paddingHorizontal: spacing.medium,
   paddingVertical: spacing.extraSmall,
  // borderWidth: 1,
-  shadowColor: colors.palette.neutral600,
-  shadowOffset: { width: 0, height: 10 },
-  shadowOpacity: 0.2,
-  shadowRadius: 8,
-  elevation: 5,
+  boxShadow: cardBoxShadow,
   minHeight: verticalScale(64),
   flexDirection: "row",
 }

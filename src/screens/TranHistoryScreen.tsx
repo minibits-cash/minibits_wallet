@@ -5,6 +5,7 @@ import {
   ViewStyle,
   View,
   SectionList,
+  SectionListProps,
   Pressable,
   TextInput,
   Keyboard,
@@ -15,6 +16,7 @@ import Animated, {
     useAnimatedStyle,
     withTiming,
 } from 'react-native-reanimated'
+import {useTabBarInset, useTabBarScrollHandler} from '../navigation/tabBarVisibility'
 import {useThemeColor, spacing} from '../theme'
 import {
   Button,
@@ -34,6 +36,12 @@ import {Database, log} from '../services'
 import AppError from '../utils/AppError'
 import {TransactionListItem} from './Transactions/TransactionListItem'
 import { Transaction, TransactionStatus } from '../models/Transaction'
+
+type TransactionSection = {title: string; data: Transaction[]}
+
+const AnimatedSectionList = Animated.createAnimatedComponent(
+    SectionList as React.ComponentClass<SectionListProps<Transaction, TransactionSection>>
+)
 import { translate } from '../i18n'
 import { maxTransactionsInHistory } from '../models/TransactionsStore'
 import { StaticScreenProps, useFocusEffect, useNavigation } from '@react-navigation/native'
@@ -331,8 +339,11 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
         data: transactionsStore.historyByTimeAgo[timeAgo],
     }))
 
+    const scrollHandler = useTabBarScrollHandler()
+    const tabBarInset = useTabBarInset()
+
     return (
-      <Screen contentContainerStyle={$screen}>
+      <Screen contentContainerStyle={$screen} contentUnderTabBar>
         <Animated.View style={[animatedHeader, $headerContainer, {backgroundColor: headerBg}]}>
             <Text preset="heading" tx="tranHistoryScreen_title" style={{color: headerTitle}} />
         </Animated.View>
@@ -502,7 +513,10 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                     </>
                 }
             />
-            <SectionList
+            <AnimatedSectionList
+                onScroll={scrollHandler}
+                scrollEventThrottle={16}
+                contentContainerStyle={{paddingBottom: tabBarInset}}
                 sections={sections}
                 renderSectionHeader={({ section: { title, data } }) => (
                     <>
@@ -559,7 +573,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
                         style={$card}
                     />
                 }
-                style={{maxHeight: spacing.screenHeight * 0.57}}
+                style={$transactionList}
             />
           {isLoading && <Loading shiftedUp={true} />}
         </View>
@@ -658,7 +672,14 @@ const $headerContainer: TextStyle = {
     height: spacing.screenHeight * 0.15,
 }
 
-const $contentContainer: TextStyle = {}
+const $contentContainer: ViewStyle = {
+    flex: 1,
+}
+
+// Fills the space below the header so cards scroll under the floating tab bar.
+const $transactionList: ViewStyle = {
+    flex: 1,
+}
 
 const $actionCard: ViewStyle = {
   margin: spacing.extraSmall,

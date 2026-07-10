@@ -17,6 +17,7 @@ import {
 } from "react-native"
 
 import { useThemeColor, spacing } from "../theme"
+import { useTabBarInset } from "../navigation/tabBarVisibility"
 import { ExtendedEdge, useSafeAreaInsetsStyle } from "../utils/useSafeAreaInsetsStyle"
 
 interface BaseScreenProps {
@@ -39,7 +40,13 @@ interface BaseScreenProps {
   /**
    * Background color
    */
-  backgroundColor?: string  
+  backgroundColor?: string
+  /**
+   * Let content extend underneath the floating tab bar instead of ending above it.
+   * Screens that opt in are responsible for padding their own scrollable content
+   * by `useTabBarInset()` so the last item stays reachable.
+   */
+  contentUnderTabBar?: boolean
   /**
    * By how much should we offset the keyboard? Defaults to 0.
    */
@@ -189,16 +196,19 @@ function ScreenWithScrolling(props: ScreenProps) {
 
 export function Screen(props: ScreenProps) {
   const {
-    backgroundColor = useThemeColor('background'),    
+    backgroundColor = useThemeColor('background'),
     KeyboardAvoidingViewProps,
     keyboardOffset = 0,
-    safeAreaEdges,        
+    safeAreaEdges,
+    contentUnderTabBar = false,
   } = props
-  
+
   const $containerInsets = useSafeAreaInsetsStyle(safeAreaEdges)
+  const tabBarInset = useTabBarInset()
+  const paddingBottom = contentUnderTabBar ? 0 : tabBarInset
 
   return (
-    <View style={[$containerStyle, { backgroundColor }, $containerInsets]}>
+    <View style={[$containerStyle, { backgroundColor, paddingBottom }, $containerInsets]}>
       <KeyboardAvoidingView
         behavior={isIos ? "padding" : undefined}
         keyboardVerticalOffset={keyboardOffset}

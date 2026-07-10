@@ -63,7 +63,7 @@ export const ContactsScreen = observer(function ({ route }: Props) {
     )
 
     return (
-        <Screen contentContainerStyle={$screen}>
+        <Screen contentContainerStyle={$screen} contentUnderTabBar>
             <Header 
                 LeftActionComponent={<LeftProfileHeader gotoProfile={gotoProfile} isAvatarVisible={true} />}
                 title={nip05}

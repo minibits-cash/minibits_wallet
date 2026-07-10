@@ -1,11 +1,10 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { StaticParamList } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
-import { PlatformPressable } from '@react-navigation/elements'
 import React from "react"
-import { TextStyle, ViewStyle } from "react-native"
 import { Icon } from "../components"
 import { translate } from "../i18n"
+import { FloatingTabBar } from "./FloatingTabBar"
 import { 
   WalletScreen, 
   ReceiveScreen,
@@ -41,25 +40,6 @@ import {
   SeedRecoveryOptionsScreen,
   //POSScreen
 } from "../screens"
-import { colors, spacing, typography } from "../theme"
-
-const $tabBar: ViewStyle = {  
-  borderTopColor: 'transparent',
-  borderTopWidth: 0,
-  elevation: 0
-}
-
-const $tabBarItem = {
-  paddingVertical: spacing.small,
-}
-
-const $tabBarLabel: TextStyle = {
-  fontSize: 12,
-  fontFamily: typography.primary?.light,
-  lineHeight: 16,
-  flex: 1,
-}
-
 // @ts-ignore
 const WalletStack = createNativeStackNavigator({  
   screenOptions: {
@@ -161,50 +141,39 @@ declare global {
 export const TabsNavigator = createBottomTabNavigator({
   initialRouteName: "WalletNavigator",
   backBehavior: 'firstRoute',
+  tabBar: (props) => <FloatingTabBar {...props} />,
   screenOptions: {
     headerShown: false,
-    tabBarHideOnKeyboard: true,
     tabBarShowLabel: false,
-    tabBarStyle: [$tabBar, { 
-      marginBottom: spacing.medium
-    }],
-    tabBarItemStyle: [$tabBarItem, {}],
-    tabBarLabelStyle: $tabBarLabel,    
     animation: 'shift',
-    tabBarButton: (props) => (
-      <PlatformPressable
-        {...props}
-        android_ripple={{color: 'transparent'}}       
-      />
-    ),   
   },
   screens: {
     WalletNavigator: {
       screen: WalletStack,
       options: {
         tabBarLabel: translate("tabNavigator_walletLabel"),
-        tabBarIcon: ({ focused, color }) => <Icon icon="faWallet" color={color} size={spacing.large} />,                       
+        tabBarIcon: ({ color, size }) => <Icon icon="faWallet" color={color} size={size} />,
       }
     },
     TransactionsNavigator: {
       screen: TransactionsStack,
       options: {
         tabBarLabel: translate("tabNavigator_transactionsLabel"),
-        tabBarIcon: ({ focused, color }) => <Icon icon="faListUl" color={color} size={spacing.large} />,        
+        tabBarIcon: ({ color, size }) => <Icon icon="faListUl" color={color} size={size} />,
       }
     },
     ContactsNavigator: {
       screen: ContactsStack,
       options: {
         tabBarLabel: translate("tabNavigator_contactsLabel"),
-        tabBarIcon: ({ focused, color }) => <Icon icon="faAddressBook" color={color} size={spacing.large} />,        
+        tabBarIcon: ({ color, size }) => <Icon icon="faAddressBook" color={color} size={size} />,
       }
     },
     SettingsNavigator: {
       screen: SettingsStack,
       options: {
         tabBarLabel: translate("tabNavigator_settingsLabel"),
-        tabBarIcon: ({ focused, color }) => <Icon icon="faGears" color={color} size={spacing.large} />,        
+        tabBarIcon: ({ color, size }) => <Icon icon="faGears" color={color} size={size} />,
       }
     },
   }

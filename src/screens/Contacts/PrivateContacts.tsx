@@ -1,9 +1,11 @@
 import {observer} from 'mobx-react-lite'
 import React, {useEffect, useRef, useState} from 'react'
-import {FlatList, Platform, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {Platform, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import Animated from 'react-native-reanimated'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {colors, spacing, useThemeColor} from '../../theme'
-import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
+import {useTabBarInset, useTabBarScrollHandler} from '../../navigation/tabBarVisibility'
+import {BottomModal, Button, Card, cardBoxShadow, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
 import { NostrClient, NostrProfile } from '../../services'
 import AppError, { Err } from '../../utils/AppError'
@@ -236,33 +238,45 @@ export const PrivateContacts = observer(function (props: {
     const domainText = useThemeColor('textDim')    
     const inputText = useThemeColor('text')
     const inputBg = useThemeColor('background')
-    const mainButtonColor = useThemeColor('card')
+    const mainButtonColor = useThemeColor('background')
     const mainButtonIcon = useThemeColor('mainButtonIcon')
     const screenBg = useThemeColor('background')
     const buttonBorder = useThemeColor('card')
+    const cardBg = useThemeColor('card')
+    const scrollHandler = useTabBarScrollHandler()
+    const tabBarInset = useTabBarInset()
+
+    // Measured so the list can clear the floating Add button, whose height depends
+    // on the font scale.
+    const [addButtonHeight, setAddButtonHeight] = useState(0)
 
     return (
-      <Screen contentContainerStyle={$screen}>
+      <Screen contentContainerStyle={$screen} contentUnderTabBar>
         <View style={$contentContainer}>
           {contactsStore.count > 0 ? (
-            <Card
-              ContentComponent={
-                <FlatList<Contact>
-                  data={contactsStore.all as Contact[]}
-                  renderItem={({item, index}) => {
-                    return (
-                      <ContactListItem
-                        contact={item}
-                        isFirst={index === 0}
-                        gotoContactDetail={() => gotoContactDetail(item)}
-                      />
-                    )
-                  }}
-                  keyExtractor={item => item.pubkey}
-                  style={{flexGrow: 0}}
-                />
-              }
-              style={$card}
+            <Animated.FlatList<Contact>
+              data={contactsStore.all as Contact[]}
+              renderItem={({item, index}) => {
+                return (
+                  <ContactListItem
+                    contact={item}
+                    isFirst={index === 0}
+                    gotoContactDetail={() => gotoContactDetail(item)}
+                  />
+                )
+              }}
+              keyExtractor={item => item.pubkey}
+              onScroll={scrollHandler}
+              scrollEventThrottle={16}
+              style={$contactsList}
+              contentContainerStyle={[
+                $contactsListContent,
+                {
+                  backgroundColor: cardBg,
+                  //paddingBottom:
+                    //spacing.extraSmall + tabBarInset,
+                },
+              ]}
             />
           ) : (
             <Card
@@ -292,7 +306,11 @@ export const PrivateContacts = observer(function (props: {
           )}
           {isLoading && <Loading />}
         </View>
-        <View style={$bottomContainer}>
+        <View
+            style={[$bottomContainer, {bottom: tabBarInset}]}
+            pointerEvents="box-none"
+            onLayout={event => setAddButtonHeight(event.nativeEvent.layout.height)}
+        >
             <View style={$buttonContainer}>
                 <Button
                     LeftAccessory={() => (
@@ -302,9 +320,9 @@ export const PrivateContacts = observer(function (props: {
                             color={mainButtonIcon}
                         />
                     )}
-                    onPress={gotoNew}                        
-                    // style={[{backgroundColor: mainButtonColor}, $buttonNew]}
+                    onPress={gotoNew}
                     preset='tertiary'
+                    //style={{backgroundColor: mainButtonColor}}
                     tx='buttonAdd'
                 />            
             </View>
@@ -401,9 +419,23 @@ const $screen: ViewStyle = {
     // flex: 1,
 }
 
-const $contentContainer: TextStyle = {
+const $contentContainer: ViewStyle = {
     flex: 1,
     padding: spacing.extraSmall,
+}
+
+// The list is the page scroller, so it fills the space above the Add button.
+const $contactsList: ViewStyle = {
+    flex: 1,
+}
+
+// Reproduces the Card look on the scroll content, so the contacts scroll as page
+// content instead of being clipped inside a fixed-height card.
+const $contactsListContent: ViewStyle = {
+    borderRadius: spacing.medium,
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.extraSmall,
+    boxShadow: cardBoxShadow,
 }
 
 const $card: ViewStyle = {
@@ -450,16 +482,12 @@ const $buttonContainer: ViewStyle = {
   alignItems: 'center',   
 }
 
+// Floats above the list, just clear of the tab bar, so contacts scroll underneath it.
 const $bottomContainer: ViewStyle = {
-    /*position: 'absolute',
-    bottom: 0,
+    position: 'absolute',
     left: 0,
     right: 0,
-    flex: 1,
-    justifyContent: 'flex-end',
-    marginBottom: spacing.medium,*/
-    alignSelf: 'center',
-    // opacity: 0,
+    alignItems: 'center',
   }
   
   const $buttonNew: ViewStyle = {
