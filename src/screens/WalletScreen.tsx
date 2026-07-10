@@ -1315,6 +1315,7 @@ const $nwcContainer: ViewStyle = {
 }
 
 const $nwcCard: ViewStyle = {
+    paddingTop: spacing.extraSmall,
     width: spacing.screenWidth * 0.28,
     marginRight: spacing.small,
     //marginBottom: 0,
@@ -1331,7 +1332,7 @@ const $nwcCardCompact: ViewStyle = {
     width: spacing.screenWidth * 0.28,
     marginRight: spacing.small,
     minHeight: verticalScale(48),
-    paddingVertical: spacing.tiny,
+    paddingTop: spacing.extraSmall,
 }
 
 const $bottomContainer: ViewStyle = {
