@@ -694,11 +694,14 @@ export const WalletStoreModel = types
 
                 const cashuWallet: CashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: false})
 
-                // v3.x returns ProofState[] array, not grouped by state
+                // Proofs carry both `secret` and `id`, satisfying the v5-compatible
+                // signature; the pre-4.5.1 `secret`-only overload is deprecated.
                 const proofStatesArray: ProofState[] = yield cashuWallet.checkProofsStates(proofs)
 
-                // Transform array into grouped structure expected by the rest of the code
-                // Map proof states back to original proofs using secret matching
+                // Transform flat ProofState[] into the grouped structure the rest of
+                // the code expects. cashu-ts returns states in input order (it batches
+                // by 100 and re-indexes each batch by Y), so proofs[i] pairs with
+                // proofStatesArray[i].
                 const proofsByState: {[key in CheckStateEnum]: CashuProof[]} = {
                     SPENT: [],
                     PENDING: [],
