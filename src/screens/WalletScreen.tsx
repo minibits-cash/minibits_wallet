@@ -938,6 +938,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
           isVisible={isSendModalVisible ? true : false}
           //style={{alignItems: 'stretch'}}
           headingTx="payCommon_send"
+          headingStyle={{textAlign: 'center'}}
           ContentComponent={
             <>
             <ListItem
@@ -949,7 +950,6 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             />
             <ListItem
                 leftIcon='faBitcoin'
-                leftIconColor={colors.palette.orange400}
                 tx="walletScreen_optionBitcoin"
                 subTx="walletScreen_optionBitcoinSendDesc"
                 onPress={() => gotoLightningPay()}
@@ -969,6 +969,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
         <BottomModal
           isVisible={isReceiveModalVisible ? true : false}
           // style={{alignItems: 'stretch'}}
+          headingStyle={{textAlign: 'center'}}
           headingTx="payCommon_receive"
           ContentComponent={
             <>
@@ -981,7 +982,6 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             />
             <ListItem
                 leftIcon='faBitcoin'
-                leftIconColor={colors.palette.orange400}
                 tx='walletScreen_optionBitcoin'
                 subTx="walletScreen_optionBitcoinReceiveDesc"
                 onPress={() => gotoTopup()}

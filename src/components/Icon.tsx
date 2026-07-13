@@ -19,8 +19,7 @@ import { IconDefinition, Transform } from "@fortawesome/fontawesome-svg-core"
 // relevant font-awesome docs: https://docs.fontawesome.com/apis/javascript/tree-shaking
 
 // Circled Bitcoin mark, matching the silhouette of the BtcIcon SVG used by
-// CurrencySign / CurrencyAmount. Tint it with colors.palette.orange400 to stay
-// consistent with that icon's brand orange.
+// CurrencySign / CurrencyAmount.
 import { faBitcoin } from "@fortawesome/free-brands-svg-icons/faBitcoin"
 import { faTwitter } from "@fortawesome/free-brands-svg-icons/faTwitter"
 import { faTelegramPlane } from "@fortawesome/free-brands-svg-icons/faTelegramPlane"
