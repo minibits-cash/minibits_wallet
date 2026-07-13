@@ -34,7 +34,8 @@ export const TRANSACTIONS_COLUMNS = `
   tags TEXT,
   status TEXT,
   expiresAt TEXT,
-  createdAt TEXT
+  createdAt TEXT,
+  outpoint TEXT
 `
 
 export const PROOFS_COLUMNS = `
@@ -147,6 +148,45 @@ export const WALLET_COUNTERS_COLUMNS = `
   updatedAt TEXT
 `
 
+/**
+ * Onchain (NUT-30) MINT quotes.
+ *
+ * An onchain mint quote is not a one-shot request like a bolt11 invoice — it is a
+ * Bitcoin address that can receive several deposits, and the mint tracks
+ * `amount_paid` / `amount_issued` against it. The wallet mints the difference.
+ * That state does not fit on a transaction row (one transaction has one fixed
+ * amount), so it lives here and transactions point at it via `transactions.quote`
+ * — N transactions to 1 quote, one per mint operation.
+ *
+ * `counterIndex` is the load-bearing column: it is the NUT-20 derivation index,
+ * and the ONLY way to re-derive the private key needed to sign a mint request for
+ * this quote. Rows are therefore kept forever, even once archived — the mint never
+ * expires the address (`expiry` comes back null), so a late deposit stays
+ * creditable and the user can still mint it.
+ *
+ * `watchUntil` is wallet-imposed for exactly that reason: with no mint-side expiry
+ * there is nothing to bound polling of a quote nobody ever paid. It mirrors the
+ * 24h fallback bolt11 topup applies when an invoice carries no expiry tag.
+ *
+ * MELT quotes get no table: they are one-shot and terminal, so their durable state
+ * (quote id, outpoint, fee) fits on the transaction row.
+ */
+export const ONCHAIN_MINT_QUOTES_COLUMNS = `
+  quote TEXT PRIMARY KEY NOT NULL,
+  mintUrl TEXT NOT NULL,
+  unit TEXT NOT NULL,
+  address TEXT NOT NULL,
+  counterIndex INTEGER NOT NULL,
+  pubkey TEXT NOT NULL,
+  amountRequested INTEGER,
+  amountPaid INTEGER NOT NULL DEFAULT 0,
+  amountIssued INTEGER NOT NULL DEFAULT 0,
+  expiry INTEGER,
+  watchUntil TEXT NOT NULL,
+  createdAt TEXT NOT NULL,
+  updatedAt TEXT
+`
+
 /** Build a CREATE TABLE statement from a column block. */
 export const createTable = (
   name: string,
@@ -179,4 +219,7 @@ export const createSchemaQueries: SQLBatchTuple[] = [
   // Wallet-global derivation counters keyed by purpose (see walletCountersRepo).
   // First user: NUT-20 quote-locking keys.
   [createTable('wallet_counters', WALLET_COUNTERS_COLUMNS)],
+  // Onchain (NUT-30) mint quotes — the long-lived deposit addresses transactions
+  // point at via transactions.quote (see onchainQuotesRepo).
+  [createTable('onchain_mint_quotes', ONCHAIN_MINT_QUOTES_COLUMNS)],
 ]

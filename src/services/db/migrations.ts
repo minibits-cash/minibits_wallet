@@ -1,10 +1,10 @@
 import {DbConnection, SQLBatchTuple} from './connection'
-import {createTable, PROOFS_COLUMNS, PROOFS_COLUMN_NAMES, RESERVATIONS_COLUMNS, MINT_COUNTERS_COLUMNS, MELT_RECOVERY_COLUMNS, INFLIGHT_REQUESTS_COLUMNS, WALLET_COUNTERS_COLUMNS} from './schema'
+import {createTable, PROOFS_COLUMNS, PROOFS_COLUMN_NAMES, RESERVATIONS_COLUMNS, MINT_COUNTERS_COLUMNS, MELT_RECOVERY_COLUMNS, INFLIGHT_REQUESTS_COLUMNS, WALLET_COUNTERS_COLUMNS, ONCHAIN_MINT_QUOTES_COLUMNS} from './schema'
 import {dbError} from './errors'
 import {log} from '../logService'
 
 /** Bump this when a schema change requires a migration, then add an entry below. */
-export const _dbVersion = 30
+export const _dbVersion = 31
 
 type Migration = {version: number; queries: SQLBatchTuple[]}
 
@@ -99,6 +99,16 @@ const MIGRATIONS: Migration[] = [
     // the first free index) is correct for both new and upgrading wallets.
     version: 30,
     queries: [[createTable('wallet_counters', WALLET_COUNTERS_COLUMNS)]],
+  },
+  {
+    // Onchain (NUT-30): the mint-quote table, plus `outpoint` on transactions for
+    // the melt side's txid:vout (melt quotes are one-shot, so they need no table).
+    // Both empty on creation — no onchain transaction can predate this.
+    version: 31,
+    queries: [
+      [createTable('onchain_mint_quotes', ONCHAIN_MINT_QUOTES_COLUMNS)],
+      [`ALTER TABLE transactions ADD COLUMN outpoint TEXT`],
+    ],
   },
 ]
 

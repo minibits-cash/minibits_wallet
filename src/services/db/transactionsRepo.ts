@@ -7,7 +7,7 @@ import {normalizeTransactionRecord, normalizeTransactionRows} from './mappers'
 
 export const updateTransaction = function (id: number, fields: Partial<Transaction>): Transaction {
 
-  const allowedColumns = ['amount','fee','unit','data', 'keysetId', 'sentFrom','sentTo','profile','memo','paymentId','quote','paymentRequest','zapRequest','inputToken','outputToken','proof','balanceAfter','noteToSelf','tags','status','expiresAt'];
+  const allowedColumns = ['amount','fee','unit','data', 'keysetId', 'sentFrom','sentTo','profile','memo','paymentId','quote','paymentRequest','zapRequest','inputToken','outputToken','proof','balanceAfter','noteToSelf','tags','status','expiresAt','outpoint'];
 
   try {
     // Filter keys against allowed columns

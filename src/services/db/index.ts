@@ -70,6 +70,14 @@ import {
   getWalletCounter,
   setWalletCounter,
 } from './walletCountersRepo'
+import {
+  addOnchainMintQuote,
+  getOnchainMintQuote,
+  getOnchainMintQuotesByMint,
+  getWatchedOnchainMintQuotes,
+  updateOnchainMintQuoteAmounts,
+  extendOnchainMintQuoteWatch,
+} from './onchainQuotesRepo'
 
 export type {TransactionSearchFilters} from './transactionsRepo'
 export type {
@@ -79,6 +87,8 @@ export type {
 } from './reservationsRepo'
 export type {CounterRecord, CounterSeed} from './countersRepo'
 export {NUT20_COUNTER} from './walletCountersRepo'
+export type {OnchainMintQuoteRecord} from './onchainQuotesRepo'
+export {ONCHAIN_QUOTE_WATCH_DAYS} from './onchainQuotesRepo'
 export type {MeltRecoveryRecord, MeltRecoverySeed} from './meltRecoveryRepo'
 export type {InFlightRequestRecord, InFlightRequestSeed} from './inFlightRepo'
 
@@ -135,4 +145,10 @@ export const Database = {
   allocateNextCounter,
   getWalletCounter,
   setWalletCounter,
+  addOnchainMintQuote,
+  getOnchainMintQuote,
+  getOnchainMintQuotesByMint,
+  getWatchedOnchainMintQuotes,
+  updateOnchainMintQuoteAmounts,
+  extendOnchainMintQuoteWatch,
 }
