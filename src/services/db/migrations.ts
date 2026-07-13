@@ -1,10 +1,10 @@
 import {DbConnection, SQLBatchTuple} from './connection'
-import {createTable, PROOFS_COLUMNS, PROOFS_COLUMN_NAMES, RESERVATIONS_COLUMNS, MINT_COUNTERS_COLUMNS, MELT_RECOVERY_COLUMNS, INFLIGHT_REQUESTS_COLUMNS} from './schema'
+import {createTable, PROOFS_COLUMNS, PROOFS_COLUMN_NAMES, RESERVATIONS_COLUMNS, MINT_COUNTERS_COLUMNS, MELT_RECOVERY_COLUMNS, INFLIGHT_REQUESTS_COLUMNS, WALLET_COUNTERS_COLUMNS} from './schema'
 import {dbError} from './errors'
 import {log} from '../logService'
 
 /** Bump this when a schema change requires a migration, then add an entry below. */
-export const _dbVersion = 29
+export const _dbVersion = 30
 
 type Migration = {version: number; queries: SQLBatchTuple[]}
 
@@ -92,6 +92,13 @@ const MIGRATIONS: Migration[] = [
     // seed (see setupRootStore._runMigrations).
     version: 29,
     queries: [[createTable('inflight_requests', INFLIGHT_REQUESTS_COLUMNS)]],
+  },
+  {
+    // Add wallet-global derivation counters (NUT-20 quote-locking keys).
+    // No seed: no NUT-20 quote has ever been created, so an absent row (== 0,
+    // the first free index) is correct for both new and upgrading wallets.
+    version: 30,
+    queries: [[createTable('wallet_counters', WALLET_COUNTERS_COLUMNS)]],
   },
 ]
 

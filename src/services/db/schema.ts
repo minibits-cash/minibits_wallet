@@ -128,6 +128,25 @@ export const INFLIGHT_REQUESTS_COLUMNS = `
   createdAt TEXT
 `
 
+/**
+ * Wallet-global deterministic-derivation counters, keyed by purpose name.
+ *
+ * Distinct from `mint_counters`, which is keyed by (mintUrl, keysetId) because
+ * NUT-13 keyset counters are mint-scoped. The counters here belong to derivation
+ * paths that have NO mint or keyset component, so a single value serves the whole
+ * wallet. The first is NUT-20 quote-locking (`m/129373'/20'/0'/0'/{counter}`);
+ * the table is keyed by name so future wallet-global counters need no migration.
+ *
+ * `counter` is the NEXT FREE index (a high-water mark), matching the semantics of
+ * `mint_counters` (which stores cashu-ts's `next`). Allocation increments and
+ * returns the previous value; see walletCountersRepo.
+ */
+export const WALLET_COUNTERS_COLUMNS = `
+  name TEXT PRIMARY KEY NOT NULL,
+  counter INTEGER NOT NULL DEFAULT 0,
+  updatedAt TEXT
+`
+
 /** Build a CREATE TABLE statement from a column block. */
 export const createTable = (
   name: string,
@@ -157,4 +176,7 @@ export const createSchemaQueries: SQLBatchTuple[] = [
   // Per-transaction in-flight mint/swap request data for idempotent retry
   // (see inFlightRepo). A row exists only while a request is in-flight.
   [createTable('inflight_requests', INFLIGHT_REQUESTS_COLUMNS)],
+  // Wallet-global derivation counters keyed by purpose (see walletCountersRepo).
+  // First user: NUT-20 quote-locking keys.
+  [createTable('wallet_counters', WALLET_COUNTERS_COLUMNS)],
 ]

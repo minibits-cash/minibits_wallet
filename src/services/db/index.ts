@@ -65,6 +65,11 @@ import {
   removeInFlightRequest,
   seedInFlightRequests,
 } from './inFlightRepo'
+import {
+  allocateNextCounter,
+  getWalletCounter,
+  setWalletCounter,
+} from './walletCountersRepo'
 
 export type {TransactionSearchFilters} from './transactionsRepo'
 export type {
@@ -73,6 +78,7 @@ export type {
   ReservationTransactionUpdate,
 } from './reservationsRepo'
 export type {CounterRecord, CounterSeed} from './countersRepo'
+export {NUT20_COUNTER} from './walletCountersRepo'
 export type {MeltRecoveryRecord, MeltRecoverySeed} from './meltRecoveryRepo'
 export type {InFlightRequestRecord, InFlightRequestSeed} from './inFlightRepo'
 
@@ -126,4 +132,7 @@ export const Database = {
   getInFlightRequestsByMint,
   removeInFlightRequest,
   seedInFlightRequests,
+  allocateNextCounter,
+  getWalletCounter,
+  setWalletCounter,
 }
