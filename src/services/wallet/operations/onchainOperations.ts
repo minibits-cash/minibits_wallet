@@ -38,9 +38,32 @@ const handleOnchainQuoteQueue = async (): Promise<void> => {
     log.trace('[handleOnchainQuoteQueue] start', {watched: watched.length})
 
     for (const quote of watched) {
-        const taskId = `handleOnchainQuoteTask-${quote.quote}-${Date.now()}`
-        SyncQueue.addTask(taskId, () => handleOnchainQuoteTask(quote.quote))
+        enqueueOnchainQuoteCheck(quote.quote)
     }
+}
+
+/**
+ * Queue a single quote check. THE ONLY WAY a quote check may be started.
+ *
+ * Minting derives blinded secrets from the keyset counter: mintOnchainProofs
+ * advances the wallet's counter to our stored value, mints, then writes back the
+ * value the library consumed. Two mints running concurrently on the same keyset
+ * would both advance to the SAME starting counter and derive the SAME blinded
+ * secrets — the mint would reject the second, and worse, a reused secret is exactly
+ * the hazard the counters-in-SQLite work exists to prevent.
+ *
+ * SyncQueue runs at concurrency 1, so routing every check through it serialises
+ * them. That matters because checks arrive from two independent places: the watcher
+ * sweep, and the user tapping "check for deposits" in the transaction detail. Call
+ * refreshQuote directly from either and they can overlap.
+ *
+ * Duplicate tasks for the same quote are harmless — they run in sequence, and the
+ * second recomputes the mintable balance from the mint's own (monotonic) numbers,
+ * so it finds nothing to do rather than minting twice.
+ */
+const enqueueOnchainQuoteCheck = (quote: string) => {
+    const taskId = `handleOnchainQuoteTask-${quote}-${Date.now()}`
+    return SyncQueue.addTask(taskId, () => handleOnchainQuoteTask(quote))
 }
 
 /**
@@ -68,5 +91,6 @@ const handleOnchainQuoteTask = async (quote: string) => {
 
 export const OnchainOperationService = {
     handleOnchainQuoteQueue,
+    enqueueOnchainQuoteCheck,
     handleOnchainQuoteTask,
 }

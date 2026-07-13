@@ -61,7 +61,7 @@ import { pollerExists } from '../utils/poller'
 import { CommonActions, StaticScreenProps, useFocusEffect, useNavigation } from '@react-navigation/native'
 import { QRCodeBlock } from './Wallet/QRCode'
 import { Database } from '../services'
-import { OnchainTopupOperationApi } from '../services/wallet/operations/onchainTopupOperationApi'
+import { OnchainOperationService } from '../services/wallet/operations/onchainOperations'
 import { buildBip21Uri } from '../services/wallet/operations/onchainAmounts'
 import { MintListItem } from './Mints/MintListItem'
 import { Token, TokenMetadata, getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
@@ -1406,13 +1406,21 @@ const OnchainTopupInfoBlock = function (props: {
 
         try {
             // Reopen the window first: the quote may well have been archived (that is
-            // usually WHY the user is here), and refreshQuote alone would not put it
-            // back into the watcher's set for the next deposit.
+            // usually WHY the user is here), and a check alone would not put it back
+            // into the watcher's set for the next deposit.
             Database.extendOnchainMintQuoteWatch(transaction.quote)
 
-            const result = await OnchainTopupOperationApi.refreshQuote(transaction.quote)
+            // Through the queue, NOT straight to refreshQuote. Minting derives blinded
+            // secrets from the keyset counter, and the watcher sweep can be doing the
+            // same thing at the same moment; SyncQueue (concurrency 1) is what keeps
+            // the two from advancing to the same counter and reusing secrets.
+            const result: any = await OnchainOperationService.enqueueOnchainQuoteCheck(
+                transaction.quote,
+            )
 
-            if (result.minted <= 0) {
+            if (result?.error) {
+                setCheckResult(result.error)
+            } else if (!result?.minted) {
                 setCheckResult(translate('tranDetail_onchainNoDeposits'))
             }
             // A successful mint settles the transaction; the observer re-renders it.
