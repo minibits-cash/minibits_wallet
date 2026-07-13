@@ -21,7 +21,10 @@ import { useStores } from '../../models';
 import AppError, { Err } from '../../utils/AppError';
 
 
-export type QRCodeBlockTypes = 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC' | 'PUBKEY' | 'PaymentRequest'
+// 'BitcoinAddress' carries a BIP21 URI (bitcoin:<addr>?amount=...), not a bare
+// address, so a scanning wallet pre-fills the amount. Deliberately left out of the
+// NFC-safe list below: onchain deposits are not a tap-to-pay flow.
+export type QRCodeBlockTypes = 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC' | 'PUBKEY' | 'PaymentRequest' | 'BitcoinAddress'
 
 const ANIMATED_QR_FRAGMENT_LENGTH = 150
 const ANIMATED_QR_INTERVAL = 250

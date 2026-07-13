@@ -60,6 +60,9 @@ import { MintUnit, formatCurrency, getCurrency } from "../services/wallet/curren
 import { pollerExists } from '../utils/poller'
 import { CommonActions, StaticScreenProps, useFocusEffect, useNavigation } from '@react-navigation/native'
 import { QRCodeBlock } from './Wallet/QRCode'
+import { Database } from '../services'
+import { OnchainTopupOperationApi } from '../services/wallet/operations/onchainTopupOperationApi'
+import { buildBip21Uri } from '../services/wallet/operations/onchainAmounts'
 import { MintListItem } from './Mints/MintListItem'
 import { Token, TokenMetadata, getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
 import FastImage from 'react-native-fast-image'
@@ -230,7 +233,11 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
             return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
             case TransactionType.TOPUP:
             return `+${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
+            case TransactionType.TOPUP_ONCHAIN:
+            return `+${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
             case TransactionType.TRANSFER:
+            return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
+            case TransactionType.TRANSFER_ONCHAIN:
             return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
             default:
             return `${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
@@ -383,6 +390,13 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                   isDataParsable={isDataParsable}
                   mint={mint}
                   colorScheme={colorScheme as 'dark' | 'light'}
+                  navigation={navigation}
+                />
+              )}
+              {transaction.type === TransactionType.TOPUP_ONCHAIN && (
+                <OnchainTopupInfoBlock
+                  transaction={transaction}
+                  mint={mint}
                   navigation={navigation}
                 />
               )}
@@ -1357,6 +1371,140 @@ const SendInfoBlock = function (props: {
       </>
       
   )
+}
+
+/**
+ * Detail block for an onchain (NUT-30) topup.
+ *
+ * Separate from TopupInfoBlock because the two behave differently in the one way
+ * that matters here: a bolt11 invoice is single-use and expires, but an onchain
+ * deposit address NEVER expires (the mint returns `expiry: null`). Money sent to it
+ * long after the wallet stopped watching is still credited and still mintable — the
+ * wallet simply is not looking any more.
+ *
+ * So this block offers "check for deposits": it reopens the watch window and
+ * re-checks the quote immediately. That is the recovery path for anything the
+ * watcher's 7-day window missed, and it is the reason quote rows (and their NUT-20
+ * counterIndex) are kept forever rather than deleted on completion.
+ */
+const OnchainTopupInfoBlock = function (props: {
+    transaction: Transaction
+    mint?: Mint
+    navigation: any
+}) {
+    const {transaction, mint} = props
+    const isInternetReachable = useIsInternetReachable()
+    const [isChecking, setIsChecking] = useState(false)
+    const [checkResult, setCheckResult] = useState<string | undefined>()
+    const labelColor = useThemeColor('textDim')
+
+    const onCheckForDeposits = async function () {
+        if (!isInternetReachable || !transaction.quote) return
+
+        setIsChecking(true)
+        setCheckResult(undefined)
+
+        try {
+            // Reopen the window first: the quote may well have been archived (that is
+            // usually WHY the user is here), and refreshQuote alone would not put it
+            // back into the watcher's set for the next deposit.
+            Database.extendOnchainMintQuoteWatch(transaction.quote)
+
+            const result = await OnchainTopupOperationApi.refreshQuote(transaction.quote)
+
+            if (result.minted <= 0) {
+                setCheckResult(translate('tranDetail_onchainNoDeposits'))
+            }
+            // A successful mint settles the transaction; the observer re-renders it.
+        } catch (e: any) {
+            setCheckResult(e.message)
+        } finally {
+            setIsChecking(false)
+        }
+    }
+
+    return (
+        <>
+            <Card
+                label='Transaction data'
+                style={$dataCard}
+                ContentComponent={
+                    <>
+                        <TranItem
+                            label="tranDetailScreen_amount"
+                            value={transaction.amount}
+                            unit={transaction.unit}
+                            isCurrency={true}
+                            isFirst={true}
+                        />
+                        {transaction.memo && transaction.memo.length > 0 && (
+                            <TranItem label="receiverMemo" value={transaction.memo as string} />
+                        )}
+                        <TranItem
+                            label="tranDetailScreen_type"
+                            value={transaction.type as string}
+                        />
+                        <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                            <TranItem
+                                label="tranDetailScreen_status"
+                                value={transaction.status as string}
+                            />
+                            {isInternetReachable && transaction.quote && (
+                                <Button
+                                    style={{marginTop: spacing.medium}}
+                                    preset="secondary"
+                                    tx="tranDetail_checkForDeposits"
+                                    onPress={onCheckForDeposits}
+                                    disabled={isChecking}
+                                />
+                            )}
+                        </View>
+                        {checkResult && (
+                            <Text
+                                text={checkResult}
+                                preset="formHelper"
+                                style={{color: labelColor}}
+                            />
+                        )}
+                        {transaction.status === TransactionStatus.COMPLETED && (
+                            <TranItem
+                                label="tranDetailScreen_balanceAfter"
+                                value={transaction.balanceAfter || 0}
+                                unit={transaction.unit}
+                                isCurrency={true}
+                            />
+                        )}
+                        <TranItem
+                            label="tranDetailScreen_createdAt"
+                            value={(transaction.createdAt as Date).toLocaleString()}
+                        />
+                        <TranItem label="tranDetailScreen_id" value={`${transaction.id}`} />
+                    </>
+                }
+            />
+            {transaction.status === TransactionStatus.PENDING && transaction.paymentRequest && (
+                <View style={{marginBottom: spacing.small}}>
+                    <QRCodeBlock
+                        qrCodeData={buildBip21Uri(transaction.paymentRequest, transaction.amount)}
+                        title={translate('topupScreen_onchainAddressToPay')}
+                        type='BitcoinAddress'
+                        size={spacing.screenWidth * 0.8}
+                    />
+                </View>
+            )}
+            <Card
+                labelTx='tranDetailScreen_topupTo'
+                style={$dataCard}
+                ContentComponent={
+                    mint ? (
+                        <MintListItem mint={mint} isSelectable={false} isUnitVisible={false} />
+                    ) : (
+                        <Text text={transaction.mint} />
+                    )
+                }
+            />
+        </>
+    )
 }
 
 const TopupInfoBlock = function (props: {

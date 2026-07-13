@@ -748,5 +748,14 @@
 	"welcomeScreen_terms_agreeConjunction": "a",
 	"welcomeScreen_terms_agreePrivacy": "Zásadami ochrany osobných údajov",
 	"mintSelector_noTopupSupport": "Dobitie nie je pre túto menu podporované",
-	"mintSelector_noPayoutSupport": "Výplaty nie sú pre túto menu podporované"
+	"mintSelector_noPayoutSupport": "Výplaty nie sú pre túto menu podporované",
+	"topupScreen_onchainAddress": "Bitcoin adresa",
+	"topupScreen_onchainAddressToPay": "Bitcoin adresa na zaplatenie",
+	"topupScreen_onchainAmountIsHint": "Suma je len návrh. Váš zostatok sa aktualizuje podľa toho, čo skutočne dorazí — viac alebo menej.",
+	"topupScreen_onchainConfirmationsNeeded": "Váš ecash sa objaví, keď sa vklad potvrdí v sieti Bitcoin.",
+	"tranDetail_checkForDeposits": "Skontrolovať vklady",
+	"tranDetail_onchainNoDeposits": "Na tejto adrese zatiaľ neboli nájdené žiadne nové vklady.",
+	"tranDetail_onchainOutpoint": "Bitcoin transakcia",
+	"transactionType_topupOnchain": "Dobitie onchain",
+	"transactionType_transferOnchain": "Onchain platba"
 }

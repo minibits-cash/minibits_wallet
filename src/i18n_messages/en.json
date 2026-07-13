@@ -748,5 +748,14 @@
 	"welcomeScreen_terms_agreeConjunction": "and",
 	"welcomeScreen_terms_agreePrivacy": "Privacy Policy",
 	"mintSelector_noTopupSupport": "Top up not supported for this currency",
-	"mintSelector_noPayoutSupport": "Payouts not supported for this currency"
+	"mintSelector_noPayoutSupport": "Payouts not supported for this currency",
+	"topupScreen_onchainAddress": "Bitcoin address",
+	"topupScreen_onchainAddressToPay": "Bitcoin address to pay",
+	"topupScreen_onchainAmountIsHint": "The amount is only a suggestion. Your balance updates with whatever actually arrives, whether more or less.",
+	"topupScreen_onchainConfirmationsNeeded": "Your ecash appears once the deposit confirms on the Bitcoin network.",
+	"tranDetail_checkForDeposits": "Check for deposits",
+	"tranDetail_onchainNoDeposits": "No new deposits found at this address yet.",
+	"tranDetail_onchainOutpoint": "Bitcoin transaction",
+	"transactionType_topupOnchain": "Topup onchain",
+	"transactionType_transferOnchain": "Onchain payment"
 }

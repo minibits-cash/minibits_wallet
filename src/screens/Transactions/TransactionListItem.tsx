@@ -94,10 +94,16 @@ export const TransactionListItem = observer(function (props: TransactionListProp
         return (tx.memo && tx.memo !== 'LNbits'
           ? tx.memo
           : tx.sentTo
-          ? tx.status === TransactionStatus.COMPLETED ? 
+          ? tx.status === TransactionStatus.COMPLETED ?
             translate('transactionCommon_paidTo', {receiver: getProfileName(tx.sentTo)})
           : translate('transactionCommon_payTo', {receiver: getProfileName(tx.sentTo)})
-          : translate('transactionCommon_youPaid'))        
+          : translate('transactionCommon_youPaid'))
+      // Onchain has no contact/profile to name — the counterparty is an address,
+      // and for a topup it may not even be known (anyone can pay it).
+      case TransactionType.TOPUP_ONCHAIN:
+        return tx.memo ? tx.memo : translate('transactionType_topupOnchain')
+      case TransactionType.TRANSFER_ONCHAIN:
+        return tx.memo ? tx.memo : translate('transactionType_transferOnchain')
       default:
         return translate('transactionCommon_unknown')
     }
@@ -167,7 +173,7 @@ export const TransactionListItem = observer(function (props: TransactionListProp
         return (<Icon containerStyle={$txIconContainer} icon="faClock" size={spacing.medium} color={txErrorColor}/>)
       }
   
-      if([TransactionType.RECEIVE, TransactionType.TOPUP, TransactionType.RECEIVE_BY_PAYMENT_REQUEST].includes(tx.type)) {
+      if([TransactionType.RECEIVE, TransactionType.TOPUP, TransactionType.TOPUP_ONCHAIN, TransactionType.RECEIVE_BY_PAYMENT_REQUEST].includes(tx.type)) {
         if(tx.profile) {
           const profilePicture = getProfilePicture(tx.profile)
           if(profilePicture) {            

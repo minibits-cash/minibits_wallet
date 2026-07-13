@@ -747,5 +747,14 @@
 	"welcomeScreen_terms_agreeConjunction": "y la",
 	"welcomeScreen_terms_agreePrivacy": "Política de Privacidad",
 	"mintSelector_noTopupSupport": "Recargas no soportadas para esta moneda",
-	"mintSelector_noPayoutSupport": "Pagos no soportados para esta moneda"
+	"mintSelector_noPayoutSupport": "Pagos no soportados para esta moneda",
+	"topupScreen_onchainAddress": "Dirección Bitcoin",
+	"topupScreen_onchainAddressToPay": "Dirección Bitcoin a pagar",
+	"topupScreen_onchainAmountIsHint": "El importe es solo una sugerencia. Tu saldo se actualizará con lo que realmente llegue, sea más o menos.",
+	"topupScreen_onchainConfirmationsNeeded": "Tu ecash aparecerá cuando el depósito se confirme en la red Bitcoin.",
+	"tranDetail_checkForDeposits": "Buscar depósitos",
+	"tranDetail_onchainNoDeposits": "Aún no se encontraron nuevos depósitos en esta dirección.",
+	"tranDetail_onchainOutpoint": "Transacción Bitcoin",
+	"transactionType_topupOnchain": "Recarga onchain",
+	"transactionType_transferOnchain": "Pago onchain"
 }
