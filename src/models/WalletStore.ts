@@ -14,6 +14,7 @@ import {
   GetKeysResponse,
   GetInfoResponse,
   MintQuoteBolt11Response,
+  MintQuoteOnchainResponse,
   type ProofState,
   type OperationCounters,
   type MeltPreview,
@@ -859,7 +860,194 @@ export const WalletStoreModel = types
               )
             }
         }),
-        mintProofs: flow(function* mintProofs(  
+        /**
+         * Ask the mint for an onchain (NUT-30) mint quote.
+         *
+         * Note there is NO amount: the quote is a Bitcoin address that can receive
+         * any number of deposits, so the mint has nothing to price. The `pubkey` is
+         * mandatory — NUT-30 requires NUT-20 quote locking and the mint MUST reject
+         * a quote request without one (error 20009).
+         *
+         * The full response is returned (not just the address): the caller has to
+         * persist `quote`, and minting later needs the whole object, because
+         * cashu-ts decides to sign from `quote.pubkey`.
+         */
+        createOnchainMintQuote: flow(function* createOnchainMintQuote(
+            mintUrl: string,
+            unit: MintUnit,
+            pubkey: string,
+        ) {
+            try {
+                const cashuMint: CashuMint = yield self.getMint(mintUrl)
+                const quoteResponse: MintQuoteOnchainResponse =
+                    yield cashuMint.createMintQuoteOnchain({unit, pubkey})
+
+                log.info('[WalletStore.createOnchainMintQuote]', {
+                    mintUrl,
+                    quote: quoteResponse.quote,
+                    address: quoteResponse.request,
+                })
+
+                return quoteResponse
+            } catch (e: any) {
+                let message = 'The mint could not return an onchain mint quote.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions
+                throw new AppError(Err.MINT_ERROR, message, {
+                    message: e.message,
+                    caller: 'createOnchainMintQuote',
+                    mintUrl,
+                })
+            }
+        }),
+        /** Current state of an onchain mint quote: amount_paid / amount_issued. */
+        checkOnchainMintQuote: flow(function* checkOnchainMintQuote(
+            mintUrl: string,
+            quote: string,
+        ) {
+            try {
+                const cashuMint: CashuMint = yield self.getMint(mintUrl)
+                const quoteResponse: MintQuoteOnchainResponse =
+                    yield cashuMint.checkMintQuoteOnchain(quote)
+
+                return quoteResponse
+            } catch (e: any) {
+                let message = 'The mint could not return the onchain mint quote state.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions
+                throw new AppError(Err.MINT_ERROR, message, {
+                    message: e.message,
+                    caller: 'checkOnchainMintQuote',
+                    mintUrl,
+                    quote,
+                })
+            }
+        }),
+        /**
+         * Mint ecash against a confirmed onchain deposit.
+         *
+         * Mirrors `mintProofs` (same counter discipline, same NUT-19 in-flight
+         * record, same error surface) with two differences:
+         *
+         *  - it goes through the GENERIC `mintProofs('onchain', ...)` rather than
+         *    the `mintProofsOnchain` sugar. The sugar takes a narrowed config of
+         *    just `{keysetId}` — it silently drops `onCountersReserved`, which is
+         *    how we learn which derivation indices the library actually consumed.
+         *    Losing that would desync our counter and risk blinded-secret reuse.
+         *    The generic form takes the full MintProofsConfig, which carries BOTH
+         *    `privkey` and `onCountersReserved`.
+         *
+         *  - `quote` is the whole MintQuoteOnchainResponse, not an id. cashu-ts
+         *    signs the request (NUT-20) when the quote carries a `pubkey`, and it
+         *    reads that off the quote object.
+         *
+         * `privkey` is derived on demand from the seed and the quote's stored
+         * counterIndex; it is never persisted.
+         */
+        mintOnchainProofs: flow(function* mintOnchainProofs(
+            mintUrl: string,
+            amount: number,
+            unit: MintUnit,
+            quoteResponse: MintQuoteOnchainResponse,
+            privkey: string,
+            transactionId: number,
+            options?: {
+                increaseCounterBy?: number
+                inFlightRequest?: InFlightRequest<MintParams>
+            },
+        ) {
+            const mintInstance = self.getMintModelInstance(mintUrl)
+
+            if (!mintInstance) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
+            }
+
+            const cashuWallet: CashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: true})
+
+            const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
+
+            // outputs error healing
+            if (options?.increaseCounterBy) {
+                currentCounter.increaseProofsCounter(options.increaseCounterBy)
+            }
+
+            yield cashuWallet.counters.advanceToAtLeast(
+                cashuWallet.keysetId,
+                currentCounter.counter,
+            )
+
+            const mintParams: MintParams = options?.inFlightRequest?.request || {
+                amount,
+                quote: quoteResponse.quote,
+                options: {keysetId: cashuWallet.keysetId},
+            }
+
+            // Record the request BEFORE sending it. If the response is lost (network
+            // drop), the mint has already incremented amount_issued — the quote then
+            // looks drained and the ecash would be stranded. Replaying the identical
+            // request hits the mint's NUT-19 cache and returns the same signatures.
+            // Identical outputs depend on the counter NOT having advanced, which holds:
+            // onCountersReserved never fired, so we never wrote it back.
+            // @ts-ignore
+            if (cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
+                Database.addInFlightRequest(
+                    transactionId,
+                    mintUrl,
+                    cashuWallet.keysetId,
+                    mintParams,
+                )
+            }
+
+            let reservedCounters: OperationCounters | undefined
+
+            try {
+                const proofs = yield cashuWallet.mintProofs(
+                    'onchain',
+                    mintParams.amount,
+                    quoteResponse,
+                    {
+                        keysetId: mintParams.options?.keysetId,
+                        privkey,
+                        onCountersReserved: (info: OperationCounters) => {
+                            reservedCounters = info
+                            log.debug('[mintOnchainProofs] Counters reserved', info)
+                        },
+                    },
+                )
+
+                Database.removeInFlightRequest(transactionId)
+
+                if (reservedCounters) {
+                    currentCounter.setProofsCounter(reservedCounters.next)
+                }
+
+                log.debug('[WalletStore.mintOnchainProofs]', {
+                    amount: mintParams.amount,
+                    quote: quoteResponse.quote,
+                    proofs: proofs.length,
+                })
+
+                return proofs
+            } catch (e: any) {
+                // Keep the in-flight record on timeout / network failure — those are
+                // exactly the cases where the mint may have processed the request and
+                // we simply did not hear back. Any other error means it did not.
+                if (
+                    !e.message.toLowerCase().includes('timeout') &&
+                    !e.message.toLowerCase().includes('network request failed')
+                ) {
+                    Database.removeInFlightRequest(transactionId)
+                }
+
+                let message = 'Error on request to mint new ecash from an onchain deposit.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions
+                throw new AppError(Err.MINT_ERROR, message, {
+                    message: e.message,
+                    caller: 'mintOnchainProofs',
+                    mintUrl,
+                    quote: quoteResponse.quote,
+                })
+            }
+        }),
+        mintProofs: flow(function* mintProofs(
             mintUrl: string,
             amount: number,
             unit: MintUnit,
@@ -869,7 +1057,7 @@ export const WalletStoreModel = types
               increaseCounterBy?: number,
               inFlightRequest?: InFlightRequest<MintParams>
             }
-            
+
         ) {
             const mintInstance = self.getMintModelInstance(mintUrl)
             

@@ -244,6 +244,82 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                         break
                     }
 
+                    // TOPUP_ONCHAIN (mint from an onchain deposit, retry)
+                    //
+                    // Same hazard as TOPUP, and worse to leave unhandled: if the mint
+                    // processed the request but we never saw the response, it has already
+                    // counted the ecash as issued. The quote then reads as drained
+                    // (amount_paid == amount_issued), the watcher stops looking at it, and
+                    // the proofs are stranded. Replaying the identical request hits the
+                    // mint's NUT-19 cache and returns the same signatures.
+                    case TransactionType.TOPUP_ONCHAIN: {
+                        const quoteRow = tx.quote
+                            ? Database.getOnchainMintQuote(tx.quote)
+                            : undefined
+
+                        if (!quoteRow) {
+                            log.error('[handleInFlightByMintTask] No onchain quote for tx', {
+                                tId: tx.id,
+                                quote: tx.quote,
+                            })
+                            break
+                        }
+
+                        // The signing key was never persisted — re-derive it from the seed
+                        // and the quote's NUT-20 index.
+                        const {deriveQuoteKeypair} = await import('../../cashu/nut20')
+                        const seed: Uint8Array = await walletStore.getCachedSeed()
+                        const {privkey} = deriveQuoteKeypair(seed, quoteRow.counterIndex)
+
+                        const quoteResponse = await walletStore.checkOnchainMintQuote(
+                            mintUrl,
+                            quoteRow.quote,
+                        )
+
+                        const proofs = await walletStore.mintOnchainProofs(
+                            mintUrl,
+                            inFlight.request.amount,
+                            unit,
+                            quoteResponse,
+                            privkey,
+                            tx.id,
+                            {inFlightRequest: inFlight},
+                        )
+
+                        const recoveredAmount = CashuUtils.getProofsAmount(proofs)
+                        const currentSpendable =
+                            proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
+                        const balanceAfter = currentSpendable + recoveredAmount
+
+                        txData.push({status: TransactionStatus.COMPLETED, createdAt: new Date()})
+
+                        const reservation = proofsStore.reserve([], {
+                            transactionId: tx.id,
+                            mintUrl,
+                            unit,
+                            operationType: 'onchain-topup-retry',
+                            rollbackTo: 'UNSPENT',
+                        })
+                        proofsStore.commitReservation(reservation, {
+                            newProofs: [{proofs, state: 'UNSPENT', tId: tx.id}],
+                            transactionUpdate: {
+                                id: tx.id,
+                                status: TransactionStatus.COMPLETED,
+                                amount: recoveredAmount,
+                                data: JSON.stringify(txData),
+                                balanceAfter,
+                            },
+                        })
+
+                        Database.updateOnchainMintQuoteAmounts(
+                            quoteRow.quote,
+                            Number(quoteResponse.amount_paid ?? 0),
+                            Number(quoteResponse.amount_issued ?? 0),
+                        )
+
+                        break
+                    }
+
                     // TRANSFER (melt / lightning out retry)
                     // COMMENTED OUT — solved by syncStateWithMintTask which recovers change
                     // from pending-yet-paid transfers. Request params (meltPreview) is stored
