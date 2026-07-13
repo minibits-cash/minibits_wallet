@@ -29,6 +29,7 @@ import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
 import { Proof } from './Proof'
 
 import { InFlightRequest, Mint } from './Mint'
+import { MINT_INFO_TTL_SECONDS, isMintInfoStale } from './helpers/mintInfoStale'
 import { getRootStore } from './helpers/getRootStore'
 import { Transaction } from './Transaction'
 
@@ -48,7 +49,7 @@ import { Transaction } from './Transaction'
  * gains (or drops) a method visible reasonably soon, while costing at most one
  * getInfo() per mint per hour.
  */
-export const MINT_INFO_TTL_SECONDS = 3600
+export {MINT_INFO_TTL_SECONDS, isMintInfoStale}
 
 export type ExchangeRate = {
   currency: CurrencyCode, // 1 EUR, USD, ...
@@ -259,10 +260,7 @@ export const WalletStoreModel = types
           const mintInstance = self.getMintModelInstance(mintUrl)
           if (!mintInstance) return
 
-          const {mintInfo} = mintInstance
-          const now = Math.floor(Date.now() / 1000)
-
-          if (mintInfo && now - mintInfo.time <= MINT_INFO_TTL_SECONDS) return
+          if (!isMintInfoStale(mintInstance.mintInfo)) return
 
           const info: GetInfoResponse = yield cashuMint.getInfo()
 
@@ -322,9 +320,7 @@ export const WalletStoreModel = types
           mintInstance.refreshKeysets!(keysets)
 
           // fetch and cache mintInfo if not already cached or gone stale
-          const {mintInfo} = mintInstance
-          const now = Math.floor(Date.now() / 1000)
-          if(!mintInfo || now - mintInfo.time > MINT_INFO_TTL_SECONDS) {
+          if(isMintInfoStale(mintInstance.mintInfo)) {
             const info: GetInfoResponse = yield newMint.getInfo()
             mintInstance.setMintInfo!(info)
           }

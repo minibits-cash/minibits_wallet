@@ -633,15 +633,45 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       ? mintsStore.findByUrl(mintBalanceToTopup.mintUrl)
       : undefined
 
+    /**
+     * Capability gating reads the mint's CACHED NUT-06 info, and this screen never
+     * otherwise talks to the mint — so without this, nothing here would ever refresh
+     * it, and a mint that has since gained onchain support would keep looking like
+     * one that never had it.
+     *
+     * getMint only hits the network when the cached info is actually stale, and the
+     * screen is an observer, so the onchain option appears by itself once fresher
+     * capabilities land.
+     */
+    useEffect(() => {
+      if (!mintBalanceToTopup?.mintUrl) return
+      walletStore.getMint(mintBalanceToTopup.mintUrl).catch((e: any) => {
+        log.warn('[TopupScreen] Could not refresh mint capabilities', {error: e.message})
+      })
+    }, [mintBalanceToTopup?.mintUrl])
+
     const isOnchainTopupAvailable = (() => {
-      if (!selectedMint?.supportsMint!('onchain', unitRef.current)) return false
+      if (!selectedMint) return false
 
-      const floor = onchainTopupFloor(
-        unitRef.current,
-        selectedMint.mintMethodSetting!('onchain', unitRef.current)?.min_amount as number | null,
-      )
+      const supportsOnchain = selectedMint.supportsMint!('onchain', unitRef.current)
+      const mintMin = selectedMint.mintMethodSetting!('onchain', unitRef.current)?.min_amount as
+        | number
+        | null
+      const floor = onchainTopupFloor(unitRef.current, mintMin)
+      const amount = amountToTopupInt()
 
-      return amountToTopupInt() >= floor
+      log.trace('[TopupScreen] onchain topup gate', {
+        mintUrl: selectedMint.mintUrl,
+        unit: unitRef.current,
+        supportsOnchain,
+        hasUnknownCapabilities: selectedMint.hasUnknownCapabilities,
+        supportsNut20: selectedMint.supportsNut20,
+        mintMin,
+        floor,
+        amount,
+      })
+
+      return supportsOnchain && amount >= floor
     })()
 
     /**
