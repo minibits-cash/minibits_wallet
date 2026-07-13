@@ -725,7 +725,7 @@
 	"walletScreen_optionBitcoinSendDesc": "Lightning faktúra alebo onchain adresa. Účtujú sa sieťové poplatky.",
 	"walletScreen_optionEcashReceiveDesc": "Vložte alebo naskenujte ecash token",
 	"walletScreen_optionEcash": "Ecash",
-	"walletScreen_optionEcashSendDesc": "Okamžite a zadarmo, z peňaženky do peňaženky",
+	"walletScreen_optionEcashSendDesc": "Okamžite, z peňaženky do peňaženky",
 	"walletScreen_spentToday": "Dnes minuté",
 	"walletScreen_startByFunding": "Začni doplnením peňaženky",
 	"walletScreen_topup": "Pridaj",

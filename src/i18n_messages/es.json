@@ -724,7 +724,7 @@
 	"walletScreen_optionBitcoinSendDesc": "Factura Lightning o dirección onchain. Se aplican comisiones de red.",
 	"walletScreen_optionEcashReceiveDesc": "Pega o escanea un token ecash",
 	"walletScreen_optionEcash": "Ecash",
-	"walletScreen_optionEcashSendDesc": "Instantáneo y gratuito, de billetera a billetera",
+	"walletScreen_optionEcashSendDesc": "Instantáneo, de billetera a billetera",
 	"walletScreen_spentToday": "Pasé hoy",
 	"walletScreen_startByFunding": "Comience por financiar su billetera",
 	"walletScreen_topup": "Recarga",
