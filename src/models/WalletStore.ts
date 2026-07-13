@@ -1,4 +1,4 @@
-import {Instance, SnapshotOut, types, flow, getRoot, getSnapshot} from 'mobx-state-tree'
+import {Instance, SnapshotOut, types, flow, getRoot, getSnapshot, isAlive} from 'mobx-state-tree'
 import {
   Mint as CashuMint,
   Wallet as CashuWallet,
@@ -38,6 +38,16 @@ import { Transaction } from './Transaction'
    It is instantiated on first use so that wallet retrieves fresh mint keysets, then cached, 
    so that new cashu-ts instances are re-used over app lifecycle.
 */
+
+/**
+ * How long a cached mint NUT-06 info stays fresh, in seconds.
+ *
+ * mintInfo carries the mint's advertised payment methods and their min/max
+ * limits, which drive what the wallet offers the user. An hour keeps a mint that
+ * gains (or drops) a method visible reasonably soon, while costing at most one
+ * getInfo() per mint per hour.
+ */
+export const MINT_INFO_TTL_SECONDS = 3600
 
 export type ExchangeRate = {
   currency: CurrencyCode, // 1 EUR, USD, ...
@@ -231,12 +241,53 @@ export const WalletStoreModel = types
         const keys: WalletKeys = yield self.getCachedWalletKeys()
         return keys.SEED.seedHash
       }),
+      /**
+       * Re-fetch a mint's NUT-06 info if the cached copy is older than the TTL.
+       *
+       * Capabilities (which payment methods a mint supports, and their min/max
+       * limits) are read off `mintInfo`, so a copy that never refreshes means the
+       * wallet keeps offering — or hiding — the wrong options. Errors are logged
+       * and swallowed: a capability refresh must never break the operation that
+       * happened to trigger it.
+       */
+      refreshMintInfoIfStale: flow(function* refreshMintInfoIfStale(
+        mintUrl: string,
+        cashuMint: CashuMint,
+      ) {
+        try {
+          const mintInstance = self.getMintModelInstance(mintUrl)
+          if (!mintInstance) return
+
+          const {mintInfo} = mintInstance
+          const now = Math.floor(Date.now() / 1000)
+
+          if (mintInfo && now - mintInfo.time <= MINT_INFO_TTL_SECONDS) return
+
+          const info: GetInfoResponse = yield cashuMint.getInfo()
+
+          // the mint may have been removed while the call was in flight
+          if (!isAlive(mintInstance)) return
+
+          mintInstance.setMintInfo!(info)
+          log.trace('[WalletStore.refreshMintInfoIfStale] refreshed', {mintUrl})
+        } catch (e: any) {
+          log.warn('[WalletStore.refreshMintInfoIfStale]', {mintUrl, error: e.message})
+        }
+      }),
+    }))
+    .actions(self => ({
       getMint: flow(function* getMint(mintUrl: string) {
         const mint = self.mints.find(m => m.mintUrl === mintUrl)
 
         log.trace('[WalletStore.getMint]', {cachedMint: !!mint})
 
         if (mint) {
+          // Refresh capabilities on a TTL even when the cashu-ts instance is already
+          // cached. This check used to live below this early return, so a mint touched
+          // once in a session never refreshed again for the rest of it. Fire-and-forget
+          // so the caller's operation is not delayed by a getInfo() round trip;
+          // observers re-render when fresher info lands.
+          void self.refreshMintInfoIfStale(mintUrl, mint as CashuMint)
           return mint as CashuMint
         }
 
@@ -269,12 +320,12 @@ export const WalletStoreModel = types
           // sync wallet state with fresh keysets, active statuses and keys
           mintInstance.refreshKeysets!(keysets)
 
-          // fetch and cache mintInfo if not already cached
+          // fetch and cache mintInfo if not already cached or gone stale
           const {mintInfo} = mintInstance
           const now = Math.floor(Date.now() / 1000)
-          if(!mintInfo || now - mintInfo.time > 3600) {
+          if(!mintInfo || now - mintInfo.time > MINT_INFO_TTL_SECONDS) {
             const info: GetInfoResponse = yield newMint.getInfo()
-            mintInstance.setMintInfo!(info as GetInfoResponse & {time: number})
+            mintInstance.setMintInfo!(info)
           }
         }
 
@@ -282,7 +333,7 @@ export const WalletStoreModel = types
         self.mints.push(newMint)
 
         return newMint
-      })       
+      })
     }))
     .actions(self => ({
       getWallet: flow(function* getWallet(    

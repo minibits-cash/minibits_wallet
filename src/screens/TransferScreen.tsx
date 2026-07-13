@@ -1048,6 +1048,11 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
                 unit={unitRef.current}
                 title={translate('payCommon_payFrom')}
                 confirmTitle={translate('payCommon_payNow')}
+                // This screen pays a bolt11 invoice, so a mint that cannot melt
+                // bolt11 in this unit cannot be paid from. Onchain melt (NUT-30)
+                // will gate on its own method when it lands.
+                requiredCapability={mint => mint.supportsMelt!('bolt11', unitRef.current)}
+                unsupportedReason={translate('mintSelector_noPayoutSupport')}
                 onMintBalanceSelect={onMintBalanceSelect}
                 onCancel={gotoWallet}
                 onMintBalanceConfirm={transfer}

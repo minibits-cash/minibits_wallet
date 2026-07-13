@@ -18,6 +18,10 @@ import { IconDefinition, Transform } from "@fortawesome/fontawesome-svg-core"
 // metro bundler tree-shaking issue: https://github.com/facebook/metro/issues/132
 // relevant font-awesome docs: https://docs.fontawesome.com/apis/javascript/tree-shaking
 
+// Circled Bitcoin mark, matching the silhouette of the BtcIcon SVG used by
+// CurrencySign / CurrencyAmount. Tint it with colors.palette.orange400 to stay
+// consistent with that icon's brand orange.
+import { faBitcoin } from "@fortawesome/free-brands-svg-icons/faBitcoin"
 import { faTwitter } from "@fortawesome/free-brands-svg-icons/faTwitter"
 import { faTelegramPlane } from "@fortawesome/free-brands-svg-icons/faTelegramPlane"
 import { faDiscord } from "@fortawesome/free-brands-svg-icons/faDiscord"
@@ -110,7 +114,7 @@ export type IconTypes = keyof typeof iconRegistry
 
 // TODO remove need for manual iconregistry? 
 // would be best to just import all of them, i guess, or figure out something smart
-export const iconRegistry = { faWifi, faNfcSymbol, faAddressCard, faAddressBook, faWallet, faQrcode, faClipboard, faSliders, faCoins, faEllipsisVertical, faEllipsis, faArrowUp, faArrowDown, faArrowLeft, faXmark, faInfoCircle, faBug, faCheckCircle, faCheck, faArrowTurnUp, faArrowTurnDown, faPencil, faTags, faShareFromSquare, faRotate, faCode, faBan, faCircle, faPaperPlane, faBolt, faArrowUpFromBracket, faArrowRightToBracket, faPlus, faShieldHalved, faCloudArrowUp, faPaintbrush, faCopy, faBurst, faUserShield, faLock, faLockOpen, faTriangleExclamation, faDownload, faUpload, faRecycle, faListUl, faExpand, faFingerprint, faWandMagicSparkles, faCircleUser, faComment, faKey, faCircleNodes, faBullseye, faEyeSlash, faUpRightFromSquare, faShareNodes, faPaste, faKeyboard, faMoneyBill1, faGears, faTag, faBank, faChevronDown, faChevronUp, faCircleExclamation, faCircleQuestion, faEnvelope, faTwitter, faTelegramPlane, faDiscord, faGithub, faReddit, faCircleArrowUp, faCircleArrowDown, faGlobe, faCubes, faClock, faArrowRotateLeft, faHeartPulse, faSeedling, faChevronLeft, faArrowRightArrowLeft, faMagnifyingGlass }
+export const iconRegistry = { faWifi, faNfcSymbol, faAddressCard, faAddressBook, faWallet, faQrcode, faClipboard, faSliders, faCoins, faEllipsisVertical, faEllipsis, faArrowUp, faArrowDown, faArrowLeft, faXmark, faInfoCircle, faBug, faCheckCircle, faCheck, faArrowTurnUp, faArrowTurnDown, faPencil, faTags, faShareFromSquare, faRotate, faCode, faBan, faCircle, faPaperPlane, faBolt, faArrowUpFromBracket, faArrowRightToBracket, faPlus, faShieldHalved, faCloudArrowUp, faPaintbrush, faCopy, faBurst, faUserShield, faLock, faLockOpen, faTriangleExclamation, faDownload, faUpload, faRecycle, faListUl, faExpand, faFingerprint, faWandMagicSparkles, faCircleUser, faComment, faKey, faCircleNodes, faBullseye, faEyeSlash, faUpRightFromSquare, faShareNodes, faPaste, faKeyboard, faMoneyBill1, faGears, faTag, faBank, faChevronDown, faChevronUp, faCircleExclamation, faCircleQuestion, faEnvelope, faTwitter, faTelegramPlane, faDiscord, faGithub, faReddit, faCircleArrowUp, faCircleArrowDown, faGlobe, faCubes, faClock, faArrowRotateLeft, faHeartPulse, faSeedling, faChevronLeft, faArrowRightArrowLeft, faMagnifyingGlass, faBitcoin }
 
 
 interface IconProps extends TouchableOpacityProps {

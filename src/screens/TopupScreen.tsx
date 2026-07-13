@@ -917,6 +917,11 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
               unit={unitRef.current}
               title={translate("topup_mint")}
               confirmTitle={translate("commonConfirmCreateInvoice")}
+              // A mint that cannot mint in this unit by any method it advertises
+              // cannot top up at all — list it, but inert. Once onchain lands, a
+              // mint supporting either rail qualifies.
+              requiredCapability={mint => mint.supportsMint!('bolt11', unitRef.current)}
+              unsupportedReason={translate('mintSelector_noTopupSupport')}
               onMintBalanceSelect={onMintBalanceSelect}
               onCancel={onMintBalanceCancel}
               onMintBalanceConfirm={onMintBalanceConfirm}

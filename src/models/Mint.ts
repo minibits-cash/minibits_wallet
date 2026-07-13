@@ -4,6 +4,8 @@ import {
     type GetInfoResponse,
     type MintKeys as CashuMintKeys,
     type MintKeyset as CashuMintKeyset,
+    type MintMethod,
+    type SwapMethod,
     Mint as CashuMint,
 } from '@cashu/cashu-ts'
 import {colors, getRandomIconColor} from '../theme'
@@ -16,12 +18,22 @@ import { generateId } from '../utils/utils'
 import { Proof } from './Proof'
 import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
 
+/**
+ * A mint payment method — the rail the mint settles on.
+ *
+ * Aliased from cashu-ts so the set cannot drift from the library's. Note the
+ * wallet only implements bolt11 today; `onchain` arrives with NUT-30 and
+ * `bolt12` is advertised by some mints but not yet supported here. The capability
+ * views below can answer for any of them.
+ */
+export type PaymentMethod = MintMethod
+
 export type MintBalance = {
     mintUrl: string
     balances: {
         [key in MintUnit]?: number
-    }   
-}  
+    }
+}
 
 export type UnitBalance = {    
     unitBalance: number
@@ -178,7 +190,68 @@ export const MintModel = types
     })
     .actions(withSetPropAction) // TODO? start to use across app to avoid pure setter methods, e.g. mint.setProp('color', '#ccc')
     .views(self => ({
-    
+        /**
+         * The mint's advertised setting for a (method, unit) pair, or undefined when
+         * it does not offer that combination.
+         *
+         * NUT-04 (mint) and NUT-05 (melt) each advertise a flat list of method
+         * settings. A payment method is just an entry in that list — `onchain`
+         * (NUT-30) has no `nuts['30']` block of its own, it simply appears as
+         * `{method: 'onchain', unit: 'sat', ...}`. So capability is always a
+         * question about a (method, unit) pair, never about a NUT number.
+         *
+         * The setting also carries `min_amount` / `max_amount` (and, for onchain,
+         * `options.confirmations`), which callers need for limit checks.
+         */
+        mintMethodSetting(method: PaymentMethod, unit: MintUnit): SwapMethod | undefined {
+            return self.mintInfo?.nuts?.['4']?.methods?.find(
+                m => m.method === method && m.unit === unit,
+            )
+        },
+        meltMethodSetting(method: PaymentMethod, unit: MintUnit): SwapMethod | undefined {
+            return self.mintInfo?.nuts?.['5']?.methods?.find(
+                m => m.method === method && m.unit === unit,
+            )
+        },
+        /** Does the mint advertise NUT-20 (signed mint quotes)? */
+        get supportsNut20(): boolean {
+            return self.mintInfo?.nuts?.['20']?.supported === true
+        },
+        /** True while we have never managed to cache this mint's info. */
+        get hasUnknownCapabilities(): boolean {
+            return !self.mintInfo
+        },
+    }))
+    .views(self => ({
+        /**
+         * Can this mint MINT (topup) with `method` in `unit`?
+         *
+         * Two rules layered on the advertised methods:
+         *
+         *  - `onchain` additionally requires NUT-20. NUT-30 depends on it and the
+         *    mint MUST refuse an onchain quote with no pubkey (error 20009), so an
+         *    onchain method without NUT-20 is unusable to us.
+         *
+         *  - When capabilities are UNKNOWN (info never cached — mint offline when
+         *    added, or a very old wallet entry), bolt11 is assumed supported and
+         *    everything else is not. bolt11 has been the only method the wallet
+         *    ever used, so assuming it exactly preserves today's behaviour and
+         *    cannot strand a user with an empty menu; anything newer has to prove
+         *    itself. The check is otherwise symmetric across methods.
+         */
+        supportsMint(method: PaymentMethod, unit: MintUnit): boolean {
+            if (self.hasUnknownCapabilities) return method === 'bolt11'
+            if (!self.mintMethodSetting(method, unit)) return false
+            if (method === 'onchain') return self.supportsNut20
+            return true
+        },
+        /** Can this mint MELT (pay out) with `method` in `unit`? See supportsMint. */
+        supportsMelt(method: PaymentMethod, unit: MintUnit): boolean {
+            if (self.hasUnknownCapabilities) return method === 'bolt11'
+            if (!self.meltMethodSetting(method, unit)) return false
+            // NUT-20 gates mint quotes only; melt needs no quote signature.
+            return true
+        },
     }))
     .actions(self => ({
         addKeyset(keyset: CashuMintKeyset) {
@@ -414,8 +487,18 @@ export const MintModel = types
                 self.initKeys(key)
             }
         },
-        setMintInfo(info: GetInfoResponse & {time: number}) {
-            self.mintInfo = info
+        /**
+         * Cache the mint's NUT-06 info, stamping the fetch time.
+         *
+         * The stamp is applied HERE rather than at call sites: `time` drives the
+         * staleness check in WalletStore.getMint, and every caller used to pass a
+         * raw GetInfoResponse through a cast, leaving `time` undefined. `now -
+         * undefined` is NaN, NaN > ttl is false, so the TTL never fired and info
+         * was cached forever — which is how mints kept advertising capabilities
+         * they no longer had.
+         */
+        setMintInfo(info: GetInfoResponse) {
+            self.mintInfo = {...info, time: Math.floor(Date.now() / 1000)}
             log.trace('[setMintInfo]', {mintUrl: self.mintUrl})
         },
         getProofsCounterByKeysetId(keysetId: string) {                        
