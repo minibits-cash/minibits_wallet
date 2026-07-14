@@ -308,6 +308,7 @@
 	"onchainTransferScreen_feeTierBlocks": "Unos %{blocks} bloques",
 	"onchainTransferScreen_feeTierReserve": "Hasta %{amount} %{currency}",
 	"onchainTransferScreen_feeTierSubtext": "Unos %{blocks} bloques · hasta %{amount} %{currency}",
+	"onchainTransferScreen_memoFromPayee": "Descripción del pago",
 	"onchainTransferScreen_networkFee": "Tarifa de red",
 	"onchainTransferScreen_noFeeOptions": "La casa de cambio no devolvió opciones de tarifa para este pago y no se puede pagar.",
 	"onchainTransferScreen_requestQuote": "Continuar",

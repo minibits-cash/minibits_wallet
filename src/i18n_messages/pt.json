@@ -309,6 +309,7 @@
 	"onchainTransferScreen_feeTierBlocks": "Cerca de %{blocks} blocos",
 	"onchainTransferScreen_feeTierReserve": "Até %{amount} %{currency}",
 	"onchainTransferScreen_feeTierSubtext": "Cerca de %{blocks} blocos · até %{amount} %{currency}",
+	"onchainTransferScreen_memoFromPayee": "Descrição do pagamento",
 	"onchainTransferScreen_networkFee": "Taxa de rede",
 	"onchainTransferScreen_noFeeOptions": "A casa da moeda não devolveu opções de taxa para este pagamento e não pode ser pago.",
 	"onchainTransferScreen_requestQuote": "Continuar",

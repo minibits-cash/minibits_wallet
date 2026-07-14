@@ -309,6 +309,7 @@
 	"onchainTransferScreen_feeTierBlocks": "Približne %{blocks} blokov",
 	"onchainTransferScreen_feeTierReserve": "Až do %{amount} %{currency}",
 	"onchainTransferScreen_feeTierSubtext": "Približne %{blocks} blokov · až do %{amount} %{currency}",
+	"onchainTransferScreen_memoFromPayee": "Popis platby",
 	"onchainTransferScreen_networkFee": "Sieťový poplatok",
 	"onchainTransferScreen_noFeeOptions": "Mincovňa nevrátila žiadne možnosti poplatku pre túto platbu, nedá sa zaplatiť.",
 	"onchainTransferScreen_requestQuote": "Pokračovať",

@@ -19,7 +19,7 @@ import {StackActions, StaticScreenProps, useNavigation} from '@react-navigation/
 import {TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import numbro from 'numbro'
 import {MeltQuoteOnchainResponse} from '@cashu/cashu-ts'
-import {colors, spacing, typography, useThemeColor} from '../theme'
+import {colors, spacing, useThemeColor} from '../theme'
 import {
     AmountInput,
     BottomModal,
@@ -33,7 +33,6 @@ import {
     Screen,
     Text,
 } from '../components'
-import {MemoInputCard} from '../components/MemoInputCard'
 import {useStores} from '../models'
 import {MintBalance} from '../models/Mint'
 import {Transaction, TransactionStatus} from '../models/Transaction'
@@ -60,6 +59,7 @@ type Props = StaticScreenProps<{
     address: string
     /** BIP21 amount hint, in sats. The user may change it. */
     amountSat?: number
+    /** BIP21 label/message: the PAYEE's description. Read-only. */
     memo?: string
     unit: MintUnit
     mintUrl?: string
@@ -255,8 +255,8 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
 
             unitRef.current = unit
 
-            // BIP21 hints. Both are the payee's suggestion, not a commitment: the user can
-            // change the amount, and the mint prices the payment from what they confirm.
+            // The BIP21 amount is the payee's suggestion, not a commitment: the user can
+            // change it, and the mint prices the payment from what they confirm.
             if (amountSat && amountSat > 0) {
                 setAmountToTransfer(
                     numbro(amountSat).format({thousandSeparated: true, mantissa: 0}),
@@ -527,36 +527,60 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
             </View>
 
             <View style={$contentContainer}>
+                {/*
+                  * Destination, and the payee's description of the payment when the BIP21 URI
+                  * carried one.
+                  *
+                  * The memo is READ-ONLY, and there is no field for the user to write their
+                  * own. A NUT-30 melt request carries {quote, fee_index, inputs, outputs}, and
+                  * a Bitcoin transaction has nowhere to put a message either — so nothing they
+                  * typed could reach anyone. What the payee sent, though, is real: it is their
+                  * text, arriving with the request, and the wallet honours it exactly as it
+                  * honours a bolt11 invoice's description — displayed here, saved on the
+                  * transaction, visible in history.
+                  */}
                 {!isSettled && (
                     <Card
                         style={$card}
                         ContentComponent={
-                            <ListItem
-                                tx="onchainTransferScreen_toAddress"
-                                subText={address}
-                                subTextEllipsizeMode="middle"
-                                LeftComponent={
-                                    <Icon
-                                        containerStyle={$iconContainer}
-                                        icon="faBitcoin"
-                                        size={spacing.medium}
-                                        color={iconColor}
+                            <>
+                                <ListItem
+                                    tx="onchainTransferScreen_toAddress"
+                                    subText={address}
+                                    subTextEllipsizeMode="middle"
+                                    LeftComponent={
+                                        <Icon
+                                            containerStyle={$iconContainer}
+                                            icon="faBitcoin"
+                                            size={spacing.medium}
+                                            color={iconColor}
+                                        />
+                                    }
+                                    bottomSeparator={!!memo}
+                                    style={$item}
+                                />
+                                {!!memo && (
+                                    <ListItem
+                                        tx="onchainTransferScreen_memoFromPayee"
+                                        subText={memo}
+                                        LeftComponent={
+                                            <Icon
+                                                containerStyle={$iconContainer}
+                                                icon="faInfoCircle"
+                                                size={spacing.medium}
+                                                color={iconColor}
+                                            />
+                                        }
+                                        style={$item}
                                     />
-                                }
-                                style={$item}
-                            />
+                                )}
+                            </>
                         }
                     />
                 )}
 
                 {!hasQuote && !isSettled && (
                     <>
-                        <MemoInputCard
-                            memo={memo}
-                            setMemo={setMemo}
-                            onMemoDone={() => {}}
-                            disabled={false}
-                        />
                         <Text
                             size="xxs"
                             tx="onchainTransferScreen_feeHint"

@@ -33,7 +33,14 @@ export type BtcAddressData = {
     address: string
     /** BIP21 `amount`, in sats. A hint from the payee — the user may change it. */
     amountSat?: number
-    /** BIP21 `label`/`message`, offered as the transaction memo. */
+    /**
+     * BIP21 `label`/`message`: the PAYEE's description of what this payment is for.
+     *
+     * Not something the user writes — an onchain melt has no field that could carry a
+     * message out. This is the payee's own text arriving with the request, so the wallet
+     * honours it: shown read-only and stored on the transaction, exactly as a bolt11
+     * invoice's description is.
+     */
     memo?: string
 }
 
@@ -397,10 +404,10 @@ const navigateWithIncomingData = async function (
                 screen: 'TransferOnchain',
                 params: {
                     address: btc.address,
-                    // BIP21 amount and label are HINTS from the payee. They pre-fill the
-                    // screen; the user stays free to change both, and the mint prices the
-                    // payment from what is actually confirmed.
+                    // The BIP21 amount is a HINT: it pre-fills the screen, the user stays free
+                    // to change it, and the mint prices the payment from what they confirm.
                     amountSat: btc.amountSat,
+                    // The payee's own description, if the URI carried one. Read-only.
                     memo: btc.memo,
                     unit,
                     mintUrl

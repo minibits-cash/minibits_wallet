@@ -309,6 +309,7 @@
 	"onchainTransferScreen_feeTierBlocks": "About %{blocks} blocks",
 	"onchainTransferScreen_feeTierReserve": "Up to %{amount} %{currency}",
 	"onchainTransferScreen_feeTierSubtext": "About %{blocks} blocks · up to %{amount} %{currency}",
+	"onchainTransferScreen_memoFromPayee": "Payment description",
 	"onchainTransferScreen_networkFee": "Network fee",
 	"onchainTransferScreen_noFeeOptions": "The mint returned no fee options for this payment and it can not be paid.",
 	"onchainTransferScreen_requestQuote": "Continue",
