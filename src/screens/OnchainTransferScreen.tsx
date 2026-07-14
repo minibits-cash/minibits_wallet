@@ -44,7 +44,7 @@ import {translate} from '../i18n'
 import AppError, {Err} from '../utils/AppError'
 import {round, toNumber} from '../utils/number'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import {MintUnit, getCurrency} from '../services/wallet/currency'
+import {MintUnit, formatCurrency, getCurrency} from '../services/wallet/currency'
 import {
     OnchainFeeOption,
     mockOnchainFeeTiers,
@@ -345,7 +345,7 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
                 dispatch({
                     type: 'SET_INFO',
                     message: translate('payCommon_minimumPay', {
-                        amount: minAmount,
+                        amount: formatCurrency(minAmount, currencyCode),
                         currency: currencyCode,
                     }),
                 })
@@ -356,7 +356,7 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
                 dispatch({
                     type: 'SET_INFO',
                     message: translate('payCommon_maximumPay', {
-                        amount: maxAmount,
+                        amount: formatCurrency(maxAmount, currencyCode),
                         currency: currencyCode,
                     }),
                 })
@@ -374,11 +374,26 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
 
             let options = normalizeFeeOptions(quote.fee_options ?? [])
 
+            log.debug('[requestQuote] Mint fee options', {
+                // `fee_reserve` is an absolute MAXIMUM fee in the quote's unit, not a
+                // feerate — logged raw so what the mint said can be checked against what
+                // the screen shows.
+                mintTiers: options.map(o => ({
+                    feeIndex: o.feeIndex,
+                    feeReserve: o.feeReserve,
+                    estimatedBlocks: o.estimatedBlocks,
+                })),
+            })
+
             if (MOCK_FEE_TIERS && __DEV__) {
-                options = mockOnchainFeeTiers(options)
-                log.warn('[requestQuote] MOCKED fee tiers — the mint offered', {
-                    real: quote.fee_options?.length ?? 0,
-                })
+                const mocked = mockOnchainFeeTiers(options)
+                if (mocked !== options) {
+                    log.warn('[requestQuote] MOCKED fee tiers — only the real one is payable', {
+                        mintTiers: options.map(o => o.feeReserve),
+                        shownTiers: mocked.map(o => `${o.feeReserve}${o.isMock ? ' (mock)' : ''}`),
+                    })
+                }
+                options = mocked
             }
 
             const defaultOption = selectDefaultFeeOption(options)
@@ -408,7 +423,7 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
                     type: 'QUOTE_INSUFFICIENT',
                     message: translate('transferScreen_insufficientFunds', {
                         currency: currencyCode,
-                        amount: totalRequired,
+                        amount: formatCurrency(totalRequired, currencyCode),
                     }),
                 })
                 return
@@ -525,7 +540,15 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
     const hasQuote = !!meltQuote && !!selectedFee
 
     /**
-     * A tier's "~N blocks · up to X sat" line.
+     * A tier's "~N blocks · up to X SAT" line.
+     *
+     * `fee_reserve` is an absolute MAXIMUM the mint may spend on miner fees, denominated in
+     * the quote's unit — NOT a feerate. NUT-30 never exposes sat/vB. Whatever the mint does
+     * not spend comes back as NUT-08 change, which is why every tier reads "up to".
+     *
+     * Formatted through `formatCurrency` rather than printed raw: the reserve arrives in the
+     * unit's base denomination, so on a usd-denominated mint a reserve of 400 means $4.00,
+     * and printing the integer would claim a fee a hundred times too large.
      *
      * A fabricated tier says so, loudly and in plain text. It only exists in a debug build,
      * but an unmarked invented fee reserve sitting next to real ones is exactly the kind of
@@ -534,7 +557,7 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
     const feeTierLabel = (option: OnchainFeeOption) =>
         translate('onchainTransferScreen_feeTierSubtext', {
             blocks: option.estimatedBlocks,
-            amount: numbro(option.feeReserve).format({thousandSeparated: true}),
+            amount: formatCurrency(option.feeReserve, currencyCode),
             currency: currencyCode,
         }) + (option.isMock ? '  ⚠️ MOCK — pays at the mint\'s real fee' : '')
     const isSettled =
@@ -760,9 +783,7 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
                                 })}
                                 subText={
                                     translate('onchainTransferScreen_feeTierReserve', {
-                                        amount: numbro(option.feeReserve).format({
-                                            thousandSeparated: true,
-                                        }),
+                                        amount: formatCurrency(option.feeReserve, currencyCode),
                                         currency: currencyCode,
                                     }) + (option.isMock ? '  ⚠️ MOCK' : '')
                                 }
