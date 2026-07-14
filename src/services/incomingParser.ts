@@ -40,11 +40,15 @@ export type BtcAddressData = {
 /**
  * Refuse a Bitcoin address we are not willing to pay.
  *
- * Mainnet only, and checksum-verified. Both failures get their own message, because
- * "that is not a Bitcoin address" and "that is a Bitcoin address on the wrong network"
- * are completely different mistakes — and the second one is the likely one: the CDK
- * fakewallet hands out REGTEST addresses (`bcrt1q…`) for onchain topup quotes, so anyone
- * testing this wallet has one sitting in their clipboard.
+ * Checksum-verified, and mainnet-only in any build a user can install. Both failures get
+ * their own message, because "that is not a Bitcoin address" and "that is a Bitcoin
+ * address on the wrong network" are completely different mistakes — and the second is
+ * the likely one: the CDK fakewallet hands out REGTEST addresses (`bcrt1q…`) for onchain
+ * topup quotes, so anyone testing this wallet has one sitting in their clipboard.
+ *
+ * Debug builds accept non-mainnet, because settling an onchain melt against the
+ * fakewallet's regtest chain is the only way to exercise this rail end to end. See
+ * `BitcoinUtils.ALLOW_NON_MAINNET_PAY`.
  */
 const assertPayableBtcAddress = function (address: string): string {
     const decoded = BitcoinUtils.decodeBitcoinAddress(address)
@@ -56,12 +60,18 @@ const assertPayableBtcAddress = function (address: string): string {
         })
     }
 
-    if (decoded.network !== 'mainnet') {
+    if (!BitcoinUtils.isPayableBitcoinAddress(decoded.address)) {
         throw new AppError(
             Err.VALIDATION_ERROR,
             `This is a ${decoded.network} Bitcoin address. Minibits can only pay to mainnet addresses.`,
             {caller: 'assertPayableBtcAddress', address, network: decoded.network},
         )
+    }
+
+    if (decoded.network !== 'mainnet') {
+        log.warn('[assertPayableBtcAddress] Paying a NON-MAINNET address (debug build)', {
+            network: decoded.network,
+        })
     }
 
     return decoded.address

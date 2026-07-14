@@ -127,31 +127,52 @@ describe('decodeBitcoinAddress', () => {
 })
 
 describe('isPayableBitcoinAddress', () => {
-    it('accepts mainnet addresses of every script type', () => {
+    // The flag is passed explicitly rather than left to default, so these pin BOTH sides
+    // of the rule regardless of what `__DEV__` happens to be under jest.
+    const RELEASE = {allowNonMainnet: false}
+    const DEBUG = {allowNonMainnet: true}
+
+    it('accepts mainnet addresses of every script type, in any build', () => {
         for (const address of [P2PKH, P2SH, P2WPKH, P2WSH, P2TR]) {
-            expect(isPayableBitcoinAddress(address)).toBe(true)
+            expect(isPayableBitcoinAddress(address, RELEASE)).toBe(true)
+            expect(isPayableBitcoinAddress(address, DEBUG)).toBe(true)
         }
     })
 
     /**
      * The loss vector this exists for: a CDK fakewallet topup hands the user a REGTEST
-     * deposit address, it sits in their clipboard, and Pay auto-pastes it. A regtest
-     * address is never a payment — it is a mistake, and an irreversible one if a mint
-     * broadcasts against it.
+     * deposit address, it sits in their clipboard, and Pay auto-pastes it. In a build a
+     * user can install, that is never a payment — it is a mistake.
      */
-    it('refuses the CDK fakewallet regtest address', () => {
-        expect(isPayableBitcoinAddress(FAKEWALLET_REGTEST)).toBe(false)
+    it('refuses the CDK fakewallet regtest address in a release build', () => {
+        expect(isPayableBitcoinAddress(FAKEWALLET_REGTEST, RELEASE)).toBe(false)
     })
 
-    it('refuses every non-mainnet address', () => {
-        expect(isPayableBitcoinAddress(TESTNET_P2WPKH)).toBe(false)
-        expect(isPayableBitcoinAddress(TESTNET_P2PKH)).toBe(false)
-        expect(isPayableBitcoinAddress('bcrt1qw508d6qejxtdg4y5r3zarvary0c5xw7k1234a')).toBe(false)
+    /**
+     * ...and accepts it in a debug build, because settling a melt against the fakewallet's
+     * regtest chain is the only way to exercise the onchain payout rail end to end.
+     */
+    it('accepts the CDK fakewallet regtest address in a debug build', () => {
+        expect(isPayableBitcoinAddress(FAKEWALLET_REGTEST, DEBUG)).toBe(true)
     })
 
-    it('refuses input that is not an address at all', () => {
-        expect(isPayableBitcoinAddress('nope')).toBe(false)
-        expect(isPayableBitcoinAddress('')).toBe(false)
+    it('refuses every non-mainnet address in a release build', () => {
+        expect(isPayableBitcoinAddress(TESTNET_P2WPKH, RELEASE)).toBe(false)
+        expect(isPayableBitcoinAddress(TESTNET_P2PKH, RELEASE)).toBe(false)
+    })
+
+    it('accepts testnet as well as regtest in a debug build', () => {
+        expect(isPayableBitcoinAddress(TESTNET_P2WPKH, DEBUG)).toBe(true)
+        expect(isPayableBitcoinAddress(TESTNET_P2PKH, DEBUG)).toBe(true)
+    })
+
+    // The network flag relaxes the NETWORK, never the checksum. A debug build must not
+    // become a build that pays typos.
+    it('refuses input that is not an address at all, even in a debug build', () => {
+        expect(isPayableBitcoinAddress('nope', DEBUG)).toBe(false)
+        expect(isPayableBitcoinAddress('', DEBUG)).toBe(false)
+        // Corrupted base58 checksum, mainnet prefix.
+        expect(isPayableBitcoinAddress('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN3', DEBUG)).toBe(false)
     })
 })
 

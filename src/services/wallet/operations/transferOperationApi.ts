@@ -198,6 +198,11 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
     // non-mainnet addresses, but this is the last point before real money moves and an
     // onchain payment cannot be taken back — so the check lives here too, where every
     // caller (screen, NWC, a future one) must pass through it.
+    //
+    // Debug builds pass a non-mainnet address through (BitcoinUtils.ALLOW_NON_MAINNET_PAY):
+    // the CDK fakewallet settles onchain melts against a regtest chain, and refusing its
+    // addresses here would make this rail impossible to exercise end to end. A release
+    // build always refuses, and there is no setting that changes that.
     if (method.method === 'onchain' && !BitcoinUtils.isPayableBitcoinAddress(resolved.paymentRequest)) {
         throw new ValidationError(
             'Not a mainnet Bitcoin address. Minibits will not pay to testnet or regtest addresses.',

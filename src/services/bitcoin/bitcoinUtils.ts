@@ -135,25 +135,56 @@ export const isBitcoinAddress = (address: string): boolean =>
     decodeBitcoinAddress(address) !== undefined
 
 /**
+ * Are non-mainnet addresses payable in this build?
+ *
+ * Debug builds only. Development is the one situation where paying a regtest address is
+ * the POINT rather than a mistake: the CDK fakewallet backend settles onchain melts
+ * against a regtest chain, so a release-only guard would make the whole rail
+ * untestable end to end.
+ *
+ * A release build always refuses. The flag cannot be turned on by a user, and there is
+ * no setting for it — the only way to pay a testnet address is to be running a debug
+ * bundle you built yourself.
+ *
+ * `typeof` guarded because this module is also loaded by tests outside the React Native
+ * environment, where `__DEV__` is not defined.
+ */
+export const ALLOW_NON_MAINNET_PAY =
+    typeof __DEV__ !== 'undefined' && __DEV__ === true
+
+/**
  * Is this an address Minibits is allowed to pay?
  *
- * Mainnet only. The wallet holds mainnet-backed ecash and the mints melt to the real
- * chain, so a testnet or regtest address is never a payment — it is a mistake, and an
- * irreversible one if a mint broadcasts against it.
+ * Mainnet only, in any build a user can install. The wallet holds mainnet-backed ecash
+ * and the mints melt to the real chain, so a testnet or regtest address is not a
+ * payment — it is a mistake, and an irreversible one if a mint broadcasts against it.
  *
  * This is not hypothetical. The CDK fakewallet backend hands out REGTEST deposit
  * addresses (`bcrt1q…`) for onchain topup quotes, so anyone testing this wallet ends
  * up with one in their clipboard. Pasting it back into Pay must fail loudly, not
  * quietly reach the mint.
  *
+ * `allowNonMainnet` defaults to `ALLOW_NON_MAINNET_PAY` (debug builds) and is an
+ * explicit parameter rather than a global read so that the decision is testable and so
+ * that callers cannot accidentally widen it — passing `true` from production code would
+ * be a visible thing to review.
+ *
  * Kept separate from `decodeBitcoinAddress` on purpose: decoding tells you WHAT an
  * address is (and needs to recognise testnet in order to say so), while this decides
- * whether we are willing to send money to it. Collapsing the two would leave us
- * unable to tell "that is not an address" apart from "that is not OUR network", and
- * the second deserves its own error message.
+ * whether we are willing to send money to it. Collapsing the two would leave us unable
+ * to tell "that is not an address" apart from "that is not OUR network", and the second
+ * deserves its own error message.
  */
-export const isPayableBitcoinAddress = (address: string): boolean =>
-    decodeBitcoinAddress(address)?.network === 'mainnet'
+export const isPayableBitcoinAddress = (
+    address: string,
+    options?: {allowNonMainnet?: boolean},
+): boolean => {
+    const decoded = decodeBitcoinAddress(address)
+    if (!decoded) return false
+    if (decoded.network === 'mainnet') return true
+
+    return (options?.allowNonMainnet ?? ALLOW_NON_MAINNET_PAY) === true
+}
 
 export type Bip21Data = {
     address: string
@@ -244,6 +275,7 @@ export const findBitcoinAddress = (text: string): string | undefined => {
 }
 
 export const BitcoinUtils = {
+    ALLOW_NON_MAINNET_PAY,
     decodeBitcoinAddress,
     isBitcoinAddress,
     isPayableBitcoinAddress,
