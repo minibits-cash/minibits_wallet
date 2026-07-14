@@ -540,19 +540,19 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     }
 
 
-    const gotoLightningPay = function (mintUrl?: string) {
+    const gotoPay = function (mintUrl?: string) {
         log.trace({mintUrl})
         if(mintUrl) {
             setIsMintsModalVisible(false)
             // @ts-ignore
-            navigation.navigate('LightningPay', {
+            navigation.navigate('Pay', {
                 mintUrl,
                 unit: currentUnit
             })
         } else {
             setIsSendModalVisible(false)
             // @ts-ignore
-            navigation.navigate('LightningPay', {                                        
+            navigation.navigate('Pay', {                                        
                 unit: currentUnit
             })
         }        
@@ -915,7 +915,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                     mintsByUnit={groupedMints}
                     currentUnit={currentUnit}
                     onTopup={gotoTopup}
-                    onLightningPay={gotoLightningPay}                    
+                    onPay={gotoPay}                    
                     onMintInfo={gotoMintInfo}
                 />
             }
@@ -952,7 +952,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 leftIcon='faBitcoin'
                 tx="walletScreen_optionBitcoin"
                 subTx="walletScreen_optionBitcoinSendDesc"
-                onPress={() => gotoLightningPay()}
+                onPress={() => gotoPay()}
                 //bottomSeparator={true}
             />
             {/*<ListItem
@@ -1099,7 +1099,7 @@ const MintsByUnitList = observer(function (props: {
     mintsByUnit: MintsByUnit[]
     currentUnit: MintUnit    
     onTopup: Function
-    onLightningPay: Function    
+    onPay: Function    
     onMintInfo: Function    
 }) {
     
@@ -1193,7 +1193,7 @@ const MintsByUnitList = observer(function (props: {
                             )}
                             textStyle={{fontSize: 14, color}}
                             preset='secondary'
-                            onPress={() => props.onLightningPay(mint.mintUrl)}
+                            onPress={() => props.onPay(mint.mintUrl)}
                             style={{
                                 minHeight: verticalScale(40), 
                                 paddingVertical: verticalScale(spacing.tiny),

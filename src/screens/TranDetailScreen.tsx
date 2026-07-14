@@ -63,6 +63,7 @@ import { CommonActions, StaticScreenProps, useFocusEffect, useNavigation } from 
 import { QRCodeBlock } from './Wallet/QRCode'
 import { Database } from '../services'
 import { OnchainOperationService } from '../services/wallet/operations/onchainOperations'
+import { MeltOperationService } from '../services/wallet/operations/meltOperations'
 import { buildBip21Uri } from '../services/wallet/operations/onchainAmounts'
 import { MintListItem } from './Mints/MintListItem'
 import { Token, TokenMetadata, getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
@@ -399,6 +400,12 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                   transaction={transaction}
                   mint={mint}
                   navigation={navigation}
+                />
+              )}
+              {transaction.type === TransactionType.TRANSFER_ONCHAIN && (
+                <OnchainTransferInfoBlock
+                  transaction={transaction}
+                  mint={mint}
                 />
               )}
               {transaction.type === TransactionType.TRANSFER && (
@@ -1553,6 +1560,170 @@ const OnchainTopupInfoBlock = function (props: {
                 }
             />
         </>
+    )
+}
+
+/**
+ * Detail block for an onchain melt (NUT-30).
+ *
+ * The two things worth surfacing here are the ones the user cannot get anywhere else:
+ * the address their money went to, and the `outpoint` (txid:vout) once the mint has
+ * broadcast. The outpoint is the only handle they have on the payment that does not
+ * depend on the mint — with it they can watch it confirm on any block explorer, which
+ * is exactly what they will want if the mint goes quiet.
+ *
+ * "Check status" is the manual counterpart to the pending sweep. Onchain settlement is
+ * measured in blocks, so the wallet only checks on the ~60s pending cadence; a user
+ * staring at an unconfirmed payment should not have to wait for it to come round.
+ */
+const OnchainTransferInfoBlock = function (props: {
+    transaction: Transaction
+    mint?: Mint
+}) {
+    const {transaction, mint} = props
+    const {transactionsStore} = useStores()
+    const isInternetReachable = useIsInternetReachable()
+    const [isChecking, setIsChecking] = useState(false)
+    const [checkResult, setCheckResult] = useState<string | undefined>()
+    const labelColor = useThemeColor('textDim')
+
+    const onCheckStatus = async function () {
+        if (!isInternetReachable) return
+
+        setIsChecking(true)
+        setCheckResult(undefined)
+
+        try {
+            // Through the queue, NOT straight to refresh. Reconstructing NUT-08 melt change
+            // reads the keyset counter, and the pending sweep can be doing the same thing at
+            // the same moment; SyncQueue (concurrency 1) is what serialises them.
+            await MeltOperationService.enqueuePendingOnchainTransferCheck(transaction.id)
+
+            const refreshed = transactionsStore.findById(transaction.id)
+
+            if (refreshed?.status === TransactionStatus.PENDING) {
+                setCheckResult(translate('tranDetail_onchainStillUnconfirmed'))
+            }
+            // Anything else settled the transaction; the observer re-renders it.
+        } catch (e: any) {
+            setCheckResult(e.message)
+        } finally {
+            setIsChecking(false)
+        }
+    }
+
+    return (
+        <>
+            <Card
+                label='Transaction data'
+                style={$dataCard}
+                ContentComponent={
+                    <>
+                        <TranItem
+                            label="tranDetailScreen_amount"
+                            value={transaction.amount}
+                            unit={transaction.unit}
+                            isCurrency={true}
+                            isFirst={true}
+                        />
+                        <TranItem
+                            label="transactionCommon_feePaid"
+                            value={transaction.fee || 0}
+                            unit={transaction.unit}
+                            isCurrency={true}
+                        />
+                        {transaction.memo && transaction.memo.length > 0 && (
+                            <TranItem label="receiverMemo" value={transaction.memo as string} />
+                        )}
+                        <TranItem
+                            label="tranDetailScreen_type"
+                            value={transaction.type as string}
+                        />
+                        <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                            <TranItem
+                                label="tranDetailScreen_status"
+                                value={transaction.status as string}
+                            />
+                            {isInternetReachable &&
+                                transaction.status === TransactionStatus.PENDING && (
+                                    <Button
+                                        style={{marginTop: spacing.medium}}
+                                        preset="secondary"
+                                        tx="tranDetail_checkStatus"
+                                        onPress={onCheckStatus}
+                                        disabled={isChecking}
+                                    />
+                                )}
+                        </View>
+                        {checkResult && (
+                            <Text
+                                text={checkResult}
+                                preset="formHelper"
+                                style={{color: labelColor}}
+                            />
+                        )}
+                        {transaction.status === TransactionStatus.COMPLETED && (
+                            <TranItem
+                                label="tranDetailScreen_balanceAfter"
+                                value={transaction.balanceAfter || 0}
+                                unit={transaction.unit}
+                                isCurrency={true}
+                            />
+                        )}
+                        <TranItem
+                            label="tranDetailScreen_createdAt"
+                            value={(transaction.createdAt as Date).toLocaleString()}
+                        />
+                        <TranItem label="tranDetailScreen_id" value={`${transaction.id}`} />
+                    </>
+                }
+            />
+            <Card
+                labelTx='tranDetailScreen_trasferredTo'
+                style={$dataCard}
+                ContentComponent={
+                    <>
+                        {mint ? (
+                            <MintListItem mint={mint} isSelectable={false} isUnitVisible={false} />
+                        ) : (
+                            <Text text={transaction.mint} />
+                        )}
+                        <PaymentRequestItem transaction={transaction} />
+                        {!!transaction.outpoint && (
+                            <OutpointItem outpoint={transaction.outpoint} />
+                        )}
+                    </>
+                }
+            />
+        </>
+    )
+}
+
+/**
+ * The onchain transaction the mint broadcast, as `txid:vout`.
+ *
+ * Copyable, because what a user does with it is paste it into a block explorer.
+ */
+const OutpointItem = function (props: {outpoint: string}) {
+    const labelColor = useThemeColor('textDim')
+
+    return (
+        <ListItem
+            leftIcon='faCubes'
+            leftIconColor={labelColor as string}
+            tx="tranDetailScreen_outpoint"
+            subText={props.outpoint}
+            subTextEllipsizeMode='middle'
+            topSeparator={true}
+            RightComponent={
+                <Button
+                    preset='tertiary'
+                    onPress={() => Clipboard.setString(props.outpoint)}
+                    tx='commonCopy'
+                    textStyle={{fontSize: 12, color: labelColor}}
+                />
+            }
+        />
     )
 }
 

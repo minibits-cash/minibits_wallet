@@ -1,6 +1,7 @@
 import { ReceiveOption, SendOption, TransferOption } from '../screens'
 import AppError, { Err } from '../utils/AppError'
 import { log } from './logService'
+import { BitcoinUtils } from './bitcoin/bitcoinUtils'
 import { CashuUtils } from './cashu/cashuUtils'
 import { LightningUtils } from './lightning/lightningUtils'
 import { LnurlUtils } from './lnurl/lnurlUtils'
@@ -17,7 +18,53 @@ export enum IncomingDataType {
     LNURL = 'LNURL',
     LNURL_ADDRESS = 'LNURL_ADDRESS',
     MINT_URL = 'MINT_URL',
-    NPUB_OR_HEX = 'NPUB_OR_HEX',    
+    NPUB_OR_HEX = 'NPUB_OR_HEX',
+    /** A Bitcoin address or BIP21 URI, to be paid by an onchain melt (NUT-30). */
+    BTC_ADDRESS = 'BTC_ADDRESS',
+}
+
+/**
+ * What a scanned/pasted Bitcoin destination resolved to.
+ *
+ * The address is always normalized (lowercased bech32), because QR encoders uppercase
+ * bech32 to stay in alphanumeric mode and this string goes to the mint.
+ */
+export type BtcAddressData = {
+    address: string
+    /** BIP21 `amount`, in sats. A hint from the payee — the user may change it. */
+    amountSat?: number
+    /** BIP21 `label`/`message`, offered as the transaction memo. */
+    memo?: string
+}
+
+/**
+ * Refuse a Bitcoin address we are not willing to pay.
+ *
+ * Mainnet only, and checksum-verified. Both failures get their own message, because
+ * "that is not a Bitcoin address" and "that is a Bitcoin address on the wrong network"
+ * are completely different mistakes — and the second one is the likely one: the CDK
+ * fakewallet hands out REGTEST addresses (`bcrt1q…`) for onchain topup quotes, so anyone
+ * testing this wallet has one sitting in their clipboard.
+ */
+const assertPayableBtcAddress = function (address: string): string {
+    const decoded = BitcoinUtils.decodeBitcoinAddress(address)
+
+    if (!decoded) {
+        throw new AppError(Err.VALIDATION_ERROR, 'This is not a valid Bitcoin address.', {
+            caller: 'assertPayableBtcAddress',
+            address,
+        })
+    }
+
+    if (decoded.network !== 'mainnet') {
+        throw new AppError(
+            Err.VALIDATION_ERROR,
+            `This is a ${decoded.network} Bitcoin address. Minibits can only pay to mainnet addresses.`,
+            {caller: 'assertPayableBtcAddress', address, network: decoded.network},
+        )
+    }
+
+    return decoded.address
 }
 
 const findAndExtract = function (
@@ -67,6 +114,27 @@ const findAndExtract = function (
                     type: expectedType,
                     encoded
                 }                
+            case IncomingDataType.BTC_ADDRESS: {
+                const bip21 = BitcoinUtils.parseBip21(incomingData)
+
+                if (bip21) {
+                    return {
+                        type: expectedType,
+                        encoded: {
+                            address: assertPayableBtcAddress(bip21.address), // throws
+                            amountSat: bip21.amountSat,
+                            memo: bip21.label || bip21.message,
+                        } as BtcAddressData
+                    }
+                }
+
+                return {
+                    type: expectedType,
+                    encoded: {
+                        address: assertPayableBtcAddress(incomingData), // throws
+                    } as BtcAddressData
+                }
+            }
             case IncomingDataType.MINT_URL:
                 const url = new URL(incomingData) // throws
 
@@ -170,6 +238,22 @@ const findAndExtract = function (
             type: IncomingDataType.LNURL,
             encoded
         }
+    }
+
+    // Bitcoin address / BIP21, checked AFTER lightning.
+    //
+    // LIGHTNING WINS on a unified QR. A `bitcoin:` URI carrying a `lightning=` invoice
+    // offers the payee's preference in both rails, and lightning is the cheaper and
+    // faster of the two for everyone involved — so if the payload contains an invoice
+    // we take it, and the onchain address is simply not used. `findEncodedLightningInvoice`
+    // above already matched it out of the URI, which is why this ordering is the whole
+    // implementation of the rule.
+    const maybeBtcAddress = BitcoinUtils.findBitcoinAddress(incomingData)
+
+    if(maybeBtcAddress) {
+        log.trace('[findAndExtract] Got maybeBtcAddress')
+
+        return findAndExtract(maybeBtcAddress, IncomingDataType.BTC_ADDRESS) // throws
     }
 
     const maybeMintUrl = new URL(incomingData) // throws
@@ -296,13 +380,31 @@ const navigateWithIncomingData = async function (
                 })
             }
             
+        case IncomingDataType.BTC_ADDRESS: {
+            const btc = incoming.encoded as BtcAddressData
+            //@ts-ignore
+            return navigation.navigate('WalletNavigator', {
+                screen: 'TransferOnchain',
+                params: {
+                    address: btc.address,
+                    // BIP21 amount and label are HINTS from the payee. They pre-fill the
+                    // screen; the user stays free to change both, and the mint prices the
+                    // payment from what is actually confirmed.
+                    amountSat: btc.amountSat,
+                    memo: btc.memo,
+                    unit,
+                    mintUrl
+                }
+            })
+        }
+
         case IncomingDataType.MINT_URL:
             //@ts-ignore
             return navigation.navigate('WalletNavigator', {
                 screen: 'Wallet',
                 params: {
                     scannedMintUrl: incoming.encoded,
-                }                
+                }
             })
 
         case IncomingDataType.NPUB_OR_HEX:

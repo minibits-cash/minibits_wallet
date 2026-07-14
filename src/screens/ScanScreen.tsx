@@ -23,6 +23,7 @@ import { translate } from '../i18n'
 import { MintUnit } from '../services/wallet/currency'
 import { Mint } from '../models/Mint'
 import { CashuUtils } from '../services/cashu/cashuUtils'
+import { BitcoinUtils } from '../services/bitcoin/bitcoinUtils'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 const hasAndroidCameraPermission = async () => {
@@ -173,7 +174,7 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
                     handleError(e)  
                     break
                 } 
-            case 'LightningPay':     
+            case 'Pay':     
                 try {               
                     const invoiceResult = IncomingParser.findAndExtract(incoming, IncomingDataType.INVOICE)
                     return IncomingParser.navigateWithIncomingData(invoiceResult, navigation, unit, mint && mint.mintUrl)
@@ -220,13 +221,13 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
                     }
 
                     const maybeCashuPaymentRequest = CashuUtils.findEncodedCashuPaymentRequest(incoming)
-                    
+
                     if(maybeCashuPaymentRequest) {
                         try {
                             log.trace('Found Cashu Payment request instead of an invoice', maybeCashuPaymentRequest, 'onIncomingData')
                             const encodedPr = CashuUtils.extractEncodedCashuPaymentRequest(maybeCashuPaymentRequest)
-            
-                            if(encodedPr) {                            
+
+                            if(encodedPr) {
                                 await IncomingParser.navigateWithIncomingData({
                                     type: IncomingDataType.CASHU_PAYMENT_REQUEST,
                                     encoded: encodedPr
@@ -238,11 +239,29 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
                             break
                         }
                     }
-                    
+
+                    // Bitcoin address / BIP21, last in the chain so a unified QR carrying a
+                    // lightning invoice is taken as an invoice — lightning wins.
+                    const maybeBtcAddress = BitcoinUtils.findBitcoinAddress(incoming)
+
+                    if(maybeBtcAddress) {
+                        try {
+                            log.trace('Found Bitcoin address instead of an invoice', 'onIncomingData')
+                            // Throws (and reports) on a non-mainnet address, which is the
+                            // likely mistake: fakewallet topup addresses are regtest.
+                            const btcResult = IncomingParser.findAndExtract(maybeBtcAddress, IncomingDataType.BTC_ADDRESS)
+                            await IncomingParser.navigateWithIncomingData(btcResult, navigation, unit, mint && mint.mintUrl)
+                            return
+                        } catch (e4: any) {
+                            handleError(e4)
+                            break
+                        }
+                    }
+
                     e.params = incoming
-                    handleError(e)  
+                    handleError(e)
                     break
-                }                          
+                }
             default:
                 try {
                 // generic scan button on wallet screen
