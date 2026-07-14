@@ -272,19 +272,34 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
       }
     }, [focused, topScale, bottomScale])
 
+    const TOP_FONT_SIZE = verticalScale(56)
+
     const defaultTopStyle: TextStyle = {
       //marginTop: spacing.small,
       padding: 0,
-      fontSize: verticalScale(56),
+      fontSize: TOP_FONT_SIZE,
       fontFamily: typography.primary?.bold,
       fontWeight: 'bold', // android
       textAlign: "center",
       color: focusedInputColor,
+      // A DEFINITE width, so the field is never sized by measuring its own text.
+      //
+      // These inputs sit in a header with `alignItems: 'center'`, so with no width Yoga
+      // asks the text how wide it is — and that measurement is made from the LAYOUT style,
+      // while what is actually drawn comes from the animated style below. The two only have
+      // to disagree slightly for the last glyph to fall outside the measured box: a
+      // confirmed "1,000" rendered as "1,00". Typing hid it, because the text is measured
+      // and drawn afresh on every keystroke; formatting on blur is what made the box and
+      // its contents disagree.
+      width: spacing.screenWidth * 0.9,
+      alignSelf: 'center',
     }
 
+    // Same base size as the layout style. Reanimated applies fontSize outside Yoga, so a
+    // different number here means the text is drawn at one size and measured at another.
     const animatedTopStyle = useAnimatedStyle(() => ({
       transform: [{ scale: topScale.value }],
-      fontSize: 56 * topScale.value,
+      fontSize: TOP_FONT_SIZE * topScale.value,
     }))
 
 
