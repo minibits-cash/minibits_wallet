@@ -271,7 +271,7 @@ export const TransactionListItem = observer(function (props: TransactionListProp
                 )}                
                 </>              
             )}
-            {([TransactionType.TOPUP].includes(tx.type)) && (
+            {([TransactionType.TOPUP, TransactionType.TOPUP_ONCHAIN].includes(tx.type)) && (
                 <>
                 {[TransactionStatus.PENDING, TransactionStatus.EXPIRED].includes(tx.status) && (
                     <CurrencyAmount 
@@ -299,8 +299,8 @@ export const TransactionListItem = observer(function (props: TransactionListProp
                 )}                
                 </>
             )}
-            {([TransactionType.SEND, TransactionType.TRANSFER].includes(tx.type)) && (
-                    <CurrencyAmount 
+            {([TransactionType.SEND, TransactionType.TRANSFER, TransactionType.TRANSFER_ONCHAIN].includes(tx.type)) && (
+                    <CurrencyAmount
                           amount={-1 * tx.amount}
                           mintUnit={tx.unit}
                           size='medium'
@@ -308,7 +308,7 @@ export const TransactionListItem = observer(function (props: TransactionListProp
                     />
             )}
           </View>
-        }          
+        }
         topSeparator={props.isFirst ? false : true}
         style={$item}
         onPress={onPress}

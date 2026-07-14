@@ -749,7 +749,7 @@
 	"welcomeScreen_terms_agreePrivacy": "Política de Privacidade",
 	"mintSelector_noTopupSupport": "Carregamentos não suportados para esta moeda",
 	"mintSelector_noPayoutSupport": "Pagamentos não suportados para esta moeda",
-	"topupScreen_onchainAddress": "Endereço Bitcoin",
+	"topupScreen_onchainAddress": "Endereço",
 	"topupScreen_onchainAddressToPay": "Endereço Bitcoin a pagar",
 	"topupScreen_onchainAmountIsHint": "O valor é apenas uma sugestão. O seu saldo será atualizado com o que realmente chegar, seja mais ou menos.",
 	"topupScreen_onchainConfirmationsNeeded": "O seu ecash aparecerá assim que o depósito for confirmado na rede Bitcoin.",
@@ -757,5 +757,8 @@
 	"tranDetail_onchainNoDeposits": "Ainda não foram encontrados novos depósitos neste endereço.",
 	"tranDetail_onchainOutpoint": "Transação Bitcoin",
 	"transactionType_topupOnchain": "Carregamento onchain",
-	"transactionType_transferOnchain": "Pagamento onchain"
+	"transactionType_transferOnchain": "Pagamento onchain",
+	"qr_hintHeading": "Como é que isto funciona?",
+	"tranDetailScreen_paymentRequest": "Pedido de pagamento",
+	"topupScreen_ligtningInvoice": "Fatura"
 }

@@ -24,14 +24,31 @@
  *
  * Lifecycle:
  *
- *   createQuote()  → PENDING transaction + persisted quote (address to show)
+ *   createQuote()  → DRAFT → PREPARED → PENDING, plus the persisted quote whose
+ *                    address the user is shown.
  *   refreshQuote() → re-check the mint; if anything is credited but not yet
- *                    minted, mint it and settle a transaction. Called by the
- *                    watcher (onchainOperations) and by the user's manual
- *                    "check for deposits".
+ *                    minted, mint it and settle the transaction to COMPLETED.
+ *                    Called by the watcher (onchainOperations) and by the user's
+ *                    manual "check for deposits".
  *
- * There is no PREPARED step and no cancel-to-reclaim: nothing local is locked
- * while we wait, because the "lock" is a mint-side address.
+ * The states mean what they mean elsewhere in the wallet:
+ *
+ *   DRAFT     — row exists, mint not yet contacted. Carries the failure if the
+ *               quote request is refused, so a burned NUT-20 index is never left
+ *               unexplained.
+ *   PREPARED  — the mint answered and the quote is persisted. Transient, exactly
+ *               as for bolt11 (topupTask calls prepare() and execute() back to
+ *               back): a crash marker, not a state a user sits in.
+ *   PENDING   — the address is live and we are waiting to be paid. This has to be
+ *               PENDING and not PREPARED, because pendingHistory filters on
+ *               PENDING alone — anything else drops the topup out of the pending
+ *               list, which is precisely where the user looks for it.
+ *   COMPLETED — a deposit confirmed and was minted.
+ *
+ * Unlike bolt11 there is no "arm the watcher" step between PREPARED and PENDING:
+ * the watcher is driven by the QUOTE row, so persisting the quote IS the
+ * registration. And there is no cancel-to-reclaim — nothing local is locked while
+ * we wait, because the "lock" is a mint-side address.
  */
 import {log} from '../../logService'
 import {MintError, ValidationError} from '../../../utils/AppError'
@@ -92,51 +109,22 @@ async function createQuote(input: {
         })
     }
 
-    // Burn a NUT-20 index and derive the quote-locking key. The index is committed
-    // to the database before it is used, so a failure below can only SKIP an index,
-    // never reuse one. The privkey is NOT persisted — only the index is, and the key
-    // is re-derived from the seed when it is time to sign.
-    const seed: Uint8Array = await walletStore.getCachedSeed()
-    const {index: counterIndex, pubkey} = allocateQuoteKeypair(seed)
-
-    const quoteResponse = await walletStore.createOnchainMintQuote(mintUrl, unit, pubkey)
-    const address = quoteResponse.request
-
-    // Persist the quote BEFORE showing the address. If the app dies between the two,
-    // the row (with its counterIndex) is already safe, so a deposit to that address
-    // stays mintable. Losing it would make the money unspendable.
-    Database.addOnchainMintQuote({
-        quote: quoteResponse.quote,
-        mintUrl,
-        unit,
-        address,
-        counterIndex,
-        pubkey,
-        amountRequested,
-        expiry: quoteResponse.expiry ?? null,
-    })
-
-    const persisted = Database.getOnchainMintQuote(quoteResponse.quote)
-    if (!persisted) {
-        throw new MintError('Onchain quote could not be persisted', {quote: quoteResponse.quote})
-    }
-    const watchUntil = new Date(persisted.watchUntil)
-
+    // ── DRAFT: a record BEFORE the mint is contacted ─────────────────────
+    //
+    // This exists so a failure below leaves a trace. Without it, a mint that refuses
+    // the quote produced no transaction at all — and a NUT-20 index had already been
+    // burned with nothing to explain the gap. Same reason bolt11's prepare() opens
+    // with a DRAFT row.
     const transactionData: TransactionData[] = [
         {
-            status: TransactionStatus.PENDING,
+            status: TransactionStatus.DRAFT,
             amountToTopup: amountRequested,
             unit,
-            quote: quoteResponse.quote,
-            address,
             method: 'onchain',
             createdAt: new Date(),
         },
     ]
 
-    // Straight to PENDING: unlike bolt11 there is no PREPARED step, because nothing
-    // is reserved locally while we wait — the address IS the pending state. The
-    // amount is the user's hint and will be overwritten by what actually arrives.
     const transaction = await transactionsStore.addTransaction({
         type: TransactionType.TOPUP_ONCHAIN,
         amount: amountRequested,
@@ -145,32 +133,117 @@ async function createQuote(input: {
         data: JSON.stringify(transactionData),
         memo,
         mint: mintUrl,
-        status: TransactionStatus.PENDING,
+        status: TransactionStatus.DRAFT,
     })
     if (!transaction) {
         throw new ValidationError('Failed to create onchain topup transaction')
     }
 
-    transaction.update({
-        quote: quoteResponse.quote,
-        paymentRequest: address,
-        expiresAt: watchUntil,
-    })
+    try {
+        // Burn a NUT-20 index and derive the quote-locking key. The index is committed
+        // to the database before it is used, so a failure below can only SKIP an index,
+        // never reuse one. The privkey is NOT persisted — only the index is, and the key
+        // is re-derived from the seed when it is time to sign.
+        const seed: Uint8Array = await walletStore.getCachedSeed()
+        const {index: counterIndex, pubkey} = allocateQuoteKeypair(seed)
 
-    log.debug('[OnchainTopupOperationApi.createQuote]', {
-        transactionId: transaction.id,
-        quote: quoteResponse.quote,
-        address,
-        amountRequested,
-    })
+        const quoteResponse = await walletStore.createOnchainMintQuote(mintUrl, unit, pubkey)
+        const address = quoteResponse.request
 
-    return {
-        transactionId: transaction.id,
-        tx: transaction,
-        address,
-        quote: quoteResponse.quote,
-        amountRequested,
-        watchUntil,
+        // Persist the quote BEFORE showing the address. If the app dies between the two,
+        // the row (with its counterIndex) is already safe, so a deposit to that address
+        // stays mintable. Losing it would make the money unspendable.
+        Database.addOnchainMintQuote({
+            quote: quoteResponse.quote,
+            mintUrl,
+            unit,
+            address,
+            counterIndex,
+            pubkey,
+            amountRequested,
+            expiry: quoteResponse.expiry ?? null,
+        })
+
+        const persisted = Database.getOnchainMintQuote(quoteResponse.quote)
+        if (!persisted) {
+            throw new MintError('Onchain quote could not be persisted', {
+                quote: quoteResponse.quote,
+            })
+        }
+        const watchUntil = new Date(persisted.watchUntil)
+
+        // ── PREPARED: the mint has answered and the quote is safely stored ───
+        //
+        // Transient, exactly as it is for bolt11 (topupTask calls prepare() and
+        // execute() back to back). It is a crash marker, not a state a user sits in:
+        // it says the address exists and is persisted, but the transaction is not yet
+        // the one the watcher will settle onto.
+        //
+        // Onchain has no "arm the watcher" step to separate PREPARED from PENDING the
+        // way bolt11 does — the watcher is driven by the quote row, so persisting the
+        // quote IS the registration. The state is kept anyway so the lifecycle reads
+        // the same across every operation, and so a crash here is legible.
+        transactionData.push({
+            status: TransactionStatus.PREPARED,
+            quote: quoteResponse.quote,
+            address,
+            counterIndex,
+            createdAt: new Date(),
+        })
+
+        transaction.update({
+            status: TransactionStatus.PREPARED,
+            quote: quoteResponse.quote,
+            paymentRequest: address,
+            expiresAt: watchUntil,
+            data: JSON.stringify(transactionData),
+        })
+
+        // ── PENDING: the address is live and we are waiting to be paid ───────
+        //
+        // PENDING, not PREPARED, is what "waiting for a deposit" must be: pendingHistory
+        // filters on PENDING alone, so anything else would drop this topup out of the
+        // pending list — the exact place a user goes looking for it.
+        transactionData.push({
+            status: TransactionStatus.PENDING,
+            createdAt: new Date(),
+        })
+
+        transaction.update({
+            status: TransactionStatus.PENDING,
+            data: JSON.stringify(transactionData),
+        })
+
+        log.debug('[OnchainTopupOperationApi.createQuote]', {
+            transactionId: transaction.id,
+            quote: quoteResponse.quote,
+            address,
+            amountRequested,
+        })
+
+        return {
+            transactionId: transaction.id,
+            tx: transaction,
+            address,
+            quote: quoteResponse.quote,
+            amountRequested,
+            watchUntil,
+        }
+    } catch (e: any) {
+        // Leave the failure on the record rather than dropping it. Mirrors how
+        // topupTask marks a failed bolt11 prepare/execute.
+        transactionData.push({
+            status: TransactionStatus.ERROR,
+            error: WalletUtils.formatError(e),
+            createdAt: new Date(),
+        })
+
+        transaction.update({
+            status: TransactionStatus.ERROR,
+            data: JSON.stringify(transactionData),
+        })
+
+        throw e
     }
 }
 
@@ -365,10 +438,15 @@ async function _findOrCreateTransaction(
 ): Promise<Transaction> {
     const last = transactionsStore.findLastBy({quote: row.quote})
 
+    // PREPARED counts as reusable, not just PENDING. createQuote passes through it on
+    // the way to PENDING, so a crash in that window leaves a PREPARED row for this
+    // quote — and settling onto a NEW transaction instead would leave the user with two
+    // rows for one deposit.
     if (
         last &&
         last.type === TransactionType.TOPUP_ONCHAIN &&
-        last.status === TransactionStatus.PENDING
+        (last.status === TransactionStatus.PENDING ||
+            last.status === TransactionStatus.PREPARED)
     ) {
         return last
     }

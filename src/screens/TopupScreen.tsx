@@ -1029,7 +1029,8 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
               selectedMintBalance={mintBalanceToTopup as MintBalance}
               unit={unitRef.current}
               title={translate("topup_mint")}
-              confirmTitle={translate("commonConfirmCreateInvoice")}
+              confirmIcon='faBolt'
+              confirmTitle={translate("topupScreen_ligtningInvoice")}
               // The onchain option only appears for a mint that advertises it AND an
               // amount above the floor. Below the floor it is hidden rather than
               // rejected: a sub-minimum onchain deposit is credited to nobody and is
@@ -1073,38 +1074,27 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
               </>
           )}
           {transactionStatus === TransactionStatus.PENDING && onchainUriToPay && (
-            <>
-              <QRCodeBlock
-                qrCodeData={onchainUriToPay}
-                titleTx='topupScreen_onchainAddressToPay'
-                type='BitcoinAddress'
-                size={270}
-              />
-              {/*
-                The amount is the one thing a user is likely to get wrong here. It is
-                carried in the BIP21 URI, so a scanning wallet pre-fills it — but a
-                sender typing the address by hand, or editing the amount, can pay
-                anything. Under- and overpayment both work; the balance settles to
-                what actually arrives. Say so, rather than letting it look broken.
-              */}
-              <Card
-                style={{marginTop: spacing.small, padding: spacing.medium}}
-                ContentComponent={
-                  <>
-                    <Text
-                      tx='topupScreen_onchainAmountIsHint'
-                      preset='formHelper'
-                      style={{color: placeholderTextColor}}
-                    />
-                    <Text
-                      tx='topupScreen_onchainConfirmationsNeeded'
-                      preset='formHelper'
-                      style={{color: placeholderTextColor, marginTop: spacing.extraSmall}}
-                    />
-                  </>
-                }
-              />
-            </>
+            /*
+              The amount is the one thing a user is likely to get wrong here. It rides
+              in the BIP21 URI, so a scanning wallet pre-fills it — but a sender typing
+              the address by hand, or editing the amount, can pay anything. Under- and
+              overpayment both work and the balance settles to whatever arrives, so this
+              has to be said, or an underpayment reads as a bug.
+
+              It lives behind the QR's help button rather than in a card below it: the
+              QR is the tallest thing on this screen and anything under it fell below
+              the fold, which is exactly why nobody saw this warning.
+            */
+            <QRCodeBlock
+              qrCodeData={onchainUriToPay}
+              titleTx='topupScreen_onchainAddressToPay'
+              type='BitcoinAddress'
+              size={270}
+              hints={[
+                'topupScreen_onchainAmountIsHint',
+                'topupScreen_onchainConfirmationsNeeded',
+              ]}
+            />
           )}
           {transaction && transactionStatus === TransactionStatus.COMPLETED && (
             <Card

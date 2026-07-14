@@ -14,6 +14,7 @@ import {
   ViewStyle,
 } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
+import {infoMessage} from '../utils/utils'
 import JSONTree from 'react-native-json-tree'
 import Animated, {
   Extrapolation,
@@ -1374,6 +1375,43 @@ const SendInfoBlock = function (props: {
 }
 
 /**
+ * The request the payer was given — a bolt11 invoice for a lightning topup, a
+ * Bitcoin address for an onchain one.
+ *
+ * Kept to one line with a MIDDLE ellipsis rather than a tail one: for an address or
+ * an invoice, the head and tail are the parts worth seeing (they are what a user
+ * eyeballs against a block explorer or a sender's screen), while the middle is
+ * noise. Truncating the tail would hide the half that actually distinguishes it.
+ */
+const PaymentRequestItem = function (props: {transaction: Transaction}) {
+    const {transaction} = props
+
+    if (!transaction.paymentRequest) return null
+
+    const onCopy = function () {
+        try {
+            Clipboard.setString(transaction.paymentRequest as string)
+        } catch (e: any) {
+            infoMessage(translate('commonCopyFailParam', {param: e.message}))
+        }
+    }
+
+    return (
+        <ListItem
+            tx='tranDetailScreen_paymentRequest'
+            subText={transaction.paymentRequest}
+            subTextEllipsizeMode='middle'
+            topSeparator={true}
+            RightComponent={
+                <View style={$rightContainer}>
+                    <Button preset='secondary' onPress={onCopy} tx='commonCopy' />
+                </View>
+            }
+        />
+    )
+}
+
+/**
  * Detail block for an onchain (NUT-30) topup.
  *
  * Separate from TopupInfoBlock because the two behave differently in the one way
@@ -1504,11 +1542,14 @@ const OnchainTopupInfoBlock = function (props: {
                 labelTx='tranDetailScreen_topupTo'
                 style={$dataCard}
                 ContentComponent={
-                    mint ? (
-                        <MintListItem mint={mint} isSelectable={false} isUnitVisible={false} />
-                    ) : (
-                        <Text text={transaction.mint} />
-                    )
+                    <>
+                        {mint ? (
+                            <MintListItem mint={mint} isSelectable={false} isUnitVisible={false} />
+                        ) : (
+                            <Text text={transaction.mint} />
+                        )}
+                        <PaymentRequestItem transaction={transaction} />
+                    </>
                 }
             />
         </>
@@ -1710,19 +1751,22 @@ const TopupInfoBlock = function (props: {
             labelTx='tranDetailScreen_topupTo'
             style={$dataCard}
             ContentComponent={
-              mint ? (
-                <MintListItem
-                  mint={mint}
-                  isSelectable={false}
-                  isUnitVisible={false}
-                />
-              ) : (                
-                  <Text text={transaction.mint} />
-              )              
+              <>
+                {mint ? (
+                  <MintListItem
+                    mint={mint}
+                    isSelectable={false}
+                    isUnitVisible={false}
+                  />
+                ) : (
+                    <Text text={transaction.mint} />
+                )}
+                <PaymentRequestItem transaction={transaction} />
+              </>
             }
-        />        
+        />
         <BottomModal
-          isVisible={isResultModalVisible ? true : false}          
+          isVisible={isResultModalVisible ? true : false}
           ContentComponent={
             <>
               {(resultModalInfo?.status === TransactionStatus.COMPLETED) && (

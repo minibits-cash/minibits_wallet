@@ -749,13 +749,16 @@
 	"welcomeScreen_terms_agreePrivacy": "Privacy Policy",
 	"mintSelector_noTopupSupport": "Top up not supported for this currency",
 	"mintSelector_noPayoutSupport": "Payouts not supported for this currency",
-	"topupScreen_onchainAddress": "Bitcoin address",
+	"topupScreen_onchainAddress": "Address",
+	"topupScreen_ligtningInvoice": "Invoice",
 	"topupScreen_onchainAddressToPay": "Bitcoin address to pay",
-	"topupScreen_onchainAmountIsHint": "The amount is only a suggestion. Your balance updates with whatever actually arrives, whether more or less.",
-	"topupScreen_onchainConfirmationsNeeded": "Your ecash appears once the deposit confirms on the Bitcoin network.",
+	"topupScreen_onchainAmountIsHint": "This is Bitcoin onchain address to be used to topup your wallet. The amount is only a suggestion. Your balance updates with whatever actually arrives, whether more or less.",
+	"topupScreen_onchainConfirmationsNeeded": "Your ecash appears once the deposit confirms on the Bitcoin network. Number of confirmations depends on the mint.",
 	"tranDetail_checkForDeposits": "Check for deposits",
 	"tranDetail_onchainNoDeposits": "No new deposits found at this address yet.",
 	"tranDetail_onchainOutpoint": "Bitcoin transaction",
 	"transactionType_topupOnchain": "Topup onchain",
-	"transactionType_transferOnchain": "Onchain payment"
+	"transactionType_transferOnchain": "Onchain payment",
+	"qr_hintHeading": "How does this work?",
+	"tranDetailScreen_paymentRequest": "Payment request"
 }

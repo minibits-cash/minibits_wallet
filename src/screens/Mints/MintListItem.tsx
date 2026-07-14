@@ -55,9 +55,17 @@ export const MintListItem = observer(function(props: {
           <ListItem
               key={mint.mintUrl}
               text={mint.shortname}
+              // Keep the name (and the line below it) to a single line, truncating with
+              // an ellipsis — long mint names would otherwise wrap and push the row's
+              // height around, which is very visible in a list of them. Passing an
+              // ellipsize mode is what makes ListItem apply numberOfLines={1}; the
+              // same pairing TransactionListItem uses.
+              textStyle={$oneLine}
+              textEllipsizeMode='tail'
               // when disabled, the reason replaces the hostname: it is the one thing
               // the user needs to read on this row
               subText={isDisabled && disabledReason ? disabledReason : mint.hostname}
+              subTextEllipsizeMode='tail'
               leftIcon={isSelectable ? isSelected ? 'faCheckCircle' : 'faCircle' : undefined}
               leftIconColor={isSelected ? iconSelectedColor as string : iconColor as string}
               rightIcon={isBlocked ? 'faShieldHalved' : mint.status === MintStatus.OFFLINE ? 'faTriangleExclamation' : undefined}
@@ -77,6 +85,11 @@ export const MintListItem = observer(function(props: {
               style={[{paddingHorizontal: spacing.tiny}, isDisabled ? $disabled : null, style]}
           />
     )})
+
+/** Truncate rather than wrap, so every row keeps the same height. */
+const $oneLine: TextStyle = {
+  overflow: 'hidden',
+}
 
 /** Dim an unusable mint without hiding it. */
 const $disabled: ViewStyle = {
