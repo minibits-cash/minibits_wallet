@@ -69,7 +69,7 @@ import {TranItem} from './TranDetailScreen'
  * whatever the user picks — a fabricated index would be rejected by the mint (NUT-30
  * requires it). So the CHOICE is simulated; the payment underneath is real.
  */
-const MOCK_FEE_TIERS = true
+const MOCK_FEE_TIERS = false
 
 type Props = StaticScreenProps<{
     address: string
@@ -264,7 +264,7 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
 
     useEffect(() => {
         try {
-            const {unit, mintUrl, amountSat, memo: bip21Memo} = route.params
+            const {unit, amountSat, memo: bip21Memo} = route.params
             if (!unit) {
                 throw new AppError(Err.VALIDATION_ERROR, translate('missingMintUnitRouteParamsError'))
             }
@@ -280,11 +280,19 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
             }
             if (bip21Memo) setMemo(bip21Memo)
 
-            const balance = mintUrl
-                ? proofsStore.getMintBalance(mintUrl)
-                : proofsStore.getMintBalancesWithUnit(unit)[0]
-
-            if (balance) dispatch({type: 'SET_MINT_BALANCE', balance})
+            // Refresh capabilities for every mint that could conceivably pay this, BEFORE
+            // deciding any of them cannot.
+            //
+            // `supportsMelt` reads cached mintInfo, and a mint whose info we have never
+            // fetched reports `hasUnknownCapabilities` — which we resolve as "assume bolt11",
+            // i.e. NOT onchain. So without this, a mint that genuinely supports onchain melt
+            // would be declared incapable purely because we had not asked it lately. getMint()
+            // is what triggers the stale-info refresh (see WalletStore.refreshMintInfoIfStale);
+            // it is fire-and-forget, and the screen is an observer, so the lists below
+            // recompute when the answers land.
+            for (const balance of proofsStore.getMintBalancesWithUnit(unit)) {
+                void walletStore.getMint(balance.mintUrl)
+            }
 
             if (!isInternetReachable) dispatch({type: 'SET_INFO', message: translate('commonOfflinePretty')})
         } catch (e: any) {
@@ -296,6 +304,62 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
     }, [])
 
     const handleError = (e: AppError) => dispatch({type: 'SET_ERROR', error: e})
+
+    /**
+     * The mints that can actually settle this payment: they hold a balance in this unit AND
+     * advertise onchain melt for it.
+     *
+     * Computed rather than assumed. Picking a mint first and discovering it cannot pay a
+     * Bitcoin address only when the mint answers "not found" is how this screen used to
+     * behave, and the user got a bare 404 for a decision the wallet already had the
+     * information to make.
+     */
+    const mintBalancesWithUnit = proofsStore.getMintBalancesWithUnit(unitRef.current)
+
+    const onchainMintBalances = mintBalancesWithUnit.filter(balance => {
+        const mint = mintsStore.findByUrl(balance.mintUrl)
+        return !!mint?.supportsMelt!('onchain', unitRef.current)
+    })
+
+    /**
+     * Why this payment cannot be made, if it cannot — kept as two distinct answers.
+     *
+     * "You have no mint holding this currency" and "none of your mints can send Bitcoin
+     * onchain" are different problems with different fixes, and collapsing them into one
+     * message would send the user off to solve the wrong one.
+     */
+    const blockingReason: 'no-mint' | 'no-onchain-mint' | undefined =
+        mintBalancesWithUnit.length === 0
+            ? 'no-mint'
+            : onchainMintBalances.length === 0
+              ? 'no-onchain-mint'
+              : undefined
+
+    const hasNoOnchainMint = !!blockingReason
+
+    /**
+     * Settle on a mint once we know which ones can pay.
+     *
+     * The mint carried in from the Pay screen is only a suggestion — it is whichever mint
+     * the user happened to be looking at, and nothing about scanning a Bitcoin address says
+     * it can melt onchain. If it cannot, silently fall through to one that can rather than
+     * making the user discover the problem and fix it themselves.
+     */
+    useEffect(() => {
+        if (hasNoOnchainMint) return
+        if (mintBalanceToTransferFrom) {
+            const stillCapable = onchainMintBalances.some(
+                b => b.mintUrl === mintBalanceToTransferFrom.mintUrl,
+            )
+            if (stillCapable) return
+        }
+
+        const preferred =
+            onchainMintBalances.find(b => b.mintUrl === route.params.mintUrl) ??
+            onchainMintBalances[0]
+
+        dispatch({type: 'SET_MINT_BALANCE', balance: preferred})
+    }, [onchainMintBalances.length, mintBalanceToTransferFrom?.mintUrl, hasNoOnchainMint])
 
     const selectedMint = mintBalanceToTransferFrom
         ? mintsStore.findByUrl(mintBalanceToTransferFrom.mintUrl)
@@ -330,6 +394,18 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
         try {
             if (!mintBalanceToTransferFrom?.mintUrl) {
                 dispatch({type: 'SET_INFO', message: translate('transferScreen_selectMintFrom')})
+                return
+            }
+
+            // Last line of defence. The mint selector already refuses an incapable mint and
+            // the screen refuses to render this button when none can pay, but asking a
+            // bolt11-only mint for an onchain melt quote gets a bare "not found" back — a
+            // 404 for a question the wallet had every means to answer itself.
+            if (!selectedMint?.supportsMelt!('onchain', unitRef.current)) {
+                dispatch({
+                    type: 'SET_INFO',
+                    message: translate('onchainTransferScreen_mintNoOnchainSupport'),
+                })
                 return
             }
 
@@ -585,7 +661,7 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
                         }}
                         selectTextOnFocus={true}
                         unit={unitRef.current}
-                        editable={!hasQuote && !isSettled}
+                        editable={!hasQuote && !isSettled && !hasNoOnchainMint}
                         style={{color: amountInputColor}}
                     />
                 </View>
@@ -694,7 +770,53 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
                     />
                 )}
 
-                {!hasQuote && !isSettled && (
+                {/*
+                  * No mint can pay a Bitcoin address.
+                  *
+                  * Said here, plainly, instead of letting the user set an amount, press
+                  * Continue, and receive the mint's bare "not found" — an error about a
+                  * question the wallet already had the information to answer. There is no
+                  * Continue button at all in this state: nothing the user can type makes it
+                  * work, and offering the action anyway is what turns a limitation into a
+                  * bug report.
+                  */}
+                {hasNoOnchainMint && !isSettled && (
+                    <>
+                        <Card
+                            style={$card}
+                            ContentComponent={
+                                <ListItem
+                                    tx={
+                                        blockingReason === 'no-mint'
+                                            ? 'onchainTransferScreen_noMintTitle'
+                                            : 'onchainTransferScreen_noOnchainMintTitle'
+                                    }
+                                    subTx={
+                                        blockingReason === 'no-mint'
+                                            ? 'onchainTransferScreen_noMintDesc'
+                                            : 'onchainTransferScreen_noOnchainMintDesc'
+                                    }
+                                    LeftComponent={
+                                        <Icon
+                                            containerStyle={$iconContainer}
+                                            icon="faTriangleExclamation"
+                                            size={spacing.medium}
+                                            color={colors.palette.accent300}
+                                        />
+                                    }
+                                    style={$item}
+                                />
+                            }
+                        />
+                        <View style={$bottomContainer}>
+                            <View style={$buttonContainer}>
+                                <Button preset="secondary" tx="commonClose" onPress={gotoWallet} />
+                            </View>
+                        </View>
+                    </>
+                )}
+
+                {!hasNoOnchainMint && !hasQuote && !isSettled && (
                     <>
                         <Text
                             size="xxs"
