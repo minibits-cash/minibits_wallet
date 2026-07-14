@@ -597,7 +597,8 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     }
 
     const onMemoDone = function () {
-      if (parseInt(amountToTopup) > 0) {
+      // toNumber, not parseInt: a confirmed amount is grouped, and parseInt('12,345') is 12.
+      if (toNumber(amountToTopup) > 0) {
         memoInputRef && memoInputRef.current
           ? memoInputRef.current.blur()
           : false

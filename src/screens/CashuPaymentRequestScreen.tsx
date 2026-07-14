@@ -319,7 +319,8 @@ const onMemoEndEditing = () => {
 }
 
 const onMemoDone = () => {
-  if (parseInt(amountToRequest) > 0) {
+  // toNumber, not parseInt: a confirmed amount is grouped, and parseInt('12,345') is 12.
+  if (toNumber(amountToRequest) > 0) {
     memoInputRef.current?.blur()
     amountInputRef.current?.blur()
     onMemoEndEditing()

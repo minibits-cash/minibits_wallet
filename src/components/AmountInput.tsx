@@ -15,7 +15,7 @@ import {
   formatCurrency,
   getCurrency,
 } from "../services/wallet/currency"
-import { round, toNumber } from "../utils/number"
+import { formatNumber, round, toNumber } from "../utils/number"
 import { useStores } from "../models"
 import { Text } from "./Text"
 import { format } from "util"
@@ -72,9 +72,35 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
     const [topValue, setTopValue] = useState(value)
     const [bottomValue, setBottomValue] = useState("0")
 
+    // --- grouping separators ---
+    //
+    // A confirmed amount is displayed grouped ("12,345"), but it must be a PLAIN number
+    // while it is being edited. `handleTopChange` rewrites the first comma to a dot, so a
+    // decimal-comma keyboard types "1,5" and means 1.5 — which also means that if a
+    // grouped value were left in the field, editing "12,345" would silently reinterpret it
+    // as 12.345. Stripping on focus and grouping again on confirm keeps the two meanings of
+    // "," from ever meeting.
+    const stripGrouping = (v: string) => v.replace(/,/g, '')
+
+    // The 9-character cap is a limit on what may be TYPED, not on what may be shown:
+    // grouped, 9 digits becomes "999,999,999" (11 chars, or 14 with a fiat mantissa), and
+    // Android's maxLength filter truncates programmatically-set text too — it would render
+    // a confirmed amount as "999,999,9". The field is always unformatted while it has
+    // focus, so capping only then enforces exactly the same digit limit as before.
+    const typingMaxLength = 9
+    const displayMaxLength = 15
+
+    /** Group and pad a confirmed amount to the unit's precision: 12345 -> "12,345". */
+    const formatAmount = (v: string) => {
+      const n = toNumber(stripGrouping(v))
+      if (n === undefined || !Number.isFinite(n)) return v
+      return formatNumber(n, getCurrency(unit).mantissa)
+    }
+
     const handleTopFocus = () => {
       setHasTopAmountFocusedOnce(true)
       setFocused('top')
+      setTopValue(current => stripGrouping(current))
       onFocus?.()
     }
 
@@ -86,6 +112,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
     const handleBottomFocus = () => {
       setHasBottomAmountFocusedOnce(true)
       setFocused('bottom')
+      setBottomValue(current => stripGrouping(current))
       onFocus?.()
     }
 
@@ -191,11 +218,25 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
     }
 
 
+    /**
+     * The amount is confirmed (keyboard "done", or focus left the field): group it.
+     *
+     * The parent is told about the formatted string, not just the local field, so that what
+     * it holds and what the user sees are the same text. Everything downstream parses with
+     * `toNumber`, which reads grouping separators, so no caller has to care.
+     */
     const onAmountEndEditing = () => {
-      // const formattedTop = recalcTop(bottomValue)
-      const formattedBottom = recalcBottom(topValue)
-      // setTopValue(formattedTop)
-      setBottomValue(formattedBottom)
+      const formattedTop = formatAmount(topValue)
+      setTopValue(formattedTop)
+
+      // Recompute the converted value from the CONFIRMED top, not from whatever the bottom
+      // field happens to hold — the two can be a keystroke apart.
+      setBottomValue(recalcBottom(formattedTop))
+
+      if (formattedTop !== topValue) {
+        onChangeText?.(formattedTop)
+      }
+
       return onEndEditing?.()
     }
 
@@ -279,7 +320,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
             animatedTopStyle, 
             { color: focused === 'top' ? focusedInputColor : convertedAmountColor }
           ]}
-          maxLength={9}
+          maxLength={hasTopAmountFocusedOnce ? typingMaxLength : displayMaxLength}
           keyboardType="decimal-pad"
           returnKeyType="done"
           selectTextOnFocus={!hasTopAmountFocusedOnce}
@@ -314,7 +355,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
               animatedBottomStyle,
               { color: focused === 'bottom' ? focusedInputColor : convertedAmountColor }
             ]}
-            maxLength={9}
+            maxLength={hasBottomAmountFocusedOnce ? typingMaxLength : displayMaxLength}
             keyboardType="decimal-pad"
             returnKeyType="done"
             selectTextOnFocus={!hasBottomAmountFocusedOnce}
