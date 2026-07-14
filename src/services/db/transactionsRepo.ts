@@ -219,6 +219,38 @@ export const getPendingTransfers = function () {
 }
 
 
+/**
+ * PENDING onchain melts — payments the mint has taken but the chain has not confirmed.
+ *
+ * Separate from `getPendingTransfers` (which filters `type = 'TRANSFER'`) rather than
+ * folded into it, because the two are watched for different reasons and on different
+ * clocks: a bolt11 transfer is watched to catch a stuck payment and can be EXPIRED,
+ * while an onchain transfer is waiting on blocks and must never be expired — the melt
+ * quote's expiry bounds executing the quote, not confirming the payment.
+ */
+export const getPendingOnchainTransfers = function () {
+  try {
+      const query = `
+        SELECT *
+        FROM transactions
+        WHERE status = 'PENDING'
+        AND type = 'TRANSFER_ONCHAIN'
+        ORDER BY id DESC
+        `
+
+      const db = getInstance()
+      const {rows} = db.execute(query)
+
+      log.trace(`[getPendingOnchainTransfers], Returned ${rows?.length} rows`)
+
+      return normalizeTransactionRows(rows)
+
+  } catch (e: any) {
+      throw dbError('Transactions could not be retrieved from the database', e)
+  }
+}
+
+
 export const getPendingTopupsCount = function () {
   let query: string = ''
   try {

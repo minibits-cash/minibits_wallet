@@ -4,6 +4,7 @@ import {
   Wallet as CashuWallet,
   KeyChain as CashuKeyChain,
   MeltQuoteBolt11Response,
+  MeltQuoteOnchainResponse,
   setGlobalRequestOptions,
   type MintKeys,
   type MintKeyset,
@@ -1296,15 +1297,220 @@ export const WalletStoreModel = types
             let message = 'The mint could not return the state of a melt quote.'
             if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
             throw new AppError(
-                Err.MINT_ERROR, 
-                message, 
+                Err.MINT_ERROR,
+                message,
                 {
                     message: e.message,
-                    caller: 'checkLightningMeltQuote', 
-                    mintUrl,            
+                    caller: 'checkLightningMeltQuote',
+                    mintUrl,
                 }
             )
           }
+        }),
+        /**
+         * Ask the mint what it would charge to send `amount` to a Bitcoin address (NUT-30).
+         *
+         * Unlike bolt11 the amount is not carried by the payment request, so this cannot be
+         * called until the user has entered one. The quote comes back with a list of
+         * `fee_options` tiers rather than a single `fee_reserve`; they are fixed for the
+         * quote's lifetime, and the caller picks one at execute time.
+         */
+        createOnchainMeltQuote: flow(function* createOnchainMeltQuote(
+            mintUrl: string,
+            unit: MintUnit,
+            address: string,
+            amount: number,
+        ) {
+            try {
+                const cashuMint: CashuMint = yield self.getMint(mintUrl)
+                const onchainQuote: MeltQuoteOnchainResponse = yield cashuMint.createMeltQuoteOnchain({
+                    unit,
+                    request: address,
+                    amount,
+                })
+
+                log.info('[createOnchainMeltQuote]', {mintUrl, unit, amount}, {onchainQuote})
+
+                return onchainQuote
+
+            } catch (e: any) {
+                let message = 'The mint could not return the onchain melt quote.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+                throw new AppError(
+                    Err.MINT_ERROR,
+                    message,
+                    {
+                        message: e.message,
+                        caller: 'createOnchainMeltQuote',
+                        request: {mintUrl, unit, address, amount},
+                    }
+                )
+            }
+        }),
+        /**
+         * Execute an onchain melt (NUT-30).
+         *
+         * Deliberately the same two-step shape as `payLightningMelt`, because the reason for
+         * the split is the same: `prepareMelt` derives the NUT-08 change outputs from the
+         * keyset counter, and if the app dies between submitting the melt and receiving the
+         * response, the ONLY way to reconstruct that change is the meltPreview we wrote to
+         * SQLite before submitting. cashu-ts' one-shot `meltProofsOnchain` hides the split and
+         * would leave nothing to recover from.
+         *
+         * Two things differ from bolt11:
+         *  - `fee_index` rides along as `extraPayload` on the melt request. It is not part of
+         *    the quote and not part of prepare; the mint locks it into `selected_fee_index`
+         *    when it executes, and MUST NOT execute the same quote again with a different one.
+         *  - No `preferAsync`. NUT-30 mandates asynchrony ("The mint MUST return a PENDING
+         *    state after validating the melt request and then broadcast in the background"),
+         *    so there is no faster path to ask for.
+         */
+        payOnchainMelt: flow(function* payOnchainMelt(
+            mintUrl: string,
+            unit: MintUnit,
+            meltQuote: MeltQuoteOnchainResponse,
+            proofsToMeltFrom: Proof[],
+            feeIndex: number,
+            transactionId: number,
+            options?: {
+                increaseCounterBy?: number,
+            }
+        ) {
+            const mintInstance = self.getMintModelInstance(mintUrl)
+
+            if(!mintInstance) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
+            }
+
+            const cashuWallet = yield self.getWallet(
+                mintUrl,
+                unit,
+                {
+                    withSeed: true,
+                }
+            )
+
+            const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
+
+            // outputs error healing
+            if(options && options.increaseCounterBy) {
+                currentCounter.increaseProofsCounter(options.increaseCounterBy)
+            }
+
+            yield cashuWallet.counters.advanceToAtLeast(cashuWallet.keysetId, currentCounter.counter)
+
+            log.trace('[WalletStore.payOnchainMelt] Preparing melt', {
+                localCounter: currentCounter.counter,
+                proofsCount: proofsToMeltFrom.length,
+                feeIndex,
+            })
+
+            let reservedCounters: OperationCounters | undefined
+
+            // Step 1: prepare (derives the deterministic change outputs)
+            const meltPreview: MeltPreview<MeltQuoteOnchainResponse> = yield cashuWallet.prepareMelt(
+                'onchain',
+                meltQuote,
+                CashuUtils.exportProofs(proofsToMeltFrom),
+                {
+                    keysetId: cashuWallet.keysetId,
+                    onCountersReserved: (info: OperationCounters) => {
+                        reservedCounters = info
+                        log.debug('[payOnchainMelt] Counters reserved', info)
+                    }
+                }
+            )
+
+            // Synchronous SQLite write BEFORE the melt is submitted, so the change is
+            // recoverable even if the app dies the moment after.
+            Database.addMeltRecovery(
+                transactionId,
+                mintUrl,
+                cashuWallet.keysetId,
+                CashuUtils.serializeMeltPreview(meltPreview),
+            )
+
+            if (reservedCounters) {
+                currentCounter.setProofsCounter(reservedCounters.next)
+                log.debug('[payOnchainMelt] Updated counter', {
+                    keysetId: reservedCounters.keysetId,
+                    start: reservedCounters.start,
+                    count: reservedCounters.count,
+                    next: reservedCounters.next
+                })
+            }
+
+            try {
+                // Step 2: submit. fee_index is the onchain-specific part of the request body.
+                const meltResponse: MeltProofsResponse<MeltQuoteOnchainResponse> =
+                    yield cashuWallet.completeMelt(meltPreview, undefined, {
+                        extraPayload: {fee_index: feeIndex},
+                    })
+
+                // The mint answers PENDING (spec-mandated) but MAY already have returned the
+                // change, because it knows its actual fee the moment it builds the transaction.
+                // Keep the preview only while there is still change left to reconstruct later.
+                if (meltResponse.change.length > 0) {
+                    Database.removeMeltRecovery(transactionId)
+                }
+
+                log.trace('[payOnchainMelt]', {meltResponse})
+                return meltResponse
+
+            } catch (e: any) {
+                if(!e.message.toLowerCase().includes('timeout') &&
+                   !e.message.toLowerCase().includes('network request failed')) {
+                    Database.removeMeltRecovery(transactionId)
+                }
+
+                let message = 'Onchain payment failed.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+                throw new AppError(
+                    Err.MINT_ERROR,
+                    message,
+                    {
+                        message: e.message,
+                        caller: 'payOnchainMelt',
+                        mintUrl,
+                        code: e.code || undefined,
+                    }
+                )
+            }
+        }),
+        /**
+         * Current state of an onchain melt quote.
+         *
+         * This — not the state of the input proofs — is what says whether an onchain payment
+         * has settled. The mint spending the inputs means it BROADCAST, not that the
+         * transaction confirmed. Only `PAID` means confirmed.
+         */
+        checkOnchainMeltQuote: flow(function* checkOnchainMeltQuote(
+            mintUrl: string,
+            quote: string,
+        ) {
+            try {
+                const cashuMint: CashuMint = yield self.getMint(mintUrl)
+                const quoteResponse: MeltQuoteOnchainResponse = yield cashuMint.checkMeltQuoteOnchain(
+                    quote
+                )
+
+                log.info('[checkOnchainMeltQuote]', {quoteResponse})
+
+                return quoteResponse
+
+            } catch (e: any) {
+                let message = 'The mint could not return the state of an onchain melt quote.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+                throw new AppError(
+                    Err.MINT_ERROR,
+                    message,
+                    {
+                        message: e.message,
+                        caller: 'checkOnchainMeltQuote',
+                        mintUrl,
+                    }
+                )
+            }
         }),
         restore: flow(function* restore(
             mintUrl: string,

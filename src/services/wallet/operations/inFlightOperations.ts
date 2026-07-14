@@ -320,11 +320,19 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                         break
                     }
 
-                    // TRANSFER (melt / lightning out retry)
-                    // COMMENTED OUT — solved by syncStateWithMintTask which recovers change
-                    // from pending-yet-paid transfers. Request params (meltPreview) is stored
-                    // in proofsCounter.meltCounterValues, not inFlightRequests.
-                    case TransactionType.TRANSFER: {
+                    // TRANSFER / TRANSFER_ONCHAIN (melt retry)
+                    // NO-OP — solved by syncStateWithMintTask which recovers change from
+                    // pending-yet-paid transfers. Request params (meltPreview) is stored in
+                    // proofsCounter.meltCounterValues, not inFlightRequests.
+                    //
+                    // Melts need no replay for the reason mints do. A lost mint RESPONSE
+                    // strands issued ecash (the mint counts it as issued, we never see it),
+                    // so TOPUP replays the request against the mint's NUT-19 cache. A lost
+                    // melt response strands nothing: the money is either gone (mint paid, and
+                    // sync recovers the change) or still ours (mint did not, and sync returns
+                    // the proofs). Replaying a melt would risk paying twice to fix nothing.
+                    case TransactionType.TRANSFER:
+                    case TransactionType.TRANSFER_ONCHAIN: {
                         break
                     }
 

@@ -84,6 +84,12 @@ export const TransactionsStoreModel = types
             const dbTransfers = Database.getPendingTransfers()
             return dbTransfers.map(t => TransactionModel.create({ ...t }))
         },
+
+        /** Onchain melts the mint has taken but the chain has not yet confirmed. */
+        getPendingOnchainTransfers(): Transaction[] {
+            const dbTransfers = Database.getPendingOnchainTransfers()
+            return dbTransfers.map(t => TransactionModel.create({ ...t }))
+        },
     }))
 
     
