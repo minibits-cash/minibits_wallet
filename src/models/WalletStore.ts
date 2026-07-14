@@ -920,23 +920,13 @@ export const WalletStoreModel = types
         /**
          * Mint ecash against a confirmed onchain deposit.
          *
-         * Mirrors `mintProofs` (same counter discipline, same NUT-19 in-flight
-         * record, same error surface) with two differences:
+         * Mirrors `mintProofs`: same counter discipline, same NUT-19 in-flight record,
+         * same error surface.
          *
-         *  - it goes through the GENERIC `mintProofs('onchain', ...)` rather than
-         *    the `mintProofsOnchain` sugar. The sugar takes a narrowed config of
-         *    just `{keysetId}` — it silently drops `onCountersReserved`, which is
-         *    how we learn which derivation indices the library actually consumed.
-         *    Losing that would desync our counter and risk blinded-secret reuse.
-         *    The generic form takes the full MintProofsConfig, which carries BOTH
-         *    `privkey` and `onCountersReserved`.
-         *
-         *  - `quote` is the whole MintQuoteOnchainResponse, not an id. cashu-ts
-         *    signs the request (NUT-20) when the quote carries a `pubkey`, and it
-         *    reads that off the quote object.
-         *
-         * `privkey` is derived on demand from the seed and the quote's stored
-         * counterIndex; it is never persisted.
+         * `quote` is the whole MintQuoteOnchainResponse, not an id — cashu-ts signs the
+         * request (NUT-20) when the quote carries a `pubkey`, and it reads that off the
+         * quote object. `privkey` is derived on demand from the seed and the quote's
+         * stored counterIndex; it is never persisted.
          */
         mintOnchainProofs: flow(function* mintOnchainProofs(
             mintUrl: string,
@@ -995,13 +985,12 @@ export const WalletStoreModel = types
             let reservedCounters: OperationCounters | undefined
 
             try {
-                const proofs = yield cashuWallet.mintProofs(
-                    'onchain',
+                const proofs = yield cashuWallet.mintProofsOnchain(
                     mintParams.amount,
                     quoteResponse,
+                    privkey,
                     {
                         keysetId: mintParams.options?.keysetId,
-                        privkey,
                         onCountersReserved: (info: OperationCounters) => {
                             reservedCounters = info
                             log.debug('[mintOnchainProofs] Counters reserved', info)
