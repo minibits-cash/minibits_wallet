@@ -74,33 +74,36 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
 
     // --- grouping separators ---
     //
-    // A confirmed amount is displayed grouped ("12,345"), but it must be a PLAIN number
-    // while it is being edited. `handleTopChange` rewrites the first comma to a dot, so a
-    // decimal-comma keyboard types "1,5" and means 1.5 — which also means that if a
-    // grouped value were left in the field, editing "12,345" would silently reinterpret it
-    // as 12.345. Stripping on focus and grouping again on confirm keeps the two meanings of
-    // "," from ever meeting.
+    // A confirmed amount is SHOWN grouped ("12,345"), but state always holds the plain
+    // number. Formatting is a render concern, derived from the value, never written back
+    // into it.
+    //
+    // That split is not tidiness, it is the fix. These are controlled TextInputs, and
+    // Android echoes a programmatically-set `value` back out through `onChangeText` —
+    // where `handleTopChange` rewrites the first comma to a dot, because a decimal-comma
+    // keyboard types "1,5" and means 1.5. Store a grouped string and that echo turns
+    // "1,000" into "1.000" and then, re-formatted, into something shorter still. Keep the
+    // grouping out of state and the round trip cannot happen: what the change handler sees
+    // is always what the user typed.
     const stripGrouping = (v: string) => v.replace(/,/g, '')
 
-    // The 9-character cap is a limit on what may be TYPED, not on what may be shown:
-    // grouped, 9 digits becomes "999,999,999" (11 chars, or 14 with a fiat mantissa), and
-    // Android's maxLength filter truncates programmatically-set text too — it would render
-    // a confirmed amount as "999,999,9". The field is always unformatted while it has
-    // focus, so capping only then enforces exactly the same digit limit as before.
-    const typingMaxLength = 9
-    const displayMaxLength = 15
-
-    /** Group and pad a confirmed amount to the unit's precision: 12345 -> "12,345". */
-    const formatAmount = (v: string) => {
+    /** Group and pad an amount for DISPLAY: 12345 -> "12,345". Never stored. */
+    const formatForDisplay = (v: string, mantissa: number) => {
       const n = toNumber(stripGrouping(v))
       if (n === undefined || !Number.isFinite(n)) return v
-      return formatNumber(n, getCurrency(unit).mantissa)
+      return formatNumber(n, mantissa)
     }
+
+    // Cap on what may be TYPED. Applied in the change handlers rather than via maxLength,
+    // because maxLength also clips programmatically-set text on Android — and the grouped
+    // display is longer than the number it shows ("999,999,999" is 11 characters, or 14
+    // with a fiat mantissa), so a maxLength that fit the typing limit would truncate the
+    // very value it had just formatted.
+    const MAX_TYPED_LENGTH = 9
 
     const handleTopFocus = () => {
       setHasTopAmountFocusedOnce(true)
       setFocused('top')
-      setTopValue(current => stripGrouping(current))
       onFocus?.()
     }
 
@@ -112,7 +115,6 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
     const handleBottomFocus = () => {
       setHasBottomAmountFocusedOnce(true)
       setFocused('bottom')
-      setBottomValue(current => stripGrouping(current))
       onFocus?.()
     }
 
@@ -164,9 +166,12 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
     }
 
     // keep internal state in sync with external `value`
+    //
+    // Stripped on the way in: a parent may hand us an already-grouped string (several
+    // screens pre-fill with numbro's thousandSeparated), and state must stay plain.
     useEffect(() => {
       log.trace(`[AmountInput.useEffect:mount] setTopValue`, value)
-      setTopValue(value)
+      setTopValue(stripGrouping(value))
 
       // only show if
       // - user has set conversion currency in settings
@@ -181,7 +186,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
 
       if (canShow) {
         log.trace(`[AmountInput.useEffect:mount] recalcBottom`, value)
-        setBottomValue(recalcBottom(value)) // ✅ always compute bottom from current top
+        setBottomValue(stripGrouping(recalcBottom(value))) // ✅ always compute bottom from current top
       } else {
         setBottomValue("0")
       }
@@ -189,29 +194,35 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
 
     useEffect(() => {
       log.trace(`[AmountInput.useEffect:value] setTopValue`, value)
-      setTopValue(value)
+      setTopValue(stripGrouping(value))
       if(!hasBeenFirstTimeConverted && value && toNumber(value) > 0) {
-        setBottomValue(recalcBottom(value))
+        setBottomValue(stripGrouping(recalcBottom(value)))
         setHasBeenFirstTimeConverted(true)
       }
-      
+
     }, [value])
 
     // input change handlers (bi-directional)
     const handleTopChange = (text: string) => {
+      // "," -> "." so a decimal-comma keyboard can type "1,5" and mean 1.5. Safe only
+      // because state never holds a grouped value for this to collide with.
       const normalized = text.replace(',', '.')
+      if (normalized.length > MAX_TYPED_LENGTH) return
+
       setTopValue(normalized)
       if (focused === "top") {
-        setBottomValue(recalcBottom(normalized))
+        setBottomValue(stripGrouping(recalcBottom(normalized)))
         onChangeText?.(normalized) // parent receives "top" value (sat or fiat, as per `unit`)
       }
     }
 
     const handleBottomChange = (text: string) => {
       const normalized = text.replace(',', '.')
+      if (normalized.length > MAX_TYPED_LENGTH) return
+
       setBottomValue(normalized)
       if (focused === "bottom") {
-        const newTop = recalcTop(normalized)
+        const newTop = stripGrouping(recalcTop(normalized))
         setTopValue(newTop)
         onChangeText?.(newTop) // keep parent synced to "top" side
       }
@@ -219,26 +230,33 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
 
 
     /**
-     * The amount is confirmed (keyboard "done", or focus left the field): group it.
+     * The amount is confirmed (keyboard "done", or focus left the field).
      *
-     * The parent is told about the formatted string, not just the local field, so that what
-     * it holds and what the user sees are the same text. Everything downstream parses with
-     * `toNumber`, which reads grouping separators, so no caller has to care.
+     * Nothing is reformatted here, and nothing is pushed back to the parent: losing focus
+     * is all it takes for the field to render grouped, and the parent keeps the plain
+     * number it has had all along. The only work is recomputing the converted value from
+     * the CONFIRMED top rather than from whatever the bottom field holds — the two can be
+     * a keystroke apart.
      */
     const onAmountEndEditing = () => {
-      const formattedTop = formatAmount(topValue)
-      setTopValue(formattedTop)
-
-      // Recompute the converted value from the CONFIRMED top, not from whatever the bottom
-      // field happens to hold — the two can be a keystroke apart.
-      setBottomValue(recalcBottom(formattedTop))
-
-      if (formattedTop !== topValue) {
-        onChangeText?.(formattedTop)
-      }
-
+      setBottomValue(stripGrouping(recalcBottom(topValue)))
       return onEndEditing?.()
     }
+
+    const bottomCurrencyCode = topIsSat ? fiatCode : CurrencyCode.SAT
+    const currencySymbol = bottomCurrencyCode ? Currencies[bottomCurrencyCode]!.symbol : null
+
+    // Grouped only when the field is NOT being edited. This is the whole of the "format on
+    // confirm" behaviour: losing focus is what confirms an amount, and the grouped text is
+    // derived at render time, so it can never be read back in as input.
+    const topDisplayValue = hasTopAmountFocusedOnce
+      ? topValue
+      : formatForDisplay(topValue, getCurrency(unit).mantissa)
+
+    const bottomMantissa = bottomCurrencyCode ? Currencies[bottomCurrencyCode]!.mantissa : 0
+    const bottomDisplayValue = hasBottomAmountFocusedOnce
+      ? bottomValue
+      : formatForDisplay(bottomValue, bottomMantissa)
 
     // --- animations (unchanged behavior) ---
     const topScale = useSharedValue(1)
@@ -298,18 +316,16 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
     const animatedSymbolStyle = useAnimatedStyle(() => ({
       transform: [{ scale: bottomScale.value }], // sync with bottom input
       fontSize: spacing.extraSmall * bottomScale.value, // scale font size
-      marginRight: focused === 'bottom' ? spacing.medium + bottomValue.length * 4.5 : spacing.tiny,       
+      marginRight: focused === 'bottom' ? spacing.medium + bottomDisplayValue.length * 4.5 : spacing.tiny,       
     }))
 
-    const bottomCurrencyCode = topIsSat ? fiatCode : CurrencyCode.SAT
-    const currencySymbol = bottomCurrencyCode ? Currencies[bottomCurrencyCode]!.symbol : null
 
     return (
       <>
         {/* Top input */}
         <AnimatedTextInput
           ref={ref}
-          value={topValue}
+          value={topDisplayValue}
           onChangeText={handleTopChange}
           onEndEditing={onAmountEndEditing}
           onFocus={handleTopFocus}
@@ -320,7 +336,6 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
             animatedTopStyle, 
             { color: focused === 'top' ? focusedInputColor : convertedAmountColor }
           ]}
-          maxLength={hasTopAmountFocusedOnce ? typingMaxLength : displayMaxLength}
           keyboardType="decimal-pad"
           returnKeyType="done"
           selectTextOnFocus={!hasTopAmountFocusedOnce}
@@ -343,7 +358,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
           </Animated.Text>
         
           <AnimatedTextInput
-            value={bottomValue}
+            value={bottomDisplayValue}
             onChangeText={handleBottomChange}
             onEndEditing={onAmountEndEditing}
             onFocus={handleBottomFocus}
@@ -355,7 +370,6 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
               animatedBottomStyle,
               { color: focused === 'bottom' ? focusedInputColor : convertedAmountColor }
             ]}
-            maxLength={hasBottomAmountFocusedOnce ? typingMaxLength : displayMaxLength}
             keyboardType="decimal-pad"
             returnKeyType="done"
             selectTextOnFocus={!hasBottomAmountFocusedOnce}
