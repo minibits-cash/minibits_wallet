@@ -130,6 +130,11 @@ export type OnchainFeeOption = {
     feeIndex: number
     feeReserve: number
     estimatedBlocks: number
+    /**
+     * True for a tier this wallet invented in a debug build (see `mockOnchainFeeTiers`).
+     * Never set on anything a mint sent.
+     */
+    isMock?: boolean
 }
 
 /** Shape of a `fee_options` entry as it arrives from cashu-ts. */
@@ -181,6 +186,73 @@ export const findFeeOption = (
     options: OnchainFeeOption[],
     feeIndex: number,
 ): OnchainFeeOption | undefined => options.find(o => o.feeIndex === feeIndex)
+
+/**
+ * Invent extra fee tiers so the picker can be exercised. DEBUG BUILDS ONLY.
+ *
+ * The CDK fakewallet backend returns exactly ONE fee option, so against the only mint we
+ * can test with, the picker always collapses to its read-only single-tier form and the
+ * multi-tier path never runs. This fabricates a slower/cheaper and a faster/dearer tier
+ * around whatever the mint actually sent.
+ *
+ * **The mint's real tier is kept, untouched, with its real `fee_index`.** That matters:
+ * NUT-30 says the mint MUST reject a melt whose `fee_index` it never offered, so a
+ * fabricated index cannot be paid with. The caller submits the REAL index whichever tier
+ * the user picks (see `isMock`) — so what is mocked is the CHOICE, and the payment that
+ * follows is a real one at the mint's real price. A mocked tier's `feeReserve` is a
+ * fiction for display; nothing downstream may bill against it.
+ *
+ * A no-op when the mint already returned more than one tier — there is nothing to
+ * simulate, and overwriting real tiers with invented ones would be actively misleading.
+ */
+export const mockOnchainFeeTiers = (
+    options: OnchainFeeOption[],
+): OnchainFeeOption[] => {
+    if (options.length !== 1) return options
+
+    const real = options[0]
+
+    // Indices that cannot collide with the mint's own. They are never sent to it.
+    const cheaper: OnchainFeeOption = {
+        feeIndex: real.feeIndex + 1001,
+        feeReserve: Math.max(1, Math.round(real.feeReserve * 0.4)),
+        estimatedBlocks: Math.max(real.estimatedBlocks * 4, 12),
+        isMock: true,
+    }
+    const faster: OnchainFeeOption = {
+        feeIndex: real.feeIndex + 1002,
+        feeReserve: Math.round(real.feeReserve * 2.5),
+        estimatedBlocks: 1,
+        isMock: true,
+    }
+
+    return normalizeFeeOptions(
+        [cheaper, real, faster].map(o => ({
+            fee_index: o.feeIndex,
+            fee_reserve: o.feeReserve,
+            estimated_blocks: o.estimatedBlocks,
+        })),
+    ).map(o => ({
+        ...o,
+        isMock: o.feeIndex !== real.feeIndex,
+    }))
+}
+
+/**
+ * The `fee_index` that may actually be sent to the mint.
+ *
+ * Identity for a real tier. For a mocked one it resolves back to the mint's own tier —
+ * the only index the mint will accept — so a debug build can exercise the picker without
+ * the melt being rejected. Returns undefined if there is no real tier to fall back to,
+ * which cannot happen with a quote from a mint.
+ */
+export const payableFeeIndex = (
+    options: OnchainFeeOption[],
+    selected: OnchainFeeOption,
+): number | undefined => {
+    if (!selected.isMock) return selected.feeIndex
+    return options.find(o => !o.isMock)?.feeIndex
+}
 
 /**
  * Total that must be covered by the inputs of an onchain melt.

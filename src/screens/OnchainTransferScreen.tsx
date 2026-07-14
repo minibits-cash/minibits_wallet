@@ -46,14 +46,29 @@ import useIsInternetReachable from '../utils/useIsInternetReachable'
 import {MintUnit, getCurrency} from '../services/wallet/currency'
 import {
     OnchainFeeOption,
+    mockOnchainFeeTiers,
     normalizeFeeOptions,
     onchainMeltFloor,
+    payableFeeIndex,
     selectDefaultFeeOption,
 } from '../services/wallet/operations/onchainAmounts'
 import {MintHeader} from './Mints/MintHeader'
 import {MintBalanceSelector} from './Mints/MintBalanceSelector'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {TranItem} from './TranDetailScreen'
+
+/**
+ * Fabricate extra fee tiers so the multi-tier picker can be exercised. DEBUG ONLY.
+ *
+ * The CDK fakewallet returns exactly ONE fee option, so without this the picker always
+ * collapses to its single-tier read-only row and the path that matters is never run.
+ * Flip to `true` in a debug build to see three.
+ *
+ * The mint's real tier keeps its real fee_index and is the one actually submitted
+ * whatever the user picks — a fabricated index would be rejected by the mint (NUT-30
+ * requires it). So the CHOICE is simulated; the payment underneath is real.
+ */
+const MOCK_FEE_TIERS = false
 
 type Props = StaticScreenProps<{
     address: string
@@ -356,7 +371,15 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
                 amountUnit,
             )
 
-            const options = normalizeFeeOptions(quote.fee_options ?? [])
+            let options = normalizeFeeOptions(quote.fee_options ?? [])
+
+            if (MOCK_FEE_TIERS && __DEV__) {
+                options = mockOnchainFeeTiers(options)
+                log.warn('[requestQuote] MOCKED fee tiers — the mint offered', {
+                    real: quote.fee_options?.length ?? 0,
+                })
+            }
+
             const defaultOption = selectDefaultFeeOption(options)
 
             if (!defaultOption) {
@@ -414,6 +437,19 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
                 return
             }
 
+            // Never send a fabricated fee_index: the mint MUST reject one it did not offer.
+            // For a real tier this is the identity; for a mocked one it falls back to the
+            // mint's own index, so the payment is made at the mint's real price.
+            const feeIndex = payableFeeIndex(feeOptions, selectedFee)
+
+            if (feeIndex === undefined) {
+                throw new AppError(
+                    Err.VALIDATION_ERROR,
+                    translate('onchainTransferScreen_noFeeOptions'),
+                    {quote: meltQuote.quote},
+                )
+            }
+
             dispatch({type: 'TRANSFER_START'})
 
             const result: TransactionTaskResult = await WalletTask.transferOnchainQueueAwaitable(
@@ -421,7 +457,7 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
                 meltQuote.amount.toNumber(),
                 unitRef.current,
                 meltQuote,
-                selectedFee.feeIndex,
+                feeIndex,
                 memo,
                 new Date(meltQuote.expiry * 1000),
                 address,
@@ -486,6 +522,20 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
 
     const currencyCode = getCurrency(unitRef.current).code
     const hasQuote = !!meltQuote && !!selectedFee
+
+    /**
+     * A tier's "~N blocks · up to X sat" line.
+     *
+     * A fabricated tier says so, loudly and in plain text. It only exists in a debug build,
+     * but an unmarked invented fee reserve sitting next to real ones is exactly the kind of
+     * thing that gets believed later.
+     */
+    const feeTierLabel = (option: OnchainFeeOption) =>
+        translate('onchainTransferScreen_feeTierSubtext', {
+            blocks: option.estimatedBlocks,
+            amount: numbro(option.feeReserve).format({thousandSeparated: true}),
+            currency: currencyCode,
+        }) + (option.isMock ? '  ⚠️ MOCK — pays at the mint\'s real fee' : '')
     const isSettled =
         transactionStatus === TransactionStatus.COMPLETED ||
         transactionStatus === TransactionStatus.PENDING
@@ -603,13 +653,7 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
                         ContentComponent={
                             <ListItem
                                 tx="onchainTransferScreen_networkFee"
-                                subText={translate('onchainTransferScreen_feeTierSubtext', {
-                                    blocks: selectedFee!.estimatedBlocks,
-                                    amount: numbro(selectedFee!.feeReserve).format({
-                                        thousandSeparated: true,
-                                    }),
-                                    currency: currencyCode,
-                                })}
+                                subText={feeTierLabel(selectedFee!)}
                                 LeftComponent={
                                     <Icon
                                         containerStyle={$iconContainer}
@@ -704,12 +748,14 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
                                 text={translate('onchainTransferScreen_feeTierBlocks', {
                                     blocks: option.estimatedBlocks,
                                 })}
-                                subText={translate('onchainTransferScreen_feeTierReserve', {
-                                    amount: numbro(option.feeReserve).format({
-                                        thousandSeparated: true,
-                                    }),
-                                    currency: currencyCode,
-                                })}
+                                subText={
+                                    translate('onchainTransferScreen_feeTierReserve', {
+                                        amount: numbro(option.feeReserve).format({
+                                            thousandSeparated: true,
+                                        }),
+                                        currency: currencyCode,
+                                    }) + (option.isMock ? '  ⚠️ MOCK' : '')
+                                }
                                 leftIcon={
                                     option.feeIndex === selectedFee?.feeIndex
                                         ? 'faCheckCircle'

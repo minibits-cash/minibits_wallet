@@ -10,9 +10,11 @@
  */
 import {
     findFeeOption,
+    mockOnchainFeeTiers,
     normalizeFeeOptions,
     onchainMeltFloor,
     onchainMeltTotal,
+    payableFeeIndex,
     selectDefaultFeeOption,
     MINIBITS_ONCHAIN_MELT_FLOOR_SAT,
 } from '../src/services/wallet/operations/onchainAmounts'
@@ -140,6 +142,81 @@ describe('onchainMeltFloor', () => {
     it('clears every script type\'s dust limit', () => {
         // P2PKH dust is 546, P2WSH 330. An output below that is unspendable.
         expect(MINIBITS_ONCHAIN_MELT_FLOOR_SAT).toBeGreaterThan(546)
+    })
+})
+
+describe('mockOnchainFeeTiers (debug-only picker mock)', () => {
+    const realTier = normalizeFeeOptions([
+        {fee_index: 0, fee_reserve: amount(400), estimated_blocks: 6},
+    ])
+
+    it('turns the fakewallet\'s single tier into three', () => {
+        const tiers = mockOnchainFeeTiers(realTier)
+        expect(tiers).toHaveLength(3)
+        expect(tiers.map(t => t.feeReserve)).toEqual([160, 400, 1000])
+    })
+
+    /**
+     * The load-bearing property. NUT-30: "The mint MUST reject a melt request with a
+     * fee_index that was not returned in the quote." So the mint's own tier has to survive
+     * the mock intact — it is the only index that can actually be paid with.
+     */
+    it('keeps the mint\'s real tier untouched, and marks only the invented ones', () => {
+        const tiers = mockOnchainFeeTiers(realTier)
+        const real = tiers.filter(t => !t.isMock)
+
+        expect(real).toHaveLength(1)
+        expect(real[0]).toEqual({feeIndex: 0, feeReserve: 400, estimatedBlocks: 6, isMock: false})
+        expect(tiers.filter(t => t.isMock)).toHaveLength(2)
+    })
+
+    it('gives invented tiers indices that cannot collide with the mint\'s', () => {
+        const tiers = mockOnchainFeeTiers(realTier)
+        const indices = tiers.map(t => t.feeIndex)
+        expect(new Set(indices).size).toBe(3)
+        for (const mock of tiers.filter(t => t.isMock)) {
+            expect(mock.feeIndex).not.toBe(0)
+        }
+    })
+
+    // Overwriting tiers a mint really sent with invented ones would be worse than useless.
+    it('is a no-op when the mint already offered more than one tier', () => {
+        const realTiers = normalizeFeeOptions([
+            {fee_index: 0, fee_reserve: amount(400), estimated_blocks: 6},
+            {fee_index: 1, fee_reserve: amount(900), estimated_blocks: 3},
+        ])
+        expect(mockOnchainFeeTiers(realTiers)).toBe(realTiers)
+    })
+
+    it('is a no-op on an empty list', () => {
+        expect(mockOnchainFeeTiers([])).toEqual([])
+    })
+})
+
+describe('payableFeeIndex', () => {
+    const tiers = mockOnchainFeeTiers(
+        normalizeFeeOptions([{fee_index: 3, fee_reserve: amount(400), estimated_blocks: 6}]),
+    )
+
+    it('is the identity for a real tier', () => {
+        const real = tiers.find(t => !t.isMock)!
+        expect(payableFeeIndex(tiers, real)).toBe(3)
+    })
+
+    /**
+     * Selecting a fabricated tier must still submit an index the mint offered, or the melt
+     * is rejected outright. The CHOICE is mocked; the payment is real, at the mint's real
+     * price.
+     */
+    it('falls back to the mint\'s real index for a fabricated tier', () => {
+        for (const mock of tiers.filter(t => t.isMock)) {
+            expect(payableFeeIndex(tiers, mock)).toBe(3)
+        }
+    })
+
+    it('is undefined when there is no real tier to fall back to', () => {
+        const orphan = {feeIndex: 99, feeReserve: 1, estimatedBlocks: 1, isMock: true}
+        expect(payableFeeIndex([orphan], orphan)).toBeUndefined()
     })
 })
 
