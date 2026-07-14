@@ -18,6 +18,7 @@ import React, {useCallback, useEffect, useReducer, useRef, useState} from 'react
 import {StackActions, StaticScreenProps, useNavigation} from '@react-navigation/native'
 import {TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import numbro from 'numbro'
+import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {MeltQuoteOnchainResponse} from '@cashu/cashu-ts'
 import {colors, spacing, useThemeColor} from '../theme'
 import {
@@ -68,7 +69,7 @@ import {TranItem} from './TranDetailScreen'
  * whatever the user picks — a fabricated index would be rejected by the mint (NUT-30
  * requires it). So the CHOICE is simulated; the payment underneath is real.
  */
-const MOCK_FEE_TIERS = false
+const MOCK_FEE_TIERS = true
 
 type Props = StaticScreenProps<{
     address: string
@@ -589,6 +590,16 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
                   * honours a bolt11 invoice's description — displayed here, saved on the
                   * transaction, visible in history.
                   */}
+                {/*
+                  * One card for everything the user is confirming about this payment: where it
+                  * is going, what the payee called it, and what the network will charge. They
+                  * are three facts about one payment, not three decisions, and three separate
+                  * cards read as three decisions.
+                  *
+                  * Separators are driven by what is actually BELOW each row rather than
+                  * hardcoded, because both the memo (only when the BIP21 URI carried one) and
+                  * the fee (only once a quote exists) come and go.
+                  */}
                 {!isSettled && (
                     <Card
                         style={$card}
@@ -606,7 +617,7 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
                                             color={iconColor}
                                         />
                                     }
-                                    bottomSeparator={!!memo}
+                                    bottomSeparator={!!memo || hasQuote}
                                     style={$item}
                                 />
                                 {!!memo && (
@@ -621,6 +632,37 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
                                                 color={iconColor}
                                             />
                                         }
+                                        bottomSeparator={hasQuote}
+                                        style={$item}
+                                    />
+                                )}
+                                {hasQuote && (
+                                    <ListItem
+                                        tx="onchainTransferScreen_networkFee"
+                                        subText={feeTierLabel(selectedFee!)}
+                                        LeftComponent={
+                                            <Icon
+                                                containerStyle={$iconContainer}
+                                                icon="faClock"
+                                                size={spacing.medium}
+                                                color={iconColor}
+                                            />
+                                        }
+                                        RightComponent={
+                                            isFeePickable ? (
+                                                <Button
+                                                    preset="secondary"
+                                                    tx="onchainTransferScreen_changeFee"
+                                                    onPress={toggleFeeModal}
+                                                    style={$changeFeeButton}
+                                                />
+                                            ) : undefined
+                                        }
+                                        // Only tappable when there is actually a choice. With one
+                                        // tier the row is a statement of fact, and a row that
+                                        // depresses under the finger but does nothing is worse
+                                        // than one that plainly does not.
+                                        onPress={isFeePickable ? toggleFeeModal : undefined}
                                         style={$item}
                                     />
                                 )}
@@ -645,38 +687,6 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
                             </View>
                         </View>
                     </>
-                )}
-
-                {hasQuote && !isSettled && (
-                    <Card
-                        style={$card}
-                        ContentComponent={
-                            <ListItem
-                                tx="onchainTransferScreen_networkFee"
-                                subText={feeTierLabel(selectedFee!)}
-                                LeftComponent={
-                                    <Icon
-                                        containerStyle={$iconContainer}
-                                        icon="faClock"
-                                        size={spacing.medium}
-                                        color={iconColor}
-                                    />
-                                }
-                                RightComponent={
-                                    isFeePickable ? (
-                                        <Button
-                                            preset="tertiary"
-                                            tx="onchainTransferScreen_changeFee"
-                                            textStyle={{fontSize: 12, color: iconColor}}
-                                            onPress={toggleFeeModal}
-                                        />
-                                    ) : undefined
-                                }
-                                onPress={isFeePickable ? toggleFeeModal : undefined}
-                                style={$item}
-                            />
-                        }
-                    />
                 )}
 
                 {hasQuote && !isSettled && availableMintBalances.length > 0 && (
@@ -899,6 +909,14 @@ const $iconContainer: ViewStyle = {
 const $item: ViewStyle = {
     paddingHorizontal: spacing.small,
     paddingLeft: 0,
+}
+
+// Standard secondary button, just constrained so it does not stretch the row it sits in.
+const $changeFeeButton: ViewStyle = {
+    minHeight: verticalScale(40),
+    paddingVertical: verticalScale(spacing.tiny),
+    paddingHorizontal: spacing.small,
+    alignSelf: 'center',
 }
 
 const $buttonContainer: ViewStyle = {
