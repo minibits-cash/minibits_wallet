@@ -1180,9 +1180,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     }
 
 
-    const onMintBalanceCancel = async function () {
-        resetState()
-        gotoWallet()
+    const onMintBalanceCancel = async function () {        
+        return gotoWallet()
     }
 
     /* 
@@ -1481,7 +1480,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
 
     return (
-      <Screen preset="fixed" contentContainerStyle={$screen}>
+      <Screen preset="fixed" contentContainerStyle={$screen} hideTabBar>
         <MintHeader 
             mint={mintBalanceToSendFrom ? mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl) : undefined}
             unit={unitRef.current}            

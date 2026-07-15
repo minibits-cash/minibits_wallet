@@ -603,6 +603,12 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
     }
 
 
+    const onMintBalanceCancel = async function () {
+      return gotoWallet()
+      //dispatch({ type: 'HIDE_MINT_SELECTOR' })
+    }
+
+
     const gotoWallet = function() {
         resetState()
         navigation.dispatch(
@@ -927,7 +933,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
 
 
     return (
-      <Screen preset="fixed" contentContainerStyle={$screen}>
+      <Screen preset="fixed" contentContainerStyle={$screen} hideTabBar>
         <MintHeader
           mint={
             mintBalanceToTransferFrom
@@ -1054,7 +1060,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
                 requiredCapability={mint => mint.supportsMelt!('bolt11', unitRef.current)}
                 unsupportedReason={translate('mintSelector_noPayoutSupport')}
                 onMintBalanceSelect={onMintBalanceSelect}
-                onCancel={gotoWallet}
+                onCancel={onMintBalanceCancel}
                 onMintBalanceConfirm={transfer}
               />
             )}

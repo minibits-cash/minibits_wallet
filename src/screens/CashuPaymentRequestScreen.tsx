@@ -334,7 +334,8 @@ const onMintBalanceSelect = (balance: MintBalance) => {
 }
 
 const onMintBalanceCancel = () => {
-  dispatch({ type: 'HIDE_MINT_SELECTOR' })
+  return gotoWallet()
+  //dispatch({ type: 'HIDE_MINT_SELECTOR' })
 }
 
 const onMintBalanceConfirm = async () => {
@@ -412,7 +413,7 @@ const inputText = useThemeColor("text")
 
 
 return (
-  <Screen preset="fixed" contentContainerStyle={$screen}>
+  <Screen preset="fixed" contentContainerStyle={$screen} hideTabBar>
     <MintHeader
       mint={
         mintBalanceToReceiveTo

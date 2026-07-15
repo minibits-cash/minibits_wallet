@@ -297,7 +297,7 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
     }
     
     return (
-        <Screen contentContainerStyle={$screen}>
+        <Screen contentContainerStyle={$screen} contentUnderTabBar>
             <Header 
                 title={urDecoderProgress > 0 ? `Progress ${urDecoderProgress} %`: 'Scan QR code'}
                 titleStyle={{fontFamily: typography.primary?.medium}}
@@ -355,7 +355,7 @@ const $addressInput: TextStyle = {
 
 const $bottomContainer: ViewStyle = {
     position: 'absolute',
-    bottom: 0,
+    bottom: spacing.extraLarge * 3,
     left: 0,
     right: 0,
     flex: 1,

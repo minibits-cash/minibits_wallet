@@ -762,7 +762,8 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     }
 
     const onMintBalanceCancel = async function () {
-      dispatch({ type: 'HIDE_MINT_SELECTOR' })
+      return gotoWallet()
+      //dispatch({ type: 'HIDE_MINT_SELECTOR' })
     }
 
     const sendAsNostrDM = async function () {
@@ -951,7 +952,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     
 
     return (
-      <Screen preset="fixed" contentContainerStyle={$screen}>
+      <Screen preset="fixed" contentContainerStyle={$screen} hideTabBar>
         <MintHeader
           mint={
             mintBalanceToTopup

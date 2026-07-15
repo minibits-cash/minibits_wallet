@@ -646,7 +646,7 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
     const isFeePickable = feeOptions.length > 1
 
     return (
-        <Screen preset="fixed" contentContainerStyle={$screen}>
+        <Screen preset="fixed" contentContainerStyle={$screen} hideTabBar>
             <MintHeader mint={selectedMint} unit={unitRef.current} />
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>
                 <View style={$amountContainer}>
