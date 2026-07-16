@@ -17,7 +17,12 @@
  * Uses Node.js built-in node:sqlite (requires Node 22.5+).
  * @jest-environment node
  */
+jest.mock('../src/services/logService', () => ({
+  log: {debug: jest.fn(), error: jest.fn(), info: jest.fn(), trace: jest.fn(), warn: jest.fn()},
+}))
+
 import {DatabaseSync} from 'node:sqlite'
+import {MIGRATIONS} from '../src/services/db/migrations'
 
 // ── Pre-34 shapes (as v28/v29 create them; frozen in migrations.ts) ──────────
 
@@ -48,31 +53,13 @@ const CREATE_MELT_RECOVERY_V28 = `CREATE TABLE melt_recovery (
   createdAt TEXT
 )`
 
-// ── SQL copied verbatim from migrations.ts migration 34 ─────────────────────
+// ── The REAL migration, taken from the registry ─────────────────────────────
+//
+// Imported rather than copied: a copy of the SQL proves nothing about the SQL that
+// actually runs on a device. The PRE-migration shapes above stay hand-written on
+// purpose — they are frozen history, and must not track today's schema.
 
-const MIGRATION_34 = [
-  `ALTER TABLE transactions ADD COLUMN mintId TEXT`,
-
-  `CREATE TABLE inflight_requests_v34 (
-  transactionId INTEGER PRIMARY KEY NOT NULL,
-  request TEXT NOT NULL,
-  createdAt TEXT
-)`,
-  `INSERT INTO inflight_requests_v34 (transactionId, request, createdAt)
-   SELECT transactionId, request, createdAt FROM inflight_requests`,
-  `DROP TABLE inflight_requests`,
-  `ALTER TABLE inflight_requests_v34 RENAME TO inflight_requests`,
-
-  `CREATE TABLE melt_recovery_v34 (
-  transactionId INTEGER PRIMARY KEY NOT NULL,
-  meltPreview TEXT NOT NULL,
-  createdAt TEXT
-)`,
-  `INSERT INTO melt_recovery_v34 (transactionId, meltPreview, createdAt)
-   SELECT transactionId, meltPreview, createdAt FROM melt_recovery`,
-  `DROP TABLE melt_recovery`,
-  `ALTER TABLE melt_recovery_v34 RENAME TO melt_recovery`,
-]
+const MIGRATION_34 = MIGRATIONS.find(m => m.version === 34)!.queries.map(([sql]) => sql)
 
 /** Mirrors transactionsRepo.backfillTransactionMintIds (the v38 seed). */
 function backfillTransactionMintIds(

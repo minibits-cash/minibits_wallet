@@ -8,9 +8,8 @@
  *     own NUT-20 primitives.
  *
  *  2. THE COUNTER (src/services/db/walletCountersRepo.ts) — the burn-forward
- *     allocation and monotonic set, mirrored against node:sqlite because the
- *     native driver needs a device (same approach as inFlightRequests.test.ts
- *     and meltRecovery.test.ts).
+ *     allocation and monotonic set, exercised through the REAL repo against a real
+ *     database (the op-sqlite jest mock backs the driver seam with node:sqlite).
  *
  * The counter is the load-bearing part: handing the same index out twice would
  * give two quotes the same pubkey, which lets the mint link them (NUT-20 asks
@@ -19,7 +18,7 @@
  *
  * @jest-environment node
  */
-import {DatabaseSync} from 'node:sqlite'
+import {Database} from '../src/services/db'
 import {Amount, signMintQuote, verifyMintQuoteSignature} from '@cashu/cashu-ts'
 import type {SerializedBlindedMessage} from '@cashu/cashu-ts'
 import {hexToBytes} from '@noble/curves/utils.js'
@@ -28,9 +27,10 @@ jest.mock('../src/services/logService', () => ({
     log: {debug: jest.fn(), error: jest.fn(), info: jest.fn(), trace: jest.fn(), warn: jest.fn()},
 }))
 
-// nut20.ts pulls in walletCountersRepo -> db/instance -> op-sqlite (native, and
-// unavailable here). Stub the repo so the derivation code is importable; the
-// real SQL is exercised against node:sqlite further down.
+// The DERIVATION half stubs the counter so it can pin the index it is handed
+// (allocateQuoteKeypair must use whatever the counter returns, whatever that is).
+// The COUNTER half below reaches past this mock with requireActual and exercises
+// the real repo against a real database.
 const mockAllocateNextCounter = jest.fn()
 jest.mock('../src/services/db/walletCountersRepo', () => ({
     NUT20_COUNTER: 'nut20',
@@ -224,70 +224,39 @@ describe('allocateQuoteKeypair', () => {
     })
 })
 
-// ── Counter SQL, mirrored against node:sqlite ───────────────────────────────
+// ── The counter, through the REAL repo ──────────────────────────────────────
 //
-// Exact production statements from walletCountersRepo. Kept in sync by hand,
-// as with the other repo tests.
+// These call walletCountersRepo directly rather than mirroring its SQL. The
+// allocation is a single RETURNING statement whose exact semantics ARE the safety
+// property, so a hand-copy would prove nothing about the statement that runs.
 
-const CREATE_WALLET_COUNTERS = `CREATE TABLE wallet_counters (
-  name TEXT PRIMARY KEY NOT NULL,
-  counter INTEGER NOT NULL DEFAULT 0,
-  updatedAt TEXT
-)`
-
-const NOW = '2026-07-13T00:00:00.000Z'
-
-const allocateNextCounter = (db: DatabaseSync, name: string): number =>
-    (
-        db
-            .prepare(
-                `INSERT INTO wallet_counters (name, counter, updatedAt)
-                 VALUES (?, 1, ?)
-                 ON CONFLICT(name) DO UPDATE SET
-                   counter = counter + 1,
-                   updatedAt = excluded.updatedAt
-                 RETURNING counter - 1 AS allocated`,
-            )
-            .get(name, NOW) as {allocated: number}
-    ).allocated
-
-const getWalletCounter = (db: DatabaseSync, name: string): number =>
-    ((db.prepare(`SELECT counter FROM wallet_counters WHERE name = ?`).get(name) as
-        | {counter: number}
-        | undefined)?.counter ?? 0)
-
-const setWalletCounter = (db: DatabaseSync, name: string, value: number): void => {
-    db.prepare(
-        `INSERT INTO wallet_counters (name, counter, updatedAt)
-         VALUES (?, ?, ?)
-         ON CONFLICT(name) DO UPDATE SET
-           counter = MAX(counter, excluded.counter),
-           updatedAt = excluded.updatedAt`,
-    ).run(name, value, NOW)
-}
+// requireActual reaches past the module-level stub above: this half is about the
+// real statements, not about isolating the derivation from them.
+const {allocateNextCounter, getWalletCounter, setWalletCounter} = jest.requireActual(
+    '../src/services/db/walletCountersRepo',
+)
 
 describe('wallet_counters (burn-forward allocation)', () => {
-    let db: DatabaseSync
-
+    // One in-memory database per test FILE (instance.ts caches its connection), so
+    // clear the table between tests rather than rebuilding.
     beforeEach(() => {
-        db = new DatabaseSync(':memory:')
-        db.exec(CREATE_WALLET_COUNTERS)
+        Database.getInstance().executeBatch([['DELETE FROM wallet_counters']])
     })
 
     it('starts at index 0 when no row exists', () => {
-        expect(getWalletCounter(db, 'nut20')).toBe(0)
-        expect(allocateNextCounter(db, 'nut20')).toBe(0)
+        expect(getWalletCounter('nut20')).toBe(0)
+        expect(allocateNextCounter('nut20')).toBe(0)
     })
 
     it('hands out consecutive indices and stores the next free one', () => {
-        const allocated = [0, 1, 2, 3].map(() => allocateNextCounter(db, 'nut20'))
+        const allocated = [0, 1, 2, 3].map(() => allocateNextCounter('nut20'))
 
         expect(allocated).toEqual([0, 1, 2, 3])
-        expect(getWalletCounter(db, 'nut20')).toBe(4) // next free, not last used
+        expect(getWalletCounter('nut20')).toBe(4) // next free, not last used
     })
 
     it('never hands out the same index twice', () => {
-        const allocated = Array.from({length: 50}, () => allocateNextCounter(db, 'nut20'))
+        const allocated = Array.from({length: 50}, () => allocateNextCounter('nut20'))
 
         expect(new Set(allocated).size).toBe(allocated.length)
     })
@@ -295,8 +264,8 @@ describe('wallet_counters (burn-forward allocation)', () => {
     it('burns the index when the caller fails: a retry gets a NEW one', () => {
         // The whole point of committing before the network call. Quote request
         // dies -> index 0 is spent, never recycled.
-        const burned = allocateNextCounter(db, 'nut20')
-        const afterRetry = allocateNextCounter(db, 'nut20')
+        const burned = allocateNextCounter('nut20')
+        const afterRetry = allocateNextCounter('nut20')
 
         expect(burned).toBe(0)
         expect(afterRetry).toBe(1)
@@ -304,32 +273,32 @@ describe('wallet_counters (burn-forward allocation)', () => {
     })
 
     it('keeps counters independent per purpose name', () => {
-        expect(allocateNextCounter(db, 'nut20')).toBe(0)
-        expect(allocateNextCounter(db, 'other')).toBe(0)
-        expect(allocateNextCounter(db, 'nut20')).toBe(1)
+        expect(allocateNextCounter('nut20')).toBe(0)
+        expect(allocateNextCounter('other')).toBe(0)
+        expect(allocateNextCounter('nut20')).toBe(1)
 
-        expect(getWalletCounter(db, 'nut20')).toBe(2)
-        expect(getWalletCounter(db, 'other')).toBe(1)
+        expect(getWalletCounter('nut20')).toBe(2)
+        expect(getWalletCounter('other')).toBe(1)
     })
 
     it('setWalletCounter is monotonic: a lower value is a no-op', () => {
-        setWalletCounter(db, 'nut20', 10)
-        expect(getWalletCounter(db, 'nut20')).toBe(10)
+        setWalletCounter('nut20', 10)
+        expect(getWalletCounter('nut20')).toBe(10)
 
-        setWalletCounter(db, 'nut20', 3) // stale writer
-        expect(getWalletCounter(db, 'nut20')).toBe(10)
+        setWalletCounter('nut20', 3) // stale writer
+        expect(getWalletCounter('nut20')).toBe(10)
 
-        setWalletCounter(db, 'nut20', 12)
-        expect(getWalletCounter(db, 'nut20')).toBe(12)
+        setWalletCounter('nut20', 12)
+        expect(getWalletCounter('nut20')).toBe(12)
     })
 
     it('cannot walk back onto an index already handed out', () => {
-        const first = allocateNextCounter(db, 'nut20') // 0
-        allocateNextCounter(db, 'nut20') // 1
+        const first = allocateNextCounter('nut20') // 0
+        allocateNextCounter('nut20') // 1
 
-        setWalletCounter(db, 'nut20', 0) // stale/replayed write
+        setWalletCounter('nut20', 0) // stale/replayed write
 
-        expect(allocateNextCounter(db, 'nut20')).toBe(2)
-        expect(allocateNextCounter(db, 'nut20')).not.toBe(first)
+        expect(allocateNextCounter('nut20')).toBe(2)
+        expect(allocateNextCounter('nut20')).not.toBe(first)
     })
 })

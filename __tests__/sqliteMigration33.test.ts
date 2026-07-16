@@ -17,7 +17,12 @@
  * Uses Node.js built-in node:sqlite (requires Node 22.5+).
  * @jest-environment node
  */
+jest.mock('../src/services/logService', () => ({
+  log: {debug: jest.fn(), error: jest.fn(), info: jest.fn(), trace: jest.fn(), warn: jest.fn()},
+}))
+
 import {DatabaseSync} from 'node:sqlite'
+import {MIGRATIONS} from '../src/services/db/migrations'
 
 // ── Historical shapes, as v26/v31 create them (frozen in migrations.ts) ───────
 
@@ -47,12 +52,13 @@ const CREATE_RESERVATIONS_V26 = `CREATE TABLE reservations (
   createdAt TEXT NOT NULL
 )`
 
-// ── SQL copied verbatim from migrations.ts migration 33 ──────────────────────
+// ── The REAL migration, taken from the registry ─────────────────────────────
+//
+// Imported rather than copied: a copy of the SQL proves nothing about the SQL that
+// actually runs on a device. The PRE-migration shapes above stay hand-written on
+// purpose — they are frozen history, and must not track today's schema.
 
-const MIGRATION_33 = [
-  `ALTER TABLE onchain_mint_quotes ADD COLUMN mintId TEXT`,
-  `ALTER TABLE reservations ADD COLUMN mintId TEXT`,
-]
+const MIGRATION_33 = MIGRATIONS.find(m => m.version === 33)!.queries.map(([sql]) => sql)
 
 // ── Backfill, mirroring onchainQuotesRepo / reservationsRepo ─────────────────
 

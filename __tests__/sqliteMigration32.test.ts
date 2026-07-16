@@ -23,24 +23,20 @@
  * Uses Node.js built-in node:sqlite (requires Node 22.5+).
  * @jest-environment node
  */
+jest.mock('../src/services/logService', () => ({
+  log: {debug: jest.fn(), error: jest.fn(), info: jest.fn(), trace: jest.fn(), warn: jest.fn()},
+}))
+
 import {DatabaseSync} from 'node:sqlite'
+import {MIGRATIONS} from '../src/services/db/migrations'
 
-// ── SQL copied verbatim from src/services/db/migrations.ts migration 32 ───────
+// ── The REAL migration, taken from the registry ─────────────────────────────
+//
+// Imported rather than copied: a copy of the SQL proves nothing about the SQL that
+// actually runs on a device. The PRE-migration shape below stays hand-written on
+// purpose — it is frozen history, and must not track today's schema.
 
-const CREATE_V32 = `CREATE TABLE mint_counters_v32 (
-  keysetId TEXT PRIMARY KEY NOT NULL,
-  unit TEXT,
-  counter INTEGER NOT NULL DEFAULT 0,
-  updatedAt TEXT
-)`
-
-const INSERT_V32 = `INSERT INTO mint_counters_v32 (keysetId, unit, counter, updatedAt)
-SELECT keysetId, unit, MAX(counter), updatedAt
-FROM mint_counters
-GROUP BY keysetId`
-
-const DROP_OLD = `DROP TABLE mint_counters`
-const RENAME = `ALTER TABLE mint_counters_v32 RENAME TO mint_counters`
+const MIGRATION_32 = MIGRATIONS.find(m => m.version === 32)!.queries.map(([sql]) => sql)
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -78,10 +74,7 @@ function insertOld(
 function runMigration32(db: DatabaseSync) {
   db.exec('BEGIN')
   try {
-    db.exec(CREATE_V32)
-    db.exec(INSERT_V32)
-    db.exec(DROP_OLD)
-    db.exec(RENAME)
+    for (const sql of MIGRATION_32) db.exec(sql)
     db.exec('COMMIT')
   } catch (e) {
     db.exec('ROLLBACK')
