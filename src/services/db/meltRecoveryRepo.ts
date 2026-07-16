@@ -15,12 +15,17 @@ import {StoredMeltPreview} from '../cashu/cashuUtils'
 //
 // A row exists only while a melt is in-flight; it is deleted on terminal
 // success/failure. Keyed by transactionId.
+//
+// A CHILD of the transaction: the primary key IS the parent's id, so the parent
+// owns the mint reference and this table stores none. It used to duplicate
+// `mintUrl` and `keysetId`; neither had a single reader. The keyset that IS used
+// comes from inside `meltPreview`, and every caller arrives here already holding
+// the transaction. One owner of each fact, so nothing here goes stale on a
+// mint-url edit.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type MeltRecoveryRecord = {
   transactionId: number
-  mintUrl: string | null
-  keysetId: string | null
   meltPreview: StoredMeltPreview
   createdAt: string | null
 }
@@ -28,8 +33,6 @@ export type MeltRecoveryRecord = {
 /** A single melt-recovery entry for the one-time seed from the MST/MMKV snapshot. */
 export type MeltRecoverySeed = {
   transactionId: number
-  mintUrl?: string
-  keysetId?: string
   meltPreview: StoredMeltPreview
 }
 
@@ -40,16 +43,14 @@ export type MeltRecoverySeed = {
  */
 export const addMeltRecovery = function (
   transactionId: number,
-  mintUrl: string | undefined,
-  keysetId: string | undefined,
   meltPreview: StoredMeltPreview,
 ): void {
   try {
     getInstance().execute(
-      `INSERT INTO melt_recovery (transactionId, mintUrl, keysetId, meltPreview, createdAt)
-       VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO melt_recovery (transactionId, meltPreview, createdAt)
+       VALUES (?, ?, ?)
        ON CONFLICT(transactionId) DO NOTHING`,
-      [transactionId, mintUrl ?? null, keysetId ?? null, JSON.stringify(meltPreview), new Date().toISOString()],
+      [transactionId, JSON.stringify(meltPreview), new Date().toISOString()],
     )
   } catch (e: any) {
     throw dbError('Melt recovery could not be saved to the database', e)
@@ -60,15 +61,13 @@ export const addMeltRecovery = function (
 export const getMeltRecovery = function (transactionId: number): MeltRecoveryRecord | undefined {
   try {
     const {rows} = getInstance().execute(
-      `SELECT transactionId, mintUrl, keysetId, meltPreview, createdAt FROM melt_recovery WHERE transactionId = ?`,
+      `SELECT transactionId, meltPreview, createdAt FROM melt_recovery WHERE transactionId = ?`,
       [transactionId],
     )
     const row = rows?.item(0)
     if (!row) return undefined
     return {
       transactionId: row.transactionId,
-      mintUrl: row.mintUrl,
-      keysetId: row.keysetId,
       meltPreview: JSON.parse(row.meltPreview) as StoredMeltPreview,
       createdAt: row.createdAt,
     }
@@ -97,10 +96,10 @@ export const seedMeltRecoveries = function (seeds: MeltRecoverySeed[]): {seeded:
     const db = getInstance()
     db.executeBatch(
       seeds.map(s => [
-        `INSERT INTO melt_recovery (transactionId, mintUrl, keysetId, meltPreview, createdAt)
-         VALUES (?, ?, ?, ?, ?)
+        `INSERT INTO melt_recovery (transactionId, meltPreview, createdAt)
+         VALUES (?, ?, ?)
          ON CONFLICT(transactionId) DO NOTHING`,
-        [s.transactionId, s.mintUrl ?? null, s.keysetId ?? null, JSON.stringify(s.meltPreview), now],
+        [s.transactionId, JSON.stringify(s.meltPreview), now],
       ]),
     )
     log.info('[seedMeltRecoveries]', 'Seeded melt recovery entries into SQLite', {count: seeds.length})

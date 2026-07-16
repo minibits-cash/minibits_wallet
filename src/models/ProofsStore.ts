@@ -289,11 +289,17 @@ import {
                 originalTId: p.tId ?? null,
             }))
 
+            // Resolved here rather than asked of every caller: they all identify the
+            // mint by url, but the reservation must survive that url changing while
+            // the operation is open (see ProofReservation.mintId).
+            const mintId = getRootStore(self).mintsStore.findByUrl(opts.mintUrl)?.id ?? null
+
             // ATOMIC: write reservation row + lock proofs to PENDING in one batch.
             Database.openReservation(
                 {
                     id: reservationId,
                     transactionId: opts.transactionId,
+                    mintId: mintId ?? undefined,
                     mintUrl: opts.mintUrl,
                     unit: opts.unit,
                     operationType: opts.operationType,
@@ -316,6 +322,7 @@ import {
             return {
                 id: reservationId,
                 transactionId: opts.transactionId,
+                mintId,
                 mintUrl: opts.mintUrl,
                 unit: opts.unit,
                 operationType: opts.operationType,
@@ -347,13 +354,28 @@ import {
             } = {},
         ): { added: Proof[] } {
             const mintsStore = getRootStore(self).mintsStore
-            const mintInstance = mintsStore.findByUrl(reservation.mintUrl)
+
+            // Resolve by stable id, not by the url captured when the reservation
+            // opened: a mint-url edit may have landed while this operation was in
+            // flight, and a url lookup would then find nothing and abort the commit
+            // of an operation the mint has already performed. Falls back to the url
+            // for a pre-v33 reservation, which carries no mintId.
+            const mintInstance =
+                (reservation.mintId ? mintsStore.findById(reservation.mintId) : undefined) ??
+                mintsStore.findByUrl(reservation.mintUrl)
+
             if (!mintInstance) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint not found for reservation', {
+                    mintId: reservation.mintId,
                     mintUrl: reservation.mintUrl,
                     reservationId: reservation.id,
                 })
             }
+
+            // The mint's url NOW, which is not necessarily reservation.mintUrl. Every
+            // write below — SQLite and the MST mirror alike — uses this: filing the
+            // new proofs under a url no mint owns makes the balance simply vanish.
+            const commitMintUrl = mintInstance.mintUrl
 
             // Snapshot the current derivation counter for every keyset the new
             // proofs were derived under (a cashu proof's `id` IS its keyset id).
@@ -388,7 +410,7 @@ import {
                 newProofs: changes.newProofs?.map(group => ({
                     proofs: group.proofs,
                     state: group.state,
-                    mintUrl: reservation.mintUrl,
+                    mintUrl: commitMintUrl,
                     unit: reservation.unit,
                     tId: group.tId,
                 })),
@@ -420,7 +442,7 @@ import {
                     if (existing) {
                         if (existing.state === 'SPENT') continue
                         if (isAlive(existing)) {
-                            existing.setProp('mintUrl', reservation.mintUrl)
+                            existing.setProp('mintUrl', commitMintUrl)
                             existing.setProp('tId', group.tId)
                             existing.setProp('unit', reservation.unit)
                             existing.setProp('state', group.state)
@@ -430,7 +452,7 @@ import {
                         const node = ProofModel.create({
                             ...proof,
                             amount: Number(proof.amount),
-                            mintUrl: reservation.mintUrl,
+                            mintUrl: commitMintUrl,
                             tId: group.tId,
                             unit: reservation.unit,
                             state: group.state,

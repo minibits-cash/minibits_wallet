@@ -32,6 +32,7 @@ const CREATE_PROOFS = `CREATE TABLE proofs (
 const CREATE_RESERVATIONS = `CREATE TABLE reservations (
   id TEXT PRIMARY KEY NOT NULL,
   transactionId INTEGER NOT NULL,
+  mintId TEXT,
   mintUrl TEXT NOT NULL,
   unit TEXT NOT NULL,
   operationType TEXT NOT NULL,

@@ -490,15 +490,25 @@ function _reloadPrepared(transactionId: number): PreparedReceiveData {
     if (!tx.inputToken) {
         throw new ValidationError('Transaction is missing input token', {transactionId})
     }
-    const mintInstance = mintsStore.findByUrl(tx.mint)
-    const token = getDecodedToken(tx.inputToken, mintInstance?.keysetIds ?? [])
+    // By identity: tx.mint is where the receive was prepared and is frozen, so it
+    // stops finding the mint once it moves.
+    const mintInstance = mintsStore.findByTransaction(tx)
+    if (!mintInstance) {
+        throw new ValidationError('Transaction mint is no longer in this wallet', {
+            transactionId,
+            mintId: tx.mintId,
+            preparedAtUrl: tx.mint,
+        })
+    }
+    const token = getDecodedToken(tx.inputToken, mintInstance.keysetIds ?? [])
 
     const isOffline = tx.status === TransactionStatus.PREPARED_OFFLINE
 
     return {
         transactionId,
         tx,
-        mintUrl: tx.mint,
+        // The mint's url NOW — this is dialled to complete the receive.
+        mintUrl: mintInstance.mintUrl,
         unit: tx.unit,
         amountToReceive: tx.amount,
         memo: tx.memo ?? '',

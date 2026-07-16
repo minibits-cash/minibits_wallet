@@ -550,7 +550,7 @@ export const WalletStoreModel = types
 
             // @ts-ignore
             if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
-                Database.addInFlightRequest(transactionId, mintUrl, cashuWallet.keysetId, receiveParams)
+                Database.addInFlightRequest(transactionId, receiveParams)
             }
 
             let reservedCounters: OperationCounters | undefined
@@ -665,7 +665,7 @@ export const WalletStoreModel = types
 
             // @ts-ignore
             if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
-                Database.addInFlightRequest(transactionId, mintUrl, cashuWallet.keysetId, sendParams)
+                Database.addInFlightRequest(transactionId, sendParams)
             }
 
             let reservedCounters: OperationCounters | undefined
@@ -975,12 +975,7 @@ export const WalletStoreModel = types
             // onCountersReserved never fired, so we never wrote it back.
             // @ts-ignore
             if (cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
-                Database.addInFlightRequest(
-                    transactionId,
-                    mintUrl,
-                    cashuWallet.keysetId,
-                    mintParams,
-                )
+                Database.addInFlightRequest(transactionId, mintParams)
             }
 
             let reservedCounters: OperationCounters | undefined
@@ -1082,7 +1077,7 @@ export const WalletStoreModel = types
 
             // @ts-ignore
             if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
-                Database.addInFlightRequest(transactionId, mintUrl, cashuWallet.keysetId, mintParams)
+                Database.addInFlightRequest(transactionId, mintParams)
             }
 
             let reservedCounters: OperationCounters | undefined
@@ -1230,8 +1225,6 @@ export const WalletStoreModel = types
             // even if the app dies right after the payment is submitted.
             Database.addMeltRecovery(
                 transactionId,
-                mintUrl,
-                cashuWallet.keysetId,
                 CashuUtils.serializeMeltPreview(meltPreview),
             )
 
@@ -1425,8 +1418,6 @@ export const WalletStoreModel = types
             // recoverable even if the app dies the moment after.
             Database.addMeltRecovery(
                 transactionId,
-                mintUrl,
-                cashuWallet.keysetId,
                 CashuUtils.serializeMeltPreview(meltPreview),
             )
 

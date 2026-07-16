@@ -31,7 +31,9 @@ const {
  */
 const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> => {
     const mintUrl = mint.mintUrl
-    const inFlightRequests = Database.getInFlightRequestsByMint(mintUrl)
+    // By id, not url: the requests are found through their transaction's mintId, so
+    // a mint that has changed url still finds its own in-flight work.
+    const inFlightRequests = Database.getInFlightRequestsByMintId(mint.id!)
     const totalRequests = inFlightRequests.length
 
     log.trace('[handleInFlightByMintTask] start', {mintUrl, totalRequests})
@@ -370,7 +372,7 @@ const handleInFlightQueue = async function (): Promise<void> {
 
     for (const mint of mintsStore.allMints) {
 
-        if (Database.getInFlightRequestsByMint(mint.mintUrl).length === 0) {
+        if (Database.getInFlightRequestsByMintId(mint.id!).length === 0) {
             log.trace('No inFlight requests for mint, skipping...')
             continue
         }

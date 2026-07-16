@@ -18,6 +18,7 @@ import * as Sentry from '@sentry/react-native'
 import type { RootStore } from '../RootStore'
 import { Database, MMKVStorage } from '../../services'
 import type { MeltRecoverySeed, InFlightRequestSeed, CounterSeed } from '../../services/db'
+import type { Mint } from '../Mint'
 import { log } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
@@ -294,8 +295,6 @@ async function _runMigrations(rootStore: RootStore, restoredState: any) {
                         if (entry?.meltPreview && typeof entry.transactionId === 'number') {
                             seeds.push({
                                 transactionId: entry.transactionId,
-                                mintUrl: mint.mintUrl,
-                                keysetId: counter.keyset,
                                 meltPreview: entry.meltPreview,
                             })
                         }
@@ -320,8 +319,6 @@ async function _runMigrations(rootStore: RootStore, restoredState: any) {
                         if (entry?.request && typeof entry.transactionId === 'number') {
                             seeds.push({
                                 transactionId: entry.transactionId,
-                                mintUrl: mint.mintUrl,
-                                keysetId: counter.keyset,
                                 request: entry.request,
                             })
                         }
@@ -354,6 +351,31 @@ async function _runMigrations(rootStore: RootStore, restoredState: any) {
         if(currentVersion < 37) {
             // New onboarding and TCs agreement
             userSettingsStore.setIsOnboarded(false)
+        }
+
+        if(currentVersion < 38) {
+            // db v33 added onchain_mint_quotes.mintId and reservations.mintId so
+            // those rows reference the mint by its stable id rather than by url.
+            // The column had to be added empty: mints live in this MST snapshot,
+            // NOT in SQLite, so no SQL statement can map url -> id. Hence the
+            // backfill here, where the store is hydrated and the mapping exists.
+            //
+            // Matching on url is trustworthy at exactly this moment and no other:
+            // until now a mint's url could not change without these rows being
+            // rewritten too, so row.mintUrl still agrees with the mint. This spends
+            // that join ONCE, at rest, instead of on every rename.
+            //
+            // Rows left NULL belong to a mint no longer in the wallet and are dead
+            // regardless. The backfill only fills NULLs, so it is safe to re-run.
+            const mintRefs = rootStore.mintsStore.allMints.map((m: Mint) => ({
+                id: m.id as string,
+                mintUrl: m.mintUrl,
+            }))
+            if (mintRefs.length > 0) {
+                Database.backfillTransactionMintIds(mintRefs)
+                Database.backfillOnchainMintQuoteMintIds(mintRefs)
+                Database.backfillReservationMintIds(mintRefs)
+            }
         }
 
         // Set once, after all steps succeed: if any step throws, the version is

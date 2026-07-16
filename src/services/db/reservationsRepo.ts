@@ -37,8 +37,14 @@ export type LockedProofSnapshot = {
 
 export type ReservationRow = {
   id: string
-  transactionId: number
+  /**
+   * Stable id (Mint.id) of the owning mint — resolve this, not `mintUrl`, to reach
+   * the mint. Null only on a row opened before v33.
+   */
+  mintId: string | null
+  /** Where the operation started. Historical/debug; not followed. */
   mintUrl: string
+  transactionId: number
   unit: string
   operationType: string
   lockedProofs: LockedProofSnapshot[]
@@ -56,6 +62,7 @@ export const openReservation = function (
   reservation: {
     id: string
     transactionId: number
+    mintId?: string
     mintUrl: string
     unit: string
     operationType: string
@@ -68,11 +75,12 @@ export const openReservation = function (
     const batch: SQLBatchTuple[] = []
 
     batch.push([
-      `INSERT INTO reservations (id, transactionId, mintUrl, unit, operationType, lockedProofs, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO reservations (id, transactionId, mintId, mintUrl, unit, operationType, lockedProofs, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         reservation.id,
         reservation.transactionId,
+        reservation.mintId ?? null,
         reservation.mintUrl,
         reservation.unit,
         reservation.operationType,
@@ -320,6 +328,38 @@ export const rollbackReservation = function (
  * Return all reservations currently in the DB. Used at startup to roll back
  * orphans (operations whose process died before they could commit or rollback).
  */
+/**
+ * One-time backfill of `mintId` from the url a reservation was opened at (the v38
+ * seed). See backfillOnchainMintQuoteMintIds — same reasoning, and only fills
+ * NULLs, so it is idempotent.
+ *
+ * Almost always a no-op in practice: a reservation lives only for the duration of
+ * an operation, so an upgrade rarely catches one open. It exists for the upgrade
+ * that lands right after a crash left an orphan behind.
+ */
+export const backfillReservationMintIds = function (
+  mints: Array<{id: string; mintUrl: string}>,
+): {updated: number} {
+  if (mints.length === 0) return {updated: 0}
+  try {
+    const db = getInstance()
+    let updated = 0
+
+    for (const mint of mints) {
+      const {rowsAffected} = db.execute(
+        `UPDATE reservations SET mintId = ? WHERE mintUrl = ? AND mintId IS NULL`,
+        [mint.id, mint.mintUrl],
+      )
+      updated += rowsAffected ?? 0
+    }
+
+    log.info('[backfillReservationMintIds]', 'Backfilled reservation mint ids', {updated})
+    return {updated}
+  } catch (e: any) {
+    throw dbError('Reservation mintIds could not be backfilled', e)
+  }
+}
+
 export const getOpenReservations = function (): ReservationRow[] {
   try {
     const db = getInstance()
@@ -338,6 +378,7 @@ export const getOpenReservations = function (): ReservationRow[] {
       result.push({
         id: row.id,
         transactionId: row.transactionId,
+        mintId: row.mintId ?? null,
         mintUrl: row.mintUrl,
         unit: row.unit,
         operationType: row.operationType,

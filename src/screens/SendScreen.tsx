@@ -1583,7 +1583,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         <TranItem 
                             label="tranDetailScreen_sentTo"
                             isFirst={true}
-                            value={mintsStore.findByUrl(transaction.mint)?.shortname as string}
+                            value={mintsStore.findByTransaction(transaction)?.shortname as string}
                         />
                         {transaction?.memo && (
                         <TranItem

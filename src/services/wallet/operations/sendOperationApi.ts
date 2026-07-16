@@ -57,6 +57,26 @@ import AppError, {Err} from '../../../utils/AppError'
 
 const {mintsStore, proofsStore, transactionsStore, walletStore} = rootStoreInstance
 
+/**
+ * The live url of a transaction's mint.
+ *
+ * Resolved through `tx.mintId`, never `tx.mint`: the latter records where the send
+ * happened and is deliberately frozen, so after a mint-url edit it points at a host
+ * that no longer answers.
+ */
+function _txMintUrl(tx: Transaction): string {
+    const mint = mintsStore.findByTransaction(tx)
+    if (!mint) {
+        throw new ValidationError('Transaction mint is no longer in this wallet', {
+            transactionId: tx.id,
+            mintId: tx.mintId,
+            happenedAtUrl: tx.mint,
+        })
+    }
+    return mint.mintUrl
+}
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
 // ─────────────────────────────────────────────────────────────────────────────
@@ -598,7 +618,7 @@ async function finalize(transactionId: number): Promise<CompletedTransaction> {
 
     const result = await WalletTask.syncStateWithMintQueueAwaitable({
         proofsToSync: sendProofs,
-        mintUrl: tx.mint,
+        mintUrl: _txMintUrl(tx),
         proofState: 'PENDING',
     })
     if (result.completedTransactionIds.includes(transactionId)) {
@@ -631,7 +651,7 @@ async function refresh(transactionId: number): Promise<Transaction> {
     }
     await WalletTask.syncStateWithMintQueueAwaitable({
         proofsToSync: sendProofs,
-        mintUrl: tx.mint,
+        mintUrl: _txMintUrl(tx),
         proofState: 'PENDING',
     })
     return transactionsStore.findById(transactionId) ?? tx
@@ -657,6 +677,7 @@ function _rowToReservation(row: ReservationRow): ProofReservation {
     return {
         id: row.id,
         transactionId: row.transactionId,
+        mintId: row.mintId,
         mintUrl: row.mintUrl,
         unit: row.unit as MintUnit,
         operationType: row.operationType,

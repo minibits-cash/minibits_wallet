@@ -489,7 +489,7 @@ return (
                   label="cashuPaymentRequest_to"
                   isFirst={true}
                   value={
-                    mintsStore.findByUrl(transaction.mint)
+                    mintsStore.findByTransaction(transaction)
                       ?.shortname as string
                   }
                 />

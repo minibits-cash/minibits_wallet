@@ -1,14 +1,44 @@
 import {SQLBatchTuple} from './connection'
 
 /**
- * Schema definitions — the single source of truth for table shapes.
+ * Schema definitions — the source of truth for the CURRENT table shapes, used to
+ * build a fresh database (see createSchemaQueries).
  *
- * The `proofs` and `reservations` column lists are referenced from more than
- * one place (first-run creation here, plus the v25 proofs rebuild and the v26
- * reservations add in migrations.ts). Defining the columns once and generating
- * every `CREATE TABLE` from them guarantees the definitions can never drift.
+ * These constants track the latest shape and therefore CHANGE over time. A
+ * migration must never build a table from one: a migration has to create the table
+ * as it existed AT ITS OWN VERSION, or a device replaying it gets today's shape and
+ * the later ALTER that adds the column fails with "duplicate column name". Old
+ * migrations freeze their own copy of the shape locally — see the historical
+ * constants at the top of migrations.ts.
+ *
+ * A table rebuild in a migration may reference a live constant only when the
+ * migration IS the change that produced that shape (as with the v25 proofs rebuild
+ * and the v32 mint_counters re-key), and even then it stops being true the next
+ * time the shape moves.
  */
 
+/**
+ * Wallet transactions.
+ *
+ * `mint` and `mintId` are BOTH mint references, and the split is deliberate:
+ *
+ *  - `mint` is the url the payment actually happened at — a historical fact, frozen
+ *    once written. It is what history displays, and rewriting it would be a lie
+ *    about the past.
+ *  - `mintId` (Mint.id) is the identity, and the ONLY reference to resolve when
+ *    doing something: reaching the mint over the network, or asking "is this
+ *    transaction's mint still in the wallet?". It survives a mint-url edit.
+ *
+ * They used to be one column doing both jobs, switched by `status` — live pointer
+ * while open, history once terminal. That conflation is why a mint-url edit had to
+ * rewrite in-flight rows: the same column that recorded the past was also being
+ * dialled. With mintId carrying the identity, `mint` can simply stop moving.
+ *
+ * `mintId` is nullable: it cannot be backfilled in SQL (mints live in the MST/MMKV
+ * snapshot — see the v38 seed in setupRootStore), and history legitimately contains
+ * transactions of mints since removed, which have no id to point at. A null means
+ * "no mint in this wallet"; `mint` still records where it happened.
+ */
 export const TRANSACTIONS_COLUMNS = `
   id INTEGER PRIMARY KEY NOT NULL,
   paymentId TEXT,
@@ -22,6 +52,7 @@ export const TRANSACTIONS_COLUMNS = `
   sentTo TEXT,
   profile TEXT,
   memo TEXT,
+  mintId TEXT,
   mint TEXT,
   quote TEXT,
   paymentRequest TEXT,
@@ -59,9 +90,23 @@ export const DBVERSION_COLUMNS = `
   createdAt TEXT
 `
 
+/**
+ * Open outgoing-operation reservations (a row exists only between reserve() and
+ * commit()/rollback()).
+ *
+ * `mintId` (Mint.id) is the owning-mint reference; `mintUrl` is a debug record of
+ * where the operation started. Short-lived as these rows are, the url still cannot
+ * be trusted at commit time: a mint-url edit RACING an open send would commit the
+ * new proofs under the pre-edit url, stranding them at a url no mint owns —
+ * an invisible balance. Resolving mintId at commit always yields the live url.
+ *
+ * Nullable for the same reason as onchain_mint_quotes: ALTER TABLE cannot backfill
+ * from MST/MMKV. See the v38 seed in setupRootStore.
+ */
 export const RESERVATIONS_COLUMNS = `
   id TEXT PRIMARY KEY NOT NULL,
   transactionId INTEGER NOT NULL,
+  mintId TEXT,
   mintUrl TEXT NOT NULL,
   unit TEXT NOT NULL,
   operationType TEXT NOT NULL,
@@ -111,11 +156,16 @@ export const MINT_COUNTERS_COLUMNS = `
  *
  * Keyed by transactionId (globally unique). A row exists only while a melt is
  * in-flight; it is deleted on terminal success/failure.
+ *
+ * A CHILD of the transaction — the primary key IS the parent's id — so it carries
+ * no mint reference of its own: the transaction already owns that fact, and every
+ * reader arrives here holding the transaction. It used to duplicate `mintUrl` and
+ * `keysetId`; neither had a single reader (the keyset that IS used comes from
+ * inside `meltPreview`), so they were dead denormalization of precisely the kind
+ * that goes stale on a mint-url edit.
  */
 export const MELT_RECOVERY_COLUMNS = `
   transactionId INTEGER PRIMARY KEY NOT NULL,
-  mintUrl TEXT,
-  keysetId TEXT,
   meltPreview TEXT NOT NULL,
   createdAt TEXT
 `
@@ -130,11 +180,21 @@ export const MELT_RECOVERY_COLUMNS = `
  *
  * Keyed by transactionId. A row exists only while a request is in-flight; it is
  * deleted on success or terminal failure.
+ *
+ * A CHILD of the transaction — the primary key IS the parent's id — so it carries
+ * no mint reference of its own. It used to duplicate `mintUrl` and `keysetId`;
+ * `keysetId` had no reader at all, and `mintUrl` served exactly one query ("every
+ * request of this mint"), which now joins through the parent's `mintId` instead.
+ * That keeps ONE owner of the fact, so there is no second copy to go stale when a
+ * mint moves.
+ *
+ * Reaching the mint through the parent is not merely equivalent, it is more
+ * correct: a request whose transaction is gone cannot be applied anyway (the retry
+ * settles proofs onto that transaction, and the handler branches on `tx.type`), so
+ * a join finding nothing is the right answer rather than a lost row.
  */
 export const INFLIGHT_REQUESTS_COLUMNS = `
   transactionId INTEGER PRIMARY KEY NOT NULL,
-  mintUrl TEXT,
-  keysetId TEXT,
   request TEXT NOT NULL,
   createdAt TEXT
 `
@@ -178,11 +238,24 @@ export const WALLET_COUNTERS_COLUMNS = `
  * there is nothing to bound polling of a quote nobody ever paid. It mirrors the
  * 24h fallback bolt11 topup applies when an invoice carries no expiry tag.
  *
+ * The owning mint is referenced by `mintId` (Mint.id), NOT by `mintUrl`. Because a
+ * row here outlives everything — the address stays creditable for as long as the
+ * mint exists — it has to survive the mint moving to a new url. `mintUrl` is kept
+ * as the historical record of where the quote was created and is never followed;
+ * following it after a url edit polls a dead host forever, silently, and the
+ * deposit can never be minted.
+ *
+ * `mintId` is nullable only because ALTER TABLE cannot backfill it: mints live in
+ * the MST/MMKV snapshot, not SQLite, so the url->id mapping is resolvable only from
+ * JS (see the v38 seed in setupRootStore). A null after that seed means the owning
+ * mint is no longer in the wallet, and the quote is dead regardless.
+ *
  * MELT quotes get no table: they are one-shot and terminal, so their durable state
  * (quote id, outpoint, fee) fits on the transaction row.
  */
 export const ONCHAIN_MINT_QUOTES_COLUMNS = `
   quote TEXT PRIMARY KEY NOT NULL,
+  mintId TEXT,
   mintUrl TEXT NOT NULL,
   unit TEXT NOT NULL,
   address TEXT NOT NULL,

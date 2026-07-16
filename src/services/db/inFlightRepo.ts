@@ -13,12 +13,16 @@ import {log} from '../logService'
 //
 // A row exists only while a request is in-flight; it is deleted on success or
 // terminal failure. Keyed by transactionId.
+//
+// A CHILD of the transaction: the primary key IS the parent's id, so the parent
+// owns the mint reference and this table stores none. It used to duplicate
+// `mintUrl` and `keysetId` — keysetId had no reader at all, and mintUrl served one
+// query, which now joins through the parent. One owner of the fact means nothing
+// here can go stale when a mint moves.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type InFlightRequestRecord = {
   transactionId: number
-  mintUrl: string | null
-  keysetId: string | null
   request: any
   createdAt: string | null
 }
@@ -26,15 +30,11 @@ export type InFlightRequestRecord = {
 /** A single in-flight entry for the one-time seed from the MST/MMKV snapshot. */
 export type InFlightRequestSeed = {
   transactionId: number
-  mintUrl?: string
-  keysetId?: string
   request: any
 }
 
 const rowToRecord = (row: any): InFlightRequestRecord => ({
   transactionId: row.transactionId,
-  mintUrl: row.mintUrl,
-  keysetId: row.keysetId,
   request: JSON.parse(row.request),
   createdAt: row.createdAt,
 })
@@ -43,17 +43,12 @@ const rowToRecord = (row: any): InFlightRequestRecord => ({
  * Store (or replace) the in-flight request for a transaction. Overwrites an
  * existing row — matching the previous addInFlightRequest set() semantics.
  */
-export const addInFlightRequest = function (
-  transactionId: number,
-  mintUrl: string | undefined,
-  keysetId: string | undefined,
-  request: any,
-): void {
+export const addInFlightRequest = function (transactionId: number, request: any): void {
   try {
     getInstance().execute(
-      `INSERT OR REPLACE INTO inflight_requests (transactionId, mintUrl, keysetId, request, createdAt)
-       VALUES (?, ?, ?, ?, ?)`,
-      [transactionId, mintUrl ?? null, keysetId ?? null, JSON.stringify(request), new Date().toISOString()],
+      `INSERT OR REPLACE INTO inflight_requests (transactionId, request, createdAt)
+       VALUES (?, ?, ?)`,
+      [transactionId, JSON.stringify(request), new Date().toISOString()],
     )
   } catch (e: any) {
     throw dbError('In-flight request could not be saved to the database', e)
@@ -64,7 +59,7 @@ export const addInFlightRequest = function (
 export const getInFlightRequest = function (transactionId: number): InFlightRequestRecord | undefined {
   try {
     const {rows} = getInstance().execute(
-      `SELECT transactionId, mintUrl, keysetId, request, createdAt FROM inflight_requests WHERE transactionId = ?`,
+      `SELECT transactionId, request, createdAt FROM inflight_requests WHERE transactionId = ?`,
       [transactionId],
     )
     const row = rows?.item(0)
@@ -74,12 +69,25 @@ export const getInFlightRequest = function (transactionId: number): InFlightRequ
   }
 }
 
-/** All in-flight requests for a mint (drives the per-mint recovery sweep). */
-export const getInFlightRequestsByMint = function (mintUrl: string): InFlightRequestRecord[] {
+/**
+ * All in-flight requests of a mint (drives the per-mint recovery sweep).
+ *
+ * Joins through the owning transaction rather than storing a mint reference here:
+ * `transactions.mintId` is the single owner of that fact, and being an id it
+ * survives a mint-url edit — the url copy this table used to keep did not.
+ *
+ * A request whose transaction has been deleted is correctly invisible: the retry
+ * exists to settle proofs onto that transaction, so without it there is nothing to
+ * apply the result to.
+ */
+export const getInFlightRequestsByMintId = function (mintId: string): InFlightRequestRecord[] {
   try {
     const {rows} = getInstance().execute(
-      `SELECT transactionId, mintUrl, keysetId, request, createdAt FROM inflight_requests WHERE mintUrl = ?`,
-      [mintUrl],
+      `SELECT r.transactionId, r.request, r.createdAt
+       FROM inflight_requests r
+       JOIN transactions t ON t.id = r.transactionId
+       WHERE t.mintId = ?`,
+      [mintId],
     )
     return (rows?._array ?? []).map(rowToRecord)
   } catch (e: any) {
@@ -106,10 +114,10 @@ export const seedInFlightRequests = function (seeds: InFlightRequestSeed[]): {se
     const now = new Date().toISOString()
     getInstance().executeBatch(
       seeds.map(s => [
-        `INSERT INTO inflight_requests (transactionId, mintUrl, keysetId, request, createdAt)
-         VALUES (?, ?, ?, ?, ?)
+        `INSERT INTO inflight_requests (transactionId, request, createdAt)
+         VALUES (?, ?, ?)
          ON CONFLICT(transactionId) DO NOTHING`,
-        [s.transactionId, s.mintUrl ?? null, s.keysetId ?? null, JSON.stringify(s.request), now],
+        [s.transactionId, JSON.stringify(s.request), now],
       ]),
     )
     log.info('[seedInFlightRequests]', 'Seeded in-flight requests into SQLite', {count: seeds.length})

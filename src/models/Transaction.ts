@@ -81,7 +81,22 @@ export const TransactionModel = types
         paymentId: types.maybe(types.maybeNull(types.string)),
         quote: types.maybe(types.maybeNull(types.string)),
         memo: types.maybe(types.maybeNull(types.string)),
+        /**
+         * The url this payment happened at — a HISTORICAL fact, frozen once written.
+         * Display this; never dial it. A mint may since have moved, and rewriting it
+         * would misreport where the money actually went.
+         */
         mint: types.string,
+        /**
+         * Stable id (Mint.id) of the mint — the identity, and the only reference to
+         * resolve when acting: reaching the mint, or asking whether its mint is still
+         * in the wallet. Survives a mint-url edit, which is why `mint` no longer has
+         * to.
+         *
+         * Null for a transaction of a mint that has been removed, and for pre-v34
+         * rows the v38 backfill could not match.
+         */
+        mintId: types.maybe(types.maybeNull(types.string)),
         paymentRequest: types.maybe(types.maybeNull(types.string)),
         zapRequest: types.maybe(types.maybeNull(types.string)),
         inputToken: types.maybe(types.maybeNull(types.string)),

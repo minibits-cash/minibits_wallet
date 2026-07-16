@@ -21,6 +21,7 @@ import {DatabaseSync} from 'node:sqlite'
 
 const CREATE_ONCHAIN_MINT_QUOTES = `CREATE TABLE onchain_mint_quotes (
   quote TEXT PRIMARY KEY NOT NULL,
+  mintId TEXT,
   mintUrl TEXT NOT NULL,
   unit TEXT NOT NULL,
   address TEXT NOT NULL,
@@ -42,8 +43,11 @@ const daysFromNow = (n: number) => iso(new Date(NOW.getTime() + n * 86400000))
 
 // ── Mirrored repo primitives (exact production SQL) ─────────────────────────
 
-const COLS = `quote, mintUrl, unit, address, counterIndex, pubkey, amountRequested,
+const COLS = `quote, mintId, mintUrl, unit, address, counterIndex, pubkey, amountRequested,
               amountPaid, amountIssued, expiry, watchUntil, createdAt, updatedAt`
+
+/** Mint.id of the owning mint — the reference that survives a mint-url edit. */
+const MINT_ID = 'mint1234'
 
 function addQuote(
     db: DatabaseSync,
@@ -58,9 +62,10 @@ function addQuote(
 ) {
     db.prepare(
         `INSERT OR REPLACE INTO onchain_mint_quotes (${COLS})
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
         q.quote,
+        MINT_ID,
         MINT,
         'sat',
         `bc1q${q.quote}`,

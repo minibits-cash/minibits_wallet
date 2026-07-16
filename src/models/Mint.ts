@@ -580,19 +580,17 @@ export const MintModel = types
          * somewhere else now. So everything addressed by the old location has to
          * follow. What follows, and what deliberately does not:
          *
-         *  - proofs — repointed. `proofs.mintUrl` is how a balance is found.
-         *  - in-flight transactions — repointed. Their `mint` is a live pointer the
-         *    wallet still calls; stale, it strands an open payment at a dead url.
-         *  - terminal transactions — NOT repointed. There the url is a historical
-         *    record of where the payment happened. See
-         *    Database.updateInFlightTransactionsMintUrl.
+         *  - proofs — repointed. `proofs.mintUrl` is how a balance is found, and it
+         *    is the last denormalized copy of the url left in the schema.
+         *  - transactions — nothing to do. `mint` is the url the payment happened at,
+         *    a historical fact that must NOT move; `mintId` carries the identity.
          *  - derivation counters — nothing to do: keyed by keysetId, which no url
          *    edit can disturb (see MINT_COUNTERS_COLUMNS).
-         *
-         * NOT yet carried over — each still keyed by url, and tracked as step 3 of
-         * the mint-identity work: onchain mint quotes, in-flight requests, melt
-         * recovery rows, and open reservations. Renaming a mint with any of those
-         * outstanding still strands them.
+         *  - onchain mint quotes, open reservations — nothing to do: they reference
+         *    the mint by `mintId` and resolve the live url through it at use time.
+         *  - in-flight requests, melt recovery — nothing to do: they are child rows
+         *    of a transaction and hold no mint reference at all; the one mint-scoped
+         *    query joins through the parent's mintId.
          *
          * Validation runs through the same normalizer as `addMint`, so a rename can
          * no longer install a url that adding the same mint would have rejected.
@@ -609,7 +607,7 @@ export const MintModel = types
                 return true
             }
 
-            const {mintsStore, proofsStore, transactionsStore} = getRootStore(self)
+            const {mintsStore, proofsStore} = getRootStore(self)
 
             // mintExists (normalized), not alreadyExists (literal string compare):
             // the latter misses a twin differing only by a trailing slash, which
@@ -619,7 +617,6 @@ export const MintModel = types
             }
 
             proofsStore.updateMintUrl(currentMintUrl, normalized)
-            transactionsStore.updateMintUrl(currentMintUrl, normalized)
 
             self.mintUrl = normalized
             self.setHostname() // derived from mintUrl — stale until recomputed

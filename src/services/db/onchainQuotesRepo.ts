@@ -41,6 +41,16 @@ export const ONCHAIN_QUOTE_WATCH_DAYS = 7
 
 export type OnchainMintQuoteRecord = {
   quote: string
+  /**
+   * Stable id (Mint.id) of the owning mint — the ONLY reference to resolve for
+   * processing. Null when the mint is no longer in the wallet (or on a pre-v38 row
+   * the backfill has not reached yet), in which case the quote is unusable.
+   */
+  mintId: string | null
+  /**
+   * Where the quote was created. A historical record — do NOT follow it: after a
+   * mint-url edit it points at a dead host, and these rows outlive the move.
+   */
   mintUrl: string
   unit: string
   address: string
@@ -59,7 +69,7 @@ export type OnchainMintQuoteRecord = {
   updatedAt: string | null
 }
 
-const COLS = `quote, mintUrl, unit, address, counterIndex, pubkey, amountRequested,
+const COLS = `quote, mintId, mintUrl, unit, address, counterIndex, pubkey, amountRequested,
               amountPaid, amountIssued, expiry, watchUntil, createdAt, updatedAt`
 
 /**
@@ -70,7 +80,11 @@ const COLS = `quote, mintUrl, unit, address, counterIndex, pubkey, amountRequest
  * NUT-20 index) is already safe, so a deposit to that address remains mintable.
  */
 export const addOnchainMintQuote = function (
-  q: Omit<OnchainMintQuoteRecord, 'amountPaid' | 'amountIssued' | 'createdAt' | 'updatedAt' | 'watchUntil'> & {
+  q: Omit<
+    OnchainMintQuoteRecord,
+    'mintId' | 'amountPaid' | 'amountIssued' | 'createdAt' | 'updatedAt' | 'watchUntil'
+  > & {
+    mintId?: string | null
     amountPaid?: number
     amountIssued?: number
     watchUntil?: string
@@ -84,9 +98,10 @@ export const addOnchainMintQuote = function (
 
     getInstance().execute(
       `INSERT OR REPLACE INTO onchain_mint_quotes (${COLS})
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         q.quote,
+        q.mintId ?? null,
         q.mintUrl,
         q.unit,
         q.address,
@@ -102,7 +117,7 @@ export const addOnchainMintQuote = function (
       ],
     )
 
-    log.debug('[addOnchainMintQuote]', {quote: q.quote, mintUrl: q.mintUrl})
+    log.debug('[addOnchainMintQuote]', {quote: q.quote, mintId: q.mintId, mintUrl: q.mintUrl})
   } catch (e: any) {
     throw dbError('Onchain mint quote could not be saved to the database', e)
   }
@@ -182,16 +197,55 @@ export const getWatchedOnchainMintQuotes = function (): OnchainMintQuoteRecord[]
   }
 }
 
-/** Every quote for a mint, newest first. Drives the manual re-check. */
-export const getOnchainMintQuotesByMint = function (mintUrl: string): OnchainMintQuoteRecord[] {
+/**
+ * Every quote of a mint, newest first.
+ *
+ * Keyed by mintId, not url: the mint may have moved since the quote was created,
+ * and a url match would then silently return nothing.
+ */
+export const getOnchainMintQuotesByMintId = function (mintId: string): OnchainMintQuoteRecord[] {
   try {
     const {rows} = getInstance().execute(
-      `SELECT ${COLS} FROM onchain_mint_quotes WHERE mintUrl = ? ORDER BY createdAt DESC`,
-      [mintUrl],
+      `SELECT ${COLS} FROM onchain_mint_quotes WHERE mintId = ? ORDER BY createdAt DESC`,
+      [mintId],
     )
     return (rows?._array ?? []) as OnchainMintQuoteRecord[]
   } catch (e: any) {
     throw dbError('Onchain mint quotes could not be retrieved from the database', e)
+  }
+}
+
+/**
+ * One-time backfill of `mintId` from the url a row was created at (the v38 seed).
+ *
+ * Only touches rows that have no mintId yet, so it is idempotent and can never
+ * overwrite a resolved id with a guess from a url that has since moved on.
+ *
+ * Matching on url is sound ONLY here, at the moment of upgrade: before this
+ * migration nothing could edit a mint's url without also rewriting these rows'
+ * mintUrl, so the two still agree. That is exactly why the join is spent once, at
+ * rest, rather than on every rename.
+ */
+export const backfillOnchainMintQuoteMintIds = function (
+  mints: Array<{id: string; mintUrl: string}>,
+): {updated: number} {
+  if (mints.length === 0) return {updated: 0}
+  try {
+    const db = getInstance()
+    let updated = 0
+
+    for (const mint of mints) {
+      const {rowsAffected} = db.execute(
+        `UPDATE onchain_mint_quotes SET mintId = ? WHERE mintUrl = ? AND mintId IS NULL`,
+        [mint.id, mint.mintUrl],
+      )
+      updated += rowsAffected ?? 0
+    }
+
+    log.info('[backfillOnchainMintQuoteMintIds]', 'Backfilled onchain quote mint ids', {updated})
+    return {updated}
+  } catch (e: any) {
+    throw dbError('Onchain mint quote mintIds could not be backfilled', e)
   }
 }
 

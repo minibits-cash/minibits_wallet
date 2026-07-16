@@ -35,7 +35,9 @@ const unit = transaction.unit as MintUnit
 
 const allProofs = proofsStore.getByTransactionId(transaction.id)
 const pendingProofs = allProofs.filter(p => p.state === 'PENDING')
-const mintInstance = mintsStore.findByUrl(transaction.mint)
+// By identity, not by transaction.mint — that url records where the payment
+// happened and no longer finds the mint once it has moved.
+const mintInstance = mintsStore.findByTransaction(transaction)
 
 // Reservation is declared at the outer scope so the catch block can resolve it
 // (commit or rollback) if a failure happens after it's opened. Errors thrown
@@ -75,7 +77,9 @@ try {
     })
 
     const receivedResult = await walletStore.receive(
-        transaction.mint,
+        // The mint's live url — transaction.mint is where the original send
+        // happened and would no longer reach a mint that has moved.
+        mintInstance.mintUrl,
         unit as MintUnit,
         encodedToken,
         transaction.id

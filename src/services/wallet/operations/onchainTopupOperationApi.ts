@@ -61,6 +61,7 @@ import {
 } from '../../../models/Transaction'
 import {Database} from '../../../services'
 import {OnchainMintQuoteRecord} from '../../db/onchainQuotesRepo'
+import type {Mint} from '../../../models/Mint'
 import {allocateQuoteKeypair, deriveQuoteKeypair} from '../../cashu/nut20'
 import {capMintAmount, mintableAmount} from './onchainAmounts'
 import {CashuProof} from '../../cashu/cashuUtils'
@@ -154,6 +155,10 @@ async function createQuote(input: {
         // the row (with its counterIndex) is already safe, so a deposit to that address
         // stays mintable. Losing it would make the money unspendable.
         Database.addOnchainMintQuote({
+            // The stable reference. mintUrl is stored alongside it purely as the
+            // record of where this quote was created — the mint may move, and this
+            // row outlives the move.
+            mintId: mintsStore.findByUrl(mintUrl)?.id,
             quote: quoteResponse.quote,
             mintUrl,
             unit,
@@ -274,7 +279,8 @@ async function refreshQuote(quoteId: string): Promise<RefreshOnchainQuoteResult>
         throw new ValidationError('Unknown onchain mint quote', {quote: quoteId})
     }
 
-    const quoteResponse = await walletStore.checkOnchainMintQuote(row.mintUrl, quoteId)
+    const mint = _resolveQuoteMint(row)
+    const quoteResponse = await walletStore.checkOnchainMintQuote(mint.mintUrl, quoteId)
 
     const amountPaid = Number(quoteResponse.amount_paid ?? 0)
     const amountIssued = Number(quoteResponse.amount_issued ?? 0)
@@ -294,7 +300,7 @@ async function refreshQuote(quoteId: string): Promise<RefreshOnchainQuoteResult>
         return {quote: quoteId, amountPaid, amountIssued, minted: 0}
     }
 
-    const transactionId = await _mintAvailable(row, quoteResponse, mintable)
+    const transactionId = await _mintAvailable(row, mint, quoteResponse, mintable)
 
     return {
         quote: quoteId,
@@ -310,6 +316,33 @@ async function refreshQuote(quoteId: string): Promise<RefreshOnchainQuoteResult>
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Resolve a quote's owning mint through its stable id.
+ *
+ * `row.mintUrl` is deliberately NOT consulted. It records where the quote was
+ * created, and a mint that has since moved would leave it pointing at a host that
+ * no longer answers — while this quote's address stays creditable for as long as
+ * the mint exists (rows here are never deleted), so a late deposit would be
+ * unmintable forever, and silently, because the watcher swallows errors by design.
+ *
+ * A missing mint means it was removed from the wallet (or, on a row from before
+ * v33 that the v38 backfill could not match, that its url had already moved on).
+ * Either way there is nothing to talk to, so this throws rather than guessing.
+ */
+function _resolveQuoteMint(row: OnchainMintQuoteRecord): Mint {
+    const mint = row.mintId ? mintsStore.findById(row.mintId) : undefined
+
+    if (!mint) {
+        throw new ValidationError('Onchain quote has no mint in this wallet', {
+            quote: row.quote,
+            mintId: row.mintId,
+            createdAtUrl: row.mintUrl,
+        })
+    }
+
+    return mint
+}
+
+/**
  * Mint the available balance on a quote and settle it onto a transaction.
  *
  * Reuses the quote's PENDING transaction if there is one (the usual case: the user
@@ -319,24 +352,28 @@ async function refreshQuote(quoteId: string): Promise<RefreshOnchainQuoteResult>
  */
 async function _mintAvailable(
     row: OnchainMintQuoteRecord,
+    mintInstance: Mint,
     quoteResponse: any,
     mintable: number,
 ): Promise<number> {
-    const {quote, mintUrl, counterIndex} = row
+    const {quote, counterIndex} = row
     const unit = row.unit as MintUnit
+
+    // The mint resolved from row.mintId by the caller — NOT row.mintUrl, which is
+    // only where the quote was created and may since have moved.
+    const mintUrl = mintInstance.mintUrl
 
     // The mint may cap a single mint operation; never ask for more than it allows.
     // Any remainder stays credited on the quote, where the watch rule keeps it
     // visible and the next sweep takes the rest.
-    const mintInstance = mintsStore.findByUrl(mintUrl)
-    const maxAmount = mintInstance?.mintMethodSetting!('onchain', unit)?.max_amount
+    const maxAmount = mintInstance.mintMethodSetting!('onchain', unit)?.max_amount
     const amount = capMintAmount(mintable, maxAmount ? Number(maxAmount) : null)
 
     // Re-derive the NUT-20 signing key from the seed. Only the index was persisted.
     const seed: Uint8Array = await walletStore.getCachedSeed()
     const {privkey} = deriveQuoteKeypair(seed, counterIndex)
 
-    const tx = await _findOrCreateTransaction(row, amount, unit)
+    const tx = await _findOrCreateTransaction(row, mintUrl, amount, unit)
     const transactionId = tx.id
 
     let proofs: CashuProof[] = []
@@ -433,6 +470,8 @@ async function _mintAvailable(
  */
 async function _findOrCreateTransaction(
     row: OnchainMintQuoteRecord,
+    /** The mint's url NOW (resolved from row.mintId), not row.mintUrl. */
+    mintUrl: string,
     amount: number,
     unit: MintUnit,
 ): Promise<Transaction> {
@@ -470,7 +509,10 @@ async function _findOrCreateTransaction(
         fee: 0,
         unit,
         data: JSON.stringify(transactionData),
-        mint: row.mintUrl,
+        // Where this deposit is being settled NOW. A second deposit onto an old
+        // address is still a payment to the mint at its current url, and this row is
+        // brand new — it has no history to preserve.
+        mint: mintUrl,
         status: TransactionStatus.PENDING,
     })
 

@@ -1,5 +1,4 @@
 import {Transaction, TransactionStatus} from '../../models/Transaction'
-import {IN_FLIGHT_STATUSES} from '../../models/TransactionStates'
 import AppError, {Err} from '../../utils/AppError'
 import {log} from '../logService'
 import {getInstance} from './instance'
@@ -50,50 +49,38 @@ export const updateTransaction = function (id: number, fields: Partial<Transacti
 }
 
 /**
- * Repoint a mint's IN-FLIGHT transactions at its new url, leaving terminal ones
- * untouched.
+ * One-time backfill of `mintId` from the url a transaction happened at (the v38
+ * seed).
  *
- * `transactions.mint` carries two meanings, switched by status:
+ * Only fills NULLs, so it is idempotent and can never re-point a resolved row at
+ * whichever mint now answers a url. Rows left NULL belong to mints no longer in the
+ * wallet — legitimate history, which keeps its `mint` url and simply has no mint to
+ * act on.
  *
- *  - TERMINAL (completed, reverted, …): a historical record of where the payment
- *    actually happened. Rewriting it would falsify history, so it is frozen.
- *  - IN-FLIGHT: a LIVE pointer the wallet still calls — checkLightningMintQuote
- *    (topupOperationApi), checkLightningMeltQuote / checkOnchainMeltQuote
- *    (transferOperationApi), and findByUrl(tx.mint) on the revert/receive paths.
- *    Leaving it stale after a mint-url edit strands an open transaction at a dead
- *    url: a paid topup whose ecash the wallet can never mint.
- *
- * One statement, so the status test and the write cannot straddle a concurrent
- * status transition — a transaction that goes terminal mid-rename is either fully
- * in or fully out.
+ * Matching on url is sound ONLY here, at the moment of upgrade: until now a mint's
+ * url could not change without in-flight rows being rewritten to match, so the two
+ * still agree. This spends that join once, at rest, instead of on every rename.
  */
-export const updateInFlightTransactionsMintUrl = function (
-  currentMintUrl: string,
-  updatedMintUrl: string,
+export const backfillTransactionMintIds = function (
+  mints: Array<{id: string; mintUrl: string}>,
 ): {updated: number} {
+  if (mints.length === 0) return {updated: 0}
   try {
-    const statuses = [...IN_FLIGHT_STATUSES]
-    const placeholders = statuses.map(() => '?').join(', ')
-
     const db = getInstance()
-    const {rowsAffected} = db.execute(
-      `UPDATE transactions
-       SET mint = ?
-       WHERE mint = ? AND status IN (${placeholders})`,
-      [updatedMintUrl, currentMintUrl, ...statuses],
-    )
+    let updated = 0
 
-    const updated = rowsAffected ?? 0
+    for (const mint of mints) {
+      const {rowsAffected} = db.execute(
+        `UPDATE transactions SET mintId = ? WHERE mint = ? AND mintId IS NULL`,
+        [mint.id, mint.mintUrl],
+      )
+      updated += rowsAffected ?? 0
+    }
 
-    log.debug('[updateInFlightTransactionsMintUrl]', 'Repointed in-flight transactions', {
-      currentMintUrl,
-      updatedMintUrl,
-      updated,
-    })
-
+    log.info('[backfillTransactionMintIds]', 'Backfilled transaction mint ids', {updated})
     return {updated}
   } catch (e: any) {
-    throw dbError('Could not update transactions mintUrl in database', e)
+    throw dbError('Transaction mintIds could not be backfilled', e)
   }
 }
 
@@ -538,19 +525,19 @@ export const getLastTransactionBy = function (
 
 export const addTransactionAsync = async function (tx: Partial<Transaction>): Promise<Transaction> {
   try {
-    const {type, amount, fee, unit, data, memo, mint, status} = tx
+    const {type, amount, fee, unit, data, memo, mint, mintId, status} = tx
     const now = new Date()
 
     const query = `
-      INSERT INTO transactions (type, amount, fee, unit, data, memo, mint, status, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (type, amount, fee, unit, data, memo, mint, mintId, status, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
-    const params = [type, amount, fee, unit, data, memo, mint, status, now.toISOString()]
+    const params = [type, amount, fee, unit, data, memo, mint, mintId ?? null, status, now.toISOString()]
 
     const db = getInstance()
     const result = await db.executeAsync(query, params)
 
-    log.debug('[addTransactionAsync] New transaction added to the database', {id: result.insertId, type, mint, status})
+    log.debug('[addTransactionAsync] New transaction added to the database', {id: result.insertId, type, mint, mintId, status})
 
     return getTransactionById(result.insertId as number) // already normalized
 

@@ -131,7 +131,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
         setIsDataParsable(false)
       }
 
-      const mintInstance = mintsStore.findByUrl(tx.mint)
+      const mintInstance = mintsStore.findByTransaction(tx)
       if (mintInstance) {
         setMint(mintInstance)
       }
@@ -703,7 +703,7 @@ const ReceiveInfoBlock = function (props: {
               increaseProofsCounter(transaction.unit)
             }
 
-            const mintInstance = mintsStore.findByUrl(transaction.mint)
+            const mintInstance = mintsStore.findByTransaction(transaction)
 
             if(!mintInstance) {
               throw new AppError(Err.NOTFOUND_ERROR, 'Mint not found in the wallet state, cannot retry receive', {
@@ -2024,7 +2024,7 @@ const TransferInfoBlock = function (props: {
   colorScheme: 'dark' | 'light'
 }) {
   const {transaction, mint, isDataParsable} = props
-  const {proofsStore, transactionsStore} = useStores()
+  const {proofsStore, transactionsStore, mintsStore} = useStores()
   const navigation = useNavigation()
 
   
@@ -2044,9 +2044,14 @@ const TransferInfoBlock = function (props: {
 
     const {paymentRequest, unit, mint} = transaction
 
-    if(!paymentRequest || !unit || !mint) {
-      log.error('[onPayDraftTransfer] Missing params', {paymentRequest, unit, mint})
-      
+    // The mint's live url: this is handed to the Transfer screen to actually pay,
+    // so it must be where the mint answers NOW, not the url the draft was created
+    // at (transaction.mint, which is frozen as history).
+    const mintInstance = mintsStore.findByTransaction(transaction)
+
+    if(!paymentRequest || !unit || !mint || !mintInstance) {
+      log.error('[onPayDraftTransfer] Missing params', {paymentRequest, unit, mint, mintId: transaction.mintId})
+
       setResultModalInfo({
         status: TransactionStatus.ERROR,
         message: 'This transaction is missing data needed to be paid.'
@@ -2063,10 +2068,10 @@ const TransferInfoBlock = function (props: {
           encodedInvoice: transaction.paymentRequest,
           paymentOption: TransferOption.PASTE_OR_SCAN_INVOICE,
           unit: transaction.unit,
-          mintUrl: transaction.mint,
+          mintUrl: mintInstance.mintUrl,
           draftTransactionId: transaction.id
       }
-    })    
+    })
   }
 
   const onRevertPreparedTransfer = async function () {

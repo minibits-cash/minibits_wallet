@@ -100,6 +100,27 @@ type AnyMeltQuote = MeltQuoteBolt11Response | MeltQuoteOnchainResponse
 
 const {mintsStore, proofsStore, transactionsStore, walletStore} = rootStoreInstance
 
+/**
+ * The live url of a transaction's mint.
+ *
+ * Resolved through `tx.mintId`, never `tx.mint`: the latter records where the
+ * payment happened and is deliberately frozen, so after a mint-url edit it points
+ * at a host that no longer answers — and an open melt would never learn whether the
+ * mint had settled it.
+ */
+function _txMintUrl(tx: Transaction): string {
+    const mint = mintsStore.findByTransaction(tx)
+    if (!mint) {
+        throw new ValidationError('Transaction mint is no longer in this wallet', {
+            transactionId: tx.id,
+            mintId: tx.mintId,
+            happenedAtUrl: tx.mint,
+        })
+    }
+    return mint.mintUrl
+}
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
 // ─────────────────────────────────────────────────────────────────────────────
@@ -961,8 +982,8 @@ function _isOnchainTransfer(tx: Transaction): boolean {
  */
 async function _checkQuote(tx: Transaction, quoteId: string): Promise<AnyMeltQuote> {
     return _isOnchainTransfer(tx)
-        ? await walletStore.checkOnchainMeltQuote(tx.mint, quoteId)
-        : await walletStore.checkLightningMeltQuote(tx.mint, quoteId)
+        ? await walletStore.checkOnchainMeltQuote(_txMintUrl(tx), quoteId)
+        : await walletStore.checkLightningMeltQuote(_txMintUrl(tx), quoteId)
 }
 
 /**
@@ -1103,7 +1124,7 @@ async function _finalizePaid(
     quote: AnyMeltQuote,
 ): Promise<CompletedTransaction> {
     const transactionId = tx.id
-    const mintUrl = tx.mint
+    const mintUrl = _txMintUrl(tx)
     const unit = tx.unit
     const method: TransferMethod = _isOnchainTransfer(tx) ? 'onchain' : 'bolt11'
 
@@ -1340,6 +1361,7 @@ function _rowToReservation(row: ReservationRow): ProofReservation {
     return {
         id: row.id,
         transactionId: row.transactionId,
+        mintId: row.mintId,
         mintUrl: row.mintUrl,
         unit: row.unit as MintUnit,
         operationType: row.operationType,

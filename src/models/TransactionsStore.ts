@@ -12,7 +12,6 @@ import {
     TransactionStatus,
     TransactionType,
 } from './Transaction'
-import { isInFlight } from './TransactionStates'
 import { Database } from '../services'
 import { log } from '../services/logService'
 import { getRootStore } from './helpers/getRootStore'
@@ -156,32 +155,23 @@ export const TransactionsStoreModel = types
         },
 
         /**
-         * Mirror a mint-url edit onto in-flight transactions only — see
-         * Database.updateInFlightTransactionsMintUrl for why terminal rows keep
-         * the url their payment actually used.
+         * Drop recent-list entries whose mint is no longer in the wallet.
          *
-         * SQLite first: if the write throws, the exception propagates with the MST
-         * tree still matching the database. Updating memory first would leave the
-         * UI reading a url the database does not have, which the next restart
-         * would silently revert.
+         * Tests mintId, not the url. `tx.mint` is where the payment happened and is
+         * never rewritten, so a mint that has since moved would fail a url test and
+         * its whole history would vanish from the list as though the mint had been
+         * removed. The id answers the question actually being asked: does this
+         * transaction's mint still exist?
+         *
+         * A null mintId means exactly that it does not (removed mint, or history
+         * older than the v38 backfill), so those are dropped too — which is what
+         * this prune is for.
          */
-        updateMintUrl(currentMintUrl: string, updatedMintUrl: string) {
-            Database.updateInFlightTransactionsMintUrl(currentMintUrl, updatedMintUrl)
-
-            for (const tx of self.transactionsMap.values()) {
-                if (tx.mint === currentMintUrl && isInFlight(tx)) {
-                    tx.setProp('mint', updatedMintUrl)
-                }
-            }
-
-            log.trace('[updateMintUrl] Repointed in-flight transactions', {currentMintUrl, updatedMintUrl})
-        },
-
         pruneRecentWithoutCurrentMint() {
             const { mintsStore } = getRootStore(self)
-            const validUrls = new Set(mintsStore.allMints.map(m => m.mintUrl))
+            const validIds = new Set(mintsStore.allMints.map((m: Mint) => m.id))
 
-            const newList = self.recentByUnit.filter(tx => validUrls.has(tx.mint))
+            const newList = self.recentByUnit.filter(tx => tx.mintId && validIds.has(tx.mintId))
             if (newList.length !== self.recentByUnit.length) {
                 self.recentByUnit.replace(newList)
                 log.trace('[pruneRecentWithoutCurrentMint]', `${self.recentByUnit.length - newList.length} removed`)
@@ -199,8 +189,21 @@ export const TransactionsStoreModel = types
 
     .actions(self => ({
         // ── Main add (push + safe prune) ──
-        addTransaction: flow(function* addTransaction(newTxData: Partial<Transaction>) {
-            const dbTx: Transaction = yield Database.addTransactionAsync(newTxData)
+        // Return type is annotated because the body reaches the root store, and an
+        // inferred type would loop: RootStore -> TransactionsStore -> RootStore.
+        addTransaction: flow(function* addTransaction(
+            newTxData: Partial<Transaction>,
+        ): Generator<any, Transaction, any> {
+            // Resolved here rather than asked of every call site: they all identify
+            // the mint by url, but the row needs the id that survives a url edit
+            // (see Transaction.mintId). Callers may still pass mintId explicitly.
+            const mintId: string | null =
+                newTxData.mintId ??
+                (newTxData.mint
+                    ? (getRootStore(self).mintsStore.findByUrl(newTxData.mint)?.id as string | undefined) ?? null
+                    : null)
+
+            const dbTx: Transaction = yield Database.addTransactionAsync({...newTxData, mintId})
             const tx = TransactionModel.create(dbTx)
 
             self.transactionsMap.set(String(dbTx.id), tx)

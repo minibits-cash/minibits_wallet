@@ -24,7 +24,21 @@ export type ProofReservation = {
     /** Wallet transaction this reservation belongs to. */
     transactionId: number
 
-    /** Mint the reserved proofs belong to. */
+    /**
+     * Stable id (Mint.id) of the mint the reserved proofs belong to.
+     *
+     * Resolve THIS at commit, not `mintUrl`: a mint-url edit racing an open
+     * operation would otherwise commit the new proofs under the pre-edit url,
+     * leaving them owned by no mint and invisible in the balance.
+     *
+     * Null only for a reservation row opened before v33.
+     */
+    mintId: string | null
+
+    /**
+     * The mint's url when the reservation was opened. A snapshot for logging — see
+     * mintId for the reference that survives a move.
+     */
     mintUrl: string
 
     /** Currency unit (sat, msat, usd, …) — used when committing new proofs. */

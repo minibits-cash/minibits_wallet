@@ -18,8 +18,6 @@ const NOW = '2026-06-05T00:00:00.000Z'
 
 const CREATE_MELT_RECOVERY = `CREATE TABLE melt_recovery (
   transactionId INTEGER PRIMARY KEY NOT NULL,
-  mintUrl TEXT,
-  keysetId TEXT,
   meltPreview TEXT NOT NULL,
   createdAt TEXT
 )`
@@ -43,22 +41,20 @@ const previewFor = (keysetId: string, secret = 'aa') => ({
 function addMeltRecovery(
     db: DatabaseSync,
     transactionId: number,
-    mintUrl: string | null,
-    keysetId: string | null,
     meltPreview: object,
 ) {
     db.prepare(
-        `INSERT INTO melt_recovery (transactionId, mintUrl, keysetId, meltPreview, createdAt)
-         VALUES (?, ?, ?, ?, ?)
+        `INSERT INTO melt_recovery (transactionId, meltPreview, createdAt)
+         VALUES (?, ?, ?)
          ON CONFLICT(transactionId) DO NOTHING`,
-    ).run(transactionId, mintUrl, keysetId, JSON.stringify(meltPreview), NOW)
+    ).run(transactionId, JSON.stringify(meltPreview), NOW)
 }
 
 function getMeltRecovery(db: DatabaseSync, transactionId: number) {
     const row = db
-        .prepare(`SELECT transactionId, mintUrl, keysetId, meltPreview, createdAt FROM melt_recovery WHERE transactionId = ?`)
+        .prepare(`SELECT transactionId, meltPreview, createdAt FROM melt_recovery WHERE transactionId = ?`)
         .get(transactionId) as
-        | {transactionId: number; mintUrl: string | null; keysetId: string | null; meltPreview: string; createdAt: string | null}
+        | {transactionId: number; meltPreview: string; createdAt: string | null}
         | undefined
     if (!row) return undefined
     return {...row, meltPreview: JSON.parse(row.meltPreview)}
@@ -86,13 +82,13 @@ describe('Melt recovery (melt_recovery)', () => {
         const db = freshDb()
         const preview = previewFor('k1')
 
-        addMeltRecovery(db, 101, MINT, 'k1', preview)
+        addMeltRecovery(db, 101, preview)
         const rec = getMeltRecovery(db, 101)!
 
         expect(rec.transactionId).toBe(101)
-        expect(rec.mintUrl).toBe(MINT)
-        expect(rec.keysetId).toBe('k1')
         expect(rec.meltPreview).toEqual(preview)
+        // The keyset lives INSIDE the preview — the row never duplicated it.
+        expect(rec.meltPreview.keysetId).toBe('k1')
         db.close()
     })
 
@@ -104,9 +100,9 @@ describe('Melt recovery (melt_recovery)', () => {
 
     test('the FIRST stored preview wins (ON CONFLICT DO NOTHING)', () => {
         const db = freshDb()
-        addMeltRecovery(db, 101, MINT, 'k1', previewFor('k1', 'first'))
+        addMeltRecovery(db, 101, previewFor('k1', 'first'))
         // A second attempt for the same tx must not overwrite.
-        addMeltRecovery(db, 101, MINT, 'k1', previewFor('k1', 'second'))
+        addMeltRecovery(db, 101, previewFor('k1', 'second'))
 
         const rec = getMeltRecovery(db, 101)!
         expect(rec.meltPreview.outputData[0].secret).toBe('first')
@@ -116,7 +112,7 @@ describe('Melt recovery (melt_recovery)', () => {
 
     test('remove deletes the entry (terminal success/failure)', () => {
         const db = freshDb()
-        addMeltRecovery(db, 101, MINT, 'k1', previewFor('k1'))
+        addMeltRecovery(db, 101, previewFor('k1'))
         expect(rowCount(db)).toBe(1)
 
         removeMeltRecovery(db, 101)
@@ -127,24 +123,24 @@ describe('Melt recovery (melt_recovery)', () => {
 
     test('entries for different transactions are independent', () => {
         const db = freshDb()
-        addMeltRecovery(db, 101, MINT, 'k1', previewFor('k1'))
-        addMeltRecovery(db, 102, MINT, 'k2', previewFor('k2'))
+        addMeltRecovery(db, 101, previewFor('k1'))
+        addMeltRecovery(db, 102, previewFor('k2'))
 
-        expect(getMeltRecovery(db, 101)!.keysetId).toBe('k1')
-        expect(getMeltRecovery(db, 102)!.keysetId).toBe('k2')
+        expect(getMeltRecovery(db, 101)!.meltPreview.keysetId).toBe('k1')
+        expect(getMeltRecovery(db, 102)!.meltPreview.keysetId).toBe('k2')
 
         removeMeltRecovery(db, 101)
         expect(getMeltRecovery(db, 101)).toBeUndefined()
-        expect(getMeltRecovery(db, 102)!.keysetId).toBe('k2') // unaffected
+        expect(getMeltRecovery(db, 102)!.meltPreview.keysetId).toBe('k2') // unaffected
         db.close()
     })
 
     test('seed is idempotent — does not overwrite an existing entry', () => {
         const db = freshDb()
         // Live entry already advanced/stored.
-        addMeltRecovery(db, 101, MINT, 'k1', previewFor('k1', 'live'))
+        addMeltRecovery(db, 101, previewFor('k1', 'live'))
         // Upgrade seed re-runs with the snapshot copy.
-        addMeltRecovery(db, 101, MINT, 'k1', previewFor('k1', 'snapshot'))
+        addMeltRecovery(db, 101, previewFor('k1', 'snapshot'))
 
         expect(getMeltRecovery(db, 101)!.meltPreview.outputData[0].secret).toBe('live')
         db.close()

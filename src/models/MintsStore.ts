@@ -53,8 +53,43 @@ export const MintsStoreModel = types
             const mint = self.mints.find(m => m.mintUrl === mintUrl)
             return mint ? mint : undefined
         },
+        /**
+         * Resolve a mint by its stable local id — the lookup for stored rows that
+         * must survive a mint-url edit.
+         *
+         * `Mint.id` is an arbitrary local surrogate, and that is precisely why it
+         * works as a foreign key: it carries no meaning that can go stale, unlike a
+         * url, which is a network locator mints do change. It answers exactly one
+         * question — "which mint is this row about?".
+         *
+         * It must NEVER answer "are these two the same mint?". It is random, with no
+         * relation to the mint's keys, so it cannot recognise one mint reached by two
+         * urls. That question belongs to the keysets — see
+         * CashuUtils.isCollidingKeysetId.
+         */
+        findById: (mintId: string) => {
+            return self.mints.find(m => m.id === mintId)
+        },
         get allKeysetIds() {
             return self.mints.flatMap(m => m.keysetIds)
+        },
+    }))
+    .views(self => ({
+        /**
+         * The mint a transaction belongs to.
+         *
+         * Use this rather than findByUrl(tx.mint). `tx.mint` records where the
+         * payment happened and is deliberately never rewritten, so once a mint moves
+         * url it stops matching — every one of that mint's transactions would look
+         * like it belonged to a mint that no longer exists.
+         *
+         * There is deliberately NO fallback to the url. A null mintId means the mint
+         * is not in this wallet, and that IS the answer; guessing from the url would
+         * resolve to whichever mint now answers it, which is the precise confusion
+         * mintId exists to prevent.
+         */
+        findByTransaction: (tx: {mintId?: string | null}) => {
+            return tx.mintId ? self.findById(tx.mintId) : undefined
         },
     }))
     .actions(withSetPropAction)
