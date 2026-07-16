@@ -8,13 +8,23 @@ import {
     type SwapMethod,
     Mint as CashuMint,
 } from '@cashu/cashu-ts'
-import {colors, getRandomIconColor} from '../theme'
-import { log, Database } from '../services'
+// From '../theme/colors', NOT the '../theme' barrel. The barrel re-exports
+// useThemeColor, which imports '../services' — so a barrel import here would make
+// this model transitively depend on mmkvStorage, keyChain (and nostr-tools) and the
+// database, purely to read two colour constants. colors.ts imports nothing but
+// react-native.
+import {colors} from '../theme/colors'
+// Direct imports, NOT the '../services' barrel: that barrel re-exports
+// walletService -> syncQueueService -> notificationService (notifee) and keyChain
+// (nostr-tools), so a barrel import here makes this model transitively depend on
+// most of the app — and on native modules — to read a logger and the db facade.
+import { log } from '../services/logService'
+import { Database } from '../services/db'
 
 import AppError, { Err } from '../utils/AppError'
 import { MintUnit, MintUnits } from '../services/wallet/currency'
 import { getRootStore } from './helpers/getRootStore'
-import { generateId } from '../utils/utils'
+import { generateId } from '../utils/generateId'
 import { Proof } from './Proof'
 import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
 import { normalizeMintUrl } from '../services/cashu/mintUrl'
@@ -528,9 +538,6 @@ export const MintModel = types
 
             self.shortname = shortname
         }),
-        setRandomColor() {
-            self.color = getRandomIconColor()
-        },
         setColor(color: string) {
             self.color = color
         },

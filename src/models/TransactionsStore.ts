@@ -12,7 +12,8 @@ import {
     TransactionStatus,
     TransactionType,
 } from './Transaction'
-import { Database } from '../services'
+// Direct import, not the '../services' barrel — see the note in Mint.ts.
+import { Database } from '../services/db'
 import { log } from '../services/logService'
 import { getRootStore } from './helpers/getRootStore'
 import { formatDistance } from 'date-fns'

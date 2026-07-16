@@ -11,11 +11,12 @@ import {
   import { getRootStore } from './helpers/getRootStore'
   import AppError, { Err } from '../utils/AppError'
   import { Mint, MintBalance } from './Mint'
-  import { Database } from '../services'
+  // Direct import, not the '../services' barrel — see the note in Mint.ts.
+  import { Database } from '../services/db'
   import { ReservationTransactionUpdate } from '../services/sqlite'
   import { MintUnit } from '../services/wallet/currency'
   import { CashuProof } from '../services/cashu/cashuUtils'
-  import { generateId } from '../utils/utils'
+  import { generateId } from '../utils/generateId'
   import { ProofReservation } from '../services/wallet/proofReservation'
 
   export const ProofsStoreModel = types
@@ -71,6 +72,38 @@ import {
             }
             }
             return undefined
+        },
+
+        /**
+         * Spendable proofs whose `mintUrl` matches no mint in the wallet, grouped by
+         * that url.
+         *
+         * This should always be empty. `proofs.mintUrl` is a denormalized copy of a
+         * mint's LOCATOR, and it is joined to `mint.mintUrl` by string equality
+         * across two persistence engines — proofs in SQLite, mint.mintUrl in the
+         * MMKV snapshot. A crash between those two writes during a mint-url edit
+         * desyncs them, and the balance view then counts the proofs in the unit total
+         * while attributing them to no mint (see `balances`), which also makes them
+         * unspendable, since send and melt select proofs by mint.
+         *
+         * SPENT proofs are excluded: they are outside the balance and are exactly
+         * what a removed mint leaves behind.
+         */
+        findOrphanedProofs(): Array<{mintUrl: string; count: number; amount: number}> {
+            const knownMintUrls = new Set(getRootStore(self).mintsStore.allMints.map((m: Mint) => m.mintUrl))
+            const byMintUrl = new Map<string, {mintUrl: string; count: number; amount: number}>()
+
+            for (const proof of self.proofs.values()) {
+                if (proof.state === 'SPENT') continue
+                if (knownMintUrls.has(proof.mintUrl)) continue
+
+                const entry = byMintUrl.get(proof.mintUrl) ?? {mintUrl: proof.mintUrl, count: 0, amount: 0}
+                entry.count += 1
+                entry.amount += proof.amount
+                byMintUrl.set(proof.mintUrl, entry)
+            }
+
+            return Array.from(byMintUrl.values())
         },
 
         getByMint(
@@ -145,6 +178,37 @@ import {
                 spent: Array.from(self.proofs.values()).filter(p => p.state === 'SPENT').length,
             })
             }),
+
+        /**
+         * Report (never fix, never throw) proofs left pointing at a mint the wallet
+         * does not have — see findOrphanedProofs for how that can happen.
+         *
+         * Deliberately observe-only. The proofs are the user's money: hiding them,
+         * refusing to start, or forcing a recovery would all be worse outcomes than a
+         * total that reads a little high, and the state is self-healing once a mint
+         * is (re-)added at that url. This exists so we learn it happened at all —
+         * otherwise the balance view swallows it silently.
+         *
+         * Call at STARTUP, once proofs and mints are both loaded. Doing this from the
+         * `balances` computed instead would misfire: it re-runs constantly, and mint
+         * removal produces this exact state for a moment (MintsScreen destroys the
+         * mint in one action, moves its proofs to SPENT in the next). At startup the
+         * tree is settled, so anything found here is a genuine, persisted desync.
+         */
+        reportOrphanedProofs(): Array<{mintUrl: string; count: number; amount: number}> {
+            const orphaned = self.findOrphanedProofs()
+            if (orphaned.length === 0) return orphaned
+
+            // error → Sentry in prod: this should be unreachable, and if it is not we
+            // want to know which url and how much is stranded.
+            log.error('[reportOrphanedProofs]', 'Spendable proofs reference a mint not in the wallet', {
+                orphaned,
+                totalAmount: orphaned.reduce((sum, o) => sum + o.amount, 0),
+                knownMintUrls: getRootStore(self).mintsStore.allMints.map((m: Mint) => m.mintUrl),
+            })
+
+            return orphaned
+        },
 
         // Lock proofs locally during an outgoing operation (send, melt prepare, etc.)
         // Does NOT touch pendingByMintSecrets — that is mint-reported pending.
@@ -642,6 +706,20 @@ import {
           const targetMintMap = isPending ? mintPendingMap : mintBalancesMap
           const targetUnitMap = isPending ? unitPendingMap : unitBalancesMap
 
+          // A proof whose mintUrl matches no mint contributes to the UNIT total but
+          // to no mint bucket, so the total can exceed the sum of the mints. That is
+          // deliberate: the sats are real and the user's, and showing a few
+          // unreachable ones is a far better failure than hiding them, blocking
+          // access, or forcing a recovery. It is also self-healing — a mint
+          // (re-)added at that url re-attaches them.
+          //
+          // Detection is NOT done here. `balances` is a MobX computed that re-runs
+          // on every proof and mint change, and mint removal legitimately produces
+          // this state for a moment: MintsScreen destroys the mint in one action and
+          // moves its proofs to SPENT in the next, so reactions observe the gap in
+          // between. Reporting from here would fire on every removal AND on every
+          // recompute. The steady-state check runs once at startup instead — see
+          // reportOrphanedProofs.
           const mintBalance = targetMintMap.get(proof.mintUrl)
           if (mintBalance) {
             mintBalance.balances[proof.unit]! += proof.amount

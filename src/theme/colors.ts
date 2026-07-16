@@ -534,15 +534,3 @@ export const Themes: ThemeList = {
   },
 }
 
-export const getRandomIconColor = () => {
-  const options = [
-    palette.iconBlue200,
-    palette.iconBlue300,
-    palette.iconGreen200,
-    palette.iconGreen300,
-    palette.iconYellow300,
-  ]
-
-  const randomIndex = Math.floor(Math.random() * options.length)
-  return options[randomIndex]
-}

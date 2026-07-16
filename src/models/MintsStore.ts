@@ -11,7 +11,8 @@ import {
   import {MintModel, Mint, MintProofsCounter} from './Mint'
   import {normalizeMintUrl} from '../services/cashu/mintUrl'
   import {log} from '../services/logService'
-  import {Database} from '../services'
+  // Direct import, not the '../services' barrel — see the note in Mint.ts.
+  import {Database} from '../services/db'
   import AppError, { Err } from '../utils/AppError'
   import {
     Mint as CashuMint,

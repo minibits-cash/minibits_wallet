@@ -46,13 +46,8 @@ export const infoMessage = function(message: string, description?: string) {
 }
 
 
-export const generateId = function (lengthInBytes: number) {        
-        const random = QuickCrypto.randomBytes(lengthInBytes)
-        const uint8Array = new Uint8Array(random)
-        
-        const id: string = Buffer.from(uint8Array).toString('hex')
-        log.trace('[generateId]', {id})
-        return id
-}
+// Re-exported for convenience; defined in its own module so the model layer can
+// import it without dragging in this file's UI helpers. See ./generateId.
+export { generateId } from './generateId' 
 
 

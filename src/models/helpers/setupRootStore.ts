@@ -95,6 +95,13 @@ export async function setupRootStore(rootStore: RootStore, opts: SetupRootStoreO
         // hydrate unspent and pending ecash proofs to model from database
         if(!opts.skipProofs) {
             await proofsStore.loadProofsFromDatabase()
+
+            // Both mints (applySnapshot, above) and proofs are now loaded, so the
+            // tree is settled — the one moment this check cannot produce a false
+            // positive. Observe-only: it reports a proofs/mint desync and changes
+            // nothing, because stranded sats reading in the total are a far better
+            // outcome for the user than a wallet that refuses to open.
+            proofsStore.reportOrphanedProofs()
         }
         const proofsHydrated = performance.now()
 

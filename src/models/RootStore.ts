@@ -9,7 +9,8 @@ import {RelaysStoreModel} from './RelaysStore'
 import {WalletStoreModel} from './WalletStore'
 import {NwcStoreModel} from './NwcStore'
 import {AuthStoreModel} from './AuthStore'
-import { log } from '../services'
+// Direct import, not the '../services' barrel — see the note in Mint.ts.
+import { log } from '../services/logService'
 
 export const rootStoreModelVersion = 38 // Update this if model changes require migrations defined in setupRootStore.ts
 /**

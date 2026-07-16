@@ -1,7 +1,8 @@
 import { flow, Instance, isAlive, SnapshotIn, SnapshotOut, types } from 'mobx-state-tree'
 import { log } from '../services/logService'
 import { MintUnit } from '../services/wallet/currency'
-import { Database } from '../services'
+// Direct import, not the '../services' barrel — see the note in Mint.ts.
+import { Database } from '../services/db'
 import { withSetPropAction } from './helpers/withSetPropAction'
 
 
