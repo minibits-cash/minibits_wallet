@@ -440,6 +440,21 @@ function getKeysetIdInt(keysetId: string): bigint {
   }
 }
 
+/**
+ * Whether a keyset id derives via the deprecated BIP-32 path (NUT-13).
+ *
+ * Mirrors cashu-ts `getDerivationKind`: legacy base64 ids and hex ids carrying the
+ * `00` version byte derive at `m/129372'/0'/{keysetIdInt}'/{counter}'`, where
+ * `keysetIdInt` is the id reduced mod 2^31-1 to fit a hardened BIP-32 index.
+ * NUT-02 v2 ids (`01`) instead derive by HMAC-SHA256 over the FULL id, so no
+ * integer is ever computed from them and that reduction cannot alias.
+ */
+function usesBip32Derivation(keysetId: string): boolean {
+  const isHex = /^[0-9a-fA-F]+$/.test(keysetId)
+  if (!isHex) return true // legacy base64 keyset id
+  return keysetId.startsWith('00')
+}
+
 
 const exportProofs = (proofs: Proof[]): CashuProof[] => {  
 
@@ -457,13 +472,39 @@ const exportProofs = (proofs: Proof[]): CashuProof[] => {
 }
 
 
+/**
+ * Reject a keyset whose id collides with one the wallet already holds, per NUT-02:
+ * "Wallet implementations should reject any attempt at importing new keysets which
+ * IDs collide with any of the previously added keysets."
+ *
+ * `storedKeysetIds` is wallet-wide (every keyset of every mint), and upholding this
+ * across mints is what makes a keyset id a sound primary key for a derivation
+ * counter — see MINT_COUNTERS_COLUMNS.
+ *
+ * Two checks, guarding different things:
+ *
+ *  - Exact id equality — always applies. One id means one NUT-13 derivation
+ *    sequence, so two mints sharing an id would share (and burn through) one
+ *    counter.
+ *
+ *  - keysetIdInt equality — ONLY between ids that both derive via the deprecated
+ *    BIP-32 path, where the id is reduced mod 2^31-1 to fit a hardened index and
+ *    two distinct ids that are congruent therefore land on the SAME derivation
+ *    path. NUT-02 v2 (`01`) ids derive by HMAC over the full 32-byte id and never
+ *    compute that integer, so applying the check to them would reject a legitimate
+ *    mint over a number nothing consumes — and would re-impose the ~2^31 birthday
+ *    bound on ids whose whole point is full-width SHA-256 collision resistance.
+ *    Ids of different derivation kinds can never share a path, so they are skipped.
+ */
 function isCollidingKeysetId(
   newKeysetId: string,
   storedKeysetIds: string[],
 ) {
-  const newKeysetIdInt = getKeysetIdInt(newKeysetId)
+  const newUsesBip32 = usesBip32Derivation(newKeysetId)
+  const newKeysetIdInt = newUsesBip32 ? getKeysetIdInt(newKeysetId) : undefined
+
   return storedKeysetIds.some((storedId) => {
-    
+
     if (storedId === newKeysetId) {
       // Colliding keyset ID!
       log.error('[isCollidingKeysetId] Colliding keyset ID', {
@@ -473,14 +514,18 @@ function isCollidingKeysetId(
       return true
     }
 
+    if (!newUsesBip32 || !usesBip32Derivation(storedId)) {
+      return false
+    }
+
     const storedKeysetIdInt = getKeysetIdInt(storedId)
-    
+
     if (storedKeysetIdInt === newKeysetIdInt) {
       // Colliding keyset ID integer!
       log.error('[isCollidingKeysetId] Colliding keyset ID integer', {
         newKeysetId,
         storedId,
-        newKeysetIdInt: newKeysetIdInt.toString(),
+        newKeysetIdInt: newKeysetIdInt!.toString(),
         storedKeysetIdInt: storedKeysetIdInt.toString(),
       })
 

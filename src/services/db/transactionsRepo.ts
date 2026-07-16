@@ -1,4 +1,5 @@
 import {Transaction, TransactionStatus} from '../../models/Transaction'
+import {IN_FLIGHT_STATUSES} from '../../models/TransactionStates'
 import AppError, {Err} from '../../utils/AppError'
 import {log} from '../logService'
 import {getInstance} from './instance'
@@ -45,6 +46,54 @@ export const updateTransaction = function (id: number, fields: Partial<Transacti
     return updated as Transaction
   } catch (e: any) {
     throw dbError('Could not update transaction in database', e)
+  }
+}
+
+/**
+ * Repoint a mint's IN-FLIGHT transactions at its new url, leaving terminal ones
+ * untouched.
+ *
+ * `transactions.mint` carries two meanings, switched by status:
+ *
+ *  - TERMINAL (completed, reverted, …): a historical record of where the payment
+ *    actually happened. Rewriting it would falsify history, so it is frozen.
+ *  - IN-FLIGHT: a LIVE pointer the wallet still calls — checkLightningMintQuote
+ *    (topupOperationApi), checkLightningMeltQuote / checkOnchainMeltQuote
+ *    (transferOperationApi), and findByUrl(tx.mint) on the revert/receive paths.
+ *    Leaving it stale after a mint-url edit strands an open transaction at a dead
+ *    url: a paid topup whose ecash the wallet can never mint.
+ *
+ * One statement, so the status test and the write cannot straddle a concurrent
+ * status transition — a transaction that goes terminal mid-rename is either fully
+ * in or fully out.
+ */
+export const updateInFlightTransactionsMintUrl = function (
+  currentMintUrl: string,
+  updatedMintUrl: string,
+): {updated: number} {
+  try {
+    const statuses = [...IN_FLIGHT_STATUSES]
+    const placeholders = statuses.map(() => '?').join(', ')
+
+    const db = getInstance()
+    const {rowsAffected} = db.execute(
+      `UPDATE transactions
+       SET mint = ?
+       WHERE mint = ? AND status IN (${placeholders})`,
+      [updatedMintUrl, currentMintUrl, ...statuses],
+    )
+
+    const updated = rowsAffected ?? 0
+
+    log.debug('[updateInFlightTransactionsMintUrl]', 'Repointed in-flight transactions', {
+      currentMintUrl,
+      updatedMintUrl,
+      updated,
+    })
+
+    return {updated}
+  } catch (e: any) {
+    throw dbError('Could not update transactions mintUrl in database', e)
   }
 }
 

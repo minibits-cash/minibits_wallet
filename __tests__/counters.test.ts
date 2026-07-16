@@ -1,12 +1,16 @@
 /**
- * Derivation-counter tests (mint_counters migration).
+ * Derivation-counter tests (mint_counters).
  *
  * Verifies the SQL-level semantics that `Database.setCounter`, `bumpCounter`,
  * `seedCounters`, and the `counterUpdate` folded into `commitReservation`
- * implement on top of `executeBatch`. The counter is the BIP32 derivation
+ * implement on top of `executeBatch`. The counter is the NUT-13 derivation
  * high-water mark; the single most important invariant is that it is MONOTONIC
  * — a stored counter can never move backward — because a regression would let
  * the next derivation reuse a blinded secret.
+ *
+ * Rows are keyed by keysetId ALONE. NUT-13 derives from (seed, keysetId,
+ * counter) with no mint component, so one keyset id means one derivation
+ * sequence; see MINT_COUNTERS_COLUMNS.
  *
  * As with proofReservation.test.ts we mirror the exact production SQL using
  * node:sqlite + explicit BEGIN/COMMIT, since the native driver needs a device.
@@ -20,12 +24,10 @@ const NOW = '2026-06-04T00:00:00.000Z'
 // ── Schema (mirrors schema.ts) ──────────────────────────────────────────────
 
 const CREATE_MINT_COUNTERS = `CREATE TABLE mint_counters (
-  mintUrl TEXT NOT NULL,
-  keysetId TEXT NOT NULL,
+  keysetId TEXT PRIMARY KEY NOT NULL,
   unit TEXT,
   counter INTEGER NOT NULL DEFAULT 0,
-  updatedAt TEXT,
-  PRIMARY KEY (mintUrl, keysetId)
+  updatedAt TEXT
 )`
 
 const CREATE_PROOFS = `CREATE TABLE proofs (
@@ -55,33 +57,33 @@ const MINT = 'https://mint.test'
 // ── Mirrored Database primitives (exact production SQL) ─────────────────────
 
 /** countersRepo.buildCounterUpsert / setCounter — monotonic absolute write. */
-function setCounter(db: DatabaseSync, mintUrl: string, keysetId: string, unit: string | null, value: number) {
+function setCounter(db: DatabaseSync, keysetId: string, unit: string | null, value: number) {
     db.prepare(
-        `INSERT INTO mint_counters (mintUrl, keysetId, unit, counter, updatedAt)
-         VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(mintUrl, keysetId) DO UPDATE SET
+        `INSERT INTO mint_counters (keysetId, unit, counter, updatedAt)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(keysetId) DO UPDATE SET
            counter = MAX(counter, excluded.counter),
            unit = excluded.unit,
            updatedAt = excluded.updatedAt`,
-    ).run(mintUrl, keysetId, unit, value, NOW)
+    ).run(keysetId, unit, value, NOW)
 }
 
 /** countersRepo.bumpCounter — relative advance (no-op for delta <= 0). */
-function bumpCounter(db: DatabaseSync, mintUrl: string, keysetId: string, unit: string | null, delta: number) {
+function bumpCounter(db: DatabaseSync, keysetId: string, unit: string | null, delta: number) {
     if (delta <= 0) return
     db.prepare(
-        `INSERT INTO mint_counters (mintUrl, keysetId, unit, counter, updatedAt)
-         VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(mintUrl, keysetId) DO UPDATE SET
+        `INSERT INTO mint_counters (keysetId, unit, counter, updatedAt)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(keysetId) DO UPDATE SET
            counter = counter + ?,
            updatedAt = excluded.updatedAt`,
-    ).run(mintUrl, keysetId, unit, delta, NOW, delta)
+    ).run(keysetId, unit, delta, NOW, delta)
 }
 
-function getCounter(db: DatabaseSync, mintUrl: string, keysetId: string): number | undefined {
+function getCounter(db: DatabaseSync, keysetId: string): number | undefined {
     const row = db
-        .prepare('SELECT counter FROM mint_counters WHERE mintUrl = ? AND keysetId = ?')
-        .get(mintUrl, keysetId) as {counter: number} | undefined
+        .prepare('SELECT counter FROM mint_counters WHERE keysetId = ?')
+        .get(keysetId) as {counter: number} | undefined
     return row?.counter
 }
 
@@ -93,11 +95,11 @@ function counterRowCount(db: DatabaseSync): number {
 /** countersRepo.seedCounters — idempotent monotonic batch. */
 function seedCounters(
     db: DatabaseSync,
-    seeds: Array<{mintUrl: string; keysetId: string; unit?: string; counter: number}>,
+    seeds: Array<{keysetId: string; unit?: string; counter: number}>,
 ) {
     db.exec('BEGIN')
     try {
-        for (const s of seeds) setCounter(db, s.mintUrl, s.keysetId, s.unit ?? null, s.counter)
+        for (const s of seeds) setCounter(db, s.keysetId, s.unit ?? null, s.counter)
         db.exec('COMMIT')
     } catch (e) {
         db.exec('ROLLBACK')
@@ -128,7 +130,7 @@ function commitWithCounter(
     reservationId: string,
     changes: {
         newProofs?: Array<{secret: string; amount: number; state: string}>
-        counterUpdate?: Array<{mintUrl: string; keysetId: string; unit?: string; counter: number}>
+        counterUpdate?: Array<{keysetId: string; unit?: string; counter: number}>
     },
 ) {
     db.exec('BEGIN')
@@ -140,7 +142,7 @@ function commitWithCounter(
         for (const p of changes.newProofs ?? []) insertNew.run(p.amount, p.secret, p.state, NOW)
 
         for (const cu of changes.counterUpdate ?? []) {
-            setCounter(db, cu.mintUrl, cu.keysetId, cu.unit ?? null, cu.counter)
+            setCounter(db, cu.keysetId, cu.unit ?? null, cu.counter)
         }
 
         db.prepare('DELETE FROM reservations WHERE id = ?').run(reservationId)
@@ -165,32 +167,32 @@ describe('Derivation counters (mint_counters)', () => {
     describe('setCounter — monotonic', () => {
         test('inserts a new row when none exists', () => {
             const db = freshDb()
-            setCounter(db, MINT, 'k1', 'sat', 42)
-            expect(getCounter(db, MINT, 'k1')).toBe(42)
+            setCounter(db, 'k1', 'sat', 42)
+            expect(getCounter(db, 'k1')).toBe(42)
             db.close()
         })
 
         test('raises to a higher value', () => {
             const db = freshDb()
-            setCounter(db, MINT, 'k1', 'sat', 100)
-            setCounter(db, MINT, 'k1', 'sat', 150)
-            expect(getCounter(db, MINT, 'k1')).toBe(150)
+            setCounter(db, 'k1', 'sat', 100)
+            setCounter(db, 'k1', 'sat', 150)
+            expect(getCounter(db, 'k1')).toBe(150)
             db.close()
         })
 
         test('NEVER lowers — a smaller value is ignored (the core safety invariant)', () => {
             const db = freshDb()
-            setCounter(db, MINT, 'k1', 'sat', 100)
-            setCounter(db, MINT, 'k1', 'sat', 50) // stale / replayed writer
-            expect(getCounter(db, MINT, 'k1')).toBe(100)
+            setCounter(db, 'k1', 'sat', 100)
+            setCounter(db, 'k1', 'sat', 50) // stale / replayed writer
+            expect(getCounter(db, 'k1')).toBe(100)
             db.close()
         })
 
         test('an equal value is a no-op', () => {
             const db = freshDb()
-            setCounter(db, MINT, 'k1', 'sat', 100)
-            setCounter(db, MINT, 'k1', 'sat', 100)
-            expect(getCounter(db, MINT, 'k1')).toBe(100)
+            setCounter(db, 'k1', 'sat', 100)
+            setCounter(db, 'k1', 'sat', 100)
+            expect(getCounter(db, 'k1')).toBe(100)
             db.close()
         })
     })
@@ -198,46 +200,53 @@ describe('Derivation counters (mint_counters)', () => {
     describe('bumpCounter — relative advance', () => {
         test('inserts from 0 when no row exists', () => {
             const db = freshDb()
-            bumpCounter(db, MINT, 'k1', 'sat', 10)
-            expect(getCounter(db, MINT, 'k1')).toBe(10)
+            bumpCounter(db, 'k1', 'sat', 10)
+            expect(getCounter(db, 'k1')).toBe(10)
             db.close()
         })
 
         test('adds to the existing value', () => {
             const db = freshDb()
-            setCounter(db, MINT, 'k1', 'sat', 100)
-            bumpCounter(db, MINT, 'k1', 'sat', 10)
-            expect(getCounter(db, MINT, 'k1')).toBe(110)
+            setCounter(db, 'k1', 'sat', 100)
+            bumpCounter(db, 'k1', 'sat', 10)
+            expect(getCounter(db, 'k1')).toBe(110)
             db.close()
         })
 
         test('a non-positive delta is a no-op', () => {
             const db = freshDb()
-            setCounter(db, MINT, 'k1', 'sat', 100)
-            bumpCounter(db, MINT, 'k1', 'sat', 0)
-            bumpCounter(db, MINT, 'k1', 'sat', -5)
-            expect(getCounter(db, MINT, 'k1')).toBe(100)
+            setCounter(db, 'k1', 'sat', 100)
+            bumpCounter(db, 'k1', 'sat', 0)
+            bumpCounter(db, 'k1', 'sat', -5)
+            expect(getCounter(db, 'k1')).toBe(100)
             db.close()
         })
     })
 
     describe('primary key isolation', () => {
-        test('different keysets on the same mint are independent', () => {
+        test('different keysets are independent', () => {
             const db = freshDb()
-            setCounter(db, MINT, 'k1', 'sat', 100)
-            setCounter(db, MINT, 'k2', 'sat', 7)
-            expect(getCounter(db, MINT, 'k1')).toBe(100)
-            expect(getCounter(db, MINT, 'k2')).toBe(7)
+            setCounter(db, 'k1', 'sat', 100)
+            setCounter(db, 'k2', 'sat', 7)
+            expect(getCounter(db, 'k1')).toBe(100)
+            expect(getCounter(db, 'k2')).toBe(7)
             expect(counterRowCount(db)).toBe(2)
             db.close()
         })
 
-        test('the same keyset id on different mints is independent', () => {
+        // The inverse of this used to be asserted (and implemented): a
+        // (mintUrl, keysetId) key let ONE keyset carry two counters. NUT-13
+        // derives from (seed, keysetId, counter) with no mint component, so both
+        // rows drove the same derivation path and the lower one reused blinded
+        // secrets the mint had already signed. One keyset id, one counter — no
+        // matter which mint url served the keyset.
+        test('one keyset id has exactly ONE counter, whatever mint served it', () => {
             const db = freshDb()
-            setCounter(db, MINT, 'k1', 'sat', 100)
-            setCounter(db, 'https://other.test', 'k1', 'sat', 5)
-            expect(getCounter(db, MINT, 'k1')).toBe(100)
-            expect(getCounter(db, 'https://other.test', 'k1')).toBe(5)
+            setCounter(db, 'k1', 'sat', 100)
+            // The same keyset seen again after a mint-url edit / via a mirror.
+            setCounter(db, 'k1', 'sat', 5)
+            expect(getCounter(db, 'k1')).toBe(100) // monotonic, not a second row
+            expect(counterRowCount(db)).toBe(1)
             db.close()
         })
     })
@@ -246,32 +255,32 @@ describe('Derivation counters (mint_counters)', () => {
         test('seeds every supplied counter', () => {
             const db = freshDb()
             seedCounters(db, [
-                {mintUrl: MINT, keysetId: 'k1', unit: 'sat', counter: 100},
-                {mintUrl: MINT, keysetId: 'k2', unit: 'sat', counter: 50},
+                {keysetId: 'k1', unit: 'sat', counter: 100},
+                {keysetId: 'k2', unit: 'sat', counter: 50},
             ])
-            expect(getCounter(db, MINT, 'k1')).toBe(100)
-            expect(getCounter(db, MINT, 'k2')).toBe(50)
+            expect(getCounter(db, 'k1')).toBe(100)
+            expect(getCounter(db, 'k2')).toBe(50)
             db.close()
         })
 
         test('is idempotent — re-running never lowers an advanced counter', () => {
             const db = freshDb()
             // First upgrade seed copies the (then current) MMKV values.
-            seedCounters(db, [{mintUrl: MINT, keysetId: 'k1', unit: 'sat', counter: 100}])
+            seedCounters(db, [{keysetId: 'k1', unit: 'sat', counter: 100}])
             // Wallet advances past it during normal use.
-            setCounter(db, MINT, 'k1', 'sat', 175)
+            setCounter(db, 'k1', 'sat', 175)
             // A later launch re-runs the seed with the now-stale snapshot value.
-            seedCounters(db, [{mintUrl: MINT, keysetId: 'k1', unit: 'sat', counter: 100}])
+            seedCounters(db, [{keysetId: 'k1', unit: 'sat', counter: 100}])
             // The advanced SQLite value wins — the seed cannot regress it.
-            expect(getCounter(db, MINT, 'k1')).toBe(175)
+            expect(getCounter(db, 'k1')).toBe(175)
             db.close()
         })
 
         test('a too-high seed is kept (conservative-safe: skips indices, never reuses)', () => {
             const db = freshDb()
-            setCounter(db, MINT, 'k1', 'sat', 100)
-            seedCounters(db, [{mintUrl: MINT, keysetId: 'k1', unit: 'sat', counter: 9999}])
-            expect(getCounter(db, MINT, 'k1')).toBe(9999)
+            setCounter(db, 'k1', 'sat', 100)
+            seedCounters(db, [{keysetId: 'k1', unit: 'sat', counter: 9999}])
+            expect(getCounter(db, 'k1')).toBe(9999)
             db.close()
         })
     })
@@ -279,21 +288,21 @@ describe('Derivation counters (mint_counters)', () => {
     describe('atomic commit (counterUpdate folded into commitReservation)', () => {
         test('persists the counter in the SAME txn as the new proofs', () => {
             const db = freshDb()
-            setCounter(db, MINT, 'k1', 'sat', 100)
+            setCounter(db, 'k1', 'sat', 100)
 
             commitWithCounter(db, 'res-1', {
                 newProofs: [{secret: 'new1', amount: 50, state: 'UNSPENT'}],
-                counterUpdate: [{mintUrl: MINT, keysetId: 'k1', unit: 'sat', counter: 110}],
+                counterUpdate: [{keysetId: 'k1', unit: 'sat', counter: 110}],
             })
 
             expect(getProofState(db, 'new1')).toBe('UNSPENT')
-            expect(getCounter(db, MINT, 'k1')).toBe(110)
+            expect(getCounter(db, 'k1')).toBe(110)
             db.close()
         })
 
         test('a failed commit batch rolls back BOTH the proofs and the counter', () => {
             const db = freshDb()
-            setCounter(db, MINT, 'k1', 'sat', 100)
+            setCounter(db, 'k1', 'sat', 100)
 
             // Force a failure mid-batch (NOT NULL violation on amount) AFTER the
             // proof insert and counter upsert have run in the same transaction.
@@ -304,7 +313,7 @@ describe('Derivation counters (mint_counters)', () => {
                         `INSERT OR REPLACE INTO proofs (id, amount, secret, C, mintUrl, unit, tId, state, updatedAt)
                          VALUES ('keyset1', 50, 'new1', 'C', '${MINT}', 'sat', 1, 'UNSPENT', '${NOW}')`,
                     ).run()
-                    setCounter(db, MINT, 'k1', 'sat', 110)
+                    setCounter(db, 'k1', 'sat', 110)
                     // Violates NOT NULL on amount → aborts the whole batch.
                     db.prepare(
                         `INSERT INTO proofs (id, amount, secret, C, state) VALUES ('keyset1', NULL, 'bad', 'C', 'UNSPENT')`,
@@ -318,22 +327,22 @@ describe('Derivation counters (mint_counters)', () => {
 
             // Neither the proof nor the counter advance survived.
             expect(getProofState(db, 'new1')).toBe('')
-            expect(getCounter(db, MINT, 'k1')).toBe(100)
+            expect(getCounter(db, 'k1')).toBe(100)
             db.close()
         })
 
         test('counterUpdate stays monotonic inside the commit batch', () => {
             const db = freshDb()
-            setCounter(db, MINT, 'k1', 'sat', 200)
+            setCounter(db, 'k1', 'sat', 200)
 
             // A commit carrying a stale (lower) counter must not regress it.
             commitWithCounter(db, 'res-2', {
                 newProofs: [{secret: 'new2', amount: 10, state: 'UNSPENT'}],
-                counterUpdate: [{mintUrl: MINT, keysetId: 'k1', unit: 'sat', counter: 150}],
+                counterUpdate: [{keysetId: 'k1', unit: 'sat', counter: 150}],
             })
 
             expect(getProofState(db, 'new2')).toBe('UNSPENT')
-            expect(getCounter(db, MINT, 'k1')).toBe(200)
+            expect(getCounter(db, 'k1')).toBe(200)
             db.close()
         })
     })

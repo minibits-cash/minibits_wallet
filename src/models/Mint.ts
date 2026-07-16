@@ -1,4 +1,4 @@
-import {cast, detach, flow, getParent, getRoot, getSnapshot, IAnyStateTreeNode, Instance, isAlive, IStateTreeNode, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
+import {cast, detach, flow, getRoot, getSnapshot, IAnyStateTreeNode, Instance, isAlive, IStateTreeNode, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {
     type GetInfoResponse,
@@ -17,6 +17,7 @@ import { getRootStore } from './helpers/getRootStore'
 import { generateId } from '../utils/utils'
 import { Proof } from './Proof'
 import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
+import { normalizeMintUrl } from '../services/cashu/mintUrl'
 
 /**
  * A mint payment method — the rail the mint settles on.
@@ -74,9 +75,11 @@ const migrateSnapshot = (snapshot: any): any => {
  * counter persistence ("W1").
  *
  * `mode: 'set'` persists an absolute value monotonically (never lowers);
- * `mode: 'bump'` advances by a relative delta. The (mint, keyset) identity is
- * read from the parent Mint node — a counter is always nested two levels up
- * (counter -> proofsCounters array -> Mint).
+ * `mode: 'bump'` advances by a relative delta. The keyset id is the entire
+ * identity: NUT-13 derives from (seed, keysetId, counter), so a counter needs no
+ * mint reference. This used to walk two levels up the tree for the parent Mint's
+ * url — which meant a counter not yet attached to a Mint silently dropped its
+ * write, and a mint-url edit orphaned the row it had been writing to.
  *
  * This fires the instant cashu derives (right after onCountersReserved, BEFORE
  * the reservation commit), so the advance is durable the moment the mint could
@@ -89,29 +92,18 @@ const migrateSnapshot = (snapshot: any): any => {
  * not break a wallet flow, and there is a complementary safety net —
  * commitReservation re-persists this same value ATOMICALLY with the proofs
  * ("W2", see reservationsRepo), so even if this write is dropped a successful
- * commit cannot leave the counter behind its proofs. A detached instance (a
- * counter freshly created by createProofsCounter, not yet pushed onto a Mint)
- * has no parent and is a no-op here.
+ * commit cannot leave the counter behind its proofs.
  */
 const persistCounter = (self: any, mode: 'set' | 'bump', value: number): void => {
-    let mintUrl: string | undefined
-    try {
-        mintUrl = getParent<any>(self, 2)?.mintUrl
-    } catch {
-        return // not attached to a Mint (freshly created counter) — nothing to persist
-    }
-    if (!mintUrl) return
-
     try {
         if (mode === 'set') {
-            Database.setCounter(mintUrl, self.keyset, self.unit, value)
+            Database.setCounter(self.keyset, self.unit, value)
         } else {
-            Database.bumpCounter(mintUrl, self.keyset, self.unit, value)
+            Database.bumpCounter(self.keyset, self.unit, value)
         }
     } catch (e: any) {
         log.error('[persistCounter]', 'Counter write-through failed', {
             error: e?.message,
-            mintUrl,
             keyset: self.keyset,
         })
     }
@@ -457,16 +449,8 @@ export const MintModel = types
                 return existing
             }
 
-            self.addKeys(key)            
-            log.trace('[initKeys]', {newKeys: key.id})                   
-        },
-        validateURL(url: string) {
-            try {
-                new URL(url)
-                return true
-            } catch (e) {
-                return false
-            }
+            self.addKeys(key)
+            log.trace('[initKeys]', {newKeys: key.id})
         },
     }))
     .actions(self => ({
@@ -518,26 +502,6 @@ export const MintModel = types
                 self.hostname = new URL(self.mintUrl).hostname
             } catch (e) {
                 return false
-            }
-        },
-        setMintUrl(url: string) {
-            if(self.validateURL(url)) {
-                const mintsStore = getRootStore(self).mintsStore
-
-                //log.trace('[setMintUrl]', {mintsStore})
-
-                if(!mintsStore.alreadyExists(url)) {
-
-                    const proofsStore = getRootStore(self).proofsStore
-                    proofsStore.updateMintUrl(self.mintUrl, url) // update mintUrl on mint's proofs                    
-                    self.mintUrl = url
-                    
-                    return true
-                }
-
-                throw new AppError(Err.VALIDATION_ERROR, 'Mint URL already exists.', {url})
-            } else {
-                throw new AppError(Err.VALIDATION_ERROR, 'Invalid Mint URL.', {url})
             }
         },
         setId() { // migration
@@ -602,7 +566,68 @@ export const MintModel = types
         },
         get keysetIds(): string[] {
             return self.keysets.map(k => k.id)
-        }        
+        }
+     }))
+    // Declared after the block holding setHostname so it can call it — MST types
+    // `self` without the actions of its own block.
+    .actions(self => ({
+        /**
+         * Move this mint to a new url, carrying over the state that points at it
+         * BY url.
+         *
+         * A mint url is a network LOCATOR, not an identity — the mint here is the
+         * same mint (callers confirm that by matching keysets), it just answers
+         * somewhere else now. So everything addressed by the old location has to
+         * follow. What follows, and what deliberately does not:
+         *
+         *  - proofs — repointed. `proofs.mintUrl` is how a balance is found.
+         *  - in-flight transactions — repointed. Their `mint` is a live pointer the
+         *    wallet still calls; stale, it strands an open payment at a dead url.
+         *  - terminal transactions — NOT repointed. There the url is a historical
+         *    record of where the payment happened. See
+         *    Database.updateInFlightTransactionsMintUrl.
+         *  - derivation counters — nothing to do: keyed by keysetId, which no url
+         *    edit can disturb (see MINT_COUNTERS_COLUMNS).
+         *
+         * NOT yet carried over — each still keyed by url, and tracked as step 3 of
+         * the mint-identity work: onchain mint quotes, in-flight requests, melt
+         * recovery rows, and open reservations. Renaming a mint with any of those
+         * outstanding still strands them.
+         *
+         * Validation runs through the same normalizer as `addMint`, so a rename can
+         * no longer install a url that adding the same mint would have rejected.
+         */
+        setMintUrl(url: string) {
+            // Throws AppError(VALIDATION_ERROR) on a malformed or non-https url.
+            const normalized = normalizeMintUrl(url)
+            const currentMintUrl = self.mintUrl
+
+            // Renaming to the url already held (or merely its trailing-slash
+            // spelling) is a no-op, not a duplicate — the check below would
+            // otherwise match this very mint and reject.
+            if (normalized === currentMintUrl) {
+                return true
+            }
+
+            const {mintsStore, proofsStore, transactionsStore} = getRootStore(self)
+
+            // mintExists (normalized), not alreadyExists (literal string compare):
+            // the latter misses a twin differing only by a trailing slash, which
+            // would let one real mint become two Mint nodes.
+            if (mintsStore.mintExists(normalized)) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Mint URL already exists.', {url: normalized})
+            }
+
+            proofsStore.updateMintUrl(currentMintUrl, normalized)
+            transactionsStore.updateMintUrl(currentMintUrl, normalized)
+
+            self.mintUrl = normalized
+            self.setHostname() // derived from mintUrl — stale until recomputed
+
+            log.debug('[setMintUrl]', 'Mint url updated', {currentMintUrl, updatedMintUrl: normalized})
+
+            return true
+        },
      }))
     
     

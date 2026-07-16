@@ -173,7 +173,6 @@ export const commitReservation = function (
      * next derivation reuse a blinded secret. Each upsert is monotonic.
      */
     counterUpdate?: Array<{
-      mintUrl: string
       keysetId: string
       unit?: string
       counter: number
@@ -262,7 +261,7 @@ export const commitReservation = function (
     }
 
     for (const cu of changes.counterUpdate ?? []) {
-      batch.push(buildCounterUpsert(cu.mintUrl, cu.keysetId, cu.unit, cu.counter, now))
+      batch.push(buildCounterUpsert(cu.keysetId, cu.unit, cu.counter, now))
     }
 
     batch.push([`DELETE FROM reservations WHERE id = ?`, [reservationId]])

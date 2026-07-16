@@ -70,7 +70,7 @@ export const RESERVATIONS_COLUMNS = `
 `
 
 /**
- * Per-keyset deterministic-derivation counter (the BIP32 high-water mark).
+ * Per-keyset deterministic-derivation counter (the NUT-13 high-water mark).
  *
  * Authoritative store for the counter previously held only in the MST
  * `MintProofsCounter` model and persisted to MMKV via the whole-tree snapshot.
@@ -78,16 +78,26 @@ export const RESERVATIONS_COLUMNS = `
  * derives (same SQLite transaction) and makes SQLite the single source of truth,
  * closing the cross-engine non-atomicity that risked blinded-secret reuse.
  *
- * Keyed by (mintUrl, keysetId): a keyset id is mint-scoped, and keying on the
- * url keeps the row addressable across mint-url edits.
+ * Keyed by keysetId ALONE, because that is the real key space: NUT-13 derives
+ * from (seed, keysetId, counter) and the mint url is not an input. A `00` id
+ * derives at `m/129372'/0'/{keysetIdInt}'/{counter}'`, a v2 `01` id by HMAC-SHA256
+ * over the id — neither path has a mint component, so one keyset id means exactly
+ * one derivation sequence regardless of which url served it.
+ *
+ * This was `PRIMARY KEY (mintUrl, keysetId)`, which asserted a key space that does
+ * not exist. Two rows could track one derivation path independently, and a
+ * mint-url edit left the counter unaddressable — hydration found no row, silently
+ * restarted the counter at 0, and risked blinded-secret reuse.
+ *
+ * Sound because global keyset-id uniqueness is enforced at the door by
+ * CashuUtils.isCollidingKeysetId, per NUT-02's requirement that wallets reject
+ * keysets colliding with any already held.
  */
 export const MINT_COUNTERS_COLUMNS = `
-  mintUrl TEXT NOT NULL,
-  keysetId TEXT NOT NULL,
+  keysetId TEXT PRIMARY KEY NOT NULL,
   unit TEXT,
   counter INTEGER NOT NULL DEFAULT 0,
-  updatedAt TEXT,
-  PRIMARY KEY (mintUrl, keysetId)
+  updatedAt TEXT
 `
 
 /**
@@ -132,11 +142,11 @@ export const INFLIGHT_REQUESTS_COLUMNS = `
 /**
  * Wallet-global deterministic-derivation counters, keyed by purpose name.
  *
- * Distinct from `mint_counters`, which is keyed by (mintUrl, keysetId) because
- * NUT-13 keyset counters are mint-scoped. The counters here belong to derivation
- * paths that have NO mint or keyset component, so a single value serves the whole
- * wallet. The first is NUT-20 quote-locking (`m/129373'/20'/0'/0'/{counter}`);
- * the table is keyed by name so future wallet-global counters need no migration.
+ * Distinct from `mint_counters`, which is keyed by keysetId because a NUT-13
+ * counter is keyset-scoped. The counters here belong to derivation paths that
+ * have NO keyset component either, so a single value serves the whole wallet. The
+ * first is NUT-20 quote-locking (`m/129373'/20'/0'/0'/{counter}`); the table is
+ * keyed by name so future wallet-global counters need no migration.
  *
  * `counter` is the NEXT FREE index (a high-water mark), matching the semantics of
  * `mint_counters` (which stores cashu-ts's `next`). Allocation increments and
@@ -197,6 +207,9 @@ export const createTable = (
 /** Ordered list of column names for the proofs table (drives the v25 copy). */
 export const PROOFS_COLUMN_NAMES =
   'id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl, state, updatedAt'
+
+/** Ordered column names for mint_counters (drives the v32 re-key rebuild). */
+export const MINT_COUNTERS_COLUMN_NAMES = 'keysetId, unit, counter, updatedAt'
 
 /** First-run schema creation, run inside a single batch transaction. */
 export const createSchemaQueries: SQLBatchTuple[] = [

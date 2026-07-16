@@ -4,9 +4,9 @@ import {dbError} from './errors'
 // ─────────────────────────────────────────────────────────────────────────────
 // Wallet-global deterministic-derivation counters, keyed by purpose name.
 //
-// Sibling of countersRepo, which owns the per-(mint, keyset) NUT-13 counters.
-// The counters here belong to derivation paths with NO mint or keyset component,
-// so one value serves the whole wallet. First user: NUT-20 quote-locking keys
+// Sibling of countersRepo, which owns the per-keyset NUT-13 counters. The
+// counters here belong to derivation paths with NO keyset component, so one value
+// serves the whole wallet. First user: NUT-20 quote-locking keys
 // (`m/129373'/20'/0'/0'/{counter}`).
 //
 // The stored `counter` is the NEXT FREE index. Allocation is BURN-FORWARD: the

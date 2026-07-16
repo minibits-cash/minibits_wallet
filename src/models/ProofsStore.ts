@@ -203,7 +203,17 @@ import {
             }
         },
 
+        /**
+         * Repoint this mint's proofs at its new url (see Mint.setMintUrl).
+         *
+         * SQLite first: a failed write then propagates with the MST tree still
+         * matching the database. The reverse order would leave memory holding a url
+         * SQLite never got — the UI would show the balance under the new mint until
+         * the next restart silently moved it back.
+         */
         updateMintUrl(currentMintUrl: string, updatedMintUrl: string) {
+            Database.updateProofsMintUrl(currentMintUrl, updatedMintUrl)
+
             const updateInMap = (map: typeof self.proofs) => {
                 for (const proof of map.values()) {
                     if (proof.mintUrl === currentMintUrl) {
@@ -219,7 +229,6 @@ import {
 
             updateInMap(self.proofs)
 
-            Database.updateProofsMintUrl(currentMintUrl, updatedMintUrl)
             log.trace('[updateMintUrl] Updated mint URL in proofs')
         },
 
@@ -354,7 +363,7 @@ import {
             // backstop, so a committed proof can never outlive its counter even if
             // the W1 write-through was dropped. Monotonic, so the normal-path
             // double write is a harmless no-op.
-            const counterUpdate: Array<{mintUrl: string; keysetId: string; unit?: string; counter: number}> = []
+            const counterUpdate: Array<{keysetId: string; unit?: string; counter: number}> = []
             const seenKeysets = new Set<string>()
             for (const group of changes.newProofs ?? []) {
                 for (const proof of group.proofs) {
@@ -363,7 +372,6 @@ import {
                     const counter = mintInstance.getProofsCounter(proof.id)
                     if (counter) {
                         counterUpdate.push({
-                            mintUrl: reservation.mintUrl,
                             keysetId: proof.id,
                             unit: counter.unit,
                             counter: counter.counter,

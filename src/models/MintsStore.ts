@@ -8,7 +8,8 @@ import {
     flow,
   } from 'mobx-state-tree'
   import {withSetPropAction} from './helpers/withSetPropAction'
-  import {MintModel, Mint} from './Mint'
+  import {MintModel, Mint, MintProofsCounter} from './Mint'
+  import {normalizeMintUrl} from '../services/cashu/mintUrl'
   import {log} from '../services/logService'
   import {Database} from '../services'
   import AppError, { Err } from '../utils/AppError'
@@ -67,31 +68,34 @@ export const MintsStoreModel = types
          * Load the authoritative counter values from SQLite into the in-memory
          * cache (startup / foreground resume). Monotonic per counter, so a value
          * already advanced in memory is never lowered.
+         *
+         * Matched on keysetId alone. Keyset ids are unique wallet-wide (enforced by
+         * CashuUtils.isCollidingKeysetId), so the owning mint is whichever one holds
+         * the keyset — and a mint-url edit no longer strands the row, which used to
+         * leave the counter at its volatile 0 and risk blinded-secret reuse.
          */
         hydrateCountersFromDatabase() {
             const rows = Database.getCounters()
+            if (rows.length === 0) return
+
+            const countersByKeyset = new Map<string, MintProofsCounter>()
+            for (const mint of self.mints) {
+                for (const counter of mint.proofsCounters) {
+                    countersByKeyset.set(counter.keyset, counter)
+                }
+            }
 
             for (const row of rows) {
-                const mint = self.mints.find(m => m.mintUrl === row.mintUrl)
-                const counter = mint?.proofsCounters.find(c => c.keyset === row.keysetId)
-                if (counter) {
-                    counter.hydrateCounterFromDb(row.counter)
-                }
+                countersByKeyset.get(row.keysetId)?.hydrateCounterFromDb(row.counter)
             }
         },
     }))
     .actions(self => ({
         addMint: flow(function* addMint(mintUrl: string) {
-            if(!mintUrl) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Mint URL is required.')
-            }
-
-            // Cashu spec: mint URL must be stripped of trailing slashes
-            mintUrl = mintUrl.replace(/\/$/, '')
-
-            if(!mintUrl.includes('.onion') && !mintUrl.startsWith('https')) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Mint URL needs to start with https.')
-            }
+            // Strips trailing slashes (cashu spec) and requires https outside Tor.
+            // Shared with Mint.setMintUrl so adding and renaming cannot disagree
+            // about what a valid mint url is.
+            mintUrl = normalizeMintUrl(mintUrl)
 
             if(self.mintExists(mintUrl)) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint URL already exists.', {mintUrl})
@@ -144,10 +148,11 @@ export const MintsStoreModel = types
 
             self.mints.push(mintInstance)
 
-            // SQLite retains derivation counters by (mintUrl, keysetId) across
-            // mint removal (rows are never deleted), so a re-added mint recovers
-            // its real counter from the authority here. Monotonic, so a genuinely
-            // new mint (no row) simply stays at 0.
+            // SQLite retains derivation counters by keysetId across mint removal
+            // (rows are never deleted), so a re-added mint recovers its real
+            // counter from the authority here — now also when it is re-added under
+            // a DIFFERENT url, since the row is keyed by keyset, not location.
+            // Monotonic, so a genuinely new mint (no row) simply stays at 0.
             self.hydrateCountersFromDatabase()
 
             return mintInstance

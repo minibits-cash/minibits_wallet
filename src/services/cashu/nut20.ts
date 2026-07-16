@@ -15,9 +15,9 @@
  *     m/129373'/20'/0'/0'/{counter}
  *
  * where 129373' is the Cashu namespace, 20' the NUT-20 index, and {counter} an
- * incrementing NON-hardened child index. The path has no mint or keyset
- * component, so the counter is wallet-global — see walletCountersRepo, which owns
- * it (mint_counters is for the mint-scoped NUT-13 counters and is unrelated).
+ * incrementing NON-hardened child index. The path has no keyset component, so the
+ * counter is wallet-global — see walletCountersRepo, which owns it (mint_counters
+ * is for the keyset-scoped NUT-13 counters and is unrelated).
  *
  * The spec asks for a UNIQUE key per quote, so the mint cannot link a wallet's
  * quotes to each other. `allocateQuoteKeypair` is the only thing call sites

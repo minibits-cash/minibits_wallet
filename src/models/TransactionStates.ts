@@ -204,7 +204,14 @@ const TERMINAL_STATUSES: ReadonlySet<TransactionStatus> = new Set([
     TransactionStatus.RECOVERED,
 ])
 
-const IN_FLIGHT_STATUSES: ReadonlySet<TransactionStatus> = new Set([
+/**
+ * Statuses in which a transaction is still open — the complement of
+ * TERMINAL_STATUSES. Exported because it is not only a type-narrowing concern:
+ * an open transaction's `mint` url is a LIVE pointer the wallet still calls,
+ * whereas a terminal one's is a historical record (see
+ * Database.updateInFlightTransactionsMintUrl).
+ */
+export const IN_FLIGHT_STATUSES: ReadonlySet<TransactionStatus> = new Set([
     TransactionStatus.DRAFT,
     TransactionStatus.PREPARED,
     TransactionStatus.PREPARED_OFFLINE,

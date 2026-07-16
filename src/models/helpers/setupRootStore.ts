@@ -265,7 +265,7 @@ async function _runMigrations(rootStore: RootStore, restoredState: any) {
             for (const mint of restoredState?.mintsStore?.mints ?? []) {
                 for (const counter of mint?.proofsCounters ?? []) {
                     if (counter?.keyset && typeof counter.counter === 'number' && counter.counter > 0) {
-                        seeds.push({mintUrl: mint.mintUrl, keysetId: counter.keyset, unit: counter.unit, counter: counter.counter})
+                        seeds.push({keysetId: counter.keyset, unit: counter.unit, counter: counter.counter})
                     }
                 }
             }
@@ -342,7 +342,7 @@ async function _runMigrations(rootStore: RootStore, restoredState: any) {
             for (const backup of restoredState?.mintsStore?.counterBackups ?? []) {
                 for (const c of backup?.counters ?? []) {
                     if (c?.keyset && typeof c.counter === 'number' && c.counter > 0) {
-                        seeds.push({mintUrl: backup.mintUrl, keysetId: c.keyset, unit: c.unit, counter: c.counter})
+                        seeds.push({keysetId: c.keyset, unit: c.unit, counter: c.counter})
                     }
                 }
             }

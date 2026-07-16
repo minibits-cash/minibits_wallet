@@ -217,7 +217,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
             // backup JSON still carries it, so read it off the raw value.
             const counter = (pc as any).counter
             if (pc?.keyset && typeof counter === 'number' && counter > 0) {
-              counterSeeds.push({mintUrl: mint.mintUrl, keysetId: pc.keyset, unit: pc.unit, counter})
+              counterSeeds.push({keysetId: pc.keyset, unit: pc.unit, counter})
             }
           }
         }

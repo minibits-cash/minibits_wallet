@@ -12,6 +12,7 @@ import {
     TransactionStatus,
     TransactionType,
 } from './Transaction'
+import { isInFlight } from './TransactionStates'
 import { Database } from '../services'
 import { log } from '../services/logService'
 import { getRootStore } from './helpers/getRootStore'
@@ -152,6 +153,28 @@ export const TransactionsStoreModel = types
 
             self.recentByUnit.replace(newList)
             log.trace('[pruneRecentByUnit]', `${recent.length - keepIds.size} pruned for unit ${unit}`)
+        },
+
+        /**
+         * Mirror a mint-url edit onto in-flight transactions only — see
+         * Database.updateInFlightTransactionsMintUrl for why terminal rows keep
+         * the url their payment actually used.
+         *
+         * SQLite first: if the write throws, the exception propagates with the MST
+         * tree still matching the database. Updating memory first would leave the
+         * UI reading a url the database does not have, which the next restart
+         * would silently revert.
+         */
+        updateMintUrl(currentMintUrl: string, updatedMintUrl: string) {
+            Database.updateInFlightTransactionsMintUrl(currentMintUrl, updatedMintUrl)
+
+            for (const tx of self.transactionsMap.values()) {
+                if (tx.mint === currentMintUrl && isInFlight(tx)) {
+                    tx.setProp('mint', updatedMintUrl)
+                }
+            }
+
+            log.trace('[updateMintUrl] Repointed in-flight transactions', {currentMintUrl, updatedMintUrl})
         },
 
         pruneRecentWithoutCurrentMint() {

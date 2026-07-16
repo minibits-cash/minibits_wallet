@@ -1,10 +1,10 @@
 import {DbConnection, SQLBatchTuple} from './connection'
-import {createTable, PROOFS_COLUMNS, PROOFS_COLUMN_NAMES, RESERVATIONS_COLUMNS, MINT_COUNTERS_COLUMNS, MELT_RECOVERY_COLUMNS, INFLIGHT_REQUESTS_COLUMNS, WALLET_COUNTERS_COLUMNS, ONCHAIN_MINT_QUOTES_COLUMNS} from './schema'
+import {createTable, PROOFS_COLUMNS, PROOFS_COLUMN_NAMES, RESERVATIONS_COLUMNS, MINT_COUNTERS_COLUMNS, MINT_COUNTERS_COLUMN_NAMES, MELT_RECOVERY_COLUMNS, INFLIGHT_REQUESTS_COLUMNS, WALLET_COUNTERS_COLUMNS, ONCHAIN_MINT_QUOTES_COLUMNS} from './schema'
 import {dbError} from './errors'
 import {log} from '../logService'
 
 /** Bump this when a schema change requires a migration, then add an entry below. */
-export const _dbVersion = 31
+export const _dbVersion = 32
 
 type Migration = {version: number; queries: SQLBatchTuple[]}
 
@@ -108,6 +108,35 @@ const MIGRATIONS: Migration[] = [
     queries: [
       [createTable('onchain_mint_quotes', ONCHAIN_MINT_QUOTES_COLUMNS)],
       [`ALTER TABLE transactions ADD COLUMN outpoint TEXT`],
+    ],
+  },
+  {
+    // Re-key mint_counters on keysetId alone, dropping mintUrl from the primary
+    // key. NUT-13 derives from (seed, keysetId, counter) with no mint component,
+    // so (mintUrl, keysetId) described a key space that does not exist: it let two
+    // rows track ONE derivation path independently, and left a counter
+    // unaddressable after a mint-url edit (hydration matched on url, found no row,
+    // and silently restarted the counter at 0 — reusing blinded secrets).
+    //
+    // Any such split is healed here rather than merely prevented: duplicates
+    // collapse to MAX(counter), the conservative direction, which can skip indices
+    // but never reuse them. SQLite's bare-column rule for a single-aggregate query
+    // takes `unit`/`updatedAt` from the same row that supplied MAX(counter), so
+    // the surviving row is internally consistent.
+    //
+    // No DROP COLUMN (unsupported on older SQLite), so the table is rebuilt from
+    // the canonical column definition.
+    version: 32,
+    queries: [
+      [createTable('mint_counters_v32', MINT_COUNTERS_COLUMNS, false)],
+      [
+        `INSERT INTO mint_counters_v32 (${MINT_COUNTERS_COLUMN_NAMES})
+         SELECT keysetId, unit, MAX(counter), updatedAt
+         FROM mint_counters
+         GROUP BY keysetId`,
+      ],
+      [`DROP TABLE mint_counters`],
+      [`ALTER TABLE mint_counters_v32 RENAME TO mint_counters`],
     ],
   },
 ]
