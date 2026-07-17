@@ -1,27 +1,50 @@
-import {cast, detach, flow, getParent, getRoot, getSnapshot, IAnyStateTreeNode, Instance, isAlive, IStateTreeNode, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
+import {cast, detach, flow, getRoot, getSnapshot, IAnyStateTreeNode, Instance, isAlive, IStateTreeNode, SnapshotIn, SnapshotOut, types} from 'mobx-state-tree'
 import {withSetPropAction} from './helpers/withSetPropAction'
 import {
     type GetInfoResponse,
     type MintKeys as CashuMintKeys,
     type MintKeyset as CashuMintKeyset,
+    type MintMethod,
+    type SwapMethod,
     Mint as CashuMint,
 } from '@cashu/cashu-ts'
-import {colors, getRandomIconColor} from '../theme'
-import { log, Database } from '../services'
+// From '../theme/colors', NOT the '../theme' barrel. The barrel re-exports
+// useThemeColor, which imports '../services' — so a barrel import here would make
+// this model transitively depend on mmkvStorage, keyChain (and nostr-tools) and the
+// database, purely to read two colour constants. colors.ts imports nothing but
+// react-native.
+import {colors} from '../theme/colors'
+// Direct imports, NOT the '../services' barrel: that barrel re-exports
+// walletService -> syncQueueService -> notificationService (notifee) and keyChain
+// (nostr-tools), so a barrel import here makes this model transitively depend on
+// most of the app — and on native modules — to read a logger and the db facade.
+import { log } from '../services/logService'
+import { Database } from '../services/db'
 
 import AppError, { Err } from '../utils/AppError'
 import { MintUnit, MintUnits } from '../services/wallet/currency'
 import { getRootStore } from './helpers/getRootStore'
-import { generateId } from '../utils/utils'
+import { generateId } from '../utils/generateId'
 import { Proof } from './Proof'
 import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
+import { normalizeMintUrl } from '../services/cashu/mintUrl'
+
+/**
+ * A mint payment method — the rail the mint settles on.
+ *
+ * Aliased from cashu-ts so the set cannot drift from the library's. Note the
+ * wallet only implements bolt11 today; `onchain` arrives with NUT-30 and
+ * `bolt12` is advertised by some mints but not yet supported here. The capability
+ * views below can answer for any of them.
+ */
+export type PaymentMethod = MintMethod
 
 export type MintBalance = {
     mintUrl: string
     balances: {
         [key in MintUnit]?: number
-    }   
-}  
+    }
+}
 
 export type UnitBalance = {    
     unitBalance: number
@@ -62,9 +85,11 @@ const migrateSnapshot = (snapshot: any): any => {
  * counter persistence ("W1").
  *
  * `mode: 'set'` persists an absolute value monotonically (never lowers);
- * `mode: 'bump'` advances by a relative delta. The (mint, keyset) identity is
- * read from the parent Mint node — a counter is always nested two levels up
- * (counter -> proofsCounters array -> Mint).
+ * `mode: 'bump'` advances by a relative delta. The keyset id is the entire
+ * identity: NUT-13 derives from (seed, keysetId, counter), so a counter needs no
+ * mint reference. This used to walk two levels up the tree for the parent Mint's
+ * url — which meant a counter not yet attached to a Mint silently dropped its
+ * write, and a mint-url edit orphaned the row it had been writing to.
  *
  * This fires the instant cashu derives (right after onCountersReserved, BEFORE
  * the reservation commit), so the advance is durable the moment the mint could
@@ -77,29 +102,18 @@ const migrateSnapshot = (snapshot: any): any => {
  * not break a wallet flow, and there is a complementary safety net —
  * commitReservation re-persists this same value ATOMICALLY with the proofs
  * ("W2", see reservationsRepo), so even if this write is dropped a successful
- * commit cannot leave the counter behind its proofs. A detached instance (a
- * counter freshly created by createProofsCounter, not yet pushed onto a Mint)
- * has no parent and is a no-op here.
+ * commit cannot leave the counter behind its proofs.
  */
 const persistCounter = (self: any, mode: 'set' | 'bump', value: number): void => {
-    let mintUrl: string | undefined
-    try {
-        mintUrl = getParent<any>(self, 2)?.mintUrl
-    } catch {
-        return // not attached to a Mint (freshly created counter) — nothing to persist
-    }
-    if (!mintUrl) return
-
     try {
         if (mode === 'set') {
-            Database.setCounter(mintUrl, self.keyset, self.unit, value)
+            Database.setCounter(self.keyset, self.unit, value)
         } else {
-            Database.bumpCounter(mintUrl, self.keyset, self.unit, value)
+            Database.bumpCounter(self.keyset, self.unit, value)
         }
     } catch (e: any) {
         log.error('[persistCounter]', 'Counter write-through failed', {
             error: e?.message,
-            mintUrl,
             keyset: self.keyset,
         })
     }
@@ -178,7 +192,68 @@ export const MintModel = types
     })
     .actions(withSetPropAction) // TODO? start to use across app to avoid pure setter methods, e.g. mint.setProp('color', '#ccc')
     .views(self => ({
-    
+        /**
+         * The mint's advertised setting for a (method, unit) pair, or undefined when
+         * it does not offer that combination.
+         *
+         * NUT-04 (mint) and NUT-05 (melt) each advertise a flat list of method
+         * settings. A payment method is just an entry in that list — `onchain`
+         * (NUT-30) has no `nuts['30']` block of its own, it simply appears as
+         * `{method: 'onchain', unit: 'sat', ...}`. So capability is always a
+         * question about a (method, unit) pair, never about a NUT number.
+         *
+         * The setting also carries `min_amount` / `max_amount` (and, for onchain,
+         * `options.confirmations`), which callers need for limit checks.
+         */
+        mintMethodSetting(method: PaymentMethod, unit: MintUnit): SwapMethod | undefined {
+            return self.mintInfo?.nuts?.['4']?.methods?.find(
+                m => m.method === method && m.unit === unit,
+            )
+        },
+        meltMethodSetting(method: PaymentMethod, unit: MintUnit): SwapMethod | undefined {
+            return self.mintInfo?.nuts?.['5']?.methods?.find(
+                m => m.method === method && m.unit === unit,
+            )
+        },
+        /** Does the mint advertise NUT-20 (signed mint quotes)? */
+        get supportsNut20(): boolean {
+            return self.mintInfo?.nuts?.['20']?.supported === true
+        },
+        /** True while we have never managed to cache this mint's info. */
+        get hasUnknownCapabilities(): boolean {
+            return !self.mintInfo
+        },
+    }))
+    .views(self => ({
+        /**
+         * Can this mint MINT (topup) with `method` in `unit`?
+         *
+         * Two rules layered on the advertised methods:
+         *
+         *  - `onchain` additionally requires NUT-20. NUT-30 depends on it and the
+         *    mint MUST refuse an onchain quote with no pubkey (error 20009), so an
+         *    onchain method without NUT-20 is unusable to us.
+         *
+         *  - When capabilities are UNKNOWN (info never cached — mint offline when
+         *    added, or a very old wallet entry), bolt11 is assumed supported and
+         *    everything else is not. bolt11 has been the only method the wallet
+         *    ever used, so assuming it exactly preserves today's behaviour and
+         *    cannot strand a user with an empty menu; anything newer has to prove
+         *    itself. The check is otherwise symmetric across methods.
+         */
+        supportsMint(method: PaymentMethod, unit: MintUnit): boolean {
+            if (self.hasUnknownCapabilities) return method === 'bolt11'
+            if (!self.mintMethodSetting(method, unit)) return false
+            if (method === 'onchain') return self.supportsNut20
+            return true
+        },
+        /** Can this mint MELT (pay out) with `method` in `unit`? See supportsMint. */
+        supportsMelt(method: PaymentMethod, unit: MintUnit): boolean {
+            if (self.hasUnknownCapabilities) return method === 'bolt11'
+            if (!self.meltMethodSetting(method, unit)) return false
+            // NUT-20 gates mint quotes only; melt needs no quote signature.
+            return true
+        },
     }))
     .actions(self => ({
         addKeyset(keyset: CashuMintKeyset) {
@@ -384,16 +459,8 @@ export const MintModel = types
                 return existing
             }
 
-            self.addKeys(key)            
-            log.trace('[initKeys]', {newKeys: key.id})                   
-        },
-        validateURL(url: string) {
-            try {
-                new URL(url)
-                return true
-            } catch (e) {
-                return false
-            }
+            self.addKeys(key)
+            log.trace('[initKeys]', {newKeys: key.id})
         },
     }))
     .actions(self => ({
@@ -414,8 +481,18 @@ export const MintModel = types
                 self.initKeys(key)
             }
         },
-        setMintInfo(info: GetInfoResponse & {time: number}) {
-            self.mintInfo = info
+        /**
+         * Cache the mint's NUT-06 info, stamping the fetch time.
+         *
+         * The stamp is applied HERE rather than at call sites: `time` drives the
+         * staleness check in WalletStore.getMint, and every caller used to pass a
+         * raw GetInfoResponse through a cast, leaving `time` undefined. `now -
+         * undefined` is NaN, NaN > ttl is false, so the TTL never fired and info
+         * was cached forever — which is how mints kept advertising capabilities
+         * they no longer had.
+         */
+        setMintInfo(info: GetInfoResponse) {
+            self.mintInfo = {...info, time: Math.floor(Date.now() / 1000)}
             log.trace('[setMintInfo]', {mintUrl: self.mintUrl})
         },
         getProofsCounterByKeysetId(keysetId: string) {                        
@@ -435,26 +512,6 @@ export const MintModel = types
                 self.hostname = new URL(self.mintUrl).hostname
             } catch (e) {
                 return false
-            }
-        },
-        setMintUrl(url: string) {
-            if(self.validateURL(url)) {
-                const mintsStore = getRootStore(self).mintsStore
-
-                //log.trace('[setMintUrl]', {mintsStore})
-
-                if(!mintsStore.alreadyExists(url)) {
-
-                    const proofsStore = getRootStore(self).proofsStore
-                    proofsStore.updateMintUrl(self.mintUrl, url) // update mintUrl on mint's proofs                    
-                    self.mintUrl = url
-                    
-                    return true
-                }
-
-                throw new AppError(Err.VALIDATION_ERROR, 'Mint URL already exists.', {url})
-            } else {
-                throw new AppError(Err.VALIDATION_ERROR, 'Invalid Mint URL.', {url})
             }
         },
         setId() { // migration
@@ -481,9 +538,6 @@ export const MintModel = types
 
             self.shortname = shortname
         }),
-        setRandomColor() {
-            self.color = getRandomIconColor()
-        },
         setColor(color: string) {
             self.color = color
         },
@@ -519,7 +573,89 @@ export const MintModel = types
         },
         get keysetIds(): string[] {
             return self.keysets.map(k => k.id)
-        }        
+        }
+     }))
+    // Declared after the block holding setHostname so it can call it — MST types
+    // `self` without the actions of its own block.
+    .actions(self => ({
+        /**
+         * Move this mint to a new url, carrying over the state that points at it
+         * BY url.
+         *
+         * A mint url is a network LOCATOR, not an identity — the mint here is the
+         * same mint (callers confirm that by matching keysets), it just answers
+         * somewhere else now. So everything addressed by the old location has to
+         * follow. What follows, and what deliberately does not:
+         *
+         *  - proofs — repointed. `proofs.mintUrl` is how a balance is found, and it
+         *    is the last denormalized copy of the url left in the schema.
+         *  - transactions — nothing to do. `mint` is the url the payment happened at,
+         *    a historical fact that must NOT move; `mintId` carries the identity.
+         *  - derivation counters — nothing to do: keyed by keysetId, which no url
+         *    edit can disturb (see MINT_COUNTERS_COLUMNS).
+         *  - onchain mint quotes, open reservations — nothing to do: they reference
+         *    the mint by `mintId` and resolve the live url through it at use time.
+         *  - in-flight requests, melt recovery — nothing to do: they are child rows
+         *    of a transaction and hold no mint reference at all; the one mint-scoped
+         *    query joins through the parent's mintId.
+         *
+         * Validation runs through the same normalizer as `addMint`, so a rename can
+         * no longer install a url that adding the same mint would have rejected.
+         */
+        setMintUrl(url: string) {
+            // Throws AppError(VALIDATION_ERROR) on a malformed or non-https url.
+            const normalized = normalizeMintUrl(url)
+            const currentMintUrl = self.mintUrl
+
+            // Renaming to the url already held (or merely its trailing-slash
+            // spelling) is a no-op, not a duplicate — the check below would
+            // otherwise match this very mint and reject.
+            if (normalized === currentMintUrl) {
+                return true
+            }
+
+            const {mintsStore, proofsStore} = getRootStore(self)
+
+            // mintExists (normalized), not alreadyExists (literal string compare):
+            // the latter misses a twin differing only by a trailing slash, which
+            // would let one real mint become two Mint nodes.
+            if (mintsStore.mintExists(normalized)) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Mint URL already exists.', {url: normalized})
+            }
+
+            // ONE SQLite transaction for the mint row and its proofs.
+            //
+            // This is what mints-in-SQLite bought. The url used to live in the MMKV
+            // snapshot while the proofs lived in SQLite, so the rename spanned two
+            // engines with nothing joining them: a crash in between left the proofs
+            // pointing at a url no mint owned — the money vanished from every
+            // per-mint balance while still counting in the total, and was unspendable
+            // (send and melt select proofs by mint).
+            //
+            // Written BEFORE the model changes, so a failure throws with the tree
+            // untouched rather than leaving memory ahead of the database. The mint's
+            // own observer will re-persist the same row afterwards; the equality
+            // guard makes that a no-op.
+            let hostname: string | null = null
+            try {
+                hostname = new URL(normalized).hostname
+            } catch {
+                // normalizeMintUrl already parsed it, so this cannot realistically
+                // fail; hostname simply stays null rather than aborting the rename.
+            }
+
+            Database.updateMintUrlWithProofs(self.id, currentMintUrl, normalized, hostname)
+
+            // Mirror into the in-memory caches now that SQLite is durable.
+            proofsStore.updateMintUrlInMemory(currentMintUrl, normalized)
+
+            self.mintUrl = normalized
+            self.setHostname() // derived from mintUrl — stale until recomputed
+
+            log.debug('[setMintUrl]', 'Mint url updated', {currentMintUrl, updatedMintUrl: normalized})
+
+            return true
+        },
      }))
     
     

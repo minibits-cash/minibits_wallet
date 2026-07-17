@@ -17,7 +17,7 @@ import {
 } from "react-native"
 
 import { useThemeColor, spacing } from "../theme"
-import { useTabBarInset } from "../navigation/tabBarVisibility"
+import { useHideTabBar, useTabBarInset } from "../navigation/tabBarVisibility"
 import { ExtendedEdge, useSafeAreaInsetsStyle } from "../utils/useSafeAreaInsetsStyle"
 
 interface BaseScreenProps {
@@ -47,6 +47,12 @@ interface BaseScreenProps {
    * by `useTabBarInset()` so the last item stays reachable.
    */
   contentUnderTabBar?: boolean
+  /**
+   * Hide the floating tab bar while this screen is focused, reclaiming its space.
+   * The reserved bottom room collapses to the safe-area inset. Use case-by-case,
+   * typically for a non-scrolling screen that wants the full height.
+   */
+  hideTabBar?: boolean
   /**
    * By how much should we offset the keyboard? Defaults to 0.
    */
@@ -194,6 +200,15 @@ function ScreenWithScrolling(props: ScreenProps) {
 
 
 
+/**
+ * Engages the tab-bar hide while mounted. Kept as a child so the useFocusEffect it
+ * relies on is only invoked when a screen actually opts in.
+ */
+function TabBarHider() {
+  useHideTabBar()
+  return null
+}
+
 export function Screen(props: ScreenProps) {
   const {
     backgroundColor = useThemeColor('background'),
@@ -201,6 +216,7 @@ export function Screen(props: ScreenProps) {
     keyboardOffset = 0,
     safeAreaEdges,
     contentUnderTabBar = false,
+    hideTabBar = false,
   } = props
 
   const $containerInsets = useSafeAreaInsetsStyle(safeAreaEdges)
@@ -209,6 +225,9 @@ export function Screen(props: ScreenProps) {
 
   return (
     <View style={[$containerStyle, { backgroundColor, paddingBottom }, $containerInsets]}>
+      {/* Rendered only when opted in, so screens outside a navigator (error, loading)
+          never call useFocusEffect and hit "Couldn't find navigation object". */}
+      {hideTabBar && <TabBarHider />}
       <KeyboardAvoidingView
         behavior={isIos ? "padding" : undefined}
         keyboardVerticalOffset={keyboardOffset}

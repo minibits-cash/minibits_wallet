@@ -1,156 +1,38 @@
 /**
- * Proof reservation tests (Phase 5).
+ * Proof reservations, against the REAL repo and a real database.
  *
- * Verifies the SQL-level reservation semantics that `Database.openReservation`,
- * `Database.commitReservation`, `Database.rollbackReservation`, and
- * `Database.getOpenReservations` implement on top of `executeBatch`.
+ * A reservation is the wallet's atomic-commit primitive for an outgoing operation:
+ * open it to lock proofs to PENDING, then either commit (inputs SPENT, new proofs
+ * in, transaction row updated, reservation deleted) or roll back (every proof
+ * restored to its pre-reserve state AND tId). All of it in one SQLite transaction,
+ * because a partial apply here loses or strands ecash.
  *
- * We mirror the queries using node:sqlite + explicit BEGIN/COMMIT so the test
- * can run in Jest (react-native-quick-sqlite needs a real device).
+ * This calls the production `Database.*` functions. It used to hand-copy both the
+ * schema and every statement — and a copy of the SQL proves nothing about the SQL
+ * the app runs. The op-sqlite jest mock now backs the real driver seam with
+ * node:sqlite, so connection.ts (param sanitizing, result adaptation, BEGIN/COMMIT
+ * batch emulation), instance.ts (schema + the real migration runner) and the repo
+ * all run for real.
  *
- * @jest-environment node
+ * The helpers below keep their original shapes so the assertions read unchanged;
+ * only their innards moved from mirrored SQL to the real API.
  */
-import {DatabaseSync} from 'node:sqlite'
+jest.mock('../src/services/logService', () => ({
+    log: {debug: jest.fn(), error: jest.fn(), info: jest.fn(), trace: jest.fn(), warn: jest.fn()},
+}))
 
-// ── Schema ────────────────────────────────────────────────────────────────────
+import {Database} from '../src/services/db'
+import {ProofModel} from '../src/models/Proof'
 
-const CREATE_PROOFS = `CREATE TABLE proofs (
-  id TEXT NOT NULL,
-  amount INTEGER NOT NULL,
-  secret TEXT PRIMARY KEY NOT NULL,
-  C TEXT NOT NULL,
-  dleq_r TEXT,
-  dleq_s TEXT,
-  dleq_e TEXT,
-  unit TEXT,
-  tId INTEGER,
-  mintUrl TEXT,
-  state TEXT NOT NULL DEFAULT 'UNSPENT',
-  updatedAt TEXT
-)`
+const MINT = 'https://mint.test'
+const MINT_ID = 'mint1111'
 
-const CREATE_RESERVATIONS = `CREATE TABLE reservations (
-  id TEXT PRIMARY KEY NOT NULL,
-  transactionId INTEGER NOT NULL,
-  mintUrl TEXT NOT NULL,
-  unit TEXT NOT NULL,
-  operationType TEXT NOT NULL,
-  lockedProofs TEXT NOT NULL,
-  createdAt TEXT NOT NULL
-)`
-
-// Minimal transactions table for the two-table atomicity tests (Phase 5b).
-const CREATE_TRANSACTIONS = `CREATE TABLE transactions (
-  id INTEGER PRIMARY KEY NOT NULL,
-  status TEXT,
-  data TEXT,
-  amount INTEGER,
-  fee INTEGER,
-  balanceAfter INTEGER,
-  outputToken TEXT,
-  keysetId TEXT,
-  proof TEXT
-)`
-
-function createSchema(db: DatabaseSync) {
-    db.exec(CREATE_PROOFS)
-    db.exec(CREATE_RESERVATIONS)
-    db.exec(CREATE_TRANSACTIONS)
-}
-
-function insertTransaction(db: DatabaseSync, id: number, status: string) {
-    db.prepare(`INSERT INTO transactions (id, status) VALUES (?, ?)`).run(id, status)
-}
-
-function getTransactionStatus(db: DatabaseSync, id: number): string {
-    const row = db.prepare('SELECT status FROM transactions WHERE id = ?').get(id) as
-        | {status: string}
-        | undefined
-    return row?.status ?? ''
-}
-
-function getTransactionRow(
-    db: DatabaseSync,
-    id: number,
-): {status: string | null; data: string | null; balanceAfter: number | null} | undefined {
-    return db
-        .prepare('SELECT status, data, balanceAfter FROM transactions WHERE id = ?')
-        .get(id) as any
-}
-
-function insertProof(
-    db: DatabaseSync,
-    secret: string,
-    amount: number,
-    state: 'UNSPENT' | 'PENDING' | 'SPENT' = 'UNSPENT',
-) {
-    db.prepare(
-        `INSERT INTO proofs (id, amount, secret, C, mintUrl, unit, tId, state, updatedAt)
-         VALUES ('keyset1', ?, ?, 'C', 'https://mint.test', 'sat', 1, ?, '2026-01-01')`,
-    ).run(amount, secret, state)
-}
-
-function getProofState(db: DatabaseSync, secret: string): string {
-    const row = db.prepare('SELECT state FROM proofs WHERE secret = ?').get(secret) as
-        | {state: string}
-        | undefined
-    return row?.state ?? ''
-}
-
-function reservationCount(db: DatabaseSync): number {
-    const {n} = db.prepare('SELECT COUNT(*) AS n FROM reservations').get() as {n: number}
-    return n
-}
-
-// ── Simulated Database primitives ─────────────────────────────────────────────
-// Mirror the exact SQL the production code uses, wrapped in BEGIN/COMMIT to
-// match `executeBatch` atomicity.
+type Db = ReturnType<typeof Database.getInstance>
 
 type LockedProofSnapshot = {
     secret: string
     originalState: 'UNSPENT' | 'PENDING' | 'SPENT'
     originalTId: number | null
-}
-
-function openReservation(
-    db: DatabaseSync,
-    reservation: {
-        id: string
-        transactionId: number
-        mintUrl: string
-        unit: string
-        operationType: string
-        lockedProofs: LockedProofSnapshot[]
-    },
-    proofsToLockSecrets: string[],
-) {
-    const now = '2026-05-22T00:00:00.000Z'
-    db.exec('BEGIN')
-    try {
-        db.prepare(
-            `INSERT INTO reservations (id, transactionId, mintUrl, unit, operationType, lockedProofs, createdAt)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        ).run(
-            reservation.id,
-            reservation.transactionId,
-            reservation.mintUrl,
-            reservation.unit,
-            reservation.operationType,
-            JSON.stringify(reservation.lockedProofs),
-            now,
-        )
-        // Reassign tId to the new operation alongside the state lock.
-        const updateProof = db.prepare(
-            `UPDATE proofs SET state = 'PENDING', tId = ?, updatedAt = ? WHERE secret = ?`,
-        )
-        for (const secret of proofsToLockSecrets) {
-            updateProof.run(reservation.transactionId, now, secret)
-        }
-        db.exec('COMMIT')
-    } catch (e) {
-        db.exec('ROLLBACK')
-        throw e
-    }
 }
 
 type CommitTransactionUpdate = {
@@ -165,116 +47,144 @@ type CommitTransactionUpdate = {
     proof?: string
 }
 
+/**
+ * One in-memory database per test FILE (instance.ts caches its connection), so
+ * "fresh" means cleared rather than rebuilt. Returns the real connection for the
+ * few assertions that read raw rows.
+ */
+function freshDb(): Db {
+    const db = Database.getInstance()
+    db.executeBatch([['DELETE FROM proofs'], ['DELETE FROM reservations'], ['DELETE FROM transactions']])
+    return db
+}
+
+function insertTransaction(_db: Db, id: number, status: string) {
+    Database.getInstance().execute(`INSERT INTO transactions (id, status) VALUES (?, ?)`, [id, status])
+}
+
+function getTransactionStatus(_db: Db, id: number): string {
+    return (
+        Database.getInstance().execute('SELECT status FROM transactions WHERE id = ?', [id]).rows?.item(0)
+            ?.status ?? ''
+    )
+}
+
+function getTransactionRow(
+    _db: Db,
+    id: number,
+): {status: string | null; data: string | null; balanceAfter: number | null} | undefined {
+    return Database.getInstance()
+        .execute('SELECT status, data, balanceAfter FROM transactions WHERE id = ?', [id])
+        .rows?.item(0) as any
+}
+
+function insertProof(
+    _db: Db,
+    secret: string,
+    amount: number,
+    state: 'UNSPENT' | 'PENDING' | 'SPENT' = 'UNSPENT',
+) {
+    Database.addOrUpdateProofs([proofNode(secret, amount)], state)
+}
+
+/**
+ * A real MST Proof node.
+ *
+ * The repo calls mobx-state-tree's `isAlive()` on everything it locks, which only
+ * answers for an actual node — so a plain object here would not exercise the same
+ * path production takes.
+ */
+function proofNode(secret: string, amount: number, tId = 1) {
+    return ProofModel.create({
+        id: 'keyset1',
+        amount,
+        secret,
+        C: 'C',
+        unit: 'sat',
+        tId,
+        mintUrl: MINT,
+    }) as any
+}
+
+function getProofState(_db: Db, secret: string): string {
+    return (
+        Database.getInstance().execute('SELECT state FROM proofs WHERE secret = ?', [secret]).rows?.item(0)
+            ?.state ?? ''
+    )
+}
+
+function getProofTId(_db: Db, secret: string): number | null {
+    const row = Database.getInstance()
+        .execute('SELECT tId FROM proofs WHERE secret = ?', [secret])
+        .rows?.item(0)
+    return row?.tId ?? null
+}
+
+function reservationCount(_db: Db): number {
+    return Database.getInstance().execute('SELECT COUNT(*) AS n FROM reservations').rows?.item(0)?.n ?? 0
+}
+
+/** Rebuild MST nodes for already-stored proofs, which is what the repo locks. */
+function nodesForSecrets(secrets: string[]) {
+    return secrets.map(secret => {
+        const row = Database.getInstance()
+            .execute('SELECT * FROM proofs WHERE secret = ?', [secret])
+            .rows?.item(0)
+        return proofNode(secret, row?.amount ?? 1, row?.tId ?? 1)
+    })
+}
+
+function openReservation(
+    _db: Db,
+    reservation: {
+        id: string
+        transactionId: number
+        mintUrl: string
+        unit: string
+        operationType: string
+        lockedProofs: LockedProofSnapshot[]
+    },
+    proofsToLockSecrets: string[],
+) {
+    Database.openReservation(
+        {...reservation, mintId: MINT_ID},
+        nodesForSecrets(proofsToLockSecrets),
+    )
+}
+
 function commitReservation(
-    db: DatabaseSync,
+    _db: Db,
     reservationId: string,
     changes: {
         toSpent?: string[]
         toUnspent?: string[]
-        newProofs?: Array<{
-            secret: string
-            amount: number
-            state: 'UNSPENT' | 'PENDING' | 'SPENT'
-        }>
+        newProofs?: Array<{secret: string; amount: number; state: 'UNSPENT' | 'PENDING' | 'SPENT'}>
         transactionUpdate?: CommitTransactionUpdate
     },
 ) {
-    const now = '2026-05-22T00:00:00.000Z'
-    db.exec('BEGIN')
-    try {
-        const updateSpent = db.prepare(
-            `UPDATE proofs SET state = 'SPENT', updatedAt = ? WHERE secret = ?`,
-        )
-        for (const s of changes.toSpent ?? []) updateSpent.run(now, s)
-
-        const updateUnspent = db.prepare(
-            `UPDATE proofs SET state = 'UNSPENT', updatedAt = ? WHERE secret = ?`,
-        )
-        for (const s of changes.toUnspent ?? []) updateUnspent.run(now, s)
-
-        const insertNew = db.prepare(
-            `INSERT OR REPLACE INTO proofs
-             (id, amount, secret, C, mintUrl, unit, tId, state, updatedAt)
-             VALUES ('keyset1', ?, ?, 'C', 'https://mint.test', 'sat', 1, ?, ?)`,
-        )
-        for (const p of changes.newProofs ?? []) {
-            insertNew.run(p.amount, p.secret, p.state, now)
-        }
-
-        // Mirror the SQL the production code builds: dynamic UPDATE with only
-        // the supplied fields.
-        if (changes.transactionUpdate) {
-            const tu = changes.transactionUpdate
-            const setClauses: string[] = []
-            const params: (string | number | null)[] = []
-            const setIfDefined = (col: string, value: string | number | undefined) => {
-                if (value !== undefined) {
-                    setClauses.push(`${col} = ?`)
-                    params.push(value)
-                }
-            }
-            setIfDefined('status', tu.status)
-            setIfDefined('data', tu.data)
-            setIfDefined('amount', tu.amount)
-            setIfDefined('fee', tu.fee)
-            setIfDefined('balanceAfter', tu.balanceAfter)
-            setIfDefined('outputToken', tu.outputToken)
-            setIfDefined('keysetId', tu.keysetId)
-            setIfDefined('proof', tu.proof)
-            if (setClauses.length > 0) {
-                params.push(tu.id)
-                db.prepare(
-                    `UPDATE transactions SET ${setClauses.join(', ')} WHERE id = ?`,
-                ).run(...params)
-            }
-        }
-
-        db.prepare('DELETE FROM reservations WHERE id = ?').run(reservationId)
-        db.exec('COMMIT')
-    } catch (e) {
-        db.exec('ROLLBACK')
-        throw e
-    }
+    Database.commitReservation(reservationId, {
+        toSpent: changes.toSpent ? nodesForSecrets(changes.toSpent) : undefined,
+        toUnspent: changes.toUnspent ? nodesForSecrets(changes.toUnspent) : undefined,
+        newProofs: changes.newProofs?.map(p => ({
+            proofs: [{id: 'keyset1', amount: p.amount, secret: p.secret, C: 'C'} as any],
+            state: p.state,
+            mintUrl: MINT,
+            unit: 'sat',
+            tId: 1,
+        })),
+        transactionUpdate: changes.transactionUpdate as any,
+    })
 }
 
-function rollbackReservation(
-    db: DatabaseSync,
-    reservationId: string,
-    lockedProofs: LockedProofSnapshot[],
-) {
-    const now = '2026-05-22T00:00:00.000Z'
-    db.exec('BEGIN')
-    try {
-        // Restore BOTH state and tId from the pre-reserve snapshot.
-        const restore = db.prepare(
-            `UPDATE proofs SET state = ?, tId = ?, updatedAt = ? WHERE secret = ?`,
-        )
-        for (const snap of lockedProofs) {
-            restore.run(snap.originalState, snap.originalTId, now, snap.secret)
-        }
-        db.prepare('DELETE FROM reservations WHERE id = ?').run(reservationId)
-        db.exec('COMMIT')
-    } catch (e) {
-        db.exec('ROLLBACK')
-        throw e
-    }
+function rollbackReservation(_db: Db, reservationId: string, lockedProofs: LockedProofSnapshot[]) {
+    Database.rollbackReservation(reservationId, lockedProofs as any)
 }
 
-function getProofTId(db: DatabaseSync, secret: string): number | null {
-    const row = db.prepare('SELECT tId FROM proofs WHERE secret = ?').get(secret) as
-        | {tId: number | null}
-        | undefined
-    return row?.tId ?? null
-}
-
-function getOpenReservations(db: DatabaseSync): Array<{
-    id: string
-    lockedProofs: LockedProofSnapshot[]
-}> {
-    const rows = db
-        .prepare('SELECT id, lockedProofs FROM reservations')
-        .all() as Array<{id: string; lockedProofs: string}>
-    return rows.map(r => ({id: r.id, lockedProofs: JSON.parse(r.lockedProofs)}))
+function getOpenReservations(_db: Db): Array<{id: string; lockedProofs: LockedProofSnapshot[]}> {
+    return Database.getOpenReservations().map(r => ({
+        id: r.id,
+        lockedProofs: r.lockedProofs as LockedProofSnapshot[],
+    }))
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -282,8 +192,7 @@ function getOpenReservations(db: DatabaseSync): Array<{
 describe('Proof reservations', () => {
     describe('openReservation', () => {
         test('atomically inserts reservation row + locks proofs to PENDING', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
+            const db = freshDb()
             insertProof(db, 'sA', 100)
             insertProof(db, 'sB', 200)
 
@@ -306,13 +215,10 @@ describe('Proof reservations', () => {
             expect(getProofState(db, 'sA')).toBe('PENDING')
             expect(getProofState(db, 'sB')).toBe('PENDING')
             expect(reservationCount(db)).toBe(1)
-
-            db.close()
         })
 
         test('captures originalState even when some proofs were already PENDING', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
+            const db = freshDb()
             insertProof(db, 'sA', 100, 'UNSPENT')
             insertProof(db, 'sB', 200, 'PENDING') // already locked by an earlier op
 
@@ -338,15 +244,12 @@ describe('Proof reservations', () => {
                 {secret: 'sA', originalState: 'UNSPENT', originalTId: null},
                 {secret: 'sB', originalState: 'PENDING', originalTId: null},
             ])
-
-            db.close()
         })
     })
 
     describe('commitReservation', () => {
         test('marks inputs SPENT, adds new proofs, deletes reservation in one txn', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
+            const db = freshDb()
             insertProof(db, 'input1', 100)
             insertProof(db, 'input2', 200)
 
@@ -379,13 +282,10 @@ describe('Proof reservations', () => {
             expect(getProofState(db, 'change1')).toBe('UNSPENT')
             expect(getProofState(db, 'send1')).toBe('PENDING')
             expect(reservationCount(db)).toBe(0)
-
-            db.close()
         })
 
         test('empty changes still removes the reservation row (offline-send case)', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
+            const db = freshDb()
             insertProof(db, 's1', 100)
 
             openReservation(
@@ -406,15 +306,12 @@ describe('Proof reservations', () => {
             // Proof stays PENDING (sent offline), reservation row gone
             expect(getProofState(db, 's1')).toBe('PENDING')
             expect(reservationCount(db)).toBe(0)
-
-            db.close()
         })
     })
 
     describe('rollbackReservation', () => {
         test('restores each proof to its originalState and deletes the row', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
+            const db = freshDb()
             insertProof(db, 'sA', 100, 'UNSPENT')
             insertProof(db, 'sB', 200, 'UNSPENT')
 
@@ -444,13 +341,10 @@ describe('Proof reservations', () => {
             expect(getProofState(db, 'sA')).toBe('UNSPENT')
             expect(getProofState(db, 'sB')).toBe('UNSPENT')
             expect(reservationCount(db)).toBe(0)
-
-            db.close()
         })
 
         test('preserves PENDING originalState (multi-op overlap)', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
+            const db = freshDb()
             insertProof(db, 'sA', 100, 'PENDING')
 
             // Reservation captures sA as already-PENDING
@@ -471,15 +365,12 @@ describe('Proof reservations', () => {
 
             // Restored to PENDING (its original locked state), not to UNSPENT
             expect(getProofState(db, 'sA')).toBe('PENDING')
-
-            db.close()
         })
     })
 
     describe('orphan recovery', () => {
         test('getOpenReservations returns all rows; rollback restores state', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
+            const db = freshDb()
             insertProof(db, 'orphanA', 100)
             insertProof(db, 'orphanB', 200)
 
@@ -513,22 +404,17 @@ describe('Proof reservations', () => {
             expect(getProofState(db, 'orphanA')).toBe('UNSPENT')
             expect(getProofState(db, 'orphanB')).toBe('UNSPENT')
             expect(reservationCount(db)).toBe(0)
-
-            db.close()
         })
 
         test('no orphans when there are no in-flight reservations', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
+            const db = freshDb()
             insertProof(db, 's1', 100)
 
             expect(getOpenReservations(db)).toEqual([])
-            db.close()
         })
 
         test('multiple concurrent reservations all roll back independently', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
+            const db = freshDb()
             insertProof(db, 'a1', 100)
             insertProof(db, 'a2', 100)
             insertProof(db, 'b1', 200)
@@ -572,15 +458,12 @@ describe('Proof reservations', () => {
             expect(getProofState(db, 'a2')).toBe('UNSPENT')
             expect(getProofState(db, 'b1')).toBe('UNSPENT')
             expect(reservationCount(db)).toBe(0)
-
-            db.close()
         })
     })
 
     describe('atomicity', () => {
         test('openReservation: inserting a duplicate id rolls back the whole batch', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
+            const db = freshDb()
             insertProof(db, 's1', 100, 'UNSPENT')
 
             // First reservation succeeds
@@ -624,8 +507,6 @@ describe('Proof reservations', () => {
             expect(getProofState(db, 's2')).toBe('UNSPENT')
             // s1 is unaffected
             expect(getProofState(db, 's1')).toBe('PENDING')
-
-            db.close()
         })
     })
 
@@ -645,19 +526,14 @@ describe('Proof reservations', () => {
     // ─────────────────────────────────────────────────────────────────────
     describe('tId propagation (regression: stuck-PENDING SEND, 2026-05-22)', () => {
         test('openReservation reassigns each locked proof tId to the new transactionId', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
+            const db = freshDb()
 
             // Two proofs received originally by tx 110 and tx 123 respectively
             // (simulates the dev log).
-            db.prepare(
-                `INSERT INTO proofs (id, amount, secret, C, mintUrl, unit, tId, state, updatedAt)
-                 VALUES ('keyset1', 4, 'inp_a', 'C', 'https://mint.test', 'sat', 110, 'UNSPENT', '2026-01-01')`,
-            ).run()
-            db.prepare(
-                `INSERT INTO proofs (id, amount, secret, C, mintUrl, unit, tId, state, updatedAt)
-                 VALUES ('keyset1', 2, 'inp_b', 'C', 'https://mint.test', 'sat', 123, 'UNSPENT', '2026-01-01')`,
-            ).run()
+            db.execute(`INSERT INTO proofs (id, amount, secret, C, mintUrl, unit, tId, state, updatedAt)
+                 VALUES ('keyset1', 4, 'inp_a', 'C', 'https://mint.test', 'sat', 110, 'UNSPENT', '2026-01-01')`)
+            db.execute(`INSERT INTO proofs (id, amount, secret, C, mintUrl, unit, tId, state, updatedAt)
+                 VALUES ('keyset1', 2, 'inp_b', 'C', 'https://mint.test', 'sat', 123, 'UNSPENT', '2026-01-01')`)
 
             expect(getProofTId(db, 'inp_a')).toBe(110)
             expect(getProofTId(db, 'inp_b')).toBe(123)
@@ -685,21 +561,14 @@ describe('Proof reservations', () => {
             expect(getProofTId(db, 'inp_b')).toBe(157)
             expect(getProofState(db, 'inp_a')).toBe('PENDING')
             expect(getProofState(db, 'inp_b')).toBe('PENDING')
-
-            db.close()
         })
 
         test('rollback restores each proof to its individual originalTId', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
-            db.prepare(
-                `INSERT INTO proofs (id, amount, secret, C, mintUrl, unit, tId, state, updatedAt)
-                 VALUES ('keyset1', 4, 'inp_a', 'C', 'https://mint.test', 'sat', 110, 'UNSPENT', '2026-01-01')`,
-            ).run()
-            db.prepare(
-                `INSERT INTO proofs (id, amount, secret, C, mintUrl, unit, tId, state, updatedAt)
-                 VALUES ('keyset1', 2, 'inp_b', 'C', 'https://mint.test', 'sat', 123, 'UNSPENT', '2026-01-01')`,
-            ).run()
+            const db = freshDb()
+            db.execute(`INSERT INTO proofs (id, amount, secret, C, mintUrl, unit, tId, state, updatedAt)
+                 VALUES ('keyset1', 4, 'inp_a', 'C', 'https://mint.test', 'sat', 110, 'UNSPENT', '2026-01-01')`)
+            db.execute(`INSERT INTO proofs (id, amount, secret, C, mintUrl, unit, tId, state, updatedAt)
+                 VALUES ('keyset1', 2, 'inp_b', 'C', 'https://mint.test', 'sat', 123, 'UNSPENT', '2026-01-01')`)
 
             openReservation(
                 db,
@@ -730,19 +599,14 @@ describe('Proof reservations', () => {
             expect(getProofState(db, 'inp_a')).toBe('UNSPENT')
             expect(getProofState(db, 'inp_b')).toBe('UNSPENT')
             expect(reservationCount(db)).toBe(0)
-
-            db.close()
         })
 
         test('proofs with no prior tId (null) are reassigned and restored to null', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
+            const db = freshDb()
             // Proof inserted without a tId — simulates an imported/restored
             // proof that was never tied to a wallet transaction.
-            db.prepare(
-                `INSERT INTO proofs (id, amount, secret, C, mintUrl, unit, state, updatedAt)
-                 VALUES ('keyset1', 1, 'orphan', 'C', 'https://mint.test', 'sat', 'UNSPENT', '2026-01-01')`,
-            ).run()
+            db.execute(`INSERT INTO proofs (id, amount, secret, C, mintUrl, unit, state, updatedAt)
+                 VALUES ('keyset1', 1, 'orphan', 'C', 'https://mint.test', 'sat', 'UNSPENT', '2026-01-01')`)
             expect(getProofTId(db, 'orphan')).toBe(null)
 
             openReservation(
@@ -765,8 +629,6 @@ describe('Proof reservations', () => {
                 {secret: 'orphan', originalState: 'UNSPENT', originalTId: null},
             ])
             expect(getProofTId(db, 'orphan')).toBe(null)
-
-            db.close()
         })
     })
 
@@ -780,8 +642,7 @@ describe('Proof reservations', () => {
     // ─────────────────────────────────────────────────────────────────────
     describe('atomic two-table commit (Phase 5b)', () => {
         test('commit with transactionUpdate writes proofs AND transaction in one txn', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
+            const db = freshDb()
             insertProof(db, 'input', 100)
             insertTransaction(db, 200, 'PREPARED')
 
@@ -816,13 +677,10 @@ describe('Proof reservations', () => {
             expect(row.data).toBe('[{"status":"COMPLETED"}]')
             expect(row.balanceAfter).toBe(50)
             expect(reservationCount(db)).toBe(0)
-
-            db.close()
         })
 
         test('a failed commit batch rolls back BOTH proof and transaction writes', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
+            const db = freshDb()
             insertProof(db, 'input', 100)
             insertTransaction(db, 201, 'PREPARED')
 
@@ -845,13 +703,11 @@ describe('Proof reservations', () => {
             expect(() => {
                 db.exec('BEGIN')
                 try {
-                    db.prepare(`UPDATE proofs SET state = 'SPENT' WHERE secret = ?`).run('input')
-                    db.prepare(`UPDATE transactions SET status = 'COMPLETED' WHERE id = ?`).run(201)
+                    db.execute(`UPDATE proofs SET state = 'SPENT' WHERE secret = ?`, ['input'])
+                    db.execute(`UPDATE transactions SET status = 'COMPLETED' WHERE id = ?`, [201])
                     // This will conflict — reservation 'res-atomic' already exists
-                    db.prepare(
-                        `INSERT INTO reservations (id, transactionId, mintUrl, unit, operationType, lockedProofs, createdAt)
-                         VALUES ('res-atomic', 999, '', '', '', '[]', '')`,
-                    ).run()
+                    db.execute(`INSERT INTO reservations (id, transactionId, mintUrl, unit, operationType, lockedProofs, createdAt)
+                         VALUES ('res-atomic', 999, '', '', '', '[]', '')`)
                     db.exec('COMMIT')
                 } catch (e) {
                     db.exec('ROLLBACK')
@@ -864,13 +720,10 @@ describe('Proof reservations', () => {
             // statement in the batch fails, SQLite rolls back the entire txn.
             expect(getProofState(db, 'input')).toBe('PENDING') // still locked
             expect(getTransactionStatus(db, 201)).toBe('PREPARED') // still pre-finalize
-
-            db.close()
         })
 
         test('commit without transactionUpdate leaves transactions table untouched', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
+            const db = freshDb()
             insertProof(db, 'p1', 100)
             insertTransaction(db, 202, 'PENDING')
 
@@ -893,18 +746,13 @@ describe('Proof reservations', () => {
             // Transaction status untouched — the caller is responsible for
             // any post-commit updates that don't need atomicity.
             expect(getTransactionStatus(db, 202)).toBe('PENDING')
-
-            db.close()
         })
 
         test('partial transactionUpdate only sets the provided columns', () => {
-            const db = new DatabaseSync(':memory:')
-            createSchema(db)
+            const db = freshDb()
             insertProof(db, 'p2', 100)
-            db.prepare(
-                `INSERT INTO transactions (id, status, data, balanceAfter)
-                 VALUES (203, 'PREPARED', 'old-data', 999)`,
-            ).run()
+            db.execute(`INSERT INTO transactions (id, status, data, balanceAfter)
+                 VALUES (203, 'PREPARED', 'old-data', 999)`)
 
             openReservation(
                 db,
@@ -929,8 +777,6 @@ describe('Proof reservations', () => {
             expect(row.status).toBe('REVERTED')
             expect(row.data).toBe('old-data')
             expect(row.balanceAfter).toBe(999)
-
-            db.close()
         })
     })
 })

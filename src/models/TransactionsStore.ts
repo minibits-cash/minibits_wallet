@@ -12,7 +12,8 @@ import {
     TransactionStatus,
     TransactionType,
 } from './Transaction'
-import { Database } from '../services'
+// Direct import, not the '../services' barrel — see the note in Mint.ts.
+import { Database } from '../services/db'
 import { log } from '../services/logService'
 import { getRootStore } from './helpers/getRootStore'
 import { formatDistance } from 'date-fns'
@@ -84,6 +85,12 @@ export const TransactionsStoreModel = types
             const dbTransfers = Database.getPendingTransfers()
             return dbTransfers.map(t => TransactionModel.create({ ...t }))
         },
+
+        /** Onchain melts the mint has taken but the chain has not yet confirmed. */
+        getPendingOnchainTransfers(): Transaction[] {
+            const dbTransfers = Database.getPendingOnchainTransfers()
+            return dbTransfers.map(t => TransactionModel.create({ ...t }))
+        },
     }))
 
     
@@ -148,11 +155,24 @@ export const TransactionsStoreModel = types
             log.trace('[pruneRecentByUnit]', `${recent.length - keepIds.size} pruned for unit ${unit}`)
         },
 
+        /**
+         * Drop recent-list entries whose mint is no longer in the wallet.
+         *
+         * Tests mintId, not the url. `tx.mint` is where the payment happened and is
+         * never rewritten, so a mint that has since moved would fail a url test and
+         * its whole history would vanish from the list as though the mint had been
+         * removed. The id answers the question actually being asked: does this
+         * transaction's mint still exist?
+         *
+         * A null mintId means exactly that it does not (removed mint, or history
+         * older than the v38 backfill), so those are dropped too — which is what
+         * this prune is for.
+         */
         pruneRecentWithoutCurrentMint() {
             const { mintsStore } = getRootStore(self)
-            const validUrls = new Set(mintsStore.allMints.map(m => m.mintUrl))
+            const validIds = new Set(mintsStore.allMints.map((m: Mint) => m.id))
 
-            const newList = self.recentByUnit.filter(tx => validUrls.has(tx.mint))
+            const newList = self.recentByUnit.filter(tx => tx.mintId && validIds.has(tx.mintId))
             if (newList.length !== self.recentByUnit.length) {
                 self.recentByUnit.replace(newList)
                 log.trace('[pruneRecentWithoutCurrentMint]', `${self.recentByUnit.length - newList.length} removed`)
@@ -170,8 +190,21 @@ export const TransactionsStoreModel = types
 
     .actions(self => ({
         // ── Main add (push + safe prune) ──
-        addTransaction: flow(function* addTransaction(newTxData: Partial<Transaction>) {
-            const dbTx: Transaction = yield Database.addTransactionAsync(newTxData)
+        // Return type is annotated because the body reaches the root store, and an
+        // inferred type would loop: RootStore -> TransactionsStore -> RootStore.
+        addTransaction: flow(function* addTransaction(
+            newTxData: Partial<Transaction>,
+        ): Generator<any, Transaction, any> {
+            // Resolved here rather than asked of every call site: they all identify
+            // the mint by url, but the row needs the id that survives a url edit
+            // (see Transaction.mintId). Callers may still pass mintId explicitly.
+            const mintId: string | null =
+                newTxData.mintId ??
+                (newTxData.mint
+                    ? (getRootStore(self).mintsStore.findByUrl(newTxData.mint)?.id as string | undefined) ?? null
+                    : null)
+
+            const dbTx: Transaction = yield Database.addTransactionAsync({...newTxData, mintId})
             const tx = TransactionModel.create(dbTx)
 
             self.transactionsMap.set(String(dbTx.id), tx)

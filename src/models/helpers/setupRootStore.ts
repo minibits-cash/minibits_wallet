@@ -11,6 +11,7 @@
  */
 import {
   applySnapshot,
+  getSnapshot,
   IDisposer,
   onSnapshot,
 } from 'mobx-state-tree'
@@ -18,6 +19,7 @@ import * as Sentry from '@sentry/react-native'
 import type { RootStore } from '../RootStore'
 import { Database, MMKVStorage } from '../../services'
 import type { MeltRecoverySeed, InFlightRequestSeed, CounterSeed } from '../../services/db'
+import type { Mint } from '../Mint'
 import { log } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
@@ -81,6 +83,16 @@ export async function setupRootStore(rootStore: RootStore, opts: SetupRootStoreO
 
         const {proofsStore, walletProfileStore, authStore, userSettingsStore, transactionsStore, mintsStore} = rootStore
 
+        // Reconcile the mints between SQLite (the authority) and the snapshot just
+        // applied, and attach their persistence observers. Deliberately BEFORE the
+        // counter hydrate below: this replaces the mints array with fresh nodes, and
+        // the counters must attach to the nodes that survive.
+        //
+        // This also carries a wallet whose mints are still only in the snapshot into
+        // SQLite — on any launch, not just a migrating one. See
+        // hydrateMintsFromDatabase for why that must not be gated on a version.
+        mintsStore.hydrateMintsFromDatabase()
+
         if(walletProfileStore.walletId) {
             Sentry.setUser({ id: walletProfileStore.walletId })
         }
@@ -94,6 +106,13 @@ export async function setupRootStore(rootStore: RootStore, opts: SetupRootStoreO
         // hydrate unspent and pending ecash proofs to model from database
         if(!opts.skipProofs) {
             await proofsStore.loadProofsFromDatabase()
+
+            // Both mints (applySnapshot, above) and proofs are now loaded, so the
+            // tree is settled — the one moment this check cannot produce a false
+            // positive. Observe-only: it reports a proofs/mint desync and changes
+            // nothing, because stranded sats reading in the total are a far better
+            // outcome for the user than a wallet that refuses to open.
+            proofsStore.reportOrphanedProofs()
         }
         const proofsHydrated = performance.now()
 
@@ -265,7 +284,7 @@ async function _runMigrations(rootStore: RootStore, restoredState: any) {
             for (const mint of restoredState?.mintsStore?.mints ?? []) {
                 for (const counter of mint?.proofsCounters ?? []) {
                     if (counter?.keyset && typeof counter.counter === 'number' && counter.counter > 0) {
-                        seeds.push({mintUrl: mint.mintUrl, keysetId: counter.keyset, unit: counter.unit, counter: counter.counter})
+                        seeds.push({keysetId: counter.keyset, unit: counter.unit, counter: counter.counter})
                     }
                 }
             }
@@ -294,8 +313,6 @@ async function _runMigrations(rootStore: RootStore, restoredState: any) {
                         if (entry?.meltPreview && typeof entry.transactionId === 'number') {
                             seeds.push({
                                 transactionId: entry.transactionId,
-                                mintUrl: mint.mintUrl,
-                                keysetId: counter.keyset,
                                 meltPreview: entry.meltPreview,
                             })
                         }
@@ -320,8 +337,6 @@ async function _runMigrations(rootStore: RootStore, restoredState: any) {
                         if (entry?.request && typeof entry.transactionId === 'number') {
                             seeds.push({
                                 transactionId: entry.transactionId,
-                                mintUrl: mint.mintUrl,
-                                keysetId: counter.keyset,
                                 request: entry.request,
                             })
                         }
@@ -342,7 +357,7 @@ async function _runMigrations(rootStore: RootStore, restoredState: any) {
             for (const backup of restoredState?.mintsStore?.counterBackups ?? []) {
                 for (const c of backup?.counters ?? []) {
                     if (c?.keyset && typeof c.counter === 'number' && c.counter > 0) {
-                        seeds.push({mintUrl: backup.mintUrl, keysetId: c.keyset, unit: c.unit, counter: c.counter})
+                        seeds.push({keysetId: c.keyset, unit: c.unit, counter: c.counter})
                     }
                 }
             }
@@ -355,6 +370,42 @@ async function _runMigrations(rootStore: RootStore, restoredState: any) {
             // New onboarding and TCs agreement
             userSettingsStore.setIsOnboarded(false)
         }
+
+        if(currentVersion < 38) {
+            // db v33 added onchain_mint_quotes.mintId and reservations.mintId so
+            // those rows reference the mint by its stable id rather than by url.
+            // The column had to be added empty: mints live in this MST snapshot,
+            // NOT in SQLite, so no SQL statement can map url -> id. Hence the
+            // backfill here, where the store is hydrated and the mapping exists.
+            //
+            // Matching on url is trustworthy at exactly this moment and no other:
+            // until now a mint's url could not change without these rows being
+            // rewritten too, so row.mintUrl still agrees with the mint. This spends
+            // that join ONCE, at rest, instead of on every rename.
+            //
+            // Rows left NULL belong to a mint no longer in the wallet and are dead
+            // regardless. The backfill only fills NULLs, so it is safe to re-run.
+            const mintRefs = rootStore.mintsStore.allMints.map((m: Mint) => ({
+                id: m.id as string,
+                mintUrl: m.mintUrl,
+            }))
+            if (mintRefs.length > 0) {
+                Database.backfillTransactionMintIds(mintRefs)
+                Database.backfillOnchainMintQuoteMintIds(mintRefs)
+                Database.backfillReservationMintIds(mintRefs)
+            }
+        }
+
+        // NOTE: copying the mints into SQLite (db v35) is deliberately NOT a step
+        // here. It is done by mintsStore.hydrateMintsFromDatabase on EVERY launch,
+        // keyed on whether the table is actually empty rather than on this version.
+        //
+        // A version-gated seed cannot be trusted for it: rootStore.version defaults
+        // to the current rootStoreModelVersion, so a factory reset stamps a wallet as
+        // fully migrated on the spot, and restoring an older snapshot over that
+        // skips the seed forever — while postProcessSnapshot strips mints from every
+        // save. The mints then exist in neither place and disappear on the next
+        // launch. Observed on a test device.
 
         // Set once, after all steps succeed: if any step throws, the version is
         // NOT bumped and the whole migration retries on the next launch.

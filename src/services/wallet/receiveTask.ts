@@ -189,6 +189,12 @@ export const receiveOfflineCompleteTask = async function (
 
         const prepared = loadPreparedForOfflineComplete(transactionId)
 
+        // Prefer the mint's live url over tx.mint (where the receive was prepared):
+        // this value is reported back and named in the "mint is blocked" message, so
+        // a stale url would send the user looking for a mint that is not in Settings
+        // under that name.
+        mintToReceive = prepared.mintUrl
+
         if (prepared.blocked) {
             return {
                 taskFunction: RECEIVE_OFFLINE_COMPLETE_TASK,

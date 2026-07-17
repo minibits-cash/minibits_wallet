@@ -462,7 +462,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
                         <TranItem 
                             label="transactionCommon_receivedTo"
                             isFirst={true}
-                            value={mintsStore.findByUrl(transaction.mint)?.shortname as string}
+                            value={mintsStore.findByTransaction(transaction)?.shortname as string}
                         />
                         {transaction?.memo && (
                         <TranItem

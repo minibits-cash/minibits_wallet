@@ -14,6 +14,7 @@ import {
   ViewStyle,
 } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
+import {infoMessage} from '../utils/utils'
 import JSONTree from 'react-native-json-tree'
 import Animated, {
   Extrapolation,
@@ -60,6 +61,10 @@ import { MintUnit, formatCurrency, getCurrency } from "../services/wallet/curren
 import { pollerExists } from '../utils/poller'
 import { CommonActions, StaticScreenProps, useFocusEffect, useNavigation } from '@react-navigation/native'
 import { QRCodeBlock } from './Wallet/QRCode'
+import { Database } from '../services'
+import { OnchainOperationService } from '../services/wallet/operations/onchainOperations'
+import { MeltOperationService } from '../services/wallet/operations/meltOperations'
+import { buildBip21Uri } from '../services/wallet/operations/onchainAmounts'
 import { MintListItem } from './Mints/MintListItem'
 import { Token, TokenMetadata, getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
 import FastImage from 'react-native-fast-image'
@@ -126,7 +131,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
         setIsDataParsable(false)
       }
 
-      const mintInstance = mintsStore.findByUrl(tx.mint)
+      const mintInstance = mintsStore.findByTransaction(tx)
       if (mintInstance) {
         setMint(mintInstance)
       }
@@ -230,7 +235,11 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
             return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
             case TransactionType.TOPUP:
             return `+${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
+            case TransactionType.TOPUP_ONCHAIN:
+            return `+${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
             case TransactionType.TRANSFER:
+            return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
+            case TransactionType.TRANSFER_ONCHAIN:
             return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
             default:
             return `${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
@@ -384,6 +393,19 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                   mint={mint}
                   colorScheme={colorScheme as 'dark' | 'light'}
                   navigation={navigation}
+                />
+              )}
+              {transaction.type === TransactionType.TOPUP_ONCHAIN && (
+                <OnchainTopupInfoBlock
+                  transaction={transaction}
+                  mint={mint}
+                  navigation={navigation}
+                />
+              )}
+              {transaction.type === TransactionType.TRANSFER_ONCHAIN && (
+                <OnchainTransferInfoBlock
+                  transaction={transaction}
+                  mint={mint}
                 />
               )}
               {transaction.type === TransactionType.TRANSFER && (
@@ -681,7 +703,7 @@ const ReceiveInfoBlock = function (props: {
               increaseProofsCounter(transaction.unit)
             }
 
-            const mintInstance = mintsStore.findByUrl(transaction.mint)
+            const mintInstance = mintsStore.findByTransaction(transaction)
 
             if(!mintInstance) {
               throw new AppError(Err.NOTFOUND_ERROR, 'Mint not found in the wallet state, cannot retry receive', {
@@ -1359,6 +1381,352 @@ const SendInfoBlock = function (props: {
   )
 }
 
+/**
+ * The request the payer was given — a bolt11 invoice for a lightning topup, a
+ * Bitcoin address for an onchain one.
+ *
+ * Kept to one line with a MIDDLE ellipsis rather than a tail one: for an address or
+ * an invoice, the head and tail are the parts worth seeing (they are what a user
+ * eyeballs against a block explorer or a sender's screen), while the middle is
+ * noise. Truncating the tail would hide the half that actually distinguishes it.
+ */
+const PaymentRequestItem = function (props: {transaction: Transaction}) {
+    const {transaction} = props
+
+    if (!transaction.paymentRequest) return null
+
+    const onCopy = function () {
+        try {
+            Clipboard.setString(transaction.paymentRequest as string)
+        } catch (e: any) {
+            infoMessage(translate('commonCopyFailParam', {param: e.message}))
+        }
+    }
+
+    return (
+        <ListItem
+            tx='tranDetailScreen_paymentRequest'
+            subText={transaction.paymentRequest}
+            subTextEllipsizeMode='middle'
+            topSeparator={true}
+            RightComponent={
+                <View style={$rightContainer}>
+                    <Button preset='secondary' onPress={onCopy} tx='commonCopy' />
+                </View>
+            }
+        />
+    )
+}
+
+/**
+ * Detail block for an onchain (NUT-30) topup.
+ *
+ * Separate from TopupInfoBlock because the two behave differently in the one way
+ * that matters here: a bolt11 invoice is single-use and expires, but an onchain
+ * deposit address NEVER expires (the mint returns `expiry: null`). Money sent to it
+ * long after the wallet stopped watching is still credited and still mintable — the
+ * wallet simply is not looking any more.
+ *
+ * So this block offers "check for deposits": it reopens the watch window and
+ * re-checks the quote immediately. That is the recovery path for anything the
+ * watcher's 7-day window missed, and it is the reason quote rows (and their NUT-20
+ * counterIndex) are kept forever rather than deleted on completion.
+ */
+const OnchainTopupInfoBlock = function (props: {
+    transaction: Transaction
+    mint?: Mint
+    navigation: any
+}) {
+    const {transaction, mint} = props
+    const isInternetReachable = useIsInternetReachable()
+    const [isChecking, setIsChecking] = useState(false)
+    const [checkResult, setCheckResult] = useState<string | undefined>()
+    const labelColor = useThemeColor('textDim')
+
+    const onCheckForDeposits = async function () {
+        if (!isInternetReachable || !transaction.quote) return
+
+        setIsChecking(true)
+        setCheckResult(undefined)
+
+        try {
+            // Reopen the window first: the quote may well have been archived (that is
+            // usually WHY the user is here), and a check alone would not put it back
+            // into the watcher's set for the next deposit.
+            Database.extendOnchainMintQuoteWatch(transaction.quote)
+
+            // Through the queue, NOT straight to refreshQuote. Minting derives blinded
+            // secrets from the keyset counter, and the watcher sweep can be doing the
+            // same thing at the same moment; SyncQueue (concurrency 1) is what keeps
+            // the two from advancing to the same counter and reusing secrets.
+            const result: any = await OnchainOperationService.enqueueOnchainQuoteCheck(
+                transaction.quote,
+            )
+
+            if (result?.error) {
+                setCheckResult(result.error)
+            } else if (!result?.minted) {
+                setCheckResult(translate('tranDetail_onchainNoDeposits'))
+            }
+            // A successful mint settles the transaction; the observer re-renders it.
+        } catch (e: any) {
+            setCheckResult(e.message)
+        } finally {
+            setIsChecking(false)
+        }
+    }
+
+    return (
+        <>
+            <Card
+                label='Transaction data'
+                style={$dataCard}
+                ContentComponent={
+                    <>
+                        <TranItem
+                            label="tranDetailScreen_amount"
+                            value={transaction.amount}
+                            unit={transaction.unit}
+                            isCurrency={true}
+                            isFirst={true}
+                        />
+                        {transaction.memo && transaction.memo.length > 0 && (
+                            <TranItem label="receiverMemo" value={transaction.memo as string} />
+                        )}
+                        <TranItem
+                            label="tranDetailScreen_type"
+                            value={transaction.type as string}
+                        />
+                        <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                            <TranItem
+                                label="tranDetailScreen_status"
+                                value={transaction.status as string}
+                            />
+                            {isInternetReachable && transaction.quote && (
+                                <Button
+                                    style={{marginTop: spacing.medium}}
+                                    preset="secondary"
+                                    tx="tranDetail_checkForDeposits"
+                                    onPress={onCheckForDeposits}
+                                    disabled={isChecking}
+                                />
+                            )}
+                        </View>
+                        {checkResult && (
+                            <Text
+                                text={checkResult}
+                                preset="formHelper"
+                                style={{color: labelColor}}
+                            />
+                        )}
+                        {transaction.status === TransactionStatus.COMPLETED && (
+                            <TranItem
+                                label="tranDetailScreen_balanceAfter"
+                                value={transaction.balanceAfter || 0}
+                                unit={transaction.unit}
+                                isCurrency={true}
+                            />
+                        )}
+                        <TranItem
+                            label="tranDetailScreen_createdAt"
+                            value={(transaction.createdAt as Date).toLocaleString()}
+                        />
+                        <TranItem label="tranDetailScreen_id" value={`${transaction.id}`} />
+                    </>
+                }
+            />
+            {transaction.status === TransactionStatus.PENDING && transaction.paymentRequest && (
+                <View style={{marginBottom: spacing.small}}>
+                    <QRCodeBlock
+                        qrCodeData={buildBip21Uri(transaction.paymentRequest, transaction.amount)}
+                        title={translate('topupScreen_onchainAddressToPay')}
+                        type='BitcoinAddress'
+                        size={spacing.screenWidth * 0.8}
+                    />
+                </View>
+            )}
+            <Card
+                labelTx='tranDetailScreen_topupTo'
+                style={$dataCard}
+                ContentComponent={
+                    <>
+                        {mint ? (
+                            <MintListItem mint={mint} isSelectable={false} isUnitVisible={false} />
+                        ) : (
+                            <Text text={transaction.mint} />
+                        )}
+                        <PaymentRequestItem transaction={transaction} />
+                    </>
+                }
+            />
+        </>
+    )
+}
+
+/**
+ * Detail block for an onchain melt (NUT-30).
+ *
+ * The two things worth surfacing here are the ones the user cannot get anywhere else:
+ * the address their money went to, and the `outpoint` (txid:vout) once the mint has
+ * broadcast. The outpoint is the only handle they have on the payment that does not
+ * depend on the mint — with it they can watch it confirm on any block explorer, which
+ * is exactly what they will want if the mint goes quiet.
+ *
+ * "Check status" is the manual counterpart to the pending sweep. Onchain settlement is
+ * measured in blocks, so the wallet only checks on the ~60s pending cadence; a user
+ * staring at an unconfirmed payment should not have to wait for it to come round.
+ */
+const OnchainTransferInfoBlock = function (props: {
+    transaction: Transaction
+    mint?: Mint
+}) {
+    const {transaction, mint} = props
+    const {transactionsStore} = useStores()
+    const isInternetReachable = useIsInternetReachable()
+    const [isChecking, setIsChecking] = useState(false)
+    const [checkResult, setCheckResult] = useState<string | undefined>()
+    const labelColor = useThemeColor('textDim')
+
+    const onCheckStatus = async function () {
+        if (!isInternetReachable) return
+
+        setIsChecking(true)
+        setCheckResult(undefined)
+
+        try {
+            // Through the queue, NOT straight to refresh. Reconstructing NUT-08 melt change
+            // reads the keyset counter, and the pending sweep can be doing the same thing at
+            // the same moment; SyncQueue (concurrency 1) is what serialises them.
+            await MeltOperationService.enqueuePendingOnchainTransferCheck(transaction.id)
+
+            const refreshed = transactionsStore.findById(transaction.id)
+
+            if (refreshed?.status === TransactionStatus.PENDING) {
+                setCheckResult(translate('tranDetail_onchainStillUnconfirmed'))
+            }
+            // Anything else settled the transaction; the observer re-renders it.
+        } catch (e: any) {
+            setCheckResult(e.message)
+        } finally {
+            setIsChecking(false)
+        }
+    }
+
+    return (
+        <>
+            <Card
+                label='Transaction data'
+                style={$dataCard}
+                ContentComponent={
+                    <>
+                        <TranItem
+                            label="tranDetailScreen_amount"
+                            value={transaction.amount}
+                            unit={transaction.unit}
+                            isCurrency={true}
+                            isFirst={true}
+                        />
+                        <TranItem
+                            label="transactionCommon_feePaid"
+                            value={transaction.fee || 0}
+                            unit={transaction.unit}
+                            isCurrency={true}
+                        />
+                        {transaction.memo && transaction.memo.length > 0 && (
+                            <TranItem label="receiverMemo" value={transaction.memo as string} />
+                        )}
+                        <TranItem
+                            label="tranDetailScreen_type"
+                            value={transaction.type as string}
+                        />
+                        <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                            <TranItem
+                                label="tranDetailScreen_status"
+                                value={transaction.status as string}
+                            />
+                            {isInternetReachable &&
+                                transaction.status === TransactionStatus.PENDING && (
+                                    <Button
+                                        style={{marginTop: spacing.medium}}
+                                        preset="secondary"
+                                        tx="tranDetail_checkStatus"
+                                        onPress={onCheckStatus}
+                                        disabled={isChecking}
+                                    />
+                                )}
+                        </View>
+                        {checkResult && (
+                            <Text
+                                text={checkResult}
+                                preset="formHelper"
+                                style={{color: labelColor}}
+                            />
+                        )}
+                        {transaction.status === TransactionStatus.COMPLETED && (
+                            <TranItem
+                                label="tranDetailScreen_balanceAfter"
+                                value={transaction.balanceAfter || 0}
+                                unit={transaction.unit}
+                                isCurrency={true}
+                            />
+                        )}
+                        <TranItem
+                            label="tranDetailScreen_createdAt"
+                            value={(transaction.createdAt as Date).toLocaleString()}
+                        />
+                        <TranItem label="tranDetailScreen_id" value={`${transaction.id}`} />
+                    </>
+                }
+            />
+            <Card
+                labelTx='tranDetailScreen_trasferredTo'
+                style={$dataCard}
+                ContentComponent={
+                    <>
+                        {mint ? (
+                            <MintListItem mint={mint} isSelectable={false} isUnitVisible={false} />
+                        ) : (
+                            <Text text={transaction.mint} />
+                        )}
+                        <PaymentRequestItem transaction={transaction} />
+                        {!!transaction.outpoint && (
+                            <OutpointItem outpoint={transaction.outpoint} />
+                        )}
+                    </>
+                }
+            />
+        </>
+    )
+}
+
+/**
+ * The onchain transaction the mint broadcast, as `txid:vout`.
+ *
+ * Copyable, because what a user does with it is paste it into a block explorer.
+ */
+const OutpointItem = function (props: {outpoint: string}) {
+    const labelColor = useThemeColor('textDim')
+
+    return (
+        <ListItem
+            leftIcon='faCubes'
+            leftIconColor={labelColor as string}
+            tx="tranDetailScreen_outpoint"
+            subText={props.outpoint}
+            subTextEllipsizeMode='middle'
+            topSeparator={true}
+            RightComponent={
+                <Button
+                    preset='tertiary'
+                    onPress={() => Clipboard.setString(props.outpoint)}
+                    tx='commonCopy'
+                    textStyle={{fontSize: 12, color: labelColor}}
+                />
+            }
+        />
+    )
+}
+
 const TopupInfoBlock = function (props: {
     transaction: Transaction
     isDataParsable: boolean
@@ -1554,19 +1922,22 @@ const TopupInfoBlock = function (props: {
             labelTx='tranDetailScreen_topupTo'
             style={$dataCard}
             ContentComponent={
-              mint ? (
-                <MintListItem
-                  mint={mint}
-                  isSelectable={false}
-                  isUnitVisible={false}
-                />
-              ) : (                
-                  <Text text={transaction.mint} />
-              )              
+              <>
+                {mint ? (
+                  <MintListItem
+                    mint={mint}
+                    isSelectable={false}
+                    isUnitVisible={false}
+                  />
+                ) : (
+                    <Text text={transaction.mint} />
+                )}
+                <PaymentRequestItem transaction={transaction} />
+              </>
             }
-        />        
+        />
         <BottomModal
-          isVisible={isResultModalVisible ? true : false}          
+          isVisible={isResultModalVisible ? true : false}
           ContentComponent={
             <>
               {(resultModalInfo?.status === TransactionStatus.COMPLETED) && (
@@ -1653,7 +2024,7 @@ const TransferInfoBlock = function (props: {
   colorScheme: 'dark' | 'light'
 }) {
   const {transaction, mint, isDataParsable} = props
-  const {proofsStore, transactionsStore} = useStores()
+  const {proofsStore, transactionsStore, mintsStore} = useStores()
   const navigation = useNavigation()
 
   
@@ -1673,9 +2044,14 @@ const TransferInfoBlock = function (props: {
 
     const {paymentRequest, unit, mint} = transaction
 
-    if(!paymentRequest || !unit || !mint) {
-      log.error('[onPayDraftTransfer] Missing params', {paymentRequest, unit, mint})
-      
+    // The mint's live url: this is handed to the Transfer screen to actually pay,
+    // so it must be where the mint answers NOW, not the url the draft was created
+    // at (transaction.mint, which is frozen as history).
+    const mintInstance = mintsStore.findByTransaction(transaction)
+
+    if(!paymentRequest || !unit || !mint || !mintInstance) {
+      log.error('[onPayDraftTransfer] Missing params', {paymentRequest, unit, mint, mintId: transaction.mintId})
+
       setResultModalInfo({
         status: TransactionStatus.ERROR,
         message: 'This transaction is missing data needed to be paid.'
@@ -1692,10 +2068,10 @@ const TransferInfoBlock = function (props: {
           encodedInvoice: transaction.paymentRequest,
           paymentOption: TransferOption.PASTE_OR_SCAN_INVOICE,
           unit: transaction.unit,
-          mintUrl: transaction.mint,
+          mintUrl: mintInstance.mintUrl,
           draftTransactionId: transaction.id
       }
-    })    
+    })
   }
 
   const onRevertPreparedTransfer = async function () {

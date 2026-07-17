@@ -6,7 +6,7 @@ import {Proof, ProofState} from '../models/Proof'
 import {
     Transaction,
 } from '../models/Transaction'
-import {MeltQuoteBolt11Response, TokenMetadata} from '@cashu/cashu-ts'
+import {MeltQuoteBolt11Response, MeltQuoteOnchainResponse, TokenMetadata} from '@cashu/cashu-ts'
 import {Mint, MintBalance} from '../models/Mint'
 import {NostrEvent} from './nostrService'
 import {Contact} from '../models/Contact'
@@ -86,6 +86,18 @@ type WalletTaskService = {
         nwcEvent?: NostrEvent,
         draftTransactionId?: number,
     ) => Promise<TransactionTaskResult>
+    transferOnchainQueueAwaitable: (
+        mintBalanceToTransferFrom: MintBalance,
+        amountToTransfer: number,
+        unit: MintUnit,
+        meltQuote: MeltQuoteOnchainResponse,
+        feeIndex: number,
+        memo: string,
+        quoteExpiry: Date,
+        address: string,
+        nwcEvent?: NostrEvent,
+        draftTransactionId?: number,
+    ) => Promise<TransactionTaskResult>
     receiveQueueAwaitable: (
         mint: Mint,
         tokenMetadata: TokenMetadata,
@@ -133,7 +145,7 @@ type WalletTaskService = {
     }) => Promise<{recoveredAmount: number}>
     recoverMeltQuoteChange: (params: {
         mintUrl: string
-        meltQuote: string | MeltQuoteBolt11Response
+        meltQuote: string | MeltQuoteBolt11Response | MeltQuoteOnchainResponse
     }) => Promise<{recoveredAmount: number}>
     handlePendingMeltTask: (params: {
         mintUrl: string
@@ -191,6 +203,7 @@ export const WalletTask: WalletTaskService = {
     recoverMintQuote: MintOperationService.recoverMintQuote,
     // Melt (transfer)
     transferQueueAwaitable: MeltOperationService.transferQueueAwaitable,
+    transferOnchainQueueAwaitable: MeltOperationService.transferOnchainQueueAwaitable,
     recoverMeltQuoteChange: MeltOperationService.recoverMeltQuoteChange,
     handlePendingMeltTask: MeltOperationService.handlePendingMeltTask,
     // Revert

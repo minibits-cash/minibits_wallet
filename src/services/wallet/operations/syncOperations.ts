@@ -169,12 +169,28 @@ const syncStateWithMintTask = async function (
 
                 try {
                     await _dispatchFinalize(tx)
-                    completedTxIds.push(tId)
+
+                    // Report the status the dispatch actually reached, not the one the
+                    // SPENT proofs implied. They are the same on every rail but one:
+                    // an onchain melt whose inputs are spent has only been BROADCAST,
+                    // and `refresh` deliberately leaves it PENDING until the mint
+                    // reports the transaction confirmed. Announcing COMPLETED here
+                    // would tell the user their Bitcoin payment had landed while it was
+                    // still sitting unconfirmed in the mempool.
+                    const settled = transactionsStore.findById(tId) ?? tx
+                    const reachedStatus = settled.status
+
+                    if (reachedStatus === TransactionStatus.COMPLETED) {
+                        completedTxIds.push(tId)
+                    } else {
+                        pendingTxIds.push(tId)
+                    }
+
                     transactionStateUpdates.push({
                         tId,
                         amount: tx.amount,
                         spentByMintAmount: spentAmount,
-                        updatedStatus: TransactionStatus.COMPLETED,
+                        updatedStatus: reachedStatus,
                     })
                 } catch (e: any) {
                     log.error('[syncStateWithMintTask] finalize dispatch failed', {
@@ -261,7 +277,10 @@ const syncStateWithMintTask = async function (
                 const tx = transactionsStore.findById(tId)
                 if (!tx) continue
 
-                if (tx.type !== TransactionType.TRANSFER) {
+                if (
+                    tx.type !== TransactionType.TRANSFER &&
+                    tx.type !== TransactionType.TRANSFER_ONCHAIN
+                ) {
                     log.warn(
                         '[syncStateWithMintTask] Unexpected non-TRANSFER tx in branch 3',
                         {tId, type: tx.type},
@@ -326,13 +345,21 @@ const syncStateWithMintTask = async function (
 }
 
 /**
- * Route a sync-confirmed-SPENT transaction to the appropriate operation API's
- * `finalize`. Sync has already bulk-moved the proofs to SPENT, so each
- * finalize sees an empty PENDING set and just stamps the tx COMPLETED (and,
- * for TRANSFER, recovers melt change atomically with the status update).
+ * Route a sync-confirmed-SPENT transaction to the appropriate operation API. Sync has
+ * already bulk-moved the proofs to SPENT, so each finalize sees an empty PENDING set
+ * and just stamps the tx COMPLETED (and, for TRANSFER, recovers melt change atomically
+ * with the status update).
  *
- * Only SEND and TRANSFER are expected here — other types don't park proofs
- * in PENDING that sync could later observe as SPENT.
+ * Only SEND, TRANSFER and TRANSFER_ONCHAIN are expected here — other types don't park
+ * proofs in PENDING that sync could later observe as SPENT.
+ *
+ * TRANSFER_ONCHAIN goes to `refresh`, NOT `finalize`, and the distinction is the whole
+ * point. On every other rail, the mint spending our inputs IS settlement. On onchain it
+ * is not: the mint takes the inputs when it BROADCASTS, and the payment is not settled
+ * until the transaction is mined — which may be many blocks later, or never, if the
+ * transaction is dropped. Finalizing here would report an unconfirmed payment as
+ * COMPLETED at exactly the moment it is least certain. `refresh` asks the mint for the
+ * quote state and only completes on PAID, leaving the transaction PENDING otherwise.
  */
 async function _dispatchFinalize(tx: Transaction): Promise<void> {
     switch (tx.type) {
@@ -341,6 +368,9 @@ async function _dispatchFinalize(tx: Transaction): Promise<void> {
             return
         case TransactionType.TRANSFER:
             await TransferOperationApi.finalize(tx.id)
+            return
+        case TransactionType.TRANSFER_ONCHAIN:
+            await TransferOperationApi.refresh(tx.id)
             return
         default:
             log.warn('[syncStateWithMintTask] Unexpected tx type in finalize dispatch', {

@@ -1,7 +1,8 @@
 import { flow, Instance, isAlive, SnapshotIn, SnapshotOut, types } from 'mobx-state-tree'
 import { log } from '../services/logService'
 import { MintUnit } from '../services/wallet/currency'
-import { Database } from '../services'
+// Direct import, not the '../services' barrel — see the note in Mint.ts.
+import { Database } from '../services/db'
 import { withSetPropAction } from './helpers/withSetPropAction'
 
 
@@ -16,8 +17,28 @@ export enum TransactionType {
     RECEIVE_OFFLINE = 'RECEIVE_OFFLINE',
     RECEIVE_NOSTR = 'RECEIVE_NOSTR', // not used
     RECEIVE_BY_PAYMENT_REQUEST = 'RECEIVE_BY_PAYMENT_REQUEST',
+    /** Mint over Lightning (bolt11). */
     TOPUP = 'TOPUP',
+    /** Melt over Lightning (bolt11). */
     TRANSFER = 'TRANSFER',
+    /**
+     * Mint from a Bitcoin onchain deposit (NUT-30).
+     *
+     * Separate from TOPUP because the underlying quote behaves differently: it is a
+     * reusable address rather than a one-shot invoice, so several of these can point
+     * at the SAME quote (one per mint operation) via `quote`. The amount is a hint
+     * until the deposit confirms — senders may under- or overpay — and settles to
+     * whatever was actually minted. See onchainQuotesRepo.
+     */
+    TOPUP_ONCHAIN = 'TOPUP_ONCHAIN',
+    /**
+     * Melt to a Bitcoin onchain address (NUT-30).
+     *
+     * Always asynchronous: the mint validates, returns PENDING, and broadcasts in
+     * the background, so this sits in PENDING until the transaction confirms.
+     * `outpoint` holds the resulting txid:vout once broadcast.
+     */
+    TRANSFER_ONCHAIN = 'TRANSFER_ONCHAIN',
 }
 
 export enum TransactionStatus {
@@ -61,7 +82,22 @@ export const TransactionModel = types
         paymentId: types.maybe(types.maybeNull(types.string)),
         quote: types.maybe(types.maybeNull(types.string)),
         memo: types.maybe(types.maybeNull(types.string)),
+        /**
+         * The url this payment happened at — a HISTORICAL fact, frozen once written.
+         * Display this; never dial it. A mint may since have moved, and rewriting it
+         * would misreport where the money actually went.
+         */
         mint: types.string,
+        /**
+         * Stable id (Mint.id) of the mint — the identity, and the only reference to
+         * resolve when acting: reaching the mint, or asking whether its mint is still
+         * in the wallet. Survives a mint-url edit, which is why `mint` no longer has
+         * to.
+         *
+         * Null for a transaction of a mint that has been removed, and for pre-v34
+         * rows the v38 backfill could not match.
+         */
+        mintId: types.maybe(types.maybeNull(types.string)),
         paymentRequest: types.maybe(types.maybeNull(types.string)),
         zapRequest: types.maybe(types.maybeNull(types.string)),
         inputToken: types.maybe(types.maybeNull(types.string)),
@@ -73,6 +109,13 @@ export const TransactionModel = types
         status: types.frozen<TransactionStatus>(),
         expiresAt: types.maybe(types.maybeNull(types.Date)),
         createdAt: types.optional(types.Date, new Date()),
+        /**
+         * `txid:vout` of the onchain payment (TRANSFER_ONCHAIN), once the mint has
+         * broadcast it. Null until then — the mint returns PENDING first and
+         * broadcasts in the background. Lets the user follow the payment on a block
+         * explorer, which for an onchain send is the only way to see where it got to.
+         */
+        outpoint: types.maybe(types.maybeNull(types.string)),
     })
     .views(self => ({}))
     .actions(withSetPropAction)

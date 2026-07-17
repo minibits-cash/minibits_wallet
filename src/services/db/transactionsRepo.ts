@@ -7,7 +7,7 @@ import {normalizeTransactionRecord, normalizeTransactionRows} from './mappers'
 
 export const updateTransaction = function (id: number, fields: Partial<Transaction>): Transaction {
 
-  const allowedColumns = ['amount','fee','unit','data', 'keysetId', 'sentFrom','sentTo','profile','memo','paymentId','quote','paymentRequest','zapRequest','inputToken','outputToken','proof','balanceAfter','noteToSelf','tags','status','expiresAt'];
+  const allowedColumns = ['amount','fee','unit','data', 'keysetId', 'sentFrom','sentTo','profile','memo','paymentId','quote','paymentRequest','zapRequest','inputToken','outputToken','proof','balanceAfter','noteToSelf','tags','status','expiresAt','outpoint'];
 
   try {
     // Filter keys against allowed columns
@@ -45,6 +45,42 @@ export const updateTransaction = function (id: number, fields: Partial<Transacti
     return updated as Transaction
   } catch (e: any) {
     throw dbError('Could not update transaction in database', e)
+  }
+}
+
+/**
+ * One-time backfill of `mintId` from the url a transaction happened at (the v38
+ * seed).
+ *
+ * Only fills NULLs, so it is idempotent and can never re-point a resolved row at
+ * whichever mint now answers a url. Rows left NULL belong to mints no longer in the
+ * wallet — legitimate history, which keeps its `mint` url and simply has no mint to
+ * act on.
+ *
+ * Matching on url is sound ONLY here, at the moment of upgrade: until now a mint's
+ * url could not change without in-flight rows being rewritten to match, so the two
+ * still agree. This spends that join once, at rest, instead of on every rename.
+ */
+export const backfillTransactionMintIds = function (
+  mints: Array<{id: string; mintUrl: string}>,
+): {updated: number} {
+  if (mints.length === 0) return {updated: 0}
+  try {
+    const db = getInstance()
+    let updated = 0
+
+    for (const mint of mints) {
+      const {rowsAffected} = db.execute(
+        `UPDATE transactions SET mintId = ? WHERE mint = ? AND mintId IS NULL`,
+        [mint.id, mint.mintUrl],
+      )
+      updated += rowsAffected ?? 0
+    }
+
+    log.info('[backfillTransactionMintIds]', 'Backfilled transaction mint ids', {updated})
+    return {updated}
+  } catch (e: any) {
+    throw dbError('Transaction mintIds could not be backfilled', e)
   }
 }
 
@@ -210,6 +246,38 @@ export const getPendingTransfers = function () {
       const {rows} = db.execute(query)
 
       log.trace(`[getPendingTransfers], Returned ${rows?.length} rows`)
+
+      return normalizeTransactionRows(rows)
+
+  } catch (e: any) {
+      throw dbError('Transactions could not be retrieved from the database', e)
+  }
+}
+
+
+/**
+ * PENDING onchain melts — payments the mint has taken but the chain has not confirmed.
+ *
+ * Separate from `getPendingTransfers` (which filters `type = 'TRANSFER'`) rather than
+ * folded into it, because the two are watched for different reasons and on different
+ * clocks: a bolt11 transfer is watched to catch a stuck payment and can be EXPIRED,
+ * while an onchain transfer is waiting on blocks and must never be expired — the melt
+ * quote's expiry bounds executing the quote, not confirming the payment.
+ */
+export const getPendingOnchainTransfers = function () {
+  try {
+      const query = `
+        SELECT *
+        FROM transactions
+        WHERE status = 'PENDING'
+        AND type = 'TRANSFER_ONCHAIN'
+        ORDER BY id DESC
+        `
+
+      const db = getInstance()
+      const {rows} = db.execute(query)
+
+      log.trace(`[getPendingOnchainTransfers], Returned ${rows?.length} rows`)
 
       return normalizeTransactionRows(rows)
 
@@ -457,19 +525,19 @@ export const getLastTransactionBy = function (
 
 export const addTransactionAsync = async function (tx: Partial<Transaction>): Promise<Transaction> {
   try {
-    const {type, amount, fee, unit, data, memo, mint, status} = tx
+    const {type, amount, fee, unit, data, memo, mint, mintId, status} = tx
     const now = new Date()
 
     const query = `
-      INSERT INTO transactions (type, amount, fee, unit, data, memo, mint, status, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (type, amount, fee, unit, data, memo, mint, mintId, status, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
-    const params = [type, amount, fee, unit, data, memo, mint, status, now.toISOString()]
+    const params = [type, amount, fee, unit, data, memo, mint, mintId ?? null, status, now.toISOString()]
 
     const db = getInstance()
     const result = await db.executeAsync(query, params)
 
-    log.debug('[addTransactionAsync] New transaction added to the database', {id: result.insertId, type, mint, status})
+    log.debug('[addTransactionAsync] New transaction added to the database', {id: result.insertId, type, mint, mintId, status})
 
     return getTransactionById(result.insertId as number) // already normalized
 

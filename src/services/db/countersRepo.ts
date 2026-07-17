@@ -6,31 +6,32 @@ import {log} from '../logService'
 // ─────────────────────────────────────────────────────────────────────────────
 // Per-keyset deterministic-derivation counters.
 //
-// The `counter` is the BIP32 derivation high-water mark for a (mint, keyset)
-// pair. It was previously held only in the MST `MintProofsCounter` model and
-// persisted to MMKV via the whole-tree snapshot — a separate persistence engine
-// from the proofs the counter derives, committed at a different moment. That
-// cross-engine gap meant a crash between "counter advanced" (MMKV) and "proofs
-// written" (SQLite) could desync them and risk blinded-secret reuse.
+// The `counter` is the NUT-13 derivation high-water mark for a keyset. It was
+// previously held only in the MST `MintProofsCounter` model and persisted to
+// MMKV via the whole-tree snapshot — a separate persistence engine from the
+// proofs the counter derives, committed at a different moment. That cross-engine
+// gap meant a crash between "counter advanced" (MMKV) and "proofs written"
+// (SQLite) could desync them and risk blinded-secret reuse.
 //
 // This repo makes SQLite the authority for the counter so the advance can later
 // be folded into the SAME transaction as the proof writes. Every write here is
 // MONOTONIC: a counter can never move backward. That single invariant is what
 // makes the MMKV→SQLite migration safe — a stale or racing writer can only ever
 // be a no-op, never a regression.
+//
+// Rows are keyed by keysetId ALONE — the mint url is not an input to NUT-13
+// derivation, so it was never part of this key space. See MINT_COUNTERS_COLUMNS.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type CounterRecord = {
-  mintUrl: string
   keysetId: string
   unit: string | null
   counter: number
   updatedAt: string | null
 }
 
-/** A single (mint, keyset, value) tuple for the one-time seed from MST/MMKV. */
+/** A single (keyset, value) tuple for the one-time seed from MST/MMKV. */
 export type CounterSeed = {
-  mintUrl: string
   keysetId: string
   unit?: string
   counter: number
@@ -43,20 +44,19 @@ export type CounterSeed = {
  * only ever rises to MAX(existing, value); a lower value is a no-op.
  */
 export const buildCounterUpsert = function (
-  mintUrl: string,
   keysetId: string,
   unit: string | undefined,
   value: number,
   now: string = new Date().toISOString(),
 ): SQLBatchTuple {
   return [
-    `INSERT INTO mint_counters (mintUrl, keysetId, unit, counter, updatedAt)
-     VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT(mintUrl, keysetId) DO UPDATE SET
+    `INSERT INTO mint_counters (keysetId, unit, counter, updatedAt)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(keysetId) DO UPDATE SET
        counter = MAX(counter, excluded.counter),
        unit = excluded.unit,
        updatedAt = excluded.updatedAt`,
-    [mintUrl, keysetId, unit ?? null, value, now],
+    [keysetId, unit ?? null, value, now],
   ]
 }
 
@@ -64,7 +64,7 @@ export const buildCounterUpsert = function (
 export const getCounters = function (): CounterRecord[] {
   try {
     const db = getInstance()
-    const {rows} = db.execute(`SELECT mintUrl, keysetId, unit, counter, updatedAt FROM mint_counters`)
+    const {rows} = db.execute(`SELECT keysetId, unit, counter, updatedAt FROM mint_counters`)
     return (rows?._array ?? []) as CounterRecord[]
   } catch (e: any) {
     throw dbError('Counters could not be retrieved from the database', e)
@@ -72,15 +72,12 @@ export const getCounters = function (): CounterRecord[] {
 }
 
 /** Read a single counter, or undefined when no row exists yet. */
-export const getCounter = function (
-  mintUrl: string,
-  keysetId: string,
-): CounterRecord | undefined {
+export const getCounter = function (keysetId: string): CounterRecord | undefined {
   try {
     const db = getInstance()
     const {rows} = db.execute(
-      `SELECT mintUrl, keysetId, unit, counter, updatedAt FROM mint_counters WHERE mintUrl = ? AND keysetId = ?`,
-      [mintUrl, keysetId],
+      `SELECT keysetId, unit, counter, updatedAt FROM mint_counters WHERE keysetId = ?`,
+      [keysetId],
     )
     return rows?.item(0) as CounterRecord | undefined
   } catch (e: any) {
@@ -95,13 +92,12 @@ export const getCounter = function (
  * built on. A lower `value` (stale cache, replayed op) is silently ignored.
  */
 export const setCounter = function (
-  mintUrl: string,
   keysetId: string,
   unit: string | undefined,
   value: number,
 ): void {
   try {
-    const [sql, params] = buildCounterUpsert(mintUrl, keysetId, unit, value)
+    const [sql, params] = buildCounterUpsert(keysetId, unit, value)
     getInstance().execute(sql, params)
   } catch (e: any) {
     throw dbError('Counter could not be saved to the database', e)
@@ -114,7 +110,6 @@ export const setCounter = function (
  * from 0 and becomes `delta`.
  */
 export const bumpCounter = function (
-  mintUrl: string,
   keysetId: string,
   unit: string | undefined,
   delta: number,
@@ -123,12 +118,12 @@ export const bumpCounter = function (
   try {
     const db = getInstance()
     db.execute(
-      `INSERT INTO mint_counters (mintUrl, keysetId, unit, counter, updatedAt)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(mintUrl, keysetId) DO UPDATE SET
+      `INSERT INTO mint_counters (keysetId, unit, counter, updatedAt)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(keysetId) DO UPDATE SET
          counter = counter + ?,
          updatedAt = excluded.updatedAt`,
-      [mintUrl, keysetId, unit ?? null, delta, new Date().toISOString(), delta],
+      [keysetId, unit ?? null, delta, new Date().toISOString(), delta],
     )
   } catch (e: any) {
     throw dbError('Counter could not be advanced in the database', e)
@@ -150,7 +145,7 @@ export const seedCounters = function (seeds: CounterSeed[]): {seeded: number} {
   try {
     const now = new Date().toISOString()
     const batch: SQLBatchTuple[] = seeds.map(s =>
-      buildCounterUpsert(s.mintUrl, s.keysetId, s.unit, s.counter, now),
+      buildCounterUpsert(s.keysetId, s.unit, s.counter, now),
     )
 
     const db = getInstance()

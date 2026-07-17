@@ -1,4 +1,4 @@
-import { useCallback, useContext } from 'react'
+import { useCallback, useContext, useSyncExternalStore } from 'react'
 import { useFocusEffect } from '@react-navigation/native'
 import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs'
 import {
@@ -38,6 +38,56 @@ export function showTabBar() {
 }
 
 /**
+ * Force the bar back into view from the JS thread, regardless of its current
+ * state. Called on every focus change so that navigating — including Back to a
+ * screen with no scroll handler — always brings the bar back.
+ */
+export function revealTabBar() {
+  isHidden.value = false
+  tabBarHiddenProgress.value = withTiming(0, { duration: SHOW_DURATION })
+}
+
+// Screens can force the bar out of view entirely while focused (e.g. to give a
+// non-scrolling screen the full height). A count rather than a boolean keeps the
+// state correct when a focus transition briefly overlaps two hiding screens.
+let forcedHiddenCount = 0
+const forcedHiddenListeners = new Set<() => void>()
+
+function setForcedHidden(delta: number) {
+  forcedHiddenCount = Math.max(0, forcedHiddenCount + delta)
+  forcedHiddenListeners.forEach(listener => listener())
+}
+
+/** Reactive read of whether any focused screen is forcing the bar hidden. */
+export function useIsTabBarForcedHidden(): boolean {
+  return useSyncExternalStore(
+    listener => {
+      forcedHiddenListeners.add(listener)
+      return () => forcedHiddenListeners.delete(listener)
+    },
+    () => forcedHiddenCount > 0,
+  )
+}
+
+/**
+ * Hide the floating tab bar for as long as the calling screen is focused, and
+ * restore it on blur. Use case-by-case, for screens that want the full height.
+ * While hidden, the bar reports only the safe-area inset as its height, so screens
+ * reserve just that instead of the bar's footprint — see `useTabBarInset`.
+ *
+ * `enabled` may be toggled; the hook is always called so the rules of hooks hold.
+ */
+export function useHideTabBar(enabled = true) {
+  useFocusEffect(
+    useCallback(() => {
+      if (!enabled) return
+      setForcedHidden(1)
+      return () => setForcedHidden(-1)
+    }, [enabled]),
+  )
+}
+
+/**
  * Vertical space the floating tab bar occupies, including its bottom offset.
  * Returns 0 outside of the tabs navigator, and while the keyboard hides the bar.
  */
@@ -56,14 +106,8 @@ export function useTabBarInset(): number {
  * Pass `scrollY` to also track the offset, e.g. to drive an `AnimatedHeader`.
  */
 export function useTabBarScrollHandler(scrollY?: SharedValue<number>) {
-  useFocusEffect(
-    useCallback(() => {
-      // A screen can be blurred while scrolled down, which leaves the bar parked.
-      isHidden.value = false
-      tabBarHiddenProgress.value = withTiming(0, { duration: SHOW_DURATION })
-    }, []),
-  )
-
+  // Revealing on focus change is handled centrally in FloatingTabBar, so a screen
+  // blurred mid-scroll doesn't leave the bar parked — see revealTabBar.
   return useAnimatedScrollHandler(
     {
       onScroll: event => {

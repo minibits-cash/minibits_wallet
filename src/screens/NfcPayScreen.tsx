@@ -1260,7 +1260,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
                                 label="tranDetailScreen_trasferredTo"
                                 isFirst={true}
                                 value={
-                                mintsStore.findByUrl(transaction.mint)
+                                mintsStore.findByTransaction(transaction)
                                     ?.shortname as string
                                 }
                             />

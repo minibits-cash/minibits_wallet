@@ -319,7 +319,8 @@ const onMemoEndEditing = () => {
 }
 
 const onMemoDone = () => {
-  if (parseInt(amountToRequest) > 0) {
+  // toNumber, not parseInt: a confirmed amount is grouped, and parseInt('12,345') is 12.
+  if (toNumber(amountToRequest) > 0) {
     memoInputRef.current?.blur()
     amountInputRef.current?.blur()
     onMemoEndEditing()
@@ -333,7 +334,8 @@ const onMintBalanceSelect = (balance: MintBalance) => {
 }
 
 const onMintBalanceCancel = () => {
-  dispatch({ type: 'HIDE_MINT_SELECTOR' })
+  return gotoWallet()
+  //dispatch({ type: 'HIDE_MINT_SELECTOR' })
 }
 
 const onMintBalanceConfirm = async () => {
@@ -411,7 +413,7 @@ const inputText = useThemeColor("text")
 
 
 return (
-  <Screen preset="fixed" contentContainerStyle={$screen}>
+  <Screen preset="fixed" contentContainerStyle={$screen} hideTabBar>
     <MintHeader
       mint={
         mintBalanceToReceiveTo
@@ -487,7 +489,7 @@ return (
                   label="cashuPaymentRequest_to"
                   isFirst={true}
                   value={
-                    mintsStore.findByUrl(transaction.mint)
+                    mintsStore.findByTransaction(transaction)
                       ?.shortname as string
                   }
                 />

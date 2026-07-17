@@ -1,7 +1,26 @@
 /**
- * Transfer (lightning melt) operation lifecycle API.
+ * Transfer (melt) operation lifecycle API — one lifecycle, two payment rails.
  *
- * Splits the historical monolithic `transferTask` into explicit lifecycle methods:
+ * Handles BOLT11 lightning melt (NUT-05) and Bitcoin onchain melt (NUT-30). The rails
+ * share every step below; what differs between them is resolved once, in
+ * `resolveTransferMethod` (see transferMethods.ts), rather than branched on at each
+ * site that needs a fee or an expiry. There is deliberately ONE copy of the proof
+ * reservation, the preemptive swap, and `_handleExecuteError` — that error matrix
+ * (paid-despite-error / already-spent / pending-at-mint / clean-unpaid) is the most
+ * safety-critical code in the wallet and must not be forked per rail.
+ *
+ * The one place the rails genuinely diverge is settlement:
+ *
+ *   bolt11  — usually settles synchronously (PAID on the melt response). When it does
+ *             not, a websocket + poller watch the quote.
+ *   onchain — NEVER settles synchronously. NUT-30 mandates that the mint answer
+ *             PENDING and broadcast in the background, so every onchain melt goes
+ *             through the PENDING path and is resolved later by the pending-queue
+ *             sweep. Confirmation is bounded by block times, so there is no websocket
+ *             and no poller: a ~60s sweep is already far finer-grained than the thing
+ *             it waits for. (Same reasoning as the onchain deposit watcher.)
+ *
+ * Lifecycle methods:
  *
  *   prepare()  →  PreparedTransferData  (DRAFT → PREPARED, melt reservation OPEN,
  *                                        preemptive swap done if beneficial)
@@ -30,6 +49,7 @@ import {
     normalizeProofAmounts,
     MeltProofsResponse,
     MeltQuoteBolt11Response,
+    MeltQuoteOnchainResponse,
     MeltQuoteState,
     Mint as CashuMint,
     Wallet as CashuWallet,
@@ -67,9 +87,39 @@ import {ProofReservation} from '../proofReservation'
 import {Database, ReservationRow} from '../../sqlite'
 import {poller} from '../../../utils/poller'
 import {Err} from '../../../utils/AppError'
-import {TransferMethodInput} from './transferMethods'
+import {
+    ResolvedTransferMethod,
+    TransferMethod,
+    TransferMethodInput,
+    resolveTransferMethod,
+} from './transferMethods'
+import {BitcoinUtils} from '../../bitcoin/bitcoinUtils'
+
+/** Any melt quote, whichever rail produced it. */
+type AnyMeltQuote = MeltQuoteBolt11Response | MeltQuoteOnchainResponse
 
 const {mintsStore, proofsStore, transactionsStore, walletStore} = rootStoreInstance
+
+/**
+ * The live url of a transaction's mint.
+ *
+ * Resolved through `tx.mintId`, never `tx.mint`: the latter records where the
+ * payment happened and is deliberately frozen, so after a mint-url edit it points
+ * at a host that no longer answers — and an open melt would never learn whether the
+ * mint had settled it.
+ */
+function _txMintUrl(tx: Transaction): string {
+    const mint = mintsStore.findByTransaction(tx)
+    if (!mint) {
+        throw new ValidationError('Transaction mint is no longer in this wallet', {
+            transactionId: tx.id,
+            mintId: tx.mintId,
+            happenedAtUrl: tx.mint,
+        })
+    }
+    return mint.mintUrl
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
@@ -77,11 +127,11 @@ const {mintsStore, proofsStore, transactionsStore, walletStore} = rootStoreInsta
 
 export interface PrepareTransferInput {
     mintBalance: MintBalance
-    /** Amount the recipient receives (excludes lightning + mint fees). */
+    /** Amount the recipient receives (excludes network + mint fees). */
     amount: number
     unit: MintUnit
     memo: string
-    /** Transfer method discriminator (currently only `bolt11`). */
+    /** Transfer method discriminator: `bolt11` or `onchain`. */
     method: TransferMethodInput
     /** NWC request that triggered this transfer (optional). */
     nwcEvent?: NostrEvent
@@ -109,20 +159,38 @@ export interface PreparedTransferData {
     mintUrl: string
     unit: MintUnit
     amountToTransfer: number
-    meltQuote: MeltQuoteBolt11Response
-    invoiceExpiry: Date
+    meltQuote: AnyMeltQuote
     path: TransferPath
     method: TransferMethodInput
+    /** The rail's facts, resolved once (fee reserve, expiry, tx type, quote id). */
+    resolved: ResolvedTransferMethod
     /** Proofs locked under the melt reservation (the operation's inputs). */
     proofsToMeltFrom: Proof[]
     proofsToMeltFromAmount: number
     /** Mint swap fee charged for melting these specific proofs. */
     meltFeeReserve: number
-    /** Lightning fee reserve (mirror of meltQuote.fee_reserve). */
-    lightningFeeReserve: number
+    /**
+     * The network fee the mint may charge to settle: the quote's `fee_reserve` for
+     * bolt11, the SELECTED tier's `fee_reserve` for onchain. Whatever the mint does
+     * not spend comes back as NUT-08 change.
+     */
+    feeReserve: number
     /** Fee paid for the preemptive swap (0 if no swap ran). */
     preemptiveSwapFeePaid: number
     nwcEvent?: NostrEvent
+}
+
+/**
+ * Which audit-trail keys a rail writes its fees under.
+ *
+ * The numbers mean the same thing on both rails, but a transaction's data is read by
+ * humans looking at a support ticket — calling a miner fee "lightningFeePaid" would be
+ * actively misleading. bolt11 keeps its historical names so existing history renders
+ * unchanged.
+ */
+const FEE_KEYS: Record<TransferMethod, {reserve: string; paid: string}> = {
+    bolt11: {reserve: 'lightningFeeReserve', paid: 'lightningFeePaid'},
+    onchain: {reserve: 'onchainFeeReserve', paid: 'onchainFeePaid'},
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -135,15 +203,32 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
     if (amount <= 0) {
         throw new ValidationError('Amount to transfer must be above zero.')
     }
-    if (method.method !== 'bolt11') {
+    if (method.method !== 'bolt11' && method.method !== 'onchain') {
         throw new ValidationError(`Unsupported transfer method: ${(method as any).method}`)
     }
 
-    const {meltQuote, encodedInvoice, invoiceExpiry} = method.options
+    const resolved = resolveTransferMethod(method)
+    const meltQuote = method.options.meltQuote
     const mintUrl = mintBalance.mintUrl
     const mintInstance = mintsStore.findByUrl(mintUrl)
     if (!mintInstance) {
         throw new ValidationError('Could not find mint', {mintUrl})
+    }
+
+    // Second line of defence on the destination network. The Pay screen already refuses
+    // non-mainnet addresses, but this is the last point before real money moves and an
+    // onchain payment cannot be taken back — so the check lives here too, where every
+    // caller (screen, NWC, a future one) must pass through it.
+    //
+    // Debug builds pass a non-mainnet address through (BitcoinUtils.ALLOW_NON_MAINNET_PAY):
+    // the CDK fakewallet settles onchain melts against a regtest chain, and refusing its
+    // addresses here would make this rail impossible to exercise end to end. A release
+    // build always refuses, and there is no setting that changes that.
+    if (method.method === 'onchain' && !BitcoinUtils.isPayableBitcoinAddress(resolved.paymentRequest)) {
+        throw new ValidationError(
+            'Not a mainnet Bitcoin address. Minibits will not pay to testnet or regtest addresses.',
+            {address: resolved.paymentRequest},
+        )
     }
 
     // ── Create or load the draft transaction ────────────────────────────
@@ -168,9 +253,9 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
             createdAt: new Date(),
         })
         transaction = await transactionsStore.addTransaction({
-            type: TransactionType.TRANSFER,
+            type: resolved.transactionType,
             amount,
-            fee: meltQuote.fee_reserve.toNumber(),
+            fee: resolved.feeReserve,
             unit,
             data: JSON.stringify(transactionData),
             memo,
@@ -183,23 +268,31 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
     }
 
     const transactionId = transaction.id
-    const paymentHash = LightningUtils.getInvoiceData(
-        LightningUtils.decodeInvoice(encodedInvoice),
-    ).payment_hash
-    transaction.update({paymentId: paymentHash, quote: meltQuote.quote})
+
+    transaction.update({
+        quote: resolved.quoteId,
+        // The destination, so the transaction detail can show it (and, for onchain,
+        // so the user can check where their money actually went).
+        paymentRequest: resolved.paymentRequest,
+        // bolt11 has a payment hash; onchain has nothing equivalent until the mint
+        // broadcasts, at which point it gets an `outpoint` instead.
+        ...(resolved.paymentId && {paymentId: resolved.paymentId}),
+    })
 
     // ── Validations ─────────────────────────────────────────────────────
-    const lightningFeeReserve = meltQuote.fee_reserve.toNumber()
-    if (amount + lightningFeeReserve > mintBalance.balances[unit]!) {
+    const feeReserve = resolved.feeReserve
+    if (amount + feeReserve > mintBalance.balances[unit]!) {
         throw new ValidationError(
-            'Mint balance is insufficient to cover the amount to transfer with the expected Lightning fees.',
+            'Mint balance is insufficient to cover the amount to transfer with the expected network fees.',
             {transactionId},
         )
     }
-    if (isBefore(invoiceExpiry, new Date())) {
+    if (isBefore(resolved.expiry, new Date())) {
         throw new ValidationError(
-            'This invoice has already expired and can not be paid.',
-            {invoiceExpiry, transactionId},
+            resolved.method === 'bolt11'
+                ? 'This invoice has already expired and can not be paid.'
+                : 'This payment quote has expired. Please request a new one.',
+            {expiry: resolved.expiry, transactionId},
         )
     }
 
@@ -209,9 +302,10 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
 
     const walletInstance = (await walletStore.getWallet(mintUrl, unit, {withSeed: true})) as CashuWallet
 
-    // Select proofs covering amount + lightning fee_reserve + the mint's
-    // per-proof input fee on the selected proofs. The helper iterates to a fixed
-    // point so the inputs always cover their own input fee — without it, the fee
+    // Select proofs covering amount + the network fee_reserve + the mint's per-proof
+    // input fee on the selected proofs — `amount + fee_reserve + input_fee`, which is
+    // what both NUT-05 and NUT-30 require the inputs to cover. The helper iterates to a
+    // fixed point so the inputs always cover their own input fee — without it, the fee
     // computed on the first selection can be too low for the (larger) re-selected
     // set and the mint rejects with "not enough inputs provided for melt".
     let proofsToMeltFrom: Proof[]
@@ -219,7 +313,7 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
     try {
         ;({proofsToSend: proofsToMeltFrom, feeReserve: meltFeeReserve} =
             CashuUtils.selectProofsToSendWithFeeReserve(
-                amount + lightningFeeReserve,
+                amount + feeReserve,
                 proofsFromMint,
                 selected => walletInstance.getFeesForProofs(selected).toNumber(),
                 {caller: 'TransferOperationApi.prepare'},
@@ -233,7 +327,7 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
         })
     }
 
-    let amountWithFees = amount + lightningFeeReserve + meltFeeReserve
+    let amountWithFees = amount + feeReserve + meltFeeReserve
     let proofsToMeltFromAmount = CashuUtils.getProofsAmount(proofsToMeltFrom)
 
     // ── Preemptive swap path ────────────────────────────────────────────
@@ -319,10 +413,11 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
     transactionData.push({
         status: TransactionStatus.PREPARED,
         proofsToMeltFromAmount,
-        lightningFeeReserve,
+        [FEE_KEYS[resolved.method].reserve]: feeReserve,
         meltFeeReserve,
         path,
         method: method.method,
+        ...(method.method === 'onchain' && {feeIndex: method.options.feeIndex}),
         ...(preemptiveSwapFeePaid > 0 && {preemptiveSwapFeePaid}),
         createdAt: new Date(),
     })
@@ -349,10 +444,11 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
 
     log.debug('[TransferOperationApi.prepare]', 'Prepared', {
         transactionId,
+        method: resolved.method,
         path,
         amount,
         meltFeeReserve,
-        lightningFeeReserve,
+        feeReserve,
         preemptiveSwapFeePaid,
         lockedCount: proofsToMeltFrom.length,
     })
@@ -364,13 +460,13 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
         unit,
         amountToTransfer: amount,
         meltQuote,
-        invoiceExpiry,
         path,
         method,
+        resolved,
         proofsToMeltFrom,
         proofsToMeltFromAmount,
         meltFeeReserve,
-        lightningFeeReserve,
+        feeReserve,
         preemptiveSwapFeePaid,
         nwcEvent,
     }
@@ -379,11 +475,15 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
 // ─────────────────────────────────────────────────────────────────────────────
 // execute()
 //
-// Marks tx EXECUTING, calls payLightningMelt, then commits atomically based on
-// the mint's quote state:
+// Marks tx EXECUTING, submits the melt, then commits atomically based on the
+// mint's quote state:
 //   - PAID:    inputs → SPENT, change → UNSPENT, tx → COMPLETED.
-//   - PENDING: no proof changes, tx → PENDING; async ws/poller resolves later.
+//   - PENDING: inputs stay PENDING, change committed IF the mint already returned
+//              any, tx → PENDING; the watcher/monitor resolves it later.
 //   - UNPAID:  rollback reservation (proofs → UNSPENT) and throw.
+//
+// An onchain melt ALWAYS lands in PENDING — NUT-30 requires the mint to answer
+// PENDING and broadcast in the background. It is never PAID here.
 //
 // Errors are routed through `_handleExecuteError` which re-checks the quote
 // (the mint may have paid even though the client errored) and chooses the
@@ -418,6 +518,8 @@ async function execute(
         unit,
         amountToTransfer,
         meltQuote,
+        method,
+        resolved,
         proofsToMeltFrom,
         proofsToMeltFromAmount,
         meltFeeReserve,
@@ -425,12 +527,29 @@ async function execute(
 
     tx.update({status: TransactionStatus.EXECUTING})
 
-    let meltResponse: MeltProofsResponse
-    try {
-        meltResponse = await walletStore.payLightningMelt(
+    /**
+     * Submit the melt on whichever rail this transfer is on.
+     *
+     * `increaseCounterBy` is the shared outputs-error healing path: the mint says our
+     * blinded outputs were already signed, so we skip the counter forward and retry.
+     */
+    const submitMelt = (increaseCounterBy?: number): Promise<MeltProofsResponse> => {
+        if (method.method === 'onchain') {
+            return walletStore.payOnchainMelt(
+                mintUrl,
+                unit,
+                method.options.meltQuote,
+                proofsToMeltFrom,
+                method.options.feeIndex,
+                tx.id,
+                increaseCounterBy ? {increaseCounterBy} : undefined,
+            )
+        }
+
+        return walletStore.payLightningMelt(
             mintUrl,
             unit,
-            meltQuote,
+            method.options.meltQuote,
             proofsToMeltFrom,
             tx.id,
             // Always async — including NWC. The mint ACKs immediately and the
@@ -438,22 +557,20 @@ async function execute(
             // the lightning round-trip. NWC pay_invoice waits a bounded time for
             // the preimage (see NwcStore.payInvoice); zaps confirm via the NIP-57
             // receipt regardless.
-            {preferAsync: true},
+            {preferAsync: true, ...(increaseCounterBy && {increaseCounterBy})},
         )
+    }
+
+    let meltResponse: MeltProofsResponse
+    try {
+        meltResponse = await submitMelt()
     } catch (e: any) {
         if (WalletUtils.shouldHealOutputsError(e)) {
             log.error(
-                '[TransferOperationApi.execute] Increasing proofsCounter outdated values and repeating payLightningMelt.',
+                '[TransferOperationApi.execute] Increasing proofsCounter outdated values and repeating the melt.',
             )
             try {
-                meltResponse = await walletStore.payLightningMelt(
-                    mintUrl,
-                    unit,
-                    meltQuote,
-                    proofsToMeltFrom,
-                    tx.id,
-                    {increaseCounterBy: 10, preferAsync: true},
-                )
+                meltResponse = await submitMelt(10)
             } catch (e2: any) {
                 return _handleExecuteError(e2, {
                     tx,
@@ -473,11 +590,14 @@ async function execute(
     }
 
     // ── PAID synchronously → finalize now ───────────────────────────────
+    // bolt11 only. An onchain melt is never PAID at this point (NUT-30 mandates the
+    // mint answer PENDING and broadcast in the background).
     if (meltResponse.quote.state === MeltQuoteState.PAID) {
         const returnedAmount = CashuUtils.getProofsAmount(meltResponse.change)
         const totalFeePaid = proofsToMeltFromAmount - amountToTransfer - returnedAmount
-        const lightningFeePaid = totalFeePaid - meltFeeReserve
+        const networkFeePaid = totalFeePaid - meltFeeReserve
         const meltFeePaid = meltFeeReserve
+        const preimage = _preimageOf(meltResponse.quote)
 
         let outputToken: string | undefined
         if (meltResponse.change.length > 0) {
@@ -493,11 +613,10 @@ async function execute(
 
         transactionData.push({
             status: TransactionStatus.COMPLETED,
-            lightningFeePaid,
+            [FEE_KEYS[resolved.method].paid]: networkFeePaid,
             meltFeePaid,
             returnedAmount,
-            //@ts-ignore — payment_preimage is loosely typed in cashu-ts
-            preimage: meltResponse.quote.payment_preimage,
+            preimage,
             createdAt: new Date(),
         })
 
@@ -514,40 +633,77 @@ async function execute(
                 fee: totalFeePaid,
                 balanceAfter,
                 ...(outputToken && {outputToken}),
-                //@ts-ignore — payment_preimage is loosely typed in cashu-ts
-                ...(meltResponse.quote.payment_preimage && {proof: meltResponse.quote.payment_preimage}),
+                ...(preimage && {proof: preimage}),
             },
         })
 
-        log.debug('[TransferOperationApi.execute] Invoice PAID', {transactionId: tx.id, totalFeePaid})
+        log.debug('[TransferOperationApi.execute] Payment PAID', {transactionId: tx.id, totalFeePaid})
         return _assertCompleted(tx, tx.id)
     }
 
-    // ── PENDING async → tx PENDING, monitor will finalize via refresh ───
+    // ── PENDING async → tx PENDING; the watcher/monitor finalizes via refresh ───
     if (meltResponse.quote.state === MeltQuoteState.PENDING) {
+        const outpoint = _outpointOf(meltResponse.quote)
+
+        // CHANGE MAY ALREADY BE HERE. On bolt11 a PENDING melt has no change yet — the
+        // fee is not known until the payment settles. On onchain it can: the mint knows
+        // exactly what it is paying in miner fees the moment it builds the transaction,
+        // so it can return the unclaimed reserve straight away, with the PENDING
+        // response. Dropping it (as the bolt11 path safely does) would strand those
+        // proofs — they are signed, they are ours, and nothing would ever look for them
+        // again, because `refresh` only reconstructs change it has not already taken.
+        const change = meltResponse.change ?? []
+        const returnedAmount = CashuUtils.getProofsAmount(change)
+
+        let outputToken: string | undefined
+        if (change.length > 0) {
+            outputToken = getEncodedToken({mint: mintUrl, proofs: change, unit})
+        }
+
+        const currentSpendable = proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
+        const balanceAfter = currentSpendable + returnedAmount
+
         transactionData.push({
             status: TransactionStatus.PENDING,
+            ...(outpoint && {outpoint}),
+            ...(change.length > 0 && {returnedAmount}),
             createdAt: new Date(),
         })
 
         proofsStore.commitReservation(reservation, {
+            // Inputs stay PENDING: the mint has taken them but the payment has not
+            // settled. Only `refresh` (on a PAID quote) moves them to SPENT.
+            newProofs:
+                change.length > 0
+                    ? [{proofs: change, state: 'UNSPENT', tId: tx.id}]
+                    : [],
             transactionUpdate: {
                 id: tx.id,
                 status: TransactionStatus.PENDING,
                 data: JSON.stringify(transactionData),
+                ...(outpoint && {outpoint}),
+                ...(change.length > 0 && {balanceAfter, outputToken}),
             },
         })
 
-        _monitorAsyncMeltQuote({
-            mintUrl,
-            unit,
-            quoteId: meltResponse.quote.quote,
-            transactionId: tx.id,
-        })
+        // bolt11 gets a websocket + poller. Onchain does not: confirmation is bounded by
+        // block times, so the ~60s pending-queue sweep is already far finer-grained than
+        // the thing it waits for, and a 2-minute poller would just burn requests.
+        if (resolved.method === 'bolt11') {
+            _monitorAsyncMeltQuote({
+                mintUrl,
+                unit,
+                quoteId: meltResponse.quote.quote,
+                transactionId: tx.id,
+            })
+        }
 
-        log.debug('[TransferOperationApi.execute] Invoice PENDING, async melt in progress', {
+        log.debug('[TransferOperationApi.execute] Payment PENDING, async melt in progress', {
+            method: resolved.method,
             quoteId: meltResponse.quote.quote,
             transactionId: tx.id,
+            outpoint,
+            returnedAmount,
         })
 
         const refreshed = transactionsStore.findById(tx.id)!
@@ -563,10 +719,15 @@ async function execute(
     // ── UNPAID → throw so caller (wrapper) can mark ERROR. Rollback the
     //    reservation atomically to restore proofs to UNSPENT.
     proofsStore.rollbackReservation(reservation)
-    throw new MintError('Lightning payment has not been paid.', {
-        meltResponseQuote: meltResponse.quote,
-        transactionId: tx.id,
-    })
+    throw new MintError(
+        resolved.method === 'onchain'
+            ? 'The onchain payment has not been made.'
+            : 'Lightning payment has not been paid.',
+        {
+            meltResponseQuote: meltResponse.quote,
+            transactionId: tx.id,
+        },
+    )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -669,7 +830,7 @@ async function finalize(transactionId: number): Promise<CompletedTransaction> {
         throw new ValidationError('Transfer has no quote id; cannot finalize.', {transactionId})
     }
 
-    const quote = await walletStore.checkLightningMeltQuote(tx.mint, tx.quote)
+    const quote = await _checkQuote(tx, tx.quote)
     if (quote.state !== MeltQuoteState.PAID) {
         throw new MintError(
             `Cannot finalize transfer; mint reports quote state ${quote.state}.`,
@@ -704,25 +865,32 @@ async function refresh(transactionId: number): Promise<Transaction> {
         return tx
     }
 
-    const quote = await walletStore.checkLightningMeltQuote(tx.mint, tx.quote)
+    const isOnchain = _isOnchainTransfer(tx)
+    const quote = await _checkQuote(tx, tx.quote)
 
     if (quote.state === MeltQuoteState.PAID) {
         const completed = await _finalizePaid(tx, quote)
         EventEmitter.emit('ev_asyncMeltResult', {
             transactionId,
             status: TransactionStatus.COMPLETED,
-            message: translate('transactionResult_lightningInvoicePaidFee', {
-                fee: `${formatCurrency(tx.fee, getCurrency(tx.unit).code)} ${getCurrency(tx.unit).code}`,
-            }),
+            message: isOnchain
+                ? translate('transactionResult_onchainPaymentConfirmed')
+                : translate('transactionResult_lightningInvoicePaidFee', {
+                      fee: `${formatCurrency(tx.fee, getCurrency(tx.unit).code)} ${getCurrency(tx.unit).code}`,
+                  }),
         })
         return completed
     }
 
     if (quote.state === MeltQuoteState.UNPAID) {
-        // Lightning failed → proofs go back to spendable, tx is REVERTED.
+        // The payment failed → proofs go back to spendable, tx is REVERTED.
         // (Original `handlePendingMeltTask` stamped ERROR here, but sync has
         // always used REVERTED for the same logical event — REVERTED is the
         // accurate terminal status, since the ecash IS recoverable.)
+        //
+        // For onchain this means the mint never broadcast, or dropped the transaction
+        // before it was mined. A CONFIRMED payment can never come back here: once it is
+        // in a block the mint reports PAID, and PAID is terminal.
         const pendingProofs = proofsStore
             .getByTransactionId(tx.id)
             .filter(p => p.state === 'PENDING')
@@ -730,10 +898,14 @@ async function refresh(transactionId: number): Promise<Transaction> {
             proofsStore.revertToSpendable(pendingProofs)
         }
 
+        const failureMessage = isOnchain
+            ? translate('transactionResult_onchainPaymentFailed')
+            : translate('transactionResult_lightningPaymentFailed')
+
         const txData = _parseData(tx)
         txData.push({
             status: TransactionStatus.REVERTED,
-            message: translate('transactionResult_lightningPaymentFailed'),
+            message: failureMessage,
             createdAt: new Date(),
         })
         tx.update({status: TransactionStatus.REVERTED, data: JSON.stringify(txData)})
@@ -743,18 +915,76 @@ async function refresh(transactionId: number): Promise<Transaction> {
         EventEmitter.emit('ev_asyncMeltResult', {
             transactionId,
             status: TransactionStatus.REVERTED,
-            message: translate('transactionResult_lightningPaymentFailed'),
+            message: failureMessage,
         })
         return tx
     }
 
-    // PENDING: ws/poller will call back later.
+    // ── Still PENDING ───────────────────────────────────────────────────
+    // For onchain, the mint may only have broadcast between our last check and this
+    // one — so the outpoint can appear now, while the state has not moved. Record it
+    // as soon as it exists: it is the only way the user can follow their payment on a
+    // block explorer, independently of the mint, and it is the thing they will ask for
+    // if the mint goes quiet.
+    const outpoint = _outpointOf(quote)
+    if (outpoint && !tx.outpoint) {
+        tx.update({outpoint})
+        log.debug('[TransferOperationApi.refresh] Onchain payment broadcast', {
+            transactionId,
+            outpoint,
+        })
+    }
+
     return tx
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Private helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The proof-of-payment a rail produces, if any.
+ *
+ * bolt11 settles with a preimage. Onchain has no preimage — its evidence is the
+ * `outpoint`, handled separately — so this is simply absent there, and the tx's
+ * `proof` column stays empty rather than holding something invented.
+ */
+function _preimageOf(quote: object): string | undefined {
+    const preimage = (quote as MeltQuoteBolt11Response).payment_preimage
+    return preimage ?? undefined
+}
+
+/**
+ * `txid:vout` of the onchain payment, once the mint has broadcast it.
+ *
+ * Null until then, and never present on bolt11. This is the only handle the user has
+ * on an onchain payment: with it they can watch the transaction confirm on any block
+ * explorer, independently of the mint.
+ */
+function _outpointOf(quote: object): string | undefined {
+    const outpoint = (quote as MeltQuoteOnchainResponse).outpoint
+    return outpoint ?? undefined
+}
+
+/** Is this transaction an onchain melt? The tx type is the discriminator. */
+function _isOnchainTransfer(tx: Transaction): boolean {
+    return tx.type === TransactionType.TRANSFER_ONCHAIN
+}
+
+/**
+ * Ask the mint for the current state of a transfer's quote, on the right rail.
+ *
+ * For onchain this — and ONLY this — is what says whether the payment settled. The
+ * mint spending our inputs means it BROADCAST; it does not mean the transaction
+ * confirmed. Reading settlement off proof state (as sync does for bolt11) would
+ * complete an onchain transfer the moment it left the mint, which is exactly when it
+ * is least certain.
+ */
+async function _checkQuote(tx: Transaction, quoteId: string): Promise<AnyMeltQuote> {
+    return _isOnchainTransfer(tx)
+        ? await walletStore.checkOnchainMeltQuote(_txMintUrl(tx), quoteId)
+        : await walletStore.checkLightningMeltQuote(_txMintUrl(tx), quoteId)
+}
 
 /**
  * Centralised error-recovery flow for `execute`. The mint may have paid the
@@ -771,11 +1001,11 @@ async function _handleExecuteError(
     },
 ): Promise<never> {
     const {tx, transactionData, reservation, prepared} = ctx
-    const {mintUrl, unit, meltQuote, proofsToMeltFrom, proofsToMeltFromAmount} = prepared
+    const {mintUrl, unit, resolved, proofsToMeltFrom, proofsToMeltFromAmount} = prepared
 
-    let meltQuoteCheck: MeltQuoteBolt11Response
+    let meltQuoteCheck: AnyMeltQuote
     try {
-        meltQuoteCheck = await walletStore.checkLightningMeltQuote(mintUrl, meltQuote.quote)
+        meltQuoteCheck = await _checkQuote(tx, resolved.quoteId)
     } catch (checkError: any) {
         // Quote check itself failed — leave the reservation as-is, the orphan
         // recovery sweep + sync will reconcile on the next startup.
@@ -891,11 +1121,12 @@ async function _handleExecuteError(
  */
 async function _finalizePaid(
     tx: Transaction,
-    quote: MeltQuoteBolt11Response,
+    quote: AnyMeltQuote,
 ): Promise<CompletedTransaction> {
     const transactionId = tx.id
-    const mintUrl = tx.mint
+    const mintUrl = _txMintUrl(tx)
     const unit = tx.unit
+    const method: TransferMethod = _isOnchainTransfer(tx) ? 'onchain' : 'bolt11'
 
     // pendingProofs may be empty when called from sync after a bulk SPENT
     // marking — but we still need to unblind change and atomic-commit the tx
@@ -915,9 +1146,14 @@ async function _finalizePaid(
             : (_readNumberFromData(tx, 'proofsToMeltFromAmount') ?? tx.amount)
     const amountToTransfer = tx.amount
     const meltFeeReserve = _readNumberFromData(tx, 'meltFeeReserve') ?? 0
-    let totalFeePaid = proofsToMeltFromAmount - amountToTransfer
-    let lightningFeePaid = totalFeePaid - meltFeeReserve
-    const meltFeePaid = meltFeeReserve
+
+    // An onchain melt may have had its change returned ALREADY, on the PENDING melt
+    // response (the mint knows its miner fee as soon as it builds the transaction).
+    // That change is banked and `_unblindMeltChange` will correctly find nothing left
+    // to reconstruct — but it is still not fee. Counting it here would report the
+    // user's own returned money as money they spent. Read it before pushing this
+    // status entry, which writes a `returnedAmount` of its own.
+    const alreadyReturned = _readNumberFromData(tx, 'returnedAmount') ?? 0
 
     // Unblind change BEFORE opening the reservation; same fallback behaviour as
     // the pre-reservation code — change recovery failure doesn't block finalize.
@@ -929,26 +1165,32 @@ async function _finalizePaid(
         quoteChange: quote.change,
     })
 
-    let returnedAmount = 0
+    let returnedNow = 0
     let outputToken: string | undefined
     if (unblinded.change.length > 0) {
-        returnedAmount = CashuUtils.getProofsAmount(unblinded.change)
+        returnedNow = CashuUtils.getProofsAmount(unblinded.change)
         outputToken = getEncodedToken({mint: mintUrl, proofs: unblinded.change, unit})
-        totalFeePaid -= returnedAmount
-        lightningFeePaid = totalFeePaid - meltFeeReserve
     }
 
+    const returnedAmount = alreadyReturned + returnedNow
+    const totalFeePaid = proofsToMeltFromAmount - amountToTransfer - returnedAmount
+    const networkFeePaid = totalFeePaid - meltFeeReserve
+    const meltFeePaid = meltFeeReserve
+
     const currentSpendable = proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
-    const balanceAfter = currentSpendable + returnedAmount
+    const balanceAfter = currentSpendable + returnedNow
+
+    const preimage = _preimageOf(quote)
+    const outpoint = _outpointOf(quote)
 
     const txData = _parseData(tx)
     txData.push({
         status: TransactionStatus.COMPLETED,
-        lightningFeePaid,
+        [FEE_KEYS[method].paid]: networkFeePaid,
         meltFeePaid,
         returnedAmount,
-        //@ts-ignore
-        preimage: quote.payment_preimage,
+        ...(preimage && {preimage}),
+        ...(outpoint && {outpoint}),
         createdAt: new Date(),
     })
 
@@ -986,14 +1228,16 @@ async function _finalizePaid(
             fee: totalFeePaid,
             balanceAfter,
             ...(outputToken && {outputToken}),
-            //@ts-ignore — payment_preimage is loosely typed in cashu-ts
-            ...(quote.payment_preimage && {proof: quote.payment_preimage}),
+            ...(preimage && {proof: preimage}),
+            ...(outpoint && {outpoint}),
         },
     })
 
     log.debug('[TransferOperationApi._finalizePaid] Transaction completed', {
         transactionId,
+        method,
         totalFeePaid,
+        returnedAmount,
     })
     return _assertCompleted(tx, transactionId)
 }
@@ -1117,6 +1361,7 @@ function _rowToReservation(row: ReservationRow): ProofReservation {
     return {
         id: row.id,
         transactionId: row.transactionId,
+        mintId: row.mintId,
         mintUrl: row.mintUrl,
         unit: row.unit as MintUnit,
         operationType: row.operationType,

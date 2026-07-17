@@ -929,7 +929,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         Deselects amount and memo if amount is already filled in and user confirms the memo input.
     */
     const onMemoDone = function () {
-        if (parseInt(amountToSend) > 0) {
+        // toNumber, not parseInt: a confirmed amount is grouped, and parseInt('12,345') is 12.
+        if (toNumber(amountToSend) > 0) {
         memoInputRef && memoInputRef.current
             ? memoInputRef.current.blur()
             : false
@@ -1179,9 +1180,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
     }
 
 
-    const onMintBalanceCancel = async function () {
-        resetState()
-        gotoWallet()
+    const onMintBalanceCancel = async function () {        
+        return gotoWallet()
     }
 
     /* 
@@ -1480,7 +1480,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
 
     return (
-      <Screen preset="fixed" contentContainerStyle={$screen}>
+      <Screen preset="fixed" contentContainerStyle={$screen} hideTabBar>
         <MintHeader 
             mint={mintBalanceToSendFrom ? mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl) : undefined}
             unit={unitRef.current}            
@@ -1583,7 +1583,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         <TranItem 
                             label="tranDetailScreen_sentTo"
                             isFirst={true}
-                            value={mintsStore.findByUrl(transaction.mint)?.shortname as string}
+                            value={mintsStore.findByTransaction(transaction)?.shortname as string}
                         />
                         {transaction?.memo && (
                         <TranItem

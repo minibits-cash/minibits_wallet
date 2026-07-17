@@ -540,19 +540,19 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     }
 
 
-    const gotoLightningPay = function (mintUrl?: string) {
+    const gotoPay = function (mintUrl?: string) {
         log.trace({mintUrl})
         if(mintUrl) {
             setIsMintsModalVisible(false)
             // @ts-ignore
-            navigation.navigate('LightningPay', {
+            navigation.navigate('Pay', {
                 mintUrl,
                 unit: currentUnit
             })
         } else {
             setIsSendModalVisible(false)
             // @ts-ignore
-            navigation.navigate('LightningPay', {                                        
+            navigation.navigate('Pay', {                                        
                 unit: currentUnit
             })
         }        
@@ -915,66 +915,82 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                     mintsByUnit={groupedMints}
                     currentUnit={currentUnit}
                     onTopup={gotoTopup}
-                    onLightningPay={gotoLightningPay}                    
+                    onPay={gotoPay}                    
                     onMintInfo={gotoMintInfo}
                 />
             }
             onBackButtonPress={toggleMintsModal}
             onBackdropPress={toggleMintsModal}
         />
+        {/*
+          The verb lives in the sheet heading, so the rows are plain nouns: the two
+          options then read as a genuine either/or (which layer does the money move
+          on?) rather than repeating "Send"/"Receive" twice. Descriptions carry the
+          criteria a user actually decides on — speed and cost — instead of protocol
+          vocabulary.
+
+          Neither row commits to a rail. Paying resolves the rail from whatever the
+          user pastes (invoice / LN address / onchain address); topping up asks in
+          TopupScreen, where the mint and unit are known and unsupported methods can
+          be hidden. So the user is never made to pick a rail uninformed.
+        */}
         <BottomModal
           isVisible={isSendModalVisible ? true : false}
           //style={{alignItems: 'stretch'}}
-          ContentComponent={  
+          headingTx="payCommon_send"
+          headingStyle={{textAlign: 'center'}}
+          ContentComponent={
             <>
-            <ListItem   
-                leftIcon='faMoneyBill1'                          
-                tx="walletScreen_sendEcash"
-                subTx="walletScreen_sendEcashDesc"
+            <ListItem
+                leftIcon='faMoneyBill1'
+                tx="walletScreen_optionEcash"
+                subTx="walletScreen_optionEcashSendDesc"
                 onPress={gotoSend}
                 bottomSeparator={true}
             />
-            <ListItem   
-                leftIcon='faBolt'             
-                tx="walletScreen_payWithLightning"
-                subTx="walletScreen_payWithLightningDesc"
-                onPress={() => gotoLightningPay()}
+            <ListItem
+                leftIcon='faBitcoin'
+                tx="walletScreen_optionBitcoin"
+                subTx="walletScreen_optionBitcoinSendDesc"
+                onPress={() => gotoPay()}
                 //bottomSeparator={true}
             />
-            {/*<ListItem   
-                leftIcon='faNfcSymbol'             
+            {/*<ListItem
+                leftIcon='faNfcSymbol'
                 text="Pay with NFC"
                 subText="Tap NFC-enabled wallet or POS to pay"
                 onPress={() => gotoNfcPay()}
             />*/}
-            </>      
+            </>
           }
           onBackButtonPress={toggleSendModal}
           onBackdropPress={toggleSendModal}
-        /> 
+        />
         <BottomModal
           isVisible={isReceiveModalVisible ? true : false}
           // style={{alignItems: 'stretch'}}
-          ContentComponent={  
+          headingStyle={{textAlign: 'center'}}
+          headingTx="payCommon_receive"
+          ContentComponent={
             <>
-            <ListItem   
-                leftIcon='faMoneyBill1'             
-                tx="walletScreen_receiveEcash"
-                subTx="walletScreen_receiveEcashDesc"
+            <ListItem
+                leftIcon='faMoneyBill1'
+                tx="walletScreen_optionEcash"
+                subTx="walletScreen_optionEcashReceiveDesc"
                 onPress={gotoTokenReceive}
                 bottomSeparator={true}
             />
-            <ListItem      
-                leftIcon='faBolt'          
-                tx='walletScreen_topupWithLightning'
-                subTx="walletScreen_topupWithLightningDesc"
+            <ListItem
+                leftIcon='faBitcoin'
+                tx='walletScreen_optionBitcoin'
+                subTx="walletScreen_optionBitcoinReceiveDesc"
                 onPress={() => gotoTopup()}
             />
-            </>      
+            </>
           }
           onBackButtonPress={toggleReceiveModal}
           onBackdropPress={toggleReceiveModal}
-        />       
+        />
 
       </Screen>
     )
@@ -1083,7 +1099,7 @@ const MintsByUnitList = observer(function (props: {
     mintsByUnit: MintsByUnit[]
     currentUnit: MintUnit    
     onTopup: Function
-    onLightningPay: Function    
+    onPay: Function    
     onMintInfo: Function    
 }) {
     
@@ -1177,7 +1193,7 @@ const MintsByUnitList = observer(function (props: {
                             )}
                             textStyle={{fontSize: 14, color}}
                             preset='secondary'
-                            onPress={() => props.onLightningPay(mint.mintUrl)}
+                            onPress={() => props.onPay(mint.mintUrl)}
                             style={{
                                 minHeight: verticalScale(40), 
                                 paddingVertical: verticalScale(spacing.tiny),

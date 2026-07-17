@@ -1,9 +1,10 @@
-import {Instance, SnapshotOut, types, flow, getRoot, getSnapshot} from 'mobx-state-tree'
+import {Instance, SnapshotOut, types, flow, getRoot, getSnapshot, isAlive} from 'mobx-state-tree'
 import {
   Mint as CashuMint,
   Wallet as CashuWallet,
   KeyChain as CashuKeyChain,
   MeltQuoteBolt11Response,
+  MeltQuoteOnchainResponse,
   setGlobalRequestOptions,
   type MintKeys,
   type MintKeyset,
@@ -14,6 +15,7 @@ import {
   GetKeysResponse,
   GetInfoResponse,
   MintQuoteBolt11Response,
+  MintQuoteOnchainResponse,
   type ProofState,
   type OperationCounters,
   type MeltPreview,
@@ -28,6 +30,7 @@ import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
 import { Proof } from './Proof'
 
 import { InFlightRequest, Mint } from './Mint'
+import { MINT_INFO_TTL_SECONDS, isMintInfoStale } from './helpers/mintInfoStale'
 import { getRootStore } from './helpers/getRootStore'
 import { Transaction } from './Transaction'
 
@@ -38,6 +41,16 @@ import { Transaction } from './Transaction'
    It is instantiated on first use so that wallet retrieves fresh mint keysets, then cached, 
    so that new cashu-ts instances are re-used over app lifecycle.
 */
+
+/**
+ * How long a cached mint NUT-06 info stays fresh, in seconds.
+ *
+ * mintInfo carries the mint's advertised payment methods and their min/max
+ * limits, which drive what the wallet offers the user. An hour keeps a mint that
+ * gains (or drops) a method visible reasonably soon, while costing at most one
+ * getInfo() per mint per hour.
+ */
+export {MINT_INFO_TTL_SECONDS, isMintInfoStale}
 
 export type ExchangeRate = {
   currency: CurrencyCode, // 1 EUR, USD, ...
@@ -231,12 +244,50 @@ export const WalletStoreModel = types
         const keys: WalletKeys = yield self.getCachedWalletKeys()
         return keys.SEED.seedHash
       }),
+      /**
+       * Re-fetch a mint's NUT-06 info if the cached copy is older than the TTL.
+       *
+       * Capabilities (which payment methods a mint supports, and their min/max
+       * limits) are read off `mintInfo`, so a copy that never refreshes means the
+       * wallet keeps offering — or hiding — the wrong options. Errors are logged
+       * and swallowed: a capability refresh must never break the operation that
+       * happened to trigger it.
+       */
+      refreshMintInfoIfStale: flow(function* refreshMintInfoIfStale(
+        mintUrl: string,
+        cashuMint: CashuMint,
+      ) {
+        try {
+          const mintInstance = self.getMintModelInstance(mintUrl)
+          if (!mintInstance) return
+
+          if (!isMintInfoStale(mintInstance.mintInfo)) return
+
+          const info: GetInfoResponse = yield cashuMint.getInfo()
+
+          // the mint may have been removed while the call was in flight
+          if (!isAlive(mintInstance)) return
+
+          mintInstance.setMintInfo!(info)
+          log.trace('[WalletStore.refreshMintInfoIfStale] refreshed', {mintUrl})
+        } catch (e: any) {
+          log.warn('[WalletStore.refreshMintInfoIfStale]', {mintUrl, error: e.message})
+        }
+      }),
+    }))
+    .actions(self => ({
       getMint: flow(function* getMint(mintUrl: string) {
         const mint = self.mints.find(m => m.mintUrl === mintUrl)
 
         log.trace('[WalletStore.getMint]', {cachedMint: !!mint})
 
         if (mint) {
+          // Refresh capabilities on a TTL even when the cashu-ts instance is already
+          // cached. This check used to live below this early return, so a mint touched
+          // once in a session never refreshed again for the rest of it. Fire-and-forget
+          // so the caller's operation is not delayed by a getInfo() round trip;
+          // observers re-render when fresher info lands.
+          void self.refreshMintInfoIfStale(mintUrl, mint as CashuMint)
           return mint as CashuMint
         }
 
@@ -269,12 +320,10 @@ export const WalletStoreModel = types
           // sync wallet state with fresh keysets, active statuses and keys
           mintInstance.refreshKeysets!(keysets)
 
-          // fetch and cache mintInfo if not already cached
-          const {mintInfo} = mintInstance
-          const now = Math.floor(Date.now() / 1000)
-          if(!mintInfo || now - mintInfo.time > 3600) {
+          // fetch and cache mintInfo if not already cached or gone stale
+          if(isMintInfoStale(mintInstance.mintInfo)) {
             const info: GetInfoResponse = yield newMint.getInfo()
-            mintInstance.setMintInfo!(info as GetInfoResponse & {time: number})
+            mintInstance.setMintInfo!(info)
           }
         }
 
@@ -282,7 +331,7 @@ export const WalletStoreModel = types
         self.mints.push(newMint)
 
         return newMint
-      })       
+      })
     }))
     .actions(self => ({
       getWallet: flow(function* getWallet(    
@@ -501,7 +550,7 @@ export const WalletStoreModel = types
 
             // @ts-ignore
             if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
-                Database.addInFlightRequest(transactionId, mintUrl, cashuWallet.keysetId, receiveParams)
+                Database.addInFlightRequest(transactionId, receiveParams)
             }
 
             let reservedCounters: OperationCounters | undefined
@@ -616,7 +665,7 @@ export const WalletStoreModel = types
 
             // @ts-ignore
             if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
-                Database.addInFlightRequest(transactionId, mintUrl, cashuWallet.keysetId, sendParams)
+                Database.addInFlightRequest(transactionId, sendParams)
             }
 
             let reservedCounters: OperationCounters | undefined
@@ -694,11 +743,14 @@ export const WalletStoreModel = types
 
                 const cashuWallet: CashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: false})
 
-                // v3.x returns ProofState[] array, not grouped by state
+                // Proofs carry both `secret` and `id`, satisfying the v5-compatible
+                // signature; the pre-4.5.1 `secret`-only overload is deprecated.
                 const proofStatesArray: ProofState[] = yield cashuWallet.checkProofsStates(proofs)
 
-                // Transform array into grouped structure expected by the rest of the code
-                // Map proof states back to original proofs using secret matching
+                // Transform flat ProofState[] into the grouped structure the rest of
+                // the code expects. cashu-ts returns states in input order (it batches
+                // by 100 and re-indexes each batch by Y), so proofs[i] pairs with
+                // proofStatesArray[i].
                 const proofsByState: {[key in CheckStateEnum]: CashuProof[]} = {
                     SPENT: [],
                     PENDING: [],
@@ -805,7 +857,178 @@ export const WalletStoreModel = types
               )
             }
         }),
-        mintProofs: flow(function* mintProofs(  
+        /**
+         * Ask the mint for an onchain (NUT-30) mint quote.
+         *
+         * Note there is NO amount: the quote is a Bitcoin address that can receive
+         * any number of deposits, so the mint has nothing to price. The `pubkey` is
+         * mandatory — NUT-30 requires NUT-20 quote locking and the mint MUST reject
+         * a quote request without one (error 20009).
+         *
+         * The full response is returned (not just the address): the caller has to
+         * persist `quote`, and minting later needs the whole object, because
+         * cashu-ts decides to sign from `quote.pubkey`.
+         */
+        createOnchainMintQuote: flow(function* createOnchainMintQuote(
+            mintUrl: string,
+            unit: MintUnit,
+            pubkey: string,
+        ) {
+            try {
+                const cashuMint: CashuMint = yield self.getMint(mintUrl)
+                const quoteResponse: MintQuoteOnchainResponse =
+                    yield cashuMint.createMintQuoteOnchain({unit, pubkey})
+
+                log.info('[WalletStore.createOnchainMintQuote]', {
+                    mintUrl,
+                    quote: quoteResponse.quote,
+                    address: quoteResponse.request,
+                })
+
+                return quoteResponse
+            } catch (e: any) {
+                let message = 'The mint could not return an onchain mint quote.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions
+                throw new AppError(Err.MINT_ERROR, message, {
+                    message: e.message,
+                    caller: 'createOnchainMintQuote',
+                    mintUrl,
+                })
+            }
+        }),
+        /** Current state of an onchain mint quote: amount_paid / amount_issued. */
+        checkOnchainMintQuote: flow(function* checkOnchainMintQuote(
+            mintUrl: string,
+            quote: string,
+        ) {
+            try {
+                const cashuMint: CashuMint = yield self.getMint(mintUrl)
+                const quoteResponse: MintQuoteOnchainResponse =
+                    yield cashuMint.checkMintQuoteOnchain(quote)
+
+                return quoteResponse
+            } catch (e: any) {
+                let message = 'The mint could not return the onchain mint quote state.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions
+                throw new AppError(Err.MINT_ERROR, message, {
+                    message: e.message,
+                    caller: 'checkOnchainMintQuote',
+                    mintUrl,
+                    quote,
+                })
+            }
+        }),
+        /**
+         * Mint ecash against a confirmed onchain deposit.
+         *
+         * Mirrors `mintProofs`: same counter discipline, same NUT-19 in-flight record,
+         * same error surface.
+         *
+         * `quote` is the whole MintQuoteOnchainResponse, not an id — cashu-ts signs the
+         * request (NUT-20) when the quote carries a `pubkey`, and it reads that off the
+         * quote object. `privkey` is derived on demand from the seed and the quote's
+         * stored counterIndex; it is never persisted.
+         */
+        mintOnchainProofs: flow(function* mintOnchainProofs(
+            mintUrl: string,
+            amount: number,
+            unit: MintUnit,
+            quoteResponse: MintQuoteOnchainResponse,
+            privkey: string,
+            transactionId: number,
+            options?: {
+                increaseCounterBy?: number
+                inFlightRequest?: InFlightRequest<MintParams>
+            },
+        ) {
+            const mintInstance = self.getMintModelInstance(mintUrl)
+
+            if (!mintInstance) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
+            }
+
+            const cashuWallet: CashuWallet = yield self.getWallet(mintUrl, unit, {withSeed: true})
+
+            const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
+
+            // outputs error healing
+            if (options?.increaseCounterBy) {
+                currentCounter.increaseProofsCounter(options.increaseCounterBy)
+            }
+
+            yield cashuWallet.counters.advanceToAtLeast(
+                cashuWallet.keysetId,
+                currentCounter.counter,
+            )
+
+            const mintParams: MintParams = options?.inFlightRequest?.request || {
+                amount,
+                quote: quoteResponse.quote,
+                options: {keysetId: cashuWallet.keysetId},
+            }
+
+            // Record the request BEFORE sending it. If the response is lost (network
+            // drop), the mint has already incremented amount_issued — the quote then
+            // looks drained and the ecash would be stranded. Replaying the identical
+            // request hits the mint's NUT-19 cache and returns the same signatures.
+            // Identical outputs depend on the counter NOT having advanced, which holds:
+            // onCountersReserved never fired, so we never wrote it back.
+            // @ts-ignore
+            if (cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
+                Database.addInFlightRequest(transactionId, mintParams)
+            }
+
+            let reservedCounters: OperationCounters | undefined
+
+            try {
+                const proofs = yield cashuWallet.mintProofsOnchain(
+                    mintParams.amount,
+                    quoteResponse,
+                    privkey,
+                    {
+                        keysetId: mintParams.options?.keysetId,
+                        onCountersReserved: (info: OperationCounters) => {
+                            reservedCounters = info
+                            log.debug('[mintOnchainProofs] Counters reserved', info)
+                        },
+                    },
+                )
+
+                Database.removeInFlightRequest(transactionId)
+
+                if (reservedCounters) {
+                    currentCounter.setProofsCounter(reservedCounters.next)
+                }
+
+                log.debug('[WalletStore.mintOnchainProofs]', {
+                    amount: mintParams.amount,
+                    quote: quoteResponse.quote,
+                    proofs: proofs.length,
+                })
+
+                return proofs
+            } catch (e: any) {
+                // Keep the in-flight record on timeout / network failure — those are
+                // exactly the cases where the mint may have processed the request and
+                // we simply did not hear back. Any other error means it did not.
+                if (
+                    !e.message.toLowerCase().includes('timeout') &&
+                    !e.message.toLowerCase().includes('network request failed')
+                ) {
+                    Database.removeInFlightRequest(transactionId)
+                }
+
+                let message = 'Error on request to mint new ecash from an onchain deposit.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions
+                throw new AppError(Err.MINT_ERROR, message, {
+                    message: e.message,
+                    caller: 'mintOnchainProofs',
+                    mintUrl,
+                    quote: quoteResponse.quote,
+                })
+            }
+        }),
+        mintProofs: flow(function* mintProofs(
             mintUrl: string,
             amount: number,
             unit: MintUnit,
@@ -815,7 +1038,7 @@ export const WalletStoreModel = types
               increaseCounterBy?: number,
               inFlightRequest?: InFlightRequest<MintParams>
             }
-            
+
         ) {
             const mintInstance = self.getMintModelInstance(mintUrl)
             
@@ -854,7 +1077,7 @@ export const WalletStoreModel = types
 
             // @ts-ignore
             if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
-                Database.addInFlightRequest(transactionId, mintUrl, cashuWallet.keysetId, mintParams)
+                Database.addInFlightRequest(transactionId, mintParams)
             }
 
             let reservedCounters: OperationCounters | undefined
@@ -1002,8 +1225,6 @@ export const WalletStoreModel = types
             // even if the app dies right after the payment is submitted.
             Database.addMeltRecovery(
                 transactionId,
-                mintUrl,
-                cashuWallet.keysetId,
                 CashuUtils.serializeMeltPreview(meltPreview),
             )
 
@@ -1069,15 +1290,218 @@ export const WalletStoreModel = types
             let message = 'The mint could not return the state of a melt quote.'
             if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
             throw new AppError(
-                Err.MINT_ERROR, 
-                message, 
+                Err.MINT_ERROR,
+                message,
                 {
                     message: e.message,
-                    caller: 'checkLightningMeltQuote', 
-                    mintUrl,            
+                    caller: 'checkLightningMeltQuote',
+                    mintUrl,
                 }
             )
           }
+        }),
+        /**
+         * Ask the mint what it would charge to send `amount` to a Bitcoin address (NUT-30).
+         *
+         * Unlike bolt11 the amount is not carried by the payment request, so this cannot be
+         * called until the user has entered one. The quote comes back with a list of
+         * `fee_options` tiers rather than a single `fee_reserve`; they are fixed for the
+         * quote's lifetime, and the caller picks one at execute time.
+         */
+        createOnchainMeltQuote: flow(function* createOnchainMeltQuote(
+            mintUrl: string,
+            unit: MintUnit,
+            address: string,
+            amount: number,
+        ) {
+            try {
+                const cashuMint: CashuMint = yield self.getMint(mintUrl)
+                const onchainQuote: MeltQuoteOnchainResponse = yield cashuMint.createMeltQuoteOnchain({
+                    unit,
+                    request: address,
+                    amount,
+                })
+
+                log.info('[createOnchainMeltQuote]', {mintUrl, unit, amount}, {onchainQuote})
+
+                return onchainQuote
+
+            } catch (e: any) {
+                let message = 'The mint could not return the onchain melt quote.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+                throw new AppError(
+                    Err.MINT_ERROR,
+                    message,
+                    {
+                        message: e.message,
+                        caller: 'createOnchainMeltQuote',
+                        request: {mintUrl, unit, address, amount},
+                    }
+                )
+            }
+        }),
+        /**
+         * Execute an onchain melt (NUT-30).
+         *
+         * Deliberately the same two-step shape as `payLightningMelt`, because the reason for
+         * the split is the same: `prepareMelt` derives the NUT-08 change outputs from the
+         * keyset counter, and if the app dies between submitting the melt and receiving the
+         * response, the ONLY way to reconstruct that change is the meltPreview we wrote to
+         * SQLite before submitting. cashu-ts' one-shot `meltProofsOnchain` hides the split and
+         * would leave nothing to recover from.
+         *
+         * Two things differ from bolt11:
+         *  - `fee_index` rides along as `extraPayload` on the melt request. It is not part of
+         *    the quote and not part of prepare; the mint locks it into `selected_fee_index`
+         *    when it executes, and MUST NOT execute the same quote again with a different one.
+         *  - No `preferAsync`. NUT-30 mandates asynchrony ("The mint MUST return a PENDING
+         *    state after validating the melt request and then broadcast in the background"),
+         *    so there is no faster path to ask for.
+         */
+        payOnchainMelt: flow(function* payOnchainMelt(
+            mintUrl: string,
+            unit: MintUnit,
+            meltQuote: MeltQuoteOnchainResponse,
+            proofsToMeltFrom: Proof[],
+            feeIndex: number,
+            transactionId: number,
+            options?: {
+                increaseCounterBy?: number,
+            }
+        ) {
+            const mintInstance = self.getMintModelInstance(mintUrl)
+
+            if(!mintInstance) {
+                throw new AppError(Err.VALIDATION_ERROR, 'Missing mint instance', {mintUrl})
+            }
+
+            const cashuWallet = yield self.getWallet(
+                mintUrl,
+                unit,
+                {
+                    withSeed: true,
+                }
+            )
+
+            const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
+
+            // outputs error healing
+            if(options && options.increaseCounterBy) {
+                currentCounter.increaseProofsCounter(options.increaseCounterBy)
+            }
+
+            yield cashuWallet.counters.advanceToAtLeast(cashuWallet.keysetId, currentCounter.counter)
+
+            log.trace('[WalletStore.payOnchainMelt] Preparing melt', {
+                localCounter: currentCounter.counter,
+                proofsCount: proofsToMeltFrom.length,
+                feeIndex,
+            })
+
+            let reservedCounters: OperationCounters | undefined
+
+            // Step 1: prepare (derives the deterministic change outputs)
+            const meltPreview: MeltPreview<MeltQuoteOnchainResponse> = yield cashuWallet.prepareMelt(
+                'onchain',
+                meltQuote,
+                CashuUtils.exportProofs(proofsToMeltFrom),
+                {
+                    keysetId: cashuWallet.keysetId,
+                    onCountersReserved: (info: OperationCounters) => {
+                        reservedCounters = info
+                        log.debug('[payOnchainMelt] Counters reserved', info)
+                    }
+                }
+            )
+
+            // Synchronous SQLite write BEFORE the melt is submitted, so the change is
+            // recoverable even if the app dies the moment after.
+            Database.addMeltRecovery(
+                transactionId,
+                CashuUtils.serializeMeltPreview(meltPreview),
+            )
+
+            if (reservedCounters) {
+                currentCounter.setProofsCounter(reservedCounters.next)
+                log.debug('[payOnchainMelt] Updated counter', {
+                    keysetId: reservedCounters.keysetId,
+                    start: reservedCounters.start,
+                    count: reservedCounters.count,
+                    next: reservedCounters.next
+                })
+            }
+
+            try {
+                // Step 2: submit. fee_index is the onchain-specific part of the request body.
+                const meltResponse: MeltProofsResponse<MeltQuoteOnchainResponse> =
+                    yield cashuWallet.completeMelt(meltPreview, undefined, {
+                        extraPayload: {fee_index: feeIndex},
+                    })
+
+                // The mint answers PENDING (spec-mandated) but MAY already have returned the
+                // change, because it knows its actual fee the moment it builds the transaction.
+                // Keep the preview only while there is still change left to reconstruct later.
+                if (meltResponse.change.length > 0) {
+                    Database.removeMeltRecovery(transactionId)
+                }
+
+                log.trace('[payOnchainMelt]', {meltResponse})
+                return meltResponse
+
+            } catch (e: any) {
+                if(!e.message.toLowerCase().includes('timeout') &&
+                   !e.message.toLowerCase().includes('network request failed')) {
+                    Database.removeMeltRecovery(transactionId)
+                }
+
+                let message = 'Onchain payment failed.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+                throw new AppError(
+                    Err.MINT_ERROR,
+                    message,
+                    {
+                        message: e.message,
+                        caller: 'payOnchainMelt',
+                        mintUrl,
+                        code: e.code || undefined,
+                    }
+                )
+            }
+        }),
+        /**
+         * Current state of an onchain melt quote.
+         *
+         * This — not the state of the input proofs — is what says whether an onchain payment
+         * has settled. The mint spending the inputs means it BROADCAST, not that the
+         * transaction confirmed. Only `PAID` means confirmed.
+         */
+        checkOnchainMeltQuote: flow(function* checkOnchainMeltQuote(
+            mintUrl: string,
+            quote: string,
+        ) {
+            try {
+                const cashuMint: CashuMint = yield self.getMint(mintUrl)
+                const quoteResponse: MeltQuoteOnchainResponse = yield cashuMint.checkMeltQuoteOnchain(
+                    quote
+                )
+
+                log.info('[checkOnchainMeltQuote]', {quoteResponse})
+
+                return quoteResponse
+
+            } catch (e: any) {
+                let message = 'The mint could not return the state of an onchain melt quote.'
+                if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
+                throw new AppError(
+                    Err.MINT_ERROR,
+                    message,
+                    {
+                        message: e.message,
+                        caller: 'checkOnchainMeltQuote',
+                        mintUrl,
+                    }
+                )
+            }
         }),
         restore: flow(function* restore(
             mintUrl: string,

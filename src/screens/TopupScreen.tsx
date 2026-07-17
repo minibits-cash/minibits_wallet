@@ -62,6 +62,8 @@ import {
 import {MintHeader} from './Mints/MintHeader'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import {MintBalanceSelector} from './Mints/MintBalanceSelector'
+import {OnchainTopupOperationApi} from '../services/wallet/operations/onchainTopupOperationApi'
+import {buildBip21Uri, onchainTopupFloor} from '../services/wallet/operations/onchainAmounts'
 import {QRCodeBlock} from './Wallet/QRCode'
 import numbro from 'numbro'
 import {TranItem} from './TranDetailScreen'
@@ -91,6 +93,11 @@ type TopupState = {
     transactionId: number | undefined
     transaction: Transaction | undefined
     invoiceToPay: string
+    /**
+     * BIP21 URI for an onchain topup (`bitcoin:<addr>?amount=`). Mutually exclusive
+     * with `invoiceToPay` — a topup goes down one rail or the other.
+     */
+    onchainUriToPay: string
     lnurlWithdrawResult: LnurlWithdrawResult | undefined
     resultModalInfo: { status: TransactionStatus; title?: string; message: string } | undefined
     isLoading: boolean
@@ -115,6 +122,7 @@ type TopupAction =
     | { type: 'HIDE_MINT_SELECTOR' }
     | { type: 'TOPUP_START' }
     | { type: 'INVOICE_READY'; transactionId: number; transactionStatus: TransactionStatus; encodedInvoice: string }
+    | { type: 'ONCHAIN_QUOTE_READY'; transactionId: number; onchainUri: string }
     | { type: 'TOPUP_FAILED'; transactionStatus: TransactionStatus; resultModalInfo: { status: TransactionStatus; title?: string; message: string } }
     | { type: 'TOPUP_COMPLETE'; transaction: Transaction; resultModalInfo: { status: TransactionStatus; message: string } }
     | { type: 'DM_SENDING' }
@@ -141,6 +149,7 @@ const INITIAL_STATE: TopupState = {
     transactionId: undefined,
     transaction: undefined,
     invoiceToPay: '',
+    onchainUriToPay: '',
     lnurlWithdrawResult: undefined,
     resultModalInfo: undefined,
     isLoading: false,
@@ -205,6 +214,21 @@ function topupReducer(state: TopupState, action: TopupAction): TopupState {
                 isMintSelectorVisible: false,
                 isNostrDMModalVisible: state.paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST,
                 isWithdrawModalVisible: state.paymentOption === ReceiveOption.LNURL_WITHDRAW,
+            }
+
+        case 'ONCHAIN_QUOTE_READY':
+            // Straight to PENDING: the address IS the pending state. Unlike an
+            // invoice there is nothing to expire on the mint's side, and no
+            // contact/LNURL flows apply — an onchain deposit is paid by whoever
+            // holds the address.
+            return {
+                ...state,
+                isLoading: false,
+                transactionId: action.transactionId,
+                transactionStatus: TransactionStatus.PENDING,
+                onchainUriToPay: action.onchainUri,
+                invoiceToPay: '',
+                isMintSelectorVisible: false,
             }
 
         case 'TOPUP_FAILED':
@@ -320,6 +344,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
         transactionId,
         transaction,
         invoiceToPay,
+        onchainUriToPay,
         lnurlWithdrawResult,
         resultModalInfo,
         isLoading,
@@ -572,7 +597,8 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     }
 
     const onMemoDone = function () {
-      if (parseInt(amountToTopup) > 0) {
+      // toNumber, not parseInt: a confirmed amount is grouped, and parseInt('12,345') is 12.
+      if (toNumber(amountToTopup) > 0) {
         memoInputRef && memoInputRef.current
           ? memoInputRef.current.blur()
           : false
@@ -589,6 +615,94 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
 
     const onMintBalanceSelect = function (balance: MintBalance) {
       dispatch({ type: 'SET_MINT_BALANCE', balance })
+    }
+
+    /** The requested amount, in the unit's smallest denomination. */
+    const amountToTopupInt = () =>
+      round(toNumber(amountToTopup) * getCurrency(unitRef.current).precision, 0)
+
+    /**
+     * Whether to offer an onchain address for the currently selected mint.
+     *
+     * Gated on BOTH the mint advertising onchain for this unit AND the amount
+     * clearing the floor — see onchainTopupFloor for why we do not simply trust the
+     * mint's own min_amount. Below the floor the option is not shown at all, rather
+     * than shown-and-rejected: a sub-minimum deposit is credited to nobody and is
+     * unrecoverable through the quote protocol.
+     */
+    const selectedMint = mintBalanceToTopup
+      ? mintsStore.findByUrl(mintBalanceToTopup.mintUrl)
+      : undefined
+
+    /**
+     * Capability gating reads the mint's CACHED NUT-06 info, and this screen never
+     * otherwise talks to the mint — so without this, nothing here would ever refresh
+     * it, and a mint that has since gained onchain support would keep looking like
+     * one that never had it.
+     *
+     * getMint only hits the network when the cached info is actually stale, and the
+     * screen is an observer, so the onchain option appears by itself once fresher
+     * capabilities land.
+     */
+    useEffect(() => {
+      if (!mintBalanceToTopup?.mintUrl) return
+      walletStore.getMint(mintBalanceToTopup.mintUrl).catch((e: any) => {
+        log.warn('[TopupScreen] Could not refresh mint capabilities', {error: e.message})
+      })
+    }, [mintBalanceToTopup?.mintUrl])
+
+    const isOnchainTopupAvailable = (() => {
+      if (!selectedMint) return false
+
+      const supportsOnchain = selectedMint.supportsMint!('onchain', unitRef.current)
+      const mintMin = selectedMint.mintMethodSetting!('onchain', unitRef.current)?.min_amount as
+        | number
+        | null
+      const floor = onchainTopupFloor(unitRef.current, mintMin)
+      const amount = amountToTopupInt()
+
+      log.trace('[TopupScreen] onchain topup gate', {
+        mintUrl: selectedMint.mintUrl,
+        unit: unitRef.current,
+        supportsOnchain,
+        hasUnknownCapabilities: selectedMint.hasUnknownCapabilities,
+        supportsNut20: selectedMint.supportsNut20,
+        mintMin,
+        floor,
+        amount,
+      })
+
+      return supportsOnchain && amount >= floor
+    })()
+
+    /**
+     * Ask the mint for an onchain deposit address instead of an invoice.
+     *
+     * No queue task and no awaitable: unlike a bolt11 topup there is nothing to wait
+     * for here — the mint hands back an address immediately, and the deposit is
+     * picked up later by the watcher (OnchainOperationService, via performChecks).
+     */
+    const onMintBalanceConfirmOnchain = async function () {
+      if (!mintBalanceToTopup) return
+
+      try {
+        dispatch({ type: 'TOPUP_START' })
+
+        const created = await OnchainTopupOperationApi.createQuote({
+          mintUrl: mintBalanceToTopup.mintUrl,
+          unit: unitRef.current,
+          amountRequested: amountToTopupInt(),
+          memo,
+        })
+
+        dispatch({
+          type: 'ONCHAIN_QUOTE_READY',
+          transactionId: created.transactionId,
+          onchainUri: buildBip21Uri(created.address, created.amountRequested),
+        })
+      } catch (e: any) {
+        handleError(e)
+      }
     }
 
     const onMintBalanceConfirm = async function () {
@@ -648,7 +762,8 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     }
 
     const onMintBalanceCancel = async function () {
-      dispatch({ type: 'HIDE_MINT_SELECTOR' })
+      return gotoWallet()
+      //dispatch({ type: 'HIDE_MINT_SELECTOR' })
     }
 
     const sendAsNostrDM = async function () {
@@ -837,7 +952,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     
 
     return (
-      <Screen preset="fixed" contentContainerStyle={$screen}>
+      <Screen preset="fixed" contentContainerStyle={$screen} hideTabBar>
         <MintHeader
           mint={
             mintBalanceToTopup
@@ -916,7 +1031,26 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
               selectedMintBalance={mintBalanceToTopup as MintBalance}
               unit={unitRef.current}
               title={translate("topup_mint")}
-              confirmTitle={translate("commonConfirmCreateInvoice")}
+              confirmIcon='faBolt'
+              confirmTitle={translate("topupScreen_ligtningInvoice")}
+              // The onchain option only appears for a mint that advertises it AND an
+              // amount above the floor. Below the floor it is hidden rather than
+              // rejected: a sub-minimum onchain deposit is credited to nobody and is
+              // unrecoverable through the quote protocol.
+              secondaryConfirmTitle={
+                isOnchainTopupAvailable ? translate('topupScreen_onchainAddress') : undefined
+              }
+              secondaryConfirmIcon={isOnchainTopupAvailable ? 'faBitcoin' : undefined}
+              onSecondaryMintBalanceSelect={
+                isOnchainTopupAvailable ? onMintBalanceConfirmOnchain : undefined
+              }
+              // A mint that can serve NEITHER rail for this unit cannot top up at all
+              // — list it, but inert.
+              requiredCapability={mint =>
+                mint.supportsMint!('bolt11', unitRef.current) ||
+                mint.supportsMint!('onchain', unitRef.current)
+              }
+              unsupportedReason={translate('mintSelector_noTopupSupport')}
               onMintBalanceSelect={onMintBalanceSelect}
               onCancel={onMintBalanceCancel}
               onMintBalanceConfirm={onMintBalanceConfirm}
@@ -929,7 +1063,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                 <QRCodeBlock
                   qrCodeData={invoiceToPay as string}
                   titleTx='topupScreen_invoiceToPay'
-                  type='Bolt11Invoice'     
+                  type='Bolt11Invoice'
                   size={270}
                 />
                 <InvoiceOptionsBlock
@@ -941,6 +1075,29 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                 />
               </>
           )}
+          {transactionStatus === TransactionStatus.PENDING && onchainUriToPay && (
+            /*
+              The amount is the one thing a user is likely to get wrong here. It rides
+              in the BIP21 URI, so a scanning wallet pre-fills it — but a sender typing
+              the address by hand, or editing the amount, can pay anything. Under- and
+              overpayment both work and the balance settles to whatever arrives, so this
+              has to be said, or an underpayment reads as a bug.
+
+              It lives behind the QR's help button rather than in a card below it: the
+              QR is the tallest thing on this screen and anything under it fell below
+              the fold, which is exactly why nobody saw this warning.
+            */
+            <QRCodeBlock
+              qrCodeData={onchainUriToPay}
+              titleTx='topupScreen_onchainAddressToPay'
+              type='BitcoinAddress'
+              size={270}
+              hints={[
+                'topupScreen_onchainAmountIsHint',
+                'topupScreen_onchainConfirmationsNeeded',
+              ]}
+            />
+          )}
           {transaction && transactionStatus === TransactionStatus.COMPLETED && (
             <Card
               style={{padding: spacing.medium}}
@@ -950,7 +1107,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                     label="topup_to"
                     isFirst={true}
                     value={
-                      mintsStore.findByUrl(transaction.mint)
+                      mintsStore.findByTransaction(transaction)
                         ?.shortname as string
                     }
                   />

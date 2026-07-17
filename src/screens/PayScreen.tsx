@@ -28,9 +28,9 @@ type Props = StaticScreenProps<{
     mintUrl?: string,  
 }>
 
-export const LightningPayScreen = function LightningPayScreen({ route }: Props) {
+export const PayScreen = function PayScreen({ route }: Props) {
     const navigation = useNavigation()
-    const lightningInputRef = useRef<TextInput>(null)
+    const paymentInputRef = useRef<TextInput>(null)
     const {mintsStore} = useStores()
     const isInternetReachable = useIsInternetReachable()
 
@@ -47,6 +47,16 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
                     setter(resultFromClipboard.encoded)
                     sideEffect()
             }
+
+            // Auto-paste the RAW clipboard for a Bitcoin destination, not the parsed
+            // address: a BIP21 URI carries an amount and a label the user should see
+            // (and which onConfirm re-parses), and silently reducing it to a bare address
+            // would drop both without saying so.
+            if (resultFromClipboard.type === IncomingDataType.BTC_ADDRESS) {
+                setter(clipboard)
+                sideEffect()
+            }
+
             return
         } catch (e: any) {
             return
@@ -73,12 +83,12 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
         }
 
         setUnitAndMint()
-        autoPaste(setLightningData, () => lightningInputRef.current?.blur())
+        autoPaste(setPaymentData, () => paymentInputRef.current?.blur())
         return () => {}
     }, [])       
     
     
-    const [lightningData, setLightningData] = useState<string | undefined>(undefined)    
+    const [paymentData, setPaymentData] = useState<string | undefined>(undefined)    
     const [unit, setUnit] = useState<MintUnit>('sat')
     const [mint, setMint] = useState<Mint | undefined>(undefined)    
     const [error, setError] = useState<AppError | undefined>()
@@ -88,16 +98,16 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
     const onPaste = async function() {        
         const clipboard = await Clipboard.getString()
         if (clipboard.length === 0) {
-          infoMessage(translate('lightningPayScreen_onPasteEmptyClipboard'))
+          infoMessage(translate('payScreen_onPasteEmptyClipboard'))
           return
         }
-        setLightningData(clipboard)
-        lightningInputRef.current?.blur()
+        setPaymentData(clipboard)
+        paymentInputRef.current?.blur()
     }
 
 
     const gotoScan = async function () {
-        lightningInputRef.current?.blur()
+        paymentInputRef.current?.blur()
         //@ts-ignore
         navigation.navigate('Scan', {
             mintUrl: mint?.mintUrl, unit
@@ -117,13 +127,13 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
 
 
     const onConfirm = async function() {
-        if (!lightningData) {
-          setError({ code: 100, name: Err.VALIDATION_ERROR, message: translate("userErrorMissingLightningData")})
+        if (!paymentData) {
+          setError({ code: 100, name: Err.VALIDATION_ERROR, message: translate("userErrorMissingPaymentData")})
           return
         }
 
         try {
-            const result = IncomingParser.findAndExtract(lightningData)
+            const result = IncomingParser.findAndExtract(paymentData)
 
             log.trace('[onConfirm]', {mintUrl: mint?.mintUrl, unit, resultType: result.type})
 
@@ -134,14 +144,20 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
             if(result.type === IncomingDataType.LNURL) {
                 await IncomingParser.navigateWithIncomingData(result, navigation, unit, mint && mint.mintUrl)
             }
-            
+
             if(result.type === IncomingDataType.LNURL_ADDRESS) {
-                await IncomingParser.navigateWithIncomingData(result, navigation, unit, mint && mint.mintUrl)   
+                await IncomingParser.navigateWithIncomingData(result, navigation, unit, mint && mint.mintUrl)
             }
-          
+
+            // Bitcoin address / BIP21. findAndExtract has already verified the checksum
+            // and refused anything that is not mainnet.
+            if(result.type === IncomingDataType.BTC_ADDRESS) {
+                await IncomingParser.navigateWithIncomingData(result, navigation, unit, mint && mint.mintUrl)
+            }
+
         } catch (e: any) {
-            e.params = lightningData
-            handleError(e)  
+            e.params = paymentData
+            handleError(e)
             return
         }
     }
@@ -157,7 +173,7 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
     
 
     const handleError = function(e: AppError): void {        
-        // lightningInputRef.current?.blur()
+        // paymentInputRef.current?.blur()
         setError(e)
     }
 
@@ -178,7 +194,7 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
             <View style={[$headerContainer, {backgroundColor: headerBg}]}>                
                 <Text
                     preset="heading"
-                    tx="lightningPayScreen_payHeading"
+                    tx="payScreen_payHeading"
                     style={{color: headerTitle}}
                 />                
             </View> 
@@ -186,9 +202,9 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
                 <Card                    
                     HeadingComponent={
                         <ListItem
-                            leftIcon='faBolt'
+                            leftIcon='faPaperPlane'
                             leftIconColor={colors.palette.orange400}
-                            tx="payCommon_payWithLightning"
+                            tx="payCommon_payWithBitcoin"
                             bottomSeparator={true}
                             RightComponent={
                                 <Button
@@ -206,13 +222,13 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
                         <Text 
                             size='xs' 
                             style={{color: hintText, padding: spacing.extraSmall}} 
-                            tx="payWithLightningDesc"
+                            tx="payWithBitcoinDesc"
                         />
                         <View style={{alignItems: 'center', marginTop: spacing.small}}>
                             <TextInput
-                                ref={lightningInputRef}
-                                onChangeText={data => setLightningData(data)}
-                                value={lightningData}
+                                ref={paymentInputRef}
+                                onChangeText={data => setPaymentData(data)}
+                                value={paymentData}
                                 autoCapitalize='none'
                                 keyboardType='default'
                                 maxLength={500}
@@ -222,7 +238,7 @@ export const LightningPayScreen = function LightningPayScreen({ route }: Props) 
                                 style={[$addressInput, {backgroundColor: inputBg, color: inputText}]}                        
                             />
                         </View>                        
-                            {!!lightningData && lightningData?.length > 1 ? (
+                            {!!paymentData && paymentData?.length > 1 ? (
                                 <View style={$buttonContainer}>
                                     <Button
                                         preset='default'

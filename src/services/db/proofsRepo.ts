@@ -98,25 +98,11 @@ export const addOrUpdateProofs = function (
 }
 
 
-export const updateProofsMintUrl = function (currentMintUrl: string, updatedMintUrl: string) {
-  try {
-    const query = `
-      UPDATE proofs
-      SET mintUrl = ?
-      WHERE mintUrl = ?
-    `
-    const params = [updatedMintUrl, currentMintUrl]
-
-    const db = getInstance()
-    db.execute(query, params)
-
-    log.debug('[updateMintUrl]', 'Proof mintUrl updated', {currentMintUrl, updatedMintUrl})
-
-
-  } catch (e: any) {
-    throw dbError('Could not update proof mintUrl in database', e)
-  }
-}
+// A standalone updateProofsMintUrl used to live here. It is gone on purpose: a
+// mint-url edit must move the mint row and its proofs in ONE transaction, so that
+// write belongs with the mint's own — see mintsRepo.updateMintUrl. Repointing
+// proofs by themselves is what left them owned by no mint when the two writes were
+// separable.
 
 export const removeAllProofs = async function () {
   try {

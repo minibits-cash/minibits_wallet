@@ -12,13 +12,31 @@ import {
 } from '@env'
 import { lightFormat } from 'date-fns'
 import * as Sentry from '@sentry/react-native'
-import { rootStoreInstance } from '../models'
 import { LogLevel } from './log/logTypes'
 import { Platform } from "react-native"
 import AppError, { Err } from "../utils/AppError"
 
-const { userSettingsStore } = rootStoreInstance
-// 
+/**
+ * The user's log settings, resolved on USE via a deferred require.
+ *
+ * Deliberately NOT a top-level `import { rootStoreInstance } from '../models'`.
+ * That import inverted the dependency graph — logService is a leaf that nearly
+ * everything imports, the model layer included (Mint -> theme -> services ->
+ * logService) — and `models/index` EAGERLY instantiates the root store at module
+ * scope (useStores.ts). So importing models from here re-entered that
+ * instantiation while RootStore.ts was still evaluating, read `RootStoreModel` as
+ * undefined, and threw during import. Whether that happened came down purely to
+ * which module the process loaded first: the app has an entry order that gets away
+ * with it, a test importing a model directly does not. That is why the model layer
+ * could not be instantiated in a test at all.
+ *
+ * `require` is memoized by the module system, so this costs nothing after the
+ * first call, and by the time anything logs the graph is fully built.
+ *
+ * The tidier end state is inversion — have startup hand the logger a settings
+ * provider, so a leaf service stops reaching for the root store.
+ */
+const userSettings = () => require('../models').rootStoreInstance.userSettingsStore
 
 if (!__DEV__) {
     Sentry.init({
@@ -133,7 +151,7 @@ const extractFromArray = (arr: any[]): { message: string; params: Record<string,
 
 
 const customSentryTransport: transportFunctionType<TransportOptions> = async (props) => {
-    if (!userSettingsStore.isLoggerOn) return true
+    if (!userSettings().isLoggerOn) return true
 
     const level = props.level.text as LogLevel
     const rawMessage = props.rawMsg
@@ -197,7 +215,7 @@ const customSentryTransport: transportFunctionType<TransportOptions> = async (pr
 
     // === Non-error levels: structured breadcrumbs via logger (or addBreadcrumb) ===
     const currentPriority = levelPriority[level]
-    const minPriority = levelPriority[userSettingsStore.logLevel] ?? levelPriority[LogLevel.WARN]
+    const minPriority = levelPriority[userSettings().logLevel as LogLevel] ?? levelPriority[LogLevel.WARN]
     if (currentPriority < minPriority) return true
 
     switch (level) {

@@ -7,39 +7,20 @@
  * Uses Node.js built-in node:sqlite (requires Node 22.5+).
  * @jest-environment node
  */
+jest.mock('../src/services/logService', () => ({
+  log: {debug: jest.fn(), error: jest.fn(), info: jest.fn(), trace: jest.fn(), warn: jest.fn()},
+}))
+
 import {DatabaseSync} from 'node:sqlite'
+import {MIGRATIONS} from '../src/services/db/migrations'
 
-// ── SQL copied verbatim from src/services/sqlite.ts migration 25 ──────────────
+// ── The REAL migration, taken from the registry ─────────────────────────────
+//
+// Imported rather than copied: a copy of the SQL proves nothing about the SQL that
+// actually runs on a device. The PRE-migration shape below stays hand-written on
+// purpose — it is frozen history, and must not track today's schema.
 
-const CREATE_V25 = `CREATE TABLE proofs_v25 (
-  id TEXT NOT NULL,
-  amount INTEGER NOT NULL,
-  secret TEXT PRIMARY KEY NOT NULL,
-  C TEXT NOT NULL,
-  dleq_r TEXT,
-  dleq_s TEXT,
-  dleq_e TEXT,
-  unit TEXT,
-  tId INTEGER,
-  mintUrl TEXT,
-  state TEXT NOT NULL DEFAULT 'UNSPENT',
-  updatedAt TEXT
-)`
-
-const INSERT_V25 = `INSERT INTO proofs_v25
-  (id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl, state, updatedAt)
-SELECT
-  id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl,
-  CASE
-    WHEN isSpent = 1 THEN 'SPENT'
-    WHEN isPending = 1 THEN 'PENDING'
-    ELSE 'UNSPENT'
-  END,
-  updatedAt
-FROM proofs`
-
-const DROP_OLD = `DROP TABLE proofs`
-const RENAME = `ALTER TABLE proofs_v25 RENAME TO proofs`
+const MIGRATION_25 = MIGRATIONS.find(m => m.version === 25)!.queries.map(([sql]) => sql)
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -79,10 +60,7 @@ function insertOldProof(
 }
 
 function runMigration25(db: DatabaseSync) {
-  db.exec(CREATE_V25)
-  db.exec(INSERT_V25)
-  db.exec(DROP_OLD)
-  db.exec(RENAME)
+  for (const sql of MIGRATION_25) db.exec(sql)
 }
 
 function getState(db: DatabaseSync, secret: string): string {

@@ -1,5 +1,13 @@
 import numbro from 'numbro'
-import { BtcIcon, EurIcon, UsdIcon, CadIcon, GbpIcon } from '../../components'
+// Each icon from its own module, NOT the '../../components' barrel. The barrel
+// pulls in every component (AmountInput and friends), so a barrel import here made
+// this module — which the Mint model imports for MintUnit — transitively depend on
+// the entire UI. ChfIcon below was already imported this way.
+import { BtcIcon } from '../../components/BtcIcon'
+import { EurIcon } from '../../components/EurIcon'
+import { UsdIcon } from '../../components/UsdIcon'
+import { CadIcon } from '../../components/CadIcon'
+import { GbpIcon } from '../../components/GbpIcon'
 import AppError, { Err } from '../../utils/AppError'
 import { ExchangeRate } from '../../models/WalletStore'
 import { ChfIcon } from '../../components/ChfIcon'

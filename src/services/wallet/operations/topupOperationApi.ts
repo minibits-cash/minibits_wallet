@@ -69,6 +69,27 @@ import {sendTopupNotification} from '../notifications'
 const {mintsStore, proofsStore, transactionsStore, walletStore, walletProfileStore} =
     rootStoreInstance
 
+/**
+ * The live url of a transaction's mint.
+ *
+ * Resolved through `tx.mintId`, never `tx.mint`: the latter records where the
+ * payment happened and is deliberately frozen, so once the mint moves it points at
+ * a host that no longer answers — and an open topup would poll it forever while the
+ * mint holds money the wallet could have claimed.
+ */
+function _txMintUrl(tx: Transaction): string {
+    const mint = mintsStore.findByTransaction(tx)
+    if (!mint) {
+        throw new ValidationError('Transaction mint is no longer in this wallet', {
+            transactionId: tx.id,
+            mintId: tx.mintId,
+            happenedAtUrl: tx.mint,
+        })
+    }
+    return mint.mintUrl
+}
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
 // ─────────────────────────────────────────────────────────────────────────────
@@ -359,7 +380,7 @@ async function finalize(transactionId: number): Promise<CompletedTransaction> {
         throw new ValidationError('Topup has no quote id; cannot finalize.', {transactionId})
     }
 
-    const {state} = await walletStore.checkLightningMintQuote(tx.mint, tx.quote)
+    const {state} = await walletStore.checkLightningMintQuote(_txMintUrl(tx), tx.quote)
     if (state !== MintQuoteState.PAID) {
         throw new MintError(
             `Cannot finalize topup; mint reports quote state ${state}.`,
@@ -397,7 +418,7 @@ async function refresh(transactionId: number): Promise<Transaction> {
         return tx
     }
 
-    const {state} = await walletStore.checkLightningMintQuote(tx.mint, tx.quote)
+    const {state} = await walletStore.checkLightningMintQuote(_txMintUrl(tx), tx.quote)
     const isExpired = !!tx.expiresAt && isBefore(tx.expiresAt, new Date())
     const paymentHash = tx.paymentId
 
@@ -470,7 +491,7 @@ async function refresh(transactionId: number): Promise<Transaction> {
  */
 async function _finalizePaid(tx: Transaction): Promise<CompletedTransaction> {
     const transactionId = tx.id
-    const mintUrl = tx.mint
+    const mintUrl = _txMintUrl(tx)
     const unit = tx.unit
     const amount = tx.amount
     const mintQuote = tx.quote!

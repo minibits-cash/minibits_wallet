@@ -1,6 +1,7 @@
 import {isBefore} from 'date-fns'
 import {
     MeltQuoteBolt11Response,
+    MeltQuoteOnchainResponse,
     MeltQuoteState,
     getEncodedToken,
 } from '@cashu/cashu-ts'
@@ -14,13 +15,15 @@ import {
     Transaction,
     TransactionData,
     TransactionStatus,
+    TransactionType,
 } from '../../../models/Transaction'
 import {MintBalance} from '../../../models/Mint'
 import {Proof} from '../../../models/Proof'
 import {CashuUtils} from '../../cashu/cashuUtils'
 import {NostrEvent} from '../../nostrService'
 import {MintUnit, formatCurrency, getCurrency} from '../currency'
-import {transferTask} from '../transferTask'
+import {transferOnchainTask, transferTask} from '../transferTask'
+import {SyncQueue} from '../../syncQueueService'
 import {WalletUtils} from '../utils'
 import {createQueueAwaitable} from '../queueHelper'
 import {TransactionTaskResult} from '../types'
@@ -61,12 +64,60 @@ const transferQueueAwaitable = (
     })
 
 /**
- *  Recover change from a paid melt quote (lightning out)
+ * Onchain melt, run through the SyncQueue.
+ *
+ * The queue is not a nicety. Melting derives its NUT-08 change outputs from the keyset
+ * counter, exactly as minting derives its blinded secrets from it: two melts running
+ * concurrently on one keyset both advance to the SAME counter and derive the SAME
+ * blinded outputs. SyncQueue runs at concurrency 1, and going through it is what makes
+ * that impossible. Every melting path must.
+ */
+const transferOnchainQueueAwaitable = (
+    mintBalanceToTransferFrom: MintBalance,
+    amountToTransfer: number,
+    unit: MintUnit,
+    meltQuote: MeltQuoteOnchainResponse,
+    feeIndex: number,
+    memo: string,
+    quoteExpiry: Date,
+    address: string,
+    nwcEvent?: NostrEvent,
+    draftTransactionId?: number,
+): Promise<TransactionTaskResult> =>
+    createQueueAwaitable<TransactionTaskResult>({
+        taskFunction: 'transferOnchainTask',
+        timeoutMessage: 'transferOnchainQueue timed out',
+        task: () =>
+            transferOnchainTask(
+                mintBalanceToTransferFrom,
+                amountToTransfer,
+                unit,
+                meltQuote,
+                feeIndex,
+                memo,
+                quoteExpiry,
+                address,
+                nwcEvent,
+                draftTransactionId,
+            ),
+    })
+
+/**
+ *  Recover change from a paid melt quote (lightning or onchain out).
+ *
+ *  The recovery itself is rail-agnostic: it reconstructs the change from the
+ *  meltPreview we persisted before submitting, using the blind signatures the mint
+ *  reports on the resolved quote. Neither of those is bolt11-specific.
+ *
+ *  Only the STRING form is: given just a quote id we have to ask the mint about it,
+ *  and there is no id to tell us which endpoint to ask. That form is reached from the
+ *  manual recovery screen, which is lightning-only. Callers with an onchain quote pass
+ *  the resolved object.
  */
 const recoverMeltQuoteChange = async (
     params: {
         mintUrl: string
-        meltQuote: string | MeltQuoteBolt11Response
+        meltQuote: string | MeltQuoteBolt11Response | MeltQuoteOnchainResponse
     },
 ): Promise<{recoveredAmount: number}> => {
     const {mintUrl, meltQuote} = params
@@ -79,7 +130,7 @@ const recoverMeltQuoteChange = async (
 
     log.trace('[recoverMeltQuoteChange] start', {mintUrl, meltQuote})
 
-    const meltQuoteResponse: MeltQuoteBolt11Response =
+    const meltQuoteResponse: MeltQuoteBolt11Response | MeltQuoteOnchainResponse =
         typeof meltQuote === 'string'
             ? await walletStore.checkLightningMeltQuote(mintUrl, meltQuote)
             : meltQuote
@@ -397,10 +448,76 @@ const handlePendingMeltTask = async (params: {
 }
 
 /**
+ * Re-check every PENDING onchain transfer with its mint.
+ *
+ * The onchain equivalent of the bolt11 websocket + poller, and deliberately not either
+ * of those. An onchain melt settles when the transaction is mined, so the wait is
+ * measured in blocks: the existing ~60s pending-check cadence (app start, foreground,
+ * WalletScreen focus) is already far finer-grained than the thing it waits for, and a
+ * 15-second poller would only burn requests to learn nothing.
+ *
+ * Each check goes through SyncQueue for the counter-serialisation reason above —
+ * `refresh` can reconstruct NUT-08 change, and change reconstruction reads the keyset
+ * counter. Queueing per-transaction also means one unreachable mint cannot stall the
+ * others.
+ */
+const handlePendingOnchainTransferQueue = async (): Promise<void> => {
+    const pending = transactionsStore.getPendingOnchainTransfers()
+
+    if (pending.length === 0) {
+        log.trace('[handlePendingOnchainTransferQueue] No pending onchain transfers')
+        return
+    }
+
+    log.trace('[handlePendingOnchainTransferQueue] start', {pending: pending.length})
+
+    for (const tx of pending) {
+        enqueuePendingOnchainTransferCheck(tx.id)
+    }
+}
+
+/**
+ * Queue a single onchain transfer re-check. THE ONLY WAY one may be started.
+ *
+ * Duplicate tasks for the same transaction are harmless: they run in sequence, and
+ * `refresh` no-ops on anything that is no longer PENDING.
+ */
+const enqueuePendingOnchainTransferCheck = (transactionId: number) => {
+    const taskId = `handlePendingOnchainTransferTask-${transactionId}-${Date.now()}`
+    return SyncQueue.addTask(taskId, () => handlePendingOnchainTransferTask(transactionId))
+}
+
+/**
+ * Re-check one onchain transfer. Errors are swallowed and logged: an offline mint, or
+ * one transfer failing, must not abort the sweep — the next tick simply tries again.
+ */
+const handlePendingOnchainTransferTask = async (transactionId: number) => {
+    try {
+        const {TransferOperationApi} = await import('./transferOperationApi')
+        return await TransferOperationApi.refresh(transactionId)
+    } catch (e: any) {
+        log.warn('[handlePendingOnchainTransferTask]', {transactionId, error: e.message})
+        return undefined
+    }
+}
+
+/**
  * Expire lightning transfers whose invoices have passed. Used by handlePendingQueue.
+ *
+ * Lightning only, and that is load-bearing rather than incidental. An onchain melt quote
+ * also carries an expiry, but it bounds EXECUTING the quote, not SETTLING the payment:
+ * once the mint has broadcast, the transaction confirms on the chain's schedule and can
+ * easily outlive the quote it came from. Expiring a transfer on that basis would mark a
+ * real, in-flight, irreversible payment dead and hide it from the user.
+ *
+ * The caller passes only bolt11 transfers (`getPendingTransfers` filters on
+ * `type = 'TRANSFER'`), so onchain never reaches here — but the guarantee is stated
+ * here because this is where it would be violated.
  */
 const expirePendingTransfers = (pendingTransfers: Transaction[]): void => {
     for (const tx of pendingTransfers) {
+        if (tx.type !== TransactionType.TRANSFER) continue
+
         if (tx.expiresAt && isBefore(tx.expiresAt, new Date())) {
             log.debug('[MeltOperationService] Expiring transfer', {paymentId: tx.paymentId})
 
@@ -428,7 +545,10 @@ const expirePendingTransfers = (pendingTransfers: Transaction[]): void => {
 
 export const MeltOperationService = {
     transferQueueAwaitable,
+    transferOnchainQueueAwaitable,
     recoverMeltQuoteChange,
     handlePendingMeltTask,
+    handlePendingOnchainTransferQueue,
+    enqueuePendingOnchainTransferCheck,
     expirePendingTransfers,
 }

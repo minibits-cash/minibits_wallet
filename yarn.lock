@@ -2869,15 +2869,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cashu/cashu-ts@npm:^4.2.1":
-  version: 4.2.1
-  resolution: "@cashu/cashu-ts@npm:4.2.1"
+"@cashu/cashu-ts@npm:^4.7.1":
+  version: 4.7.1
+  resolution: "@cashu/cashu-ts@npm:4.7.1"
   dependencies:
     "@noble/curves": ^2.2.0
     "@noble/hashes": ^2.2.0
     "@scure/base": ^2.2.0
     "@scure/bip32": ^2.2.0
-  checksum: a950f38686fcab220a61ea7b83c08f14f8af0ed5b54a18b38f8a370fc3e63897a6c1f266d8e7e9e269f05413d8b5f9d58d319bd1b194b2e2830cb7983169c931
+  checksum: c8dfb7afd37835f0a79e30cc3e4f0fe70cafbd2670aa6674a978749ecec19c0d8e34597959cc05b96b9663f9ca9803bfd78efcc1d295e7b5e0f3a59c75875477
   languageName: node
   linkType: hard
 
@@ -14823,7 +14823,7 @@ __metadata:
     "@babel/plugin-proposal-export-namespace-from": ^7.18.9
     "@babel/preset-env": ^7.25.3
     "@babel/runtime": ^7.25.0
-    "@cashu/cashu-ts": ^4.2.1
+    "@cashu/cashu-ts": ^4.7.1
     "@expo/fingerprint": ^0.13.4
     "@fortawesome/fontawesome-svg-core": ^7.1.0
     "@fortawesome/free-brands-svg-icons": ^7.1.0

@@ -4,11 +4,11 @@ import { HCESession, NFCTagType4NDEFContentType, NFCTagType4 } from 'react-nativ
 import NfcManager  from 'react-native-nfc-manager'
 import { UR, UREncoder } from '@gandlaf21/bc-ur';
 import { infoMessage } from "../../utils/utils"
-import { Button, Card, Icon, ListItem } from "../../components"
+import { BottomModal, Button, Card, Icon, ListItem, Text } from "../../components"
 import QRCode from "react-native-qrcode-svg"
 import Clipboard from "@react-native-clipboard/clipboard"
 import { verticalScale } from "@gocodingnow/rn-size-matters"
-import { colors, spacing, ThemeCode } from "../../theme"
+import { colors, spacing, ThemeCode, useThemeColor } from "../../theme"
 import { translate, TxKeyPath } from "../../i18n"
 import { log } from "../../services"
 import { MMKVStorage } from "../../services/mmkvStorage"
@@ -21,7 +21,10 @@ import { useStores } from '../../models';
 import AppError, { Err } from '../../utils/AppError';
 
 
-export type QRCodeBlockTypes = 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC' | 'PUBKEY' | 'PaymentRequest'
+// 'BitcoinAddress' carries a BIP21 URI (bitcoin:<addr>?amount=...), not a bare
+// address, so a scanning wallet pre-fills the amount. Deliberately left out of the
+// NFC-safe list below: onchain deposits are not a tap-to-pay flow.
+export type QRCodeBlockTypes = 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC' | 'PUBKEY' | 'PaymentRequest' | 'BitcoinAddress'
 
 const ANIMATED_QR_FRAGMENT_LENGTH = 150
 const ANIMATED_QR_INTERVAL = 250
@@ -33,12 +36,27 @@ export const QRCodeBlock = function (props: {
     type: QRCodeBlockTypes
     size?: number
     startNfcOnLoad?: boolean
+    /**
+     * Explanatory paragraphs for this QR code. When present, a question-mark button
+     * joins the action row below the code and opens them in a bottom sheet.
+     *
+     * The QR card sits on a white background and is usually the tallest thing on the
+     * screen, so a caption placed under it tends to fall below the fold and simply
+     * never gets read — which is how the onchain "the amount is only a hint" warning
+     * went unseen. Putting the explanation behind a button in the action row keeps it
+     * next to the thing it describes and always reachable.
+     */
+    hints?: TxKeyPath[]
+    /** Heading for the hint sheet. Defaults to a generic "How does this work?". */
+    hintTitleTx?: TxKeyPath
   }
 ) {
 
-    const { qrCodeData, title, titleTx, type, size, startNfcOnLoad = false } = props
+    const { qrCodeData, title, titleTx, type, size, startNfcOnLoad = false, hints, hintTitleTx } = props
     const {mintsStore} = useStores()
-    
+
+    const [isHintVisible, setIsHintVisible] = useState(false)
+    const hintTextColor = useThemeColor('textDim')
     const [qrError, setQrError] = useState<Error | undefined>()
     const [encodedV3Token, setEncodedV3Token] = useState<string | undefined>()
     const [decodedToken, setDecodedToken] = useState<Token>()
@@ -287,6 +305,7 @@ export const QRCodeBlock = function (props: {
       : require('../../../android/app/src/main/res/mipmap-xhdpi/ic_launcher.png')
       
     return (
+      <>
       <Card
         heading={title}
         headingTx={titleTx}
@@ -371,8 +390,8 @@ export const QRCodeBlock = function (props: {
                   preset="tertiary"
                   onPress={isNfcEnabled ? toggleNFC : () => Alert.alert('Enable NFC in device settings')}
                   LeftAccessory={() => (
-                    <PulsingContactlessIcon 
-                      nfcBroadcast={nfcBroadcast} 
+                    <PulsingContactlessIcon
+                      nfcBroadcast={nfcBroadcast}
                     />
                   )}
                   pressedStyle={{ backgroundColor: colors.light.buttonTertiaryPressed }}
@@ -382,9 +401,43 @@ export const QRCodeBlock = function (props: {
                   }}
               />
             )}
+            {hints && hints.length > 0 && (
+              <Button
+                  preset="tertiary"
+                  onPress={() => setIsHintVisible(true)}
+                  LeftAccessory={() => <Icon icon='faCircleQuestion' size={spacing.medium} color={colors.light.text} />}
+                  textStyle={{color: colors.light.text, fontSize: 14}}
+                  pressedStyle={{backgroundColor: colors.light.buttonTertiaryPressed}}
+                  style={{ minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny) }}
+              />
+            )}
           </View>
         }
       />
+      {/*
+        Outside the Card on purpose: the card is forced white (it is a QR code
+        background), so its contents are hardcoded to light colours. The sheet is a
+        normal themed surface and must not inherit that.
+      */}
+      <BottomModal
+        isVisible={isHintVisible}
+        headingTx={hintTitleTx ?? 'qr_hintHeading'}
+        ContentComponent={
+          <View style={{marginTop: spacing.small}}>
+            {hints?.map(hint => (
+              <Text
+                key={hint}
+                tx={hint}
+                preset='formHelper'
+                style={{marginBottom: spacing.small, color: hintTextColor}}
+              />
+            ))}
+          </View>
+        }
+        onBackButtonPress={() => setIsHintVisible(false)}
+        onBackdropPress={() => setIsHintVisible(false)}
+      />
+      </>
     )
 }
 

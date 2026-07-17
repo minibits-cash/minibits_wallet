@@ -204,6 +204,7 @@ const TERMINAL_STATUSES: ReadonlySet<TransactionStatus> = new Set([
     TransactionStatus.RECOVERED,
 ])
 
+/** Statuses in which a transaction is still open — the complement of TERMINAL_STATUSES. */
 const IN_FLIGHT_STATUSES: ReadonlySet<TransactionStatus> = new Set([
     TransactionStatus.DRAFT,
     TransactionStatus.PREPARED,

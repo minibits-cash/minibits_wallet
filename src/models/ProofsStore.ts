@@ -11,11 +11,12 @@ import {
   import { getRootStore } from './helpers/getRootStore'
   import AppError, { Err } from '../utils/AppError'
   import { Mint, MintBalance } from './Mint'
-  import { Database } from '../services'
+  // Direct import, not the '../services' barrel — see the note in Mint.ts.
+  import { Database } from '../services/db'
   import { ReservationTransactionUpdate } from '../services/sqlite'
   import { MintUnit } from '../services/wallet/currency'
   import { CashuProof } from '../services/cashu/cashuUtils'
-  import { generateId } from '../utils/utils'
+  import { generateId } from '../utils/generateId'
   import { ProofReservation } from '../services/wallet/proofReservation'
 
   export const ProofsStoreModel = types
@@ -71,6 +72,42 @@ import {
             }
             }
             return undefined
+        },
+
+        /**
+         * Spendable proofs whose `mintUrl` matches no mint in the wallet, grouped by
+         * that url.
+         *
+         * This should always be empty, and is now a residual safety net rather than a
+         * live hazard. `proofs.mintUrl` is a denormalized copy of a mint's LOCATOR,
+         * joined to `mint.mintUrl` by string equality. That copy used to be able to
+         * drift: the mint's url lived in the MMKV snapshot while its proofs lived in
+         * SQLite, so a mint-url edit spanned two engines with no transaction between
+         * them, and a crash in the gap left proofs owned by no mint. Both now live in
+         * SQLite and the rename is a single transaction (mintsRepo.updateMintUrl), so
+         * that path is closed — this stays because the consequence is severe enough to
+         * keep watching for: the balance view counts such proofs in the unit total
+         * while attributing them to no mint (see `balances`), and they cannot be
+         * spent, since send and melt select proofs by mint.
+         *
+         * SPENT proofs are excluded: they are outside the balance and are exactly
+         * what a removed mint leaves behind.
+         */
+        findOrphanedProofs(): Array<{mintUrl: string; count: number; amount: number}> {
+            const knownMintUrls = new Set(getRootStore(self).mintsStore.allMints.map((m: Mint) => m.mintUrl))
+            const byMintUrl = new Map<string, {mintUrl: string; count: number; amount: number}>()
+
+            for (const proof of self.proofs.values()) {
+                if (proof.state === 'SPENT') continue
+                if (knownMintUrls.has(proof.mintUrl)) continue
+
+                const entry = byMintUrl.get(proof.mintUrl) ?? {mintUrl: proof.mintUrl, count: 0, amount: 0}
+                entry.count += 1
+                entry.amount += proof.amount
+                byMintUrl.set(proof.mintUrl, entry)
+            }
+
+            return Array.from(byMintUrl.values())
         },
 
         getByMint(
@@ -146,6 +183,37 @@ import {
             })
             }),
 
+        /**
+         * Report (never fix, never throw) proofs left pointing at a mint the wallet
+         * does not have — see findOrphanedProofs for how that can happen.
+         *
+         * Deliberately observe-only. The proofs are the user's money: hiding them,
+         * refusing to start, or forcing a recovery would all be worse outcomes than a
+         * total that reads a little high, and the state is self-healing once a mint
+         * is (re-)added at that url. This exists so we learn it happened at all —
+         * otherwise the balance view swallows it silently.
+         *
+         * Call at STARTUP, once proofs and mints are both loaded. Doing this from the
+         * `balances` computed instead would misfire: it re-runs constantly, and mint
+         * removal produces this exact state for a moment (MintsScreen destroys the
+         * mint in one action, moves its proofs to SPENT in the next). At startup the
+         * tree is settled, so anything found here is a genuine, persisted desync.
+         */
+        reportOrphanedProofs(): Array<{mintUrl: string; count: number; amount: number}> {
+            const orphaned = self.findOrphanedProofs()
+            if (orphaned.length === 0) return orphaned
+
+            // error → Sentry in prod: this should be unreachable, and if it is not we
+            // want to know which url and how much is stranded.
+            log.error('[reportOrphanedProofs]', 'Spendable proofs reference a mint not in the wallet', {
+                orphaned,
+                totalAmount: orphaned.reduce((sum, o) => sum + o.amount, 0),
+                knownMintUrls: getRootStore(self).mintsStore.allMints.map((m: Mint) => m.mintUrl),
+            })
+
+            return orphaned
+        },
+
         // Lock proofs locally during an outgoing operation (send, melt prepare, etc.)
         // Does NOT touch pendingByMintSecrets — that is mint-reported pending.
         moveToPending(proofs: Proof[]) {
@@ -203,7 +271,19 @@ import {
             }
         },
 
-        updateMintUrl(currentMintUrl: string, updatedMintUrl: string) {
+        /**
+         * Mirror a mint-url edit onto the in-memory proofs — MEMORY ONLY.
+         *
+         * The SQLite write is deliberately not here. It belongs in the same
+         * transaction as the mint's own row (Database.updateMintUrlWithProofs, called
+         * from Mint.setMintUrl), because those two writes must not be separable: a
+         * crash between them leaves proofs pointing at a url no mint owns, and the
+         * money then counts toward the total while belonging to no mint — and cannot
+         * be spent, since send and melt select proofs by mint.
+         *
+         * Call this only AFTER that transaction commits.
+         */
+        updateMintUrlInMemory(currentMintUrl: string, updatedMintUrl: string) {
             const updateInMap = (map: typeof self.proofs) => {
                 for (const proof of map.values()) {
                     if (proof.mintUrl === currentMintUrl) {
@@ -219,8 +299,7 @@ import {
 
             updateInMap(self.proofs)
 
-            Database.updateProofsMintUrl(currentMintUrl, updatedMintUrl)
-            log.trace('[updateMintUrl] Updated mint URL in proofs')
+            log.trace('[updateMintUrlInMemory] Mirrored mint url onto proofs')
         },
 
         // Import proofs from backup without validation or side effects
@@ -280,11 +359,17 @@ import {
                 originalTId: p.tId ?? null,
             }))
 
+            // Resolved here rather than asked of every caller: they all identify the
+            // mint by url, but the reservation must survive that url changing while
+            // the operation is open (see ProofReservation.mintId).
+            const mintId = getRootStore(self).mintsStore.findByUrl(opts.mintUrl)?.id ?? null
+
             // ATOMIC: write reservation row + lock proofs to PENDING in one batch.
             Database.openReservation(
                 {
                     id: reservationId,
                     transactionId: opts.transactionId,
+                    mintId: mintId ?? undefined,
                     mintUrl: opts.mintUrl,
                     unit: opts.unit,
                     operationType: opts.operationType,
@@ -307,6 +392,7 @@ import {
             return {
                 id: reservationId,
                 transactionId: opts.transactionId,
+                mintId,
                 mintUrl: opts.mintUrl,
                 unit: opts.unit,
                 operationType: opts.operationType,
@@ -338,13 +424,28 @@ import {
             } = {},
         ): { added: Proof[] } {
             const mintsStore = getRootStore(self).mintsStore
-            const mintInstance = mintsStore.findByUrl(reservation.mintUrl)
+
+            // Resolve by stable id, not by the url captured when the reservation
+            // opened: a mint-url edit may have landed while this operation was in
+            // flight, and a url lookup would then find nothing and abort the commit
+            // of an operation the mint has already performed. Falls back to the url
+            // for a pre-v33 reservation, which carries no mintId.
+            const mintInstance =
+                (reservation.mintId ? mintsStore.findById(reservation.mintId) : undefined) ??
+                mintsStore.findByUrl(reservation.mintUrl)
+
             if (!mintInstance) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint not found for reservation', {
+                    mintId: reservation.mintId,
                     mintUrl: reservation.mintUrl,
                     reservationId: reservation.id,
                 })
             }
+
+            // The mint's url NOW, which is not necessarily reservation.mintUrl. Every
+            // write below — SQLite and the MST mirror alike — uses this: filing the
+            // new proofs under a url no mint owns makes the balance simply vanish.
+            const commitMintUrl = mintInstance.mintUrl
 
             // Snapshot the current derivation counter for every keyset the new
             // proofs were derived under (a cashu proof's `id` IS its keyset id).
@@ -354,7 +455,7 @@ import {
             // backstop, so a committed proof can never outlive its counter even if
             // the W1 write-through was dropped. Monotonic, so the normal-path
             // double write is a harmless no-op.
-            const counterUpdate: Array<{mintUrl: string; keysetId: string; unit?: string; counter: number}> = []
+            const counterUpdate: Array<{keysetId: string; unit?: string; counter: number}> = []
             const seenKeysets = new Set<string>()
             for (const group of changes.newProofs ?? []) {
                 for (const proof of group.proofs) {
@@ -363,7 +464,6 @@ import {
                     const counter = mintInstance.getProofsCounter(proof.id)
                     if (counter) {
                         counterUpdate.push({
-                            mintUrl: reservation.mintUrl,
                             keysetId: proof.id,
                             unit: counter.unit,
                             counter: counter.counter,
@@ -380,7 +480,7 @@ import {
                 newProofs: changes.newProofs?.map(group => ({
                     proofs: group.proofs,
                     state: group.state,
-                    mintUrl: reservation.mintUrl,
+                    mintUrl: commitMintUrl,
                     unit: reservation.unit,
                     tId: group.tId,
                 })),
@@ -412,7 +512,7 @@ import {
                     if (existing) {
                         if (existing.state === 'SPENT') continue
                         if (isAlive(existing)) {
-                            existing.setProp('mintUrl', reservation.mintUrl)
+                            existing.setProp('mintUrl', commitMintUrl)
                             existing.setProp('tId', group.tId)
                             existing.setProp('unit', reservation.unit)
                             existing.setProp('state', group.state)
@@ -422,7 +522,7 @@ import {
                         const node = ProofModel.create({
                             ...proof,
                             amount: Number(proof.amount),
-                            mintUrl: reservation.mintUrl,
+                            mintUrl: commitMintUrl,
                             tId: group.tId,
                             unit: reservation.unit,
                             state: group.state,
@@ -612,6 +712,20 @@ import {
           const targetMintMap = isPending ? mintPendingMap : mintBalancesMap
           const targetUnitMap = isPending ? unitPendingMap : unitBalancesMap
 
+          // A proof whose mintUrl matches no mint contributes to the UNIT total but
+          // to no mint bucket, so the total can exceed the sum of the mints. That is
+          // deliberate: the sats are real and the user's, and showing a few
+          // unreachable ones is a far better failure than hiding them, blocking
+          // access, or forcing a recovery. It is also self-healing — a mint
+          // (re-)added at that url re-attaches them.
+          //
+          // Detection is NOT done here. `balances` is a MobX computed that re-runs
+          // on every proof and mint change, and mint removal legitimately produces
+          // this state for a moment: MintsScreen destroys the mint in one action and
+          // moves its proofs to SPENT in the next, so reactions observe the gap in
+          // between. Reporting from here would fire on every removal AND on every
+          // recompute. The steady-state check runs once at startup instead — see
+          // reportOrphanedProofs.
           const mintBalance = targetMintMap.get(proof.mintUrl)
           if (mintBalance) {
             mintBalance.balances[proof.unit]! += proof.amount

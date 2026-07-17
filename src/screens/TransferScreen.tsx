@@ -603,6 +603,12 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
     }
 
 
+    const onMintBalanceCancel = async function () {
+      return gotoWallet()
+      //dispatch({ type: 'HIDE_MINT_SELECTOR' })
+    }
+
+
     const gotoWallet = function() {
         resetState()
         navigation.dispatch(
@@ -927,7 +933,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
 
 
     return (
-      <Screen preset="fixed" contentContainerStyle={$screen}>
+      <Screen preset="fixed" contentContainerStyle={$screen} hideTabBar>
         <MintHeader
           mint={
             mintBalanceToTransferFrom
@@ -1048,8 +1054,13 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
                 unit={unitRef.current}
                 title={translate('payCommon_payFrom')}
                 confirmTitle={translate('payCommon_payNow')}
+                // This screen pays a bolt11 invoice, so a mint that cannot melt
+                // bolt11 in this unit cannot be paid from. Onchain melt (NUT-30)
+                // will gate on its own method when it lands.
+                requiredCapability={mint => mint.supportsMelt!('bolt11', unitRef.current)}
+                unsupportedReason={translate('mintSelector_noPayoutSupport')}
                 onMintBalanceSelect={onMintBalanceSelect}
-                onCancel={gotoWallet}
+                onCancel={onMintBalanceCancel}
                 onMintBalanceConfirm={transfer}
               />
             )}
@@ -1062,7 +1073,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
                     label="tranDetailScreen_trasferredTo"
                     isFirst={true}
                     value={
-                      mintsStore.findByUrl(transaction.mint)
+                      mintsStore.findByTransaction(transaction)
                         ?.shortname as string
                     }
                   />

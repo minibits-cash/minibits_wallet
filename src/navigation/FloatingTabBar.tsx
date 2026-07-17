@@ -1,6 +1,10 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { LayoutChangeEvent, View, ViewStyle } from 'react-native'
-import Animated, { useAnimatedStyle } from 'react-native-reanimated'
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated'
 import {
   BottomTabBarHeightCallbackContext,
   type BottomTabBarProps,
@@ -13,7 +17,14 @@ import { ScanIcon } from '../components/ScanIcon'
 import { translate } from '../i18n'
 import { useStores } from '../models'
 import { spacing, useThemeColor } from '../theme'
-import { tabBarHiddenProgress } from './tabBarVisibility'
+import {
+  revealTabBar,
+  tabBarHiddenProgress,
+  useIsTabBarForcedHidden,
+} from './tabBarVisibility'
+
+/** Matches the forced-hide fade to the scroll-hide timing in tabBarVisibility. */
+const HIDE_DURATION = 200
 
 /** Slightly smaller than the spacing.large icons the bar used when it was full width. */
 export const TAB_ICON_SIZE = verticalScale(21)
@@ -55,7 +66,17 @@ export function FloatingTabBar(props: BottomTabBarProps) {
   // Scan is a screen inside WalletStack, so the tab state only reports that
   // WalletNavigator is focused. Look one level down for the screen actually shown.
   const focusedRoute = state.routes[state.index]
-  const isScanFocused = getFocusedRouteNameFromRoute(focusedRoute) === 'Scan'
+  const focusedNestedName = getFocusedRouteNameFromRoute(focusedRoute)
+  const isScanFocused = focusedNestedName === 'Scan'
+
+  // Any navigation — tab switch, push, or Back — reveals the bar, so a screen left
+  // scrolled down never returns to a screen that still has it parked off-screen.
+  // The tab bar re-renders on every navigation, so this key tracks the visible
+  // screen across both the tab state and the nested stack.
+  const focusKey = `${focusedRoute.key}:${focusedNestedName ?? ''}`
+  useEffect(() => {
+    revealTabBar()
+  }, [focusKey])
 
   const gotoScan = () => {
     // ScanScreen requires a unit. WalletScreen restores its mint-unit tab from
@@ -128,6 +149,17 @@ export function FloatingTabBar(props: BottomTabBarProps) {
   /** What screens reserve: the bar's footprint plus the gap above it. */
   const occupiedHeight = travel + TAB_BAR_TOP_GAP
 
+  // A screen can hide the bar entirely while focused. It then reserves only the
+  // safe-area inset instead of the bar's footprint, so it reclaims the room.
+  const forcedHidden = useIsTabBarForcedHidden()
+  const forcedProgress = useSharedValue(0)
+
+  useEffect(() => {
+    forcedProgress.value = withTiming(forcedHidden ? 1 : 0, {
+      duration: HIDE_DURATION,
+    })
+  }, [forcedHidden, forcedProgress])
+
   // The bar takes no part in keyboard avoidance. It is absolutely positioned at the
   // bottom of a window that the IME overlays rather than resizes (Android runs
   // edge-to-edge; iOS avoids the keyboard inside `Screen`), so the keyboard simply
@@ -135,13 +167,14 @@ export function FloatingTabBar(props: BottomTabBarProps) {
   // since `keyboardDidHide` is not reliably emitted when the window never resizes.
   useEffect(() => {
     if (barHeight === 0) return
-    setTabBarHeight?.(occupiedHeight)
-  }, [setTabBarHeight, occupiedHeight, barHeight])
+    setTabBarHeight?.(forcedHidden ? insets.bottom : occupiedHeight)
+  }, [setTabBarHeight, forcedHidden, insets.bottom, occupiedHeight, barHeight])
 
-  // Parks the bar fully below the screen edge.
+  // Parks the bar fully below the screen edge — from scroll, or a forced hide.
   const $animatedBar = useAnimatedStyle(() => {
+    const progress = Math.max(tabBarHiddenProgress.value, forcedProgress.value)
     return {
-      transform: [{ translateY: tabBarHiddenProgress.value * travel }],
+      transform: [{ translateY: progress * travel }],
     }
   }, [travel])
 

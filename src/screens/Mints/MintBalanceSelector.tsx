@@ -3,7 +3,7 @@ import { FlatList, Keyboard, LayoutAnimation, Platform, View, ViewStyle } from "
 import { observer } from "mobx-react-lite"
 import { Button, Card, Icon, IconTypes} from "../../components"
 import { spacing, useThemeColor } from "../../theme"
-import { MintBalance } from "../../models/Mint"
+import { Mint, MintBalance } from "../../models/Mint"
 import { MintUnit } from "../../services/wallet/currency"
 
 import { useStores } from "../../models"
@@ -21,12 +21,22 @@ export const MintBalanceSelector = observer(function (props: {
     secondaryConfirmIcon?: IconTypes
     cancelIcon?: IconTypes
     collapsible?: boolean
+    /**
+     * Which capability a mint needs to be usable here. Mints that lack it are
+     * listed but disabled, with `unsupportedReason` shown in place of the hostname
+     * — a mint silently missing from the list is more confusing than one that says
+     * why it cannot be used.
+     *
+     * Omit to disable no mint (the caller does not care about capability).
+     */
+    requiredCapability?: (mint: Mint) => boolean
+    unsupportedReason?: string
     onMintBalanceSelect: any
     onSecondaryMintBalanceSelect?: any
     onCancel?: any
     onMintBalanceConfirm?: any
   }) {
-  
+
     const collapsible = props.collapsible === false ? false : true // default true
     const {mintsStore} = useStores()
     const [isKeyboardVisible, setIsKeyboardVisible] = useState(false)
@@ -89,18 +99,25 @@ export const MintBalanceSelector = observer(function (props: {
             <>
               <FlatList<MintBalance>
                   data={props.mintBalances}
-                  renderItem={({ item, index }) => {                       
+                  renderItem={({ item, index }) => {
+                      const mint = mintsStore.findByUrl(item.mintUrl)!
+                      const isDisabled = props.requiredCapability
+                        ? !props.requiredCapability(mint)
+                        : false
+
                       return(
                           <MintListItem
                               key={item.mintUrl}
-                              mint={mintsStore.findByUrl(item.mintUrl)!}
+                              mint={mint}
                               mintBalance={item}
                               selectedUnit={props.unit}
                               onMintSelect={() => onMintSelect(item)}
                               isSelectable={true}
                               isSelected={!!props.selectedMintBalance ? props.selectedMintBalance.mintUrl === item.mintUrl : false}
+                              isDisabled={isDisabled}
+                              disabledReason={props.unsupportedReason}
                               separator={index === 0 || allVisible === false ? undefined : 'top'}
-                              style={(!allVisible && collapsible && props.selectedMintBalance && props.selectedMintBalance.mintUrl !== item.mintUrl) ? {display: 'none'} : {}}                            
+                              style={(!allVisible && collapsible && props.selectedMintBalance && props.selectedMintBalance.mintUrl !== item.mintUrl) ? {display: 'none'} : {}}
                           />
                       )
                   }}

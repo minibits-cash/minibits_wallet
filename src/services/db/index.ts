@@ -19,8 +19,10 @@ import {
   getPendingTopupsCount,
   getPendingTransfers,
   getPendingTransfersCount,
+  getPendingOnchainTransfers,
   addTransactionAsync,
   updateTransaction,
+  backfillTransactionMintIds,
   expireAllAfterRecovery,
   updateStatusesAsync,
   deleteTransactionsByStatus,
@@ -32,7 +34,6 @@ import {
 import {
   addOrUpdateProof,
   addOrUpdateProofs,
-  updateProofsMintUrl,
   removeAllProofs,
   getProofById,
   getProofs,
@@ -44,6 +45,7 @@ import {
   commitReservation,
   rollbackReservation,
   getOpenReservations,
+  backfillReservationMintIds,
 } from './reservationsRepo'
 import {
   getCounters,
@@ -61,10 +63,31 @@ import {
 import {
   addInFlightRequest,
   getInFlightRequest,
-  getInFlightRequestsByMint,
+  getInFlightRequestsByMintId,
   removeInFlightRequest,
   seedInFlightRequests,
 } from './inFlightRepo'
+import {
+  allocateNextCounter,
+  getWalletCounter,
+  setWalletCounter,
+} from './walletCountersRepo'
+import {
+  addOnchainMintQuote,
+  getOnchainMintQuote,
+  getOnchainMintQuotesByMintId,
+  backfillOnchainMintQuoteMintIds,
+  getWatchedOnchainMintQuotes,
+  updateOnchainMintQuoteAmounts,
+  extendOnchainMintQuoteWatch,
+} from './onchainQuotesRepo'
+import {
+  upsertMint,
+  getMints,
+  removeMintById,
+  updateMintUrl as updateMintUrlWithProofs,
+  seedMints,
+} from './mintsRepo'
 
 export type {TransactionSearchFilters} from './transactionsRepo'
 export type {
@@ -73,11 +96,20 @@ export type {
   ReservationTransactionUpdate,
 } from './reservationsRepo'
 export type {CounterRecord, CounterSeed} from './countersRepo'
+export {NUT20_COUNTER} from './walletCountersRepo'
+export type {OnchainMintQuoteRecord} from './onchainQuotesRepo'
+export {ONCHAIN_QUOTE_WATCH_DAYS} from './onchainQuotesRepo'
 export type {MeltRecoveryRecord, MeltRecoverySeed} from './meltRecoveryRepo'
 export type {InFlightRequestRecord, InFlightRequestSeed} from './inFlightRepo'
+export type {MintRecord} from './mintsRepo'
 
 export const Database = {
   getInstance,
+  upsertMint,
+  getMints,
+  removeMintById,
+  updateMintUrlWithProofs,
+  seedMints,
   getDatabaseVersion,
   cleanAll,
   getTransactionsCount,
@@ -91,8 +123,10 @@ export const Database = {
   getPendingTopupsCount,
   getPendingTransfers,
   getPendingTransfersCount,
+  getPendingOnchainTransfers,
   addTransactionAsync,
   updateTransaction,
+  backfillTransactionMintIds,
   expireAllAfterRecovery,
   updateStatusesAsync,
   deleteTransactionsByStatus,
@@ -102,7 +136,6 @@ export const Database = {
   getPendingAmount,
   addOrUpdateProof,
   addOrUpdateProofs,
-  updateProofsMintUrl,
   removeAllProofs,
   getProofById,
   getProofs,
@@ -112,6 +145,7 @@ export const Database = {
   commitReservation,
   rollbackReservation,
   getOpenReservations,
+  backfillReservationMintIds,
   getCounters,
   getCounter,
   setCounter,
@@ -123,7 +157,17 @@ export const Database = {
   seedMeltRecoveries,
   addInFlightRequest,
   getInFlightRequest,
-  getInFlightRequestsByMint,
+  getInFlightRequestsByMintId,
   removeInFlightRequest,
   seedInFlightRequests,
+  allocateNextCounter,
+  getWalletCounter,
+  setWalletCounter,
+  addOnchainMintQuote,
+  getOnchainMintQuote,
+  getOnchainMintQuotesByMintId,
+  backfillOnchainMintQuoteMintIds,
+  getWatchedOnchainMintQuotes,
+  updateOnchainMintQuoteAmounts,
+  extendOnchainMintQuoteWatch,
 }

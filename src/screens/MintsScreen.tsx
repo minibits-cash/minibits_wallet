@@ -23,6 +23,7 @@ import {Mint} from '../models/Mint'
 import {useStores} from '../models'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
+import {normalizeMintUrl} from '../services/cashu/mintUrl'
 import AppError, { Err } from '../utils/AppError'
 import {translate} from '../i18n'
 import {MintListItem} from './Mints/MintListItem'
@@ -157,31 +158,40 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
 
 
     const updateMintUrl = async function () {
-      if (!selectedMint) {return}      
+      if (!selectedMint) {return}
       try {
         if (isStateTreeNode(selectedMint)) { // update URL of existing mint
-          // checks if mint is reachable on new url, if it the same mint by checking keysets and syncs local data
-          if(mintsStore.alreadyExists(mintUrl)) {
+          // Normalize before anything else: rejects a malformed or non-https url
+          // without a network round-trip, and yields the exact string that will be
+          // stored — so the keyset check below runs against that same url.
+          const normalized = normalizeMintUrl(mintUrl)
+
+          // Fast-fail ahead of the fetch. setMintUrl re-checks and remains the
+          // authority; renaming to the url already held is a no-op there, so it
+          // must not be reported as a duplicate here either.
+          if(normalized !== selectedMint.mintUrl && mintsStore.mintExists(normalized)) {
             throw new AppError(Err.VALIDATION_ERROR, 'Mint with this URL already exists.')
           }
 
           toggleAddMintModal() // close
           setIsLoading(true)
-          const keysets: MintKeyset[] = await walletStore.getMintKeysets(mintUrl)
+          // Checks the mint is reachable on the new url AND is the same mint, by
+          // matching keysets against the ones we already hold.
+          const keysets: MintKeyset[] = await walletStore.getMintKeysets(normalized)
           const matchingKeyset = keysets.find(keyset => selectedMint.keysets?.some(k => k.id === keyset.id))
 
           if(!matchingKeyset) {
             throw new AppError(Err.VALIDATION_ERROR, 'No keyset match, provided URL likely points to a different mint.')
           }
 
-          selectedMint.setMintUrl!(mintUrl)                    
+          selectedMint.setMintUrl!(normalized)
         }
-      } catch (e: any) {        
+      } catch (e: any) {
         handleError(e)
-      } finally {  
+      } finally {
         setMintUrl('')
         setIsLoading(false)
-        onMintUnselect() // close        
+        onMintUnselect() // close
       }
     }
 

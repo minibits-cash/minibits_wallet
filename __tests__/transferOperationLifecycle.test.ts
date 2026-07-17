@@ -138,13 +138,18 @@ describe('TransferOperationApi surface (compile-time)', () => {
             'unit',
             'amountToTransfer',
             'meltQuote',
-            'invoiceExpiry',
             'path',
             'method',
+            // Rail-specific facts (fee reserve, expiry, tx type, quote id) resolved once,
+            // so the shared lifecycle never branches on `method` to find them.
+            'resolved',
             'proofsToMeltFrom',
             'proofsToMeltFromAmount',
             'meltFeeReserve',
-            'lightningFeeReserve',
+            // Was `lightningFeeReserve`. Renamed when onchain melt landed: on that rail it
+            // is a miner fee, and it comes from the SELECTED fee tier rather than from a
+            // single field on the quote.
+            'feeReserve',
             'preemptiveSwapFeePaid',
             'nwcEvent',
         ]
