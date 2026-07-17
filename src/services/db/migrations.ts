@@ -2,7 +2,7 @@ import {DbConnection, SQLBatchTuple} from './connection'
 // RESERVATIONS_COLUMNS / ONCHAIN_MINT_QUOTES_COLUMNS are deliberately NOT imported:
 // v26 and v31 build those tables from the frozen historical shapes below, not from
 // the live schema. See the note there.
-import {createTable, PROOFS_COLUMNS, PROOFS_COLUMN_NAMES, MINT_COUNTERS_COLUMNS, MINT_COUNTERS_COLUMN_NAMES, MELT_RECOVERY_COLUMNS, INFLIGHT_REQUESTS_COLUMNS, WALLET_COUNTERS_COLUMNS} from './schema'
+import {createTable, PROOFS_COLUMNS, PROOFS_COLUMN_NAMES, MINT_COUNTERS_COLUMNS, MINT_COUNTERS_COLUMN_NAMES, MELT_RECOVERY_COLUMNS, INFLIGHT_REQUESTS_COLUMNS, WALLET_COUNTERS_COLUMNS, MINTS_COLUMNS, MINT_KEYSETS_COLUMNS} from './schema'
 import {dbError} from './errors'
 import {log} from '../logService'
 
@@ -254,6 +254,25 @@ export const MIGRATIONS: Migration[] = [
       ],
       [`DROP TABLE melt_recovery`],
       [`ALTER TABLE melt_recovery_v34 RENAME TO melt_recovery`],
+    ],
+  },
+  {
+    // Master the mints here instead of in the MST/MMKV snapshot.
+    //
+    // Mints were the last core entity persisted by serializing the whole tree.
+    // Since postProcessSnapshot already strips proofs and transactions, mints —
+    // with every keyset's `keys` map — had become the largest thing left in it, and
+    // `JSON.stringify(snapshot)` runs on EVERY MST action, including every proof
+    // mutation during a send. It also puts mints in the same engine as proofs, so a
+    // mint-url edit can finally commit atomically with the proofs it renames.
+    //
+    // Created EMPTY: mints live in the MMKV snapshot, so nothing in SQL can read
+    // them. The v39 seed in setupRootStore copies them once the store is hydrated —
+    // the same shape as the counters/melt/inflight seeds before it.
+    version: 35,
+    queries: [
+      [createTable('mints', MINTS_COLUMNS)],
+      [createTable('mint_keysets', MINT_KEYSETS_COLUMNS)],
     ],
   },
 ]

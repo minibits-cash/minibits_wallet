@@ -22,6 +22,7 @@ jest.mock('../src/services/logService', () => ({
 }))
 
 import {Database} from '../src/services/db'
+import {_dbVersion} from '../src/services/db/migrations'
 
 const MINT = 'https://mint.test'
 
@@ -55,7 +56,7 @@ describe('Derivation counters (mint_counters)', () => {
     // Guards the whole suite: these run against instance.ts's real schema + the
     // real migration registry, so a version mismatch means the rest is testing
     // something other than production.
-    expect(Database.getDatabaseVersion(Database.getInstance()).version).toBe(34)
+    expect(Database.getDatabaseVersion(Database.getInstance()).version).toBe(_dbVersion)
   })
 
   describe('setCounter — monotonic', () => {

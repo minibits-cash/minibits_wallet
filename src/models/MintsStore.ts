@@ -6,6 +6,9 @@ import {
     isStateTreeNode,
     detach,
     flow,
+    onSnapshot,
+    getSnapshot,
+    IDisposer,
   } from 'mobx-state-tree'
   import {withSetPropAction} from './helpers/withSetPropAction'
   import {MintModel, Mint, MintProofsCounter} from './Mint'
@@ -13,6 +16,7 @@ import {
   import {log} from '../services/logService'
   // Direct import, not the '../services' barrel — see the note in Mint.ts.
   import {Database} from '../services/db'
+  import type {MintRecord} from '../services/db'
   import AppError, { Err } from '../utils/AppError'
   import {
     Mint as CashuMint,
@@ -34,6 +38,36 @@ export type MintsByUnit = {
     mints: Mint[]
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Per-mint persistence.
+//
+// SQLite is the authority for mints; this model is the in-memory cache (the same
+// split as proofs and transactions). Rather than call a write-through from each of
+// the ~20 Mint mutators — where forgetting one is SILENT staleness, the exact bug
+// class this whole effort has been about — each mint gets one onSnapshot observer
+// that persists its row whenever anything in its subtree changes. It cannot be
+// forgotten, and it gives ImportBackup persistence for free (applySnapshot fires it).
+//
+// Derivation counters are unaffected: `counter` is volatile, so it never appears in
+// a snapshot and a bump never fires these.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Project a Mint snapshot onto the row shape SQLite stores. */
+const toMintRecord = (snapshot: any): MintRecord => ({
+    id: snapshot.id,
+    mintUrl: snapshot.mintUrl,
+    hostname: snapshot.hostname,
+    shortname: snapshot.shortname,
+    units: [...(snapshot.units ?? [])],
+    keysets: [...(snapshot.keysets ?? [])],
+    keys: [...(snapshot.keys ?? [])],
+    mintInfo: snapshot.mintInfo,
+    color: snapshot.color,
+    status: snapshot.status,
+    // types.Date snapshots as a timestamp; the column stores ISO.
+    createdAt: snapshot.createdAt ? new Date(snapshot.createdAt).toISOString() : undefined,
+})
+
 export const MintsStoreModel = types
     .model('MintsStore', {
         mints: types.array(MintModel),
@@ -49,6 +83,37 @@ export const MintsStoreModel = types
         const {counterBackups, ...rest} = s
         return rest
     })
+    /**
+     * Mints are loaded from SQLite on startup; only blockedMintUrls is persisted
+     * here. Same treatment as proofs and transactions, and the reason for the whole
+     * move: mints (with every keyset's `keys` map) were the largest thing left in
+     * the tree, and `JSON.stringify(snapshot)` runs on EVERY MST action anywhere —
+     * including every proof mutation during a send. Stripping them takes that cost
+     * off the hot path.
+     *
+     * NOTE for anything that reads the snapshot: `getSnapshot(mintsStore).mints` is
+     * now ALWAYS empty. Code that wants the real mints must read the live instances
+     * (see ExportBackupScreen, which does exactly that for proofs already).
+     */
+    .postProcessSnapshot(snapshot => ({
+        // `as typeof snapshot.mints` keeps the element type: a bare [] would widen
+        // the snapshot type to never[], and every reader of a mints snapshot (the
+        // backup format above all) would stop type-checking against a real Mint.
+        mints: [] as typeof snapshot.mints,
+        blockedMintUrls: snapshot.blockedMintUrls,
+    }))
+    /**
+     * Observer bookkeeping. VOLATILE, and on the store rather than at module scope:
+     * this is per-store state, and a module-level map would be shared by every store
+     * in the process — which production never notices (there is one root store) and
+     * a test immediately does.
+     */
+    .volatile(() => ({
+        /** Live per-mint observers, by mint id, so they can be disposed. */
+        mintObservers: new Map<string, IDisposer>(),
+        /** Last payload written per mint id — the equality guard's memory. */
+        lastPersistedMints: new Map<string, string>(),
+    }))
     .views(self => ({
         findByUrl: (mintUrl: string | URL) => {
             const mint = self.mints.find(m => m.mintUrl === mintUrl)
@@ -110,6 +175,76 @@ export const MintsStoreModel = types
          * the keyset — and a mint-url edit no longer strands the row, which used to
          * leave the counter at its volatile 0 and risk blinded-secret reuse.
          */
+        /**
+         * Write one mint through, skipping writes that would change nothing.
+         *
+         * The guard compares the PERSISTED payload, not the raw snapshot: a mint's
+         * subtree changes for reasons its row does not care about, and without this
+         * every such action would re-write the mint and all its keysets.
+         *
+         * Errors are logged, never thrown: persistence must not break a wallet flow,
+         * and the next mutation retries. A dropped write costs a stale row, which the
+         * following write corrects.
+         */
+        persistMint(snapshot: any) {
+            const record = toMintRecord(snapshot)
+            const serialized = JSON.stringify(record)
+
+            if (self.lastPersistedMints.get(record.id) === serialized) return
+
+            try {
+                Database.upsertMint(record)
+                self.lastPersistedMints.set(record.id, serialized)
+            } catch (e: any) {
+                log.error('[persistMint]', 'Mint write-through failed', {
+                    error: e?.message,
+                    mintId: record.id,
+                })
+            }
+        },
+
+        /** Dispose one mint's observer and forget its guard entry. */
+        unobserveMint(mintId: string) {
+            self.mintObservers.get(mintId)?.()
+            self.mintObservers.delete(mintId)
+            self.lastPersistedMints.delete(mintId)
+        },
+    }))
+    .actions(self => ({
+        /** Attach (or replace) one mint's persistence observer. */
+        observeMint(mint: Mint) {
+            const mintId = mint.id as string
+            self.unobserveMint(mintId)
+            self.mintObservers.set(mintId, onSnapshot(mint as any, snapshot => self.persistMint(snapshot)))
+        },
+    }))
+    .actions(self => ({
+        /**
+         * (Re)attach the per-mint persistence observers.
+         *
+         * Must run AFTER the mints are in place, never before: attaching first means
+         * loading them from SQLite immediately writes them straight back. Disposes
+         * any existing observers, so it is safe to call again after applySnapshot
+         * has replaced the whole array with new nodes.
+         */
+        observeMints() {
+            for (const mintId of [...self.mintObservers.keys()]) self.unobserveMint(mintId)
+            for (const mint of self.mints) self.observeMint(mint as Mint)
+        },
+
+        /**
+         * Write every mint through, unconditionally.
+         *
+         * For when mints arrive already-formed rather than by mutation — i.e.
+         * ImportBackup's applySnapshot. Observers only fire on CHANGE, so freshly
+         * applied nodes would otherwise never reach SQLite.
+         */
+        persistAllMints() {
+            for (const mint of self.mints) self.persistMint(getSnapshot(mint as any))
+        },
+    }))
+    .actions(self => ({
+
         hydrateCountersFromDatabase() {
             const rows = Database.getCounters()
             if (rows.length === 0) return
@@ -124,6 +259,47 @@ export const MintsStoreModel = types
             for (const row of rows) {
                 countersByKeyset.get(row.keysetId)?.hydrateCounterFromDb(row.counter)
             }
+        },
+
+        /**
+         * Hydrate the mints from SQLite, the authority (startup).
+         *
+         * Mirrors proofsStore.loadProofsFromDatabase: SQLite holds the data, the
+         * model is the cache the UI observes. Observers are attached AFTER the array
+         * is populated — attaching first would make loading write straight back.
+         *
+         * Does nothing when the table is empty, so a wallet whose mints have not yet
+         * been seeded (the v39 migration) keeps whatever applySnapshot restored.
+         */
+        loadMintsFromDatabase() {
+            const records = Database.getMints()
+
+            if (records.length === 0) {
+                log.trace('[loadMintsFromDatabase]', 'No mints in the database')
+                return
+            }
+
+            self.mints.replace(
+                records.map(r =>
+                    MintModel.create({
+                        ...r,
+                        // The column stores ISO; types.Date takes a Date or a unix ms
+                        // timestamp, never a string.
+                        createdAt: r.createdAt ? new Date(r.createdAt) : undefined,
+                        // Recreate the counter shells addMint would have built via
+                        // initKeyset. They are NOT optional: hydrateCountersFromDatabase
+                        // fills the real index into these, and with no shell to fill,
+                        // the counter would be created on demand at 0 and re-derive
+                        // blinded secrets the mint has already signed. The values
+                        // themselves are volatile and come from mint_counters.
+                        proofsCounters: (r.keysets ?? []).map((k: any) => ({
+                            keyset: k.id,
+                            unit: k.unit,
+                        })),
+                    } as any),
+                ),
+            )
+            log.trace('[loadMintsFromDatabase]', {loaded: self.mints.length})
         },
     }))
     .actions(self => ({
@@ -183,6 +359,12 @@ export const MintsStoreModel = types
             yield mintInstance.setShortname()
 
             self.mints.push(mintInstance)
+
+            // Write it once, then let the observer carry every later change. The
+            // explicit write is needed because observers fire on CHANGE, and the
+            // mint was fully built before it entered the tree.
+            self.persistMint(getSnapshot(mintInstance as any))
+            self.observeMint(mintInstance as Mint)
 
             // SQLite retains derivation counters by keysetId across mint removal
             // (rows are never deleted), so a re-added mint recovers its real
@@ -254,8 +436,17 @@ export const MintsStoreModel = types
             }
 
             if (mintInstance) {
+                const mintId = mintInstance.id as string
+
+                // Dispose BEFORE destroying: the observer would otherwise fire on the
+                // teardown and try to persist a dying node.
+                self.unobserveMint(mintId)
+
                 // No counter backup needed: the mint's mint_counters rows are
-                // retained in SQLite and restored on re-add via hydrate.
+                // retained in SQLite and restored on re-add via hydrate — which is
+                // also why removeMintById deliberately leaves them behind.
+                Database.removeMintById(mintId)
+
                 detach(mintInstance)
                 destroy(mintInstance)
                 log.info('[removeMint]', 'Mint removed from MintsStore')
@@ -280,6 +471,43 @@ export const MintsStoreModel = types
         },
         get allMints() {
             return self.mints
+        },
+
+        /**
+         * The mints as a backup payload.
+         *
+         * Built from the LIVE instances, and it must stay that way: mints are
+         * mastered in SQLite and stripped in postProcessSnapshot, so
+         * `getSnapshot(mintsStore).mints` is ALWAYS empty. A backup taken from the
+         * store snapshot would contain zero mints, raise no error, and only reveal
+         * the loss on restore. That is the single most destructive mistake available
+         * in this file, which is why the export lives here — behind a test — rather
+         * than inline in the screen.
+         *
+         * Two deliberate deviations from a plain snapshot:
+         *  - `keys` are dropped: they are re-fetched from the mint on import, and
+         *    they are the bulk of the payload.
+         *  - `counter` is re-injected per keyset. It is volatile (mastered in
+         *    mint_counters), so it is absent from the snapshot — and a backup
+         *    restored with counter 0 would re-derive blinded secrets the mint has
+         *    already signed.
+         */
+        get backupSnapshot() {
+            return {
+                mints: self.mints.map((liveMint: Mint) => {
+                    const mint: any = JSON.parse(JSON.stringify(getSnapshot(liveMint as any)))
+
+                    mint.keys = []
+
+                    mint.proofsCounters?.forEach((pc: any) => {
+                        const live = liveMint.proofsCounters?.find(c => c.keyset === pc.keyset)
+                        if (live) pc.counter = live.counter
+                    })
+
+                    return mint
+                }),
+                blockedMintUrls: [...self.blockedMintUrls],
+            }
         },
         get groupedByHostname() {
             const grouped: Record<string, MintsByHostname> = {}

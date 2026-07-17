@@ -11,6 +11,7 @@
  */
 import {
   applySnapshot,
+  getSnapshot,
   IDisposer,
   onSnapshot,
 } from 'mobx-state-tree'
@@ -81,6 +82,20 @@ export async function setupRootStore(rootStore: RootStore, opts: SetupRootStoreO
         log.trace(`Hydrating rooStoreModel took ${stateHydrated - mmkvLoaded} ms.`, {caller: 'setupRootStore'})
 
         const {proofsStore, walletProfileStore, authStore, userSettingsStore, transactionsStore, mintsStore} = rootStore
+
+        // Hydrate the mints from SQLite, the authority. Deliberately BEFORE the
+        // counter hydrate below: this replaces the mints array with fresh nodes, and
+        // the counters must attach to the nodes that survive.
+        //
+        // A no-op when the table is empty, which is exactly the case on the launch
+        // that migrates: mints still come from the MMKV snapshot applied above, the
+        // v39 seed copies them into SQLite, and every launch after this one loads
+        // them from here instead.
+        mintsStore.loadMintsFromDatabase()
+
+        // Attach the per-mint persistence observers AFTER the mints are in place —
+        // attaching first would make loading them write straight back.
+        mintsStore.observeMints()
 
         if(walletProfileStore.walletId) {
             Sentry.setUser({ id: walletProfileStore.walletId })
@@ -382,6 +397,26 @@ async function _runMigrations(rootStore: RootStore, restoredState: any) {
                 Database.backfillTransactionMintIds(mintRefs)
                 Database.backfillOnchainMintQuoteMintIds(mintRefs)
                 Database.backfillReservationMintIds(mintRefs)
+            }
+        }
+
+        if(currentVersion < 39) {
+            // db v35 created the mints/mint_keysets tables empty: mints lived in this
+            // MST snapshot, so nothing in SQL could read them. Copy them across once,
+            // here, where the store is hydrated.
+            //
+            // Reads the LIVE store, not restoredState: applySnapshot has already run,
+            // so the tree holds exactly what the snapshot did — and unlike the earlier
+            // seeds, nothing about a mint is stripped on load, so there is no reason
+            // to reach for the raw snapshot.
+            //
+            // persistAllMints rather than a mapping written out here: that mapping
+            // already exists (toMintRecord), and a second copy of it is precisely the
+            // kind of duplicate that drifts. Idempotent — it upserts by each mint's
+            // own id, so a re-run cannot duplicate a mint. After this, mints are
+            // mastered in SQLite and every later launch hydrates from there.
+            if (rootStore.mintsStore.mintCount > 0) {
+                rootStore.mintsStore.persistAllMints()
             }
         }
 

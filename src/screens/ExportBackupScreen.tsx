@@ -142,22 +142,14 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
             }              
           }
 
-          if(isMintsInBackup) {  
-            exportedMintsStore = JSON.parse(JSON.stringify(getSnapshot(mintsStore)))
-
-            exportedMintsStore.mints.forEach((mint: any) => {
-              mint.keys = [];
-
-              // `counter` is stripped from snapshots (mastered in SQLite), so
-              // re-inject the live derivation index per keyset. Exporting a
-              // backup with counter 0 would risk blinded-secret reuse on the
-              // recovered wallet.
-              const liveMint = mintsStore.findByUrl(mint.mintUrl)
-              mint.proofsCounters?.forEach((pc: any) => {
-                const live = liveMint?.proofsCounters.find(c => c.keyset === pc.keyset)
-                if (live) pc.counter = live.counter
-              })
-            })
+          if(isMintsInBackup) {
+            // NOT getSnapshot(mintsStore): mints are mastered in SQLite and stripped
+            // in snapshot postprocess (exactly as proofsStore is above), so the store
+            // snapshot reports zero mints. backupSnapshot builds from the live
+            // instances and re-injects the volatile derivation counters — it lives on
+            // the store, behind a test, because getting this wrong exports an empty
+            // backup with no error and only shows up on restore.
+            exportedMintsStore = mintsStore.backupSnapshot as MintsStoreSnapshot
 
             //log.trace({exportedMintsStore})
           }

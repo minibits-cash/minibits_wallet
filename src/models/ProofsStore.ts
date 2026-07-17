@@ -78,13 +78,17 @@ import {
          * Spendable proofs whose `mintUrl` matches no mint in the wallet, grouped by
          * that url.
          *
-         * This should always be empty. `proofs.mintUrl` is a denormalized copy of a
-         * mint's LOCATOR, and it is joined to `mint.mintUrl` by string equality
-         * across two persistence engines — proofs in SQLite, mint.mintUrl in the
-         * MMKV snapshot. A crash between those two writes during a mint-url edit
-         * desyncs them, and the balance view then counts the proofs in the unit total
-         * while attributing them to no mint (see `balances`), which also makes them
-         * unspendable, since send and melt select proofs by mint.
+         * This should always be empty, and is now a residual safety net rather than a
+         * live hazard. `proofs.mintUrl` is a denormalized copy of a mint's LOCATOR,
+         * joined to `mint.mintUrl` by string equality. That copy used to be able to
+         * drift: the mint's url lived in the MMKV snapshot while its proofs lived in
+         * SQLite, so a mint-url edit spanned two engines with no transaction between
+         * them, and a crash in the gap left proofs owned by no mint. Both now live in
+         * SQLite and the rename is a single transaction (mintsRepo.updateMintUrl), so
+         * that path is closed — this stays because the consequence is severe enough to
+         * keep watching for: the balance view counts such proofs in the unit total
+         * while attributing them to no mint (see `balances`), and they cannot be
+         * spent, since send and melt select proofs by mint.
          *
          * SPENT proofs are excluded: they are outside the balance and are exactly
          * what a removed mint leaves behind.
@@ -268,16 +272,18 @@ import {
         },
 
         /**
-         * Repoint this mint's proofs at its new url (see Mint.setMintUrl).
+         * Mirror a mint-url edit onto the in-memory proofs — MEMORY ONLY.
          *
-         * SQLite first: a failed write then propagates with the MST tree still
-         * matching the database. The reverse order would leave memory holding a url
-         * SQLite never got — the UI would show the balance under the new mint until
-         * the next restart silently moved it back.
+         * The SQLite write is deliberately not here. It belongs in the same
+         * transaction as the mint's own row (Database.updateMintUrlWithProofs, called
+         * from Mint.setMintUrl), because those two writes must not be separable: a
+         * crash between them leaves proofs pointing at a url no mint owns, and the
+         * money then counts toward the total while belonging to no mint — and cannot
+         * be spent, since send and melt select proofs by mint.
+         *
+         * Call this only AFTER that transaction commits.
          */
-        updateMintUrl(currentMintUrl: string, updatedMintUrl: string) {
-            Database.updateProofsMintUrl(currentMintUrl, updatedMintUrl)
-
+        updateMintUrlInMemory(currentMintUrl: string, updatedMintUrl: string) {
             const updateInMap = (map: typeof self.proofs) => {
                 for (const proof of map.values()) {
                     if (proof.mintUrl === currentMintUrl) {
@@ -293,7 +299,7 @@ import {
 
             updateInMap(self.proofs)
 
-            log.trace('[updateMintUrl] Updated mint URL in proofs')
+            log.trace('[updateMintUrlInMemory] Mirrored mint url onto proofs')
         },
 
         // Import proofs from backup without validation or side effects

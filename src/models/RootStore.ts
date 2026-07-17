@@ -12,7 +12,7 @@ import {AuthStoreModel} from './AuthStore'
 // Direct import, not the '../services' barrel — see the note in Mint.ts.
 import { log } from '../services/logService'
 
-export const rootStoreModelVersion = 38 // Update this if model changes require migrations defined in setupRootStore.ts
+export const rootStoreModelVersion = 39 // Update this if model changes require migrations defined in setupRootStore.ts
 /**
  * A RootStore model.
  */

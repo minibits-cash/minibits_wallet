@@ -1,5 +1,5 @@
 import {DbConnection, open, SQLBatchTuple} from './connection'
-import {createSchemaQueries} from './schema'
+import {createSchemaQueries, createTable, DBVERSION_COLUMNS} from './schema'
 import {_dbVersion, readDatabaseVersion, seedDatabaseVersion, runMigrations} from './migrations'
 import {dbError} from './errors'
 import {log} from '../logService'
@@ -27,25 +27,44 @@ const _createDatabaseInstance = function () {
   }
 }
 
+/**
+ * Bring the database to the current schema — by BUILDING it (fresh install) or by
+ * MIGRATING it (everything else), never both.
+ *
+ * That either/or is load-bearing. `createSchemaQueries` describes today's shape, so
+ * running it on an existing database was actively harmful: `CREATE TABLE IF NOT
+ * EXISTS` skips the tables a device already has, but silently creates the ones it
+ * does not — at TODAY's shape. A device old enough to predate a table therefore got
+ * it fully-formed, and the migration that adds a column to that table then died on
+ * `duplicate column name`, rolling back the entire batch and leaving the database
+ * unmigrated. Shipped exactly that: a v29 wallet, which predates onchain_mint_quotes
+ * (v31), got it built WITH the mintId that v33 exists to add, and came up with a
+ * zero balance.
+ *
+ * So: the version row decides. Only `dbversion` itself is created unconditionally,
+ * because reading the version requires it.
+ */
 const _createOrUpdateSchema = function (db: DbConnection) {
   try {
-    const {rowsAffected} = db.executeBatch(createSchemaQueries)
+    // The one table that must exist before anything can be decided.
+    db.execute(createTable('dbversion', DBVERSION_COLUMNS))
 
-    if (rowsAffected && rowsAffected > 0) {
-      log.info('[_createOrUpdateSchema] New database schema created')
-    }
+    const version = readDatabaseVersion(db)
 
-    let version = readDatabaseVersion(db)
     if (version === null) {
-      // Fresh database: the schema was just created at the latest shape, so
-      // seed the version row and skip migrations.
+      // Fresh install: build at the latest shape and record it, so the migrations
+      // that produced that shape are correctly skipped.
+      db.executeBatch(createSchemaQueries)
       seedDatabaseVersion(db)
-      version = _dbVersion
+      log.info('[_createOrUpdateSchema]', `New database created at version ${_dbVersion}`)
+      return
     }
 
     log.info('[_createOrUpdateSchema]', `Device database version: ${version}`)
 
-    // Trigger migrations if there is versions mismatch
+    // Existing database: migrations own every shape change from here. Each table a
+    // later version introduced is created by ITS migration, at the shape that
+    // version had — which is what keeps the subsequent ALTERs valid.
     if (version < _dbVersion) {
       runMigrations(db)
     }

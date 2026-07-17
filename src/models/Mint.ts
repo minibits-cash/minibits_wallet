@@ -623,7 +623,31 @@ export const MintModel = types
                 throw new AppError(Err.VALIDATION_ERROR, 'Mint URL already exists.', {url: normalized})
             }
 
-            proofsStore.updateMintUrl(currentMintUrl, normalized)
+            // ONE SQLite transaction for the mint row and its proofs.
+            //
+            // This is what mints-in-SQLite bought. The url used to live in the MMKV
+            // snapshot while the proofs lived in SQLite, so the rename spanned two
+            // engines with nothing joining them: a crash in between left the proofs
+            // pointing at a url no mint owned — the money vanished from every
+            // per-mint balance while still counting in the total, and was unspendable
+            // (send and melt select proofs by mint).
+            //
+            // Written BEFORE the model changes, so a failure throws with the tree
+            // untouched rather than leaving memory ahead of the database. The mint's
+            // own observer will re-persist the same row afterwards; the equality
+            // guard makes that a no-op.
+            let hostname: string | null = null
+            try {
+                hostname = new URL(normalized).hostname
+            } catch {
+                // normalizeMintUrl already parsed it, so this cannot realistically
+                // fail; hostname simply stays null rather than aborting the rename.
+            }
+
+            Database.updateMintUrlWithProofs(self.id, currentMintUrl, normalized, hostname)
+
+            // Mirror into the in-memory caches now that SQLite is durable.
+            proofsStore.updateMintUrlInMemory(currentMintUrl, normalized)
 
             self.mintUrl = normalized
             self.setHostname() // derived from mintUrl — stale until recomputed

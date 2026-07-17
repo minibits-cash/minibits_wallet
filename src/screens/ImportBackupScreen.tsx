@@ -204,6 +204,15 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
         applySnapshot(mintsStore, walletSnapshot.mintsStore)
         applySnapshot(contactsStore, walletSnapshot.contactsStore)
 
+        // Mints are mastered in SQLite, and applySnapshot only puts them in the
+        // model — so write them through explicitly. The per-mint observers fire on
+        // CHANGE, and these nodes arrived already-formed, so nothing else would
+        // persist them; the mints would then vanish on the next launch, which
+        // hydrates from the database. Re-attach the observers too: applySnapshot
+        // replaced the array, so the previous ones point at destroyed nodes.
+        mintsStore.persistAllMints()
+        mintsStore.observeMints()
+
         // The backup carries real derivation counters in its raw MST snapshot.
         // `counter` is VOLATILE in the model (mastered in SQLite), so the
         // applySnapshot above does NOT load it — read the values straight from

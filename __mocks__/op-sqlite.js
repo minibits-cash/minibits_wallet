@@ -51,8 +51,26 @@ const toBindable = value => {
   return value
 }
 
+/**
+ * Test hook: pre-populate the NEXT database opened.
+ *
+ * Lets a test hand instance.ts a database that already exists at some older
+ * version, which is the only way to exercise the real upgrade path — the one that
+ * runs on every user's device and that a fresh in-memory database never touches.
+ * Consumed once, so it cannot leak into the next open.
+ */
+let _seedNextDatabase = null
+const __seedNextDatabase = seed => {
+  _seedNextDatabase = seed
+}
+
 const open = () => {
   const db = new DatabaseSync(':memory:')
+
+  if (_seedNextDatabase) {
+    _seedNextDatabase(db)
+    _seedNextDatabase = null
+  }
 
   const executeSync = (query, params) => {
     if (isTransactionControl(query)) {
@@ -103,6 +121,7 @@ const open = () => {
 
 module.exports = {
   open,
+  __seedNextDatabase,
   IOS_DOCUMENT_PATH: '/mock/ios/documents',
   ANDROID_FILES_PATH: '/mock/android/files',
 }

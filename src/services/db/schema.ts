@@ -270,6 +270,63 @@ export const ONCHAIN_MINT_QUOTES_COLUMNS = `
   updatedAt TEXT
 `
 
+/**
+ * Mints — the wallet's mints, mastered here rather than in the MST/MMKV snapshot.
+ *
+ * Mints were the last core entity still persisted by serializing the whole MST tree
+ * to MMKV. That cost more than it looks: postProcessSnapshot already strips proofs
+ * and transactions, so mints (with every keyset's `keys` map) had become BY FAR the
+ * largest thing left in the tree — and while an equality guard skips redundant
+ * writes, `JSON.stringify(snapshot)` still ran on EVERY MST action anywhere,
+ * including every proof mutation during a send. Moving them here takes that cost off
+ * the hot path, and lets a mint-url edit commit atomically with the proofs it
+ * renames (previously two engines, no transaction).
+ *
+ * MST keeps a full in-memory copy — reads and MobX reactivity are unchanged. SQLite
+ * is the authority; the model is the cache. Same split as proofs and transactions.
+ *
+ * `mintInfo` and `units` are JSON: nothing queries inside them. `units` is
+ * derivable from the keysets, but is stored so a load round-trips the model exactly
+ * rather than reconstructing it.
+ */
+export const MINTS_COLUMNS = `
+  id TEXT PRIMARY KEY NOT NULL,
+  mintUrl TEXT NOT NULL,
+  hostname TEXT,
+  shortname TEXT,
+  color TEXT,
+  status TEXT,
+  units TEXT,
+  mintInfo TEXT,
+  createdAt TEXT
+`
+
+/**
+ * A mint's keysets, one row each, and the keys that belong to them.
+ *
+ * Keyed by keysetId ALONE, matching mint_counters — the two now agree on what a
+ * keyset is, and a keyset id is unique wallet-wide (enforced at the door by
+ * CashuUtils.isCollidingKeysetId, per NUT-02). `mintId` is what makes "which mint
+ * owns this keyset" answerable in SQL for the first time, which is also what would
+ * let proofs derive their mint from `proofs.id` (a proof's id IS its keyset id)
+ * instead of carrying a denormalized url. That is deliberately NOT done yet.
+ *
+ * `keyset` and `keys` are stored as whole JSON objects rather than exploded into
+ * columns: MintKeyset carries fields like `final_expiry` that feed NUT-02 v2 id
+ * derivation, and enumerating columns would silently drop whatever cashu-ts adds
+ * next. keysetId/mintId/unit are the queryable projection; the blobs are the payload.
+ *
+ * `keys` is nullable — a keyset the mint advertised but whose keys were not fetched
+ * (or were skipped as an unsupported unit) has none.
+ */
+export const MINT_KEYSETS_COLUMNS = `
+  keysetId TEXT PRIMARY KEY NOT NULL,
+  mintId TEXT NOT NULL,
+  unit TEXT,
+  keyset TEXT NOT NULL,
+  keys TEXT
+`
+
 /** Build a CREATE TABLE statement from a column block. */
 export const createTable = (
   name: string,
@@ -308,4 +365,9 @@ export const createSchemaQueries: SQLBatchTuple[] = [
   // Onchain (NUT-30) mint quotes — the long-lived deposit addresses transactions
   // point at via transactions.quote (see onchainQuotesRepo).
   [createTable('onchain_mint_quotes', ONCHAIN_MINT_QUOTES_COLUMNS)],
+  // The wallet's mints and their keysets, mastered here rather than in the MMKV
+  // snapshot (see mintsRepo). Seeded from the pre-upgrade snapshot on first run
+  // after the migration.
+  [createTable('mints', MINTS_COLUMNS)],
+  [createTable('mint_keysets', MINT_KEYSETS_COLUMNS)],
 ]

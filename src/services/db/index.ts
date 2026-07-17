@@ -34,7 +34,6 @@ import {
 import {
   addOrUpdateProof,
   addOrUpdateProofs,
-  updateProofsMintUrl,
   removeAllProofs,
   getProofById,
   getProofs,
@@ -82,6 +81,13 @@ import {
   updateOnchainMintQuoteAmounts,
   extendOnchainMintQuoteWatch,
 } from './onchainQuotesRepo'
+import {
+  upsertMint,
+  getMints,
+  removeMintById,
+  updateMintUrl as updateMintUrlWithProofs,
+  seedMints,
+} from './mintsRepo'
 
 export type {TransactionSearchFilters} from './transactionsRepo'
 export type {
@@ -95,9 +101,15 @@ export type {OnchainMintQuoteRecord} from './onchainQuotesRepo'
 export {ONCHAIN_QUOTE_WATCH_DAYS} from './onchainQuotesRepo'
 export type {MeltRecoveryRecord, MeltRecoverySeed} from './meltRecoveryRepo'
 export type {InFlightRequestRecord, InFlightRequestSeed} from './inFlightRepo'
+export type {MintRecord} from './mintsRepo'
 
 export const Database = {
   getInstance,
+  upsertMint,
+  getMints,
+  removeMintById,
+  updateMintUrlWithProofs,
+  seedMints,
   getDatabaseVersion,
   cleanAll,
   getTransactionsCount,
@@ -124,7 +136,6 @@ export const Database = {
   getPendingAmount,
   addOrUpdateProof,
   addOrUpdateProofs,
-  updateProofsMintUrl,
   removeAllProofs,
   getProofById,
   getProofs,
