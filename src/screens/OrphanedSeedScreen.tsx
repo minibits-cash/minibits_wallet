@@ -35,7 +35,9 @@ type Props = StaticScreenProps<undefined>
  *   RECOVER — keep the seed and run the standard recovery, which walks the derivation
  *   space, moves each counter past what the mint has already seen, and brings the ecash
  *   back. It also recovers the profile from the seedHash, so the user keeps their
- *   @minibits.cash address.
+ *   @minibits.cash address. GATED on having copied the phrase: recovery ends in
+ *   saveWalletKeys with whatever mnemonic is typed there, so arriving without it and
+ *   entering a different one overwrites the keys this screen exists to protect.
  *
  *   START FRESH — discard the seed and generate a new one. Safe by construction (a new
  *   seed has no history, so counter 0 is correct), but it abandons whatever the old
@@ -53,6 +55,7 @@ export const OrphanedSeedScreen = function ({route}: Props) {
   const [mnemonicArray, setMnemonicArray] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isResetConfirmVisible, setIsResetConfirmVisible] = useState(false)
+  const [hasCopiedSeed, setHasCopiedSeed] = useState(false)
   const [info, setInfo] = useState('')
   const [error, setError] = useState<AppError | undefined>()
 
@@ -86,6 +89,7 @@ export const OrphanedSeedScreen = function ({route}: Props) {
     try {
       if (!mnemonic) return
       Clipboard.setString(mnemonic)
+      setHasCopiedSeed(true)
       setInfo(translate('orphanedSeed_copied'))
     } catch (e: any) {
       setInfo(translate('commonCopyFailParam', {param: e.message}))
@@ -94,6 +98,16 @@ export const OrphanedSeedScreen = function ({route}: Props) {
 
   /** Keep the seed. Recovery restores the funds AND advances the counters. */
   const onRecover = function () {
+    // Gated on having copied, because recovery ENDS in saveWalletKeys with whatever
+    // mnemonic gets typed there. A user who arrives without the phrase in hand and
+    // enters a different one overwrites the very keys this screen exists to protect —
+    // and those keys are the only remaining route to the old wallet's ecash. Copying
+    // first is not ceremony: recovery is about to ask for exactly this phrase.
+    if (!hasCopiedSeed) {
+      setInfo(translate('orphanedSeed_copyFirst'))
+      return
+    }
+
     // Deliberately NOT resolved: recovery may be abandoned half way, and a user who
     // backs out has decided nothing. Asking again is correct.
     navigation.navigate('SeedRecovery' as never)
@@ -179,11 +193,11 @@ export const OrphanedSeedScreen = function ({route}: Props) {
             <>
               <ListItem
                 tx="orphanedSeed_recoverTitle"
-                subTx="orphanedSeed_recoverDescription"
+                subTx={hasCopiedSeed ? 'orphanedSeed_recoverDescription' : 'orphanedSeed_recoverCopyFirst'}
                 leftIcon="faRotate"
-                leftIconColor={colors.palette.success200}
+                leftIconColor={hasCopiedSeed ? colors.palette.success200 : colors.palette.neutral400}
                 leftIconInverse={true}
-                style={$item}
+                style={[$item, !hasCopiedSeed && $itemGated]}
                 bottomSeparator={true}
                 onPress={onRecover}
               />
@@ -266,4 +280,9 @@ const $modalContainer: ViewStyle = {
 const $item: ViewStyle = {
   paddingHorizontal: spacing.small,
   paddingLeft: 0,
+}
+
+/** Recovery stays visible but reads as unavailable until the seed has been copied. */
+const $itemGated: ViewStyle = {
+  opacity: 0.5,
 }

@@ -774,6 +774,8 @@
 	"orphanedSeed_copied": "Seed phrase copied to the clipboard.",
 	"orphanedSeed_recoverTitle": "Recover this wallet",
 	"orphanedSeed_recoverDescription": "Restore the ecash, the mints and your minibits.cash address from this seed phrase. Choose this if the previous wallet might still hold funds.",
+	"orphanedSeed_recoverCopyFirst": "Copy the seed phrase above first — recovery will ask you to enter it.",
+	"orphanedSeed_copyFirst": "Copy your seed phrase first. Recovery asks you to type it in, and entering a different one would overwrite the keys shown above — the only way back to that wallet's funds.",
 	"orphanedSeed_resetTitle": "Start a new wallet",
 	"orphanedSeed_resetDescription": "Discard the keys above and create a new wallet. Save the seed phrase first if you may need those funds later.",
 	"orphanedSeed_resetConfirmTitle": "Discard these keys?",
