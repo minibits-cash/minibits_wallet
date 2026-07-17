@@ -152,6 +152,7 @@ interface CardProps extends TouchableOpacityProps {
 export const Card = function (props: CardProps) {  
 
   const backgroundColor = useThemeColor('card')
+  const boxShadow = useThemeColor('cardShadow')
   const labelColor = useThemeColor('textDim')
 
   const {
@@ -197,7 +198,7 @@ export const Card = function (props: CardProps) {
   const Wrapper: ComponentType<TouchableOpacityProps> = isPressable ? TouchableOpacity : View
   const HeaderContentWrapper = verticalAlignment === "force-footer-bottom" ? View : Fragment
 
-  const $containerStyle = [$containerPresets[preset], { backgroundColor }, $containerStyleOverride]
+  const $containerStyle = [$containerPresets[preset], { backgroundColor, boxShadow: boxShadow as string }, $containerStyleOverride]
 
   const $labelStyle = [ 
     $labelPresets[preset],       
@@ -305,24 +306,13 @@ export const Card = function (props: CardProps) {
   )
 }
 
-/**
- * The card's drop shadow, as a single cross-platform declaration.
- *
- * `elevation` would draw Android's own Material shadow, which ignores the iOS
- * shadow* props and renders darker and lower. boxShadow is honoured identically on
- * both platforms. Its blur is twice the iOS shadowRadius it maps to, hence 16px.
- *
- * Exported so views that reproduce the card look on scrollable content — where a
- * Card cannot wrap the list — stay in step with it.
- */
-export const cardBoxShadow = '0px 8px 8px rgba(86, 78, 74, 0.2)'
-
 const $containerBase: ViewStyle = {
   borderRadius: spacing.medium,
   paddingHorizontal: spacing.medium,
   paddingVertical: spacing.extraSmall,
  // borderWidth: 1,
-  boxShadow: cardBoxShadow,
+  // boxShadow is applied per-theme at render (useThemeColor('cardShadow')) so
+  // Onyx can drop it — a glow reads as a grey halo on pure black.
   minHeight: verticalScale(64),
   flexDirection: "row",
 }

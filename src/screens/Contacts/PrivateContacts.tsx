@@ -5,7 +5,7 @@ import Animated from 'react-native-reanimated'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {colors, spacing, useThemeColor} from '../../theme'
 import {useTabBarInset, useTabBarScrollHandler} from '../../navigation/tabBarVisibility'
-import {BottomModal, Button, Card, cardBoxShadow, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
+import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
 import { NostrClient, NostrProfile } from '../../services'
 import AppError, { Err } from '../../utils/AppError'
@@ -243,6 +243,7 @@ export const PrivateContacts = observer(function (props: {
     const screenBg = useThemeColor('background')
     const buttonBorder = useThemeColor('card')
     const cardBg = useThemeColor('card')
+    const cardShadow = useThemeColor('cardShadow')
     const scrollHandler = useTabBarScrollHandler()
     const tabBarInset = useTabBarInset()
 
@@ -273,6 +274,7 @@ export const PrivateContacts = observer(function (props: {
                 $contactsListContent,
                 {
                   backgroundColor: cardBg,
+                  boxShadow: cardShadow as string,
                   //paddingBottom:
                     //spacing.extraSmall + tabBarInset,
                 },
@@ -435,7 +437,6 @@ const $contactsListContent: ViewStyle = {
     borderRadius: spacing.medium,
     paddingHorizontal: spacing.medium,
     paddingVertical: spacing.extraSmall,
-    boxShadow: cardBoxShadow,
 }
 
 const $card: ViewStyle = {

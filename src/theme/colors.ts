@@ -4,7 +4,8 @@ export enum ThemeCode {
   DEFAULT = 'default',
   DARK = 'dark',
   LIGHT = 'light',
-  GOLDEN = 'golden'  
+  GOLDEN = 'golden',
+  ONYX = 'onyx'
 }
 
 export interface ThemeData {
@@ -25,6 +26,7 @@ const palette = {
   neutral700: '#2e2e2e',
   neutral800: '#181818',
   neutral900: '#050505',
+  black: '#000000',
 
   primary100: '#D6E4FF',
   primary200: '#ADC8FF',
@@ -90,6 +92,17 @@ const palette = {
   iconViolet400: '#662482',
 } as const
 
+
+/**
+ * The card's drop shadow. A soft neutral600-tinted glow that reads on the
+ * light/dark/golden backgrounds. Onyx overrides this to 'none' — a glow is
+ * physically wrong against pure black (it shows up as a grey halo).
+ *
+ * boxShadow (not `elevation`) so it renders identically on both platforms —
+ * Android's Material `elevation` ignores the iOS shadow* props and draws darker
+ * and lower. The blur is twice the iOS shadowRadius it maps to, hence 8px.
+ */
+const cardShadowDefault = '0px 8px 8px rgba(86, 78, 74, 0.2)'
 
 export const colors = {
   /**
@@ -227,6 +240,7 @@ export const colors = {
      * The default card color.
      */
     card: palette.neutral100,
+    cardShadow: cardShadowDefault,
     statusBarOnModalOpen: '#214D96',
     statusBarOnLoading: '#346BC6',
     loadingIndicator: '#fff',
@@ -363,6 +377,7 @@ export const colors = {
      * The default card color.
      */
     card: palette.neutral800,
+    cardShadow: cardShadowDefault,
     statusBarOnModalOpen: '#162F83',
     statusBarOnLoading: '#2746B0',
     loadingIndicator: '#ccc',
@@ -499,8 +514,153 @@ export const colors = {
      * The default card color.
      */
     card: palette.neutral800,
+    cardShadow: cardShadowDefault,
     statusBarOnModalOpen: palette.neutral900,
     statusBarOnLoading: palette.neutral900,
+    loadingIndicator: '#ccc',
+    btc: '#f7931A',
+    usd: '#599D52',
+    eur: '#0002C8'
+  },
+  onyx: {
+    /**
+     * A helper for making something see-thru.
+     */
+    transparent: 'rgba(0, 0, 0, 0)',
+    /**
+     * The default text color in many components.
+     */
+    text: palette.neutral200,
+    /**
+     * Secondary text information.
+     */
+    textDim: palette.neutral500,
+    /**
+     * Color for amounts and balances.
+     */
+    amount: palette.neutral200,
+    /**
+     * Color for amount input inside header.
+     */
+    amountInput: palette.neutral100,
+    /**
+     * Color for amounts and balances.
+     */
+    receivedAmount: palette.success200,
+    /**
+     * The default color of the screen background. Pure black so OLED pixels
+     * switch off — the defining trait of the Onyx theme.
+     */
+    background: palette.black,
+    /**
+     * The default bg color of the primary button.
+     */
+    button: palette.success300,
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonPressed: palette.success200,
+    /**
+     * The default bg color of the primary button. Elevated one step above the
+     * pure-black background so secondary buttons stay legible.
+     */
+    buttonSecondary: palette.neutral800,
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonSecondaryPressed: palette.neutral700,
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonTertiary: 'transparent',
+    /**
+     * The default bg color of the primary button.
+     */
+    buttonTertiaryPressed: palette.neutral800,
+    /**
+     * The default icon color of the main screen button.
+     */
+    mainButtonIcon: palette.success300,
+    /**
+     * The default icon color of the primary button.
+     */
+    buttonIcon: palette.neutral100,
+    /**
+     * The default icon color of the secondary button.
+     */
+    buttonSecondaryIcon: palette.neutral100,
+    /**
+     * The default icon color of the tertiary button.
+     */
+    buttonTertiaryIcon: palette.neutral100,
+    /**
+     * The default color of the header and status bar. Black, for an immersive
+     * edge-to-edge look where the header melts into the background.
+     */
+    header: palette.black,
+    /**
+     * The default color of the header title.
+     */
+    headerTitle: palette.neutral100,
+    /**
+     * The default color of the header sub title.
+     */
+    headerSubTitle: palette.primary200,
+    /**
+     * The default color of the tab icon.
+     */
+    tabIcon: palette.neutral200,
+    /**
+     * Colour of the floating tab bar's drop shadow. A black glow is invisible
+     * on a black background, so the tab bar reads by its own card fill instead.
+     */
+    tabBarShadow: 'rgba(0, 0, 0, 0.45)',
+    /**
+     * The default color of the active tab icon. Bitcoin brand orange — pops
+     * against pure black where the blue accent reads flat.
+     */
+    tabActiveIcon: palette.orange600,
+    /**
+     * The default border color.
+     */
+    border: palette.neutral400,
+    /**
+     * The main tinting color.
+     */
+    tint: palette.primary200,
+    /**
+     * A subtle color used for lines. Darker than the card fill (neutral800) so
+     * separators read as a faint dark line — neutral800 would match the card
+     * and vanish.
+     */
+    separator: palette.neutral900,
+    /**
+     * Error messages.
+     */
+    error: palette.angry500,
+    /**
+     * Error Background.
+     *
+     */
+    errorBackground: palette.angry100,
+    /**
+     * Info Background.
+     *
+     */
+    info: palette.success200,
+    /**
+     * Warning Background.
+     *
+     */
+    warn: palette.accent500,
+    /**
+     * The default card color. One step above black so cards float clearly
+     * against the background.
+     */
+    card: palette.neutral800,
+    cardShadow: 'none',
+    statusBarOnModalOpen: palette.black,
+    statusBarOnLoading: palette.black,
     loadingIndicator: '#ccc',
     btc: '#f7931A',
     usd: '#599D52',
@@ -531,6 +691,13 @@ export const Themes: ThemeList = {
     code: ThemeCode.GOLDEN,
     title: 'Golden',
     color: palette.gold200
+  },
+  // Display title only — flip to 'Deep Black' / 'Midnight' here without
+  // touching the persisted ThemeCode.ONYX key.
+  onyx: {
+    code: ThemeCode.ONYX,
+    title: 'Onyx',
+    color: palette.black
   },
 }
 

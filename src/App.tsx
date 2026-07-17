@@ -198,7 +198,12 @@ function App() {
     const isLight = splashTheme === ThemeCode.LIGHT ||
       (splashTheme === ThemeCode.DEFAULT && colorScheme === 'light')
     const isGolden = splashTheme === ThemeCode.GOLDEN
-    const splashBg = isLight ? colors.palette.neutral200 : colors.palette.neutral700
+    const isOnyx = splashTheme === ThemeCode.ONYX
+    const splashBg = isLight
+      ? colors.palette.neutral200
+      : isOnyx
+        ? colors.palette.black
+        : colors.palette.neutral700
     //const splashTextColor = isLight ? colors.palette.neutral800 : colors.palette.neutral100
 
     log.trace('[App] Rendering splash/auth screen', {isAppLocked})

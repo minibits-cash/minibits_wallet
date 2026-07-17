@@ -7,7 +7,7 @@ import Clipboard from '@react-native-clipboard/clipboard'
 import {colors, spacing, useThemeColor} from '../../theme'
 import {useTabBarInset, useTabBarScrollHandler} from '../../navigation/tabBarVisibility'
 import useCallbackState from '../../utils/useCallbackState'
-import {BottomModal, Button, Card, cardBoxShadow, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
+import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
 import {NostrClient, NostrEvent, NostrFilter, NostrProfile} from '../../services'
 import AppError, { Err } from '../../utils/AppError'
@@ -656,6 +656,7 @@ export const PublicContactsNew = observer(function (props: {
 
 
     const cardBg = useThemeColor('card')
+    const cardShadow = useThemeColor('cardShadow')
     const scrollHandler = useTabBarScrollHandler()
     const tabBarInset = useTabBarInset()
 
@@ -836,7 +837,8 @@ export const PublicContactsNew = observer(function (props: {
                 style={$followsList}
                 contentContainerStyle={[
                     $followsListContent,
-                    {backgroundColor: cardBg, 
+                    {backgroundColor: cardBg,
+                    boxShadow: cardShadow as string,
                     //    paddingBottom: spacing.extraSmall + tabBarInset
                     },
                 ]}
@@ -1045,7 +1047,6 @@ const $followsListContent: ViewStyle = {
     borderRadius: spacing.medium,
     paddingHorizontal: spacing.medium,
     paddingTop: spacing.extraSmall,
-    boxShadow: cardBoxShadow,
 }
 
 const $card: ViewStyle = {

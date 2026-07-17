@@ -563,7 +563,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
           style={{alignItems: 'stretch'}}
           ContentComponent={  
             <>
-            {[ThemeCode.DEFAULT, ThemeCode.DARK, ThemeCode.LIGHT, ThemeCode.GOLDEN].map(code => 
+            {[ThemeCode.DEFAULT, ThemeCode.DARK, ThemeCode.LIGHT, ThemeCode.GOLDEN, ThemeCode.ONYX].map(code =>
               <ListItem 
                   key={code}  
                   leftIconColor={code === ThemeCode.DEFAULT ? defaultThemeColor as string : Themes[code as ThemeCode]?.color as string}

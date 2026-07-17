@@ -145,11 +145,9 @@ export const MintBalanceSelector = observer(function (props: {
                 {props.secondaryConfirmTitle && props.onSecondaryMintBalanceSelect && (
                   <Button
                     text={props.secondaryConfirmTitle}
-                    LeftAccessory={() =>
-                      (props.secondaryConfirmIcon && (
-                        <Icon icon={props.secondaryConfirmIcon} color={secondaryIconColor} size={spacing.medium}/>
-                      ))
-                    }
+                    LeftAccessory={props.secondaryConfirmIcon ? () => (
+                      <Icon icon={props.secondaryConfirmIcon!} color={secondaryIconColor} size={spacing.medium}/>
+                    ) : undefined}
                     preset="secondary"
                     onPress={props.onSecondaryMintBalanceSelect}
                     style={{marginRight: spacing.medium}}
@@ -169,11 +167,12 @@ export const MintBalanceSelector = observer(function (props: {
                 {props.onCancel && (
                   <Button
                     preset="secondary"
-                    LeftAccessory={() =>
-                      (props.cancelIcon && (
-                        <Icon icon={props.cancelIcon} color={secondaryIconColor} size={spacing.medium}/>
-                      ))
-                    }
+                    // Only pass LeftAccessory when there is an icon to show. An
+                    // always-present accessory that renders null still trips the
+                    // Button's paddingLeft reduction, clipping the label's left pad.
+                    LeftAccessory={props.cancelIcon ? () => (
+                      <Icon icon={props.cancelIcon!} color={secondaryIconColor} size={spacing.medium}/>
+                    ) : undefined}
                     tx={'commonCancel'}
                     onPress={props.onCancel}
                   />
