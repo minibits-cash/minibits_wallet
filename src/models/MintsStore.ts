@@ -262,20 +262,46 @@ export const MintsStoreModel = types
         },
 
         /**
-         * Hydrate the mints from SQLite, the authority (startup).
+         * Reconcile the mints between SQLite (the authority) and whatever
+         * applySnapshot restored, and leave the two agreeing. Startup, every launch.
          *
-         * Mirrors proofsStore.loadProofsFromDatabase: SQLite holds the data, the
-         * model is the cache the UI observes. Observers are attached AFTER the array
-         * is populated — attaching first would make loading write straight back.
+         * CONVERGES on the actual state; it is deliberately NOT gated on a migration
+         * version. SQLite and the MMKV snapshot are different engines that fail
+         * independently, so "the seed already ran" is a claim about a version number,
+         * not about the data — and when the two disagree, the version loses. That is
+         * not hypothetical: rootStore.version defaults to the CURRENT
+         * rootStoreModelVersion, so a factory reset stamps a wallet as fully migrated
+         * on the spot. Restore an older snapshot over that and the version-gated seed
+         * never runs, while postProcessSnapshot strips mints from every save — the
+         * mints are then in neither place, and vanish on the next launch.
          *
-         * Does nothing when the table is empty, so a wallet whose mints have not yet
-         * been seeded (the v39 migration) keeps whatever applySnapshot restored.
+         * Three cases, all handled by looking rather than asking:
+         *  - table has mints  → SQLite wins; the snapshot no longer carries them.
+         *  - table empty, store has mints → they exist only in the snapshot (a wallet
+         *    upgrading from before mints moved here). Write them through.
+         *  - both empty → a fresh wallet, or one with no mints. Nothing to do.
+         *
+         * Observers are attached AFTER the array settles: attaching first would make
+         * loading write straight back.
          */
-        loadMintsFromDatabase() {
+        hydrateMintsFromDatabase() {
             const records = Database.getMints()
 
             if (records.length === 0) {
-                log.trace('[loadMintsFromDatabase]', 'No mints in the database')
+                // Nothing stored. Anything the snapshot restored is now the only copy
+                // that exists, so it has to be persisted before the next save strips
+                // it. persistAllMints is an upsert by mint id, so this is safe to hit
+                // on any launch.
+                if (self.mints.length > 0) {
+                    log.info('[hydrateMintsFromDatabase]', 'Mints found only in the snapshot — persisting', {
+                        count: self.mints.length,
+                    })
+                    self.observeMints()
+                    self.persistAllMints()
+                } else {
+                    log.trace('[hydrateMintsFromDatabase]', 'No mints in the database or the snapshot')
+                    self.observeMints()
+                }
                 return
             }
 
@@ -299,7 +325,8 @@ export const MintsStoreModel = types
                     } as any),
                 ),
             )
-            log.trace('[loadMintsFromDatabase]', {loaded: self.mints.length})
+            self.observeMints()
+            log.trace('[hydrateMintsFromDatabase]', {loaded: self.mints.length})
         },
     }))
     .actions(self => ({

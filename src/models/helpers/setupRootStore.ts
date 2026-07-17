@@ -83,19 +83,15 @@ export async function setupRootStore(rootStore: RootStore, opts: SetupRootStoreO
 
         const {proofsStore, walletProfileStore, authStore, userSettingsStore, transactionsStore, mintsStore} = rootStore
 
-        // Hydrate the mints from SQLite, the authority. Deliberately BEFORE the
+        // Reconcile the mints between SQLite (the authority) and the snapshot just
+        // applied, and attach their persistence observers. Deliberately BEFORE the
         // counter hydrate below: this replaces the mints array with fresh nodes, and
         // the counters must attach to the nodes that survive.
         //
-        // A no-op when the table is empty, which is exactly the case on the launch
-        // that migrates: mints still come from the MMKV snapshot applied above, the
-        // v39 seed copies them into SQLite, and every launch after this one loads
-        // them from here instead.
-        mintsStore.loadMintsFromDatabase()
-
-        // Attach the per-mint persistence observers AFTER the mints are in place —
-        // attaching first would make loading them write straight back.
-        mintsStore.observeMints()
+        // This also carries a wallet whose mints are still only in the snapshot into
+        // SQLite — on any launch, not just a migrating one. See
+        // hydrateMintsFromDatabase for why that must not be gated on a version.
+        mintsStore.hydrateMintsFromDatabase()
 
         if(walletProfileStore.walletId) {
             Sentry.setUser({ id: walletProfileStore.walletId })
@@ -400,25 +396,16 @@ async function _runMigrations(rootStore: RootStore, restoredState: any) {
             }
         }
 
-        if(currentVersion < 39) {
-            // db v35 created the mints/mint_keysets tables empty: mints lived in this
-            // MST snapshot, so nothing in SQL could read them. Copy them across once,
-            // here, where the store is hydrated.
-            //
-            // Reads the LIVE store, not restoredState: applySnapshot has already run,
-            // so the tree holds exactly what the snapshot did — and unlike the earlier
-            // seeds, nothing about a mint is stripped on load, so there is no reason
-            // to reach for the raw snapshot.
-            //
-            // persistAllMints rather than a mapping written out here: that mapping
-            // already exists (toMintRecord), and a second copy of it is precisely the
-            // kind of duplicate that drifts. Idempotent — it upserts by each mint's
-            // own id, so a re-run cannot duplicate a mint. After this, mints are
-            // mastered in SQLite and every later launch hydrates from there.
-            if (rootStore.mintsStore.mintCount > 0) {
-                rootStore.mintsStore.persistAllMints()
-            }
-        }
+        // NOTE: copying the mints into SQLite (db v35) is deliberately NOT a step
+        // here. It is done by mintsStore.hydrateMintsFromDatabase on EVERY launch,
+        // keyed on whether the table is actually empty rather than on this version.
+        //
+        // A version-gated seed cannot be trusted for it: rootStore.version defaults
+        // to the current rootStoreModelVersion, so a factory reset stamps a wallet as
+        // fully migrated on the spot, and restoring an older snapshot over that
+        // skips the seed forever — while postProcessSnapshot strips mints from every
+        // save. The mints then exist in neither place and disappear on the next
+        // launch. Observed on a test device.
 
         // Set once, after all steps succeed: if any step throws, the version is
         // NOT bumped and the whole migration retries on the next launch.

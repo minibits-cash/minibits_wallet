@@ -48,7 +48,7 @@ const mintSnapshot = (overrides: Record<string, any> = {}) => ({
   keysets: [{id: KEYSET_1, unit: 'sat', active: true, input_fee_ppk: 0}],
   keys: [{id: KEYSET_1, unit: 'sat', keys: {'1': '02aa'}}],
   // Every keyset has a counter shell in production (initKeyset creates it, and
-  // loadMintsFromDatabase rebuilds it). The values themselves are volatile and come
+  // hydrateMintsFromDatabase rebuilds it). The values themselves are volatile and come
   // from mint_counters.
   proofsCounters: [{keyset: KEYSET_1, unit: 'sat'}],
   color: '#abcdef',
@@ -134,7 +134,7 @@ describe('mint persistence', () => {
     })
   })
 
-  describe('loadMintsFromDatabase', () => {
+  describe('hydrateMintsFromDatabase', () => {
     test('hydrates the mints back, keysets and keys included', () => {
       const seeded = makeRoot([mintSnapshot()])
       seeded.mintsStore.persistAllMints()
@@ -143,7 +143,7 @@ describe('mint persistence', () => {
       const restarted = makeRoot([])
       expect(restarted.mintsStore.mints).toHaveLength(0)
 
-      restarted.mintsStore.loadMintsFromDatabase()
+      restarted.mintsStore.hydrateMintsFromDatabase()
 
       const mint = restarted.mintsStore.mints[0]
       expect(mint.mintUrl).toBe(MINT_URL)
@@ -154,16 +154,60 @@ describe('mint persistence', () => {
 
     // The launch that migrates: the table is empty and the mints still come from the
     // MMKV snapshot. Wiping them here would delete the user's mints.
-    test('is a NO-OP when the table is empty — it never wipes what the snapshot restored', () => {
+    test('never wipes what the snapshot restored when the table is empty', () => {
       const root = makeRoot([mintSnapshot()])
 
-      root.mintsStore.loadMintsFromDatabase()
+      root.mintsStore.hydrateMintsFromDatabase()
 
       expect(root.mintsStore.mints).toHaveLength(1)
       expect(root.mintsStore.mints[0].mintUrl).toBe(MINT_URL)
     })
 
-    // THE fund-loss path, and the reason loadMintsFromDatabase rebuilds the counter
+    // THE data-loss path, seen on a real device. rootStore.version defaults to the
+    // CURRENT rootStoreModelVersion, so a factory reset stamps a wallet as fully
+    // migrated on the spot; restore an older snapshot over that and a version-gated
+    // seed never runs. Meanwhile postProcessSnapshot strips mints from every save —
+    // so unless this converges on the DATA, the mints are in neither place and are
+    // gone on the next launch.
+    test('persists mints that exist ONLY in the snapshot, with no migration involved', () => {
+      const root = makeRoot([mintSnapshot()])
+      expect(Database.getMints()).toEqual([]) // table empty, as on that device
+
+      root.mintsStore.hydrateMintsFromDatabase()
+
+      // Written through purely because the data said so.
+      expect(Database.getMints().map(m => m.mintUrl)).toEqual([MINT_URL])
+    })
+
+    test('and those mints then survive a restart', () => {
+      const root = makeRoot([mintSnapshot()])
+      root.mintsStore.hydrateMintsFromDatabase()
+
+      // The next launch: the snapshot no longer carries mints at all.
+      const restarted = makeRoot([])
+      restarted.mintsStore.hydrateMintsFromDatabase()
+
+      expect(restarted.mintsStore.mints.map(m => m.mintUrl)).toEqual([MINT_URL])
+    })
+
+    test('observes the snapshot-only mints too, so later edits persist', () => {
+      const root = makeRoot([mintSnapshot()])
+      root.mintsStore.hydrateMintsFromDatabase()
+
+      root.mintsStore.mints[0].setProp('shortname', 'Renamed')
+
+      expect(Database.getMints()[0].shortname).toBe('Renamed')
+    })
+
+    test('does nothing when there are no mints anywhere (a fresh wallet)', () => {
+      const root = makeRoot([])
+      root.mintsStore.hydrateMintsFromDatabase()
+
+      expect(root.mintsStore.mints).toHaveLength(0)
+      expect(Database.getMints()).toEqual([])
+    })
+
+    // THE fund-loss path, and the reason hydrateMintsFromDatabase rebuilds the counter
     // shells by hand. Loading bypasses initKeyset, which is what normally creates
     // them. With no shell, hydrateCountersFromDatabase has nothing to fill, the
     // counter is later created on demand at 0, and derivation re-issues blinded
@@ -174,7 +218,7 @@ describe('mint persistence', () => {
       Database.setCounter(KEYSET_1, 'sat', 342)
 
       const restarted = makeRoot([])
-      restarted.mintsStore.loadMintsFromDatabase()
+      restarted.mintsStore.hydrateMintsFromDatabase()
 
       // The shell must exist for the keyset...
       expect(restarted.mintsStore.mints[0].proofsCounters.map(c => c.keyset)).toEqual([KEYSET_1])
@@ -202,7 +246,7 @@ describe('mint persistence', () => {
       Database.setCounter(KEYSET_2, 'sat', 77)
 
       const restarted = makeRoot([])
-      restarted.mintsStore.loadMintsFromDatabase()
+      restarted.mintsStore.hydrateMintsFromDatabase()
       restarted.mintsStore.hydrateCountersFromDatabase()
 
       const counters = restarted.mintsStore.mints[0].proofsCounters
@@ -215,7 +259,7 @@ describe('mint persistence', () => {
       seeded.mintsStore.persistAllMints()
 
       const restarted = makeRoot([])
-      restarted.mintsStore.loadMintsFromDatabase()
+      restarted.mintsStore.hydrateMintsFromDatabase()
 
       // onchain quotes, reservations and transactions all point at Mint.id.
       expect(restarted.mintsStore.findById('mint1111')).toBeDefined()
@@ -267,7 +311,7 @@ describe('mint persistence', () => {
       root.mintsStore.mints[0].setMintUrl!('https://moved.test')
 
       const restarted = makeRoot([])
-      restarted.mintsStore.loadMintsFromDatabase()
+      restarted.mintsStore.hydrateMintsFromDatabase()
 
       expect(restarted.mintsStore.mints[0].mintUrl).toBe('https://moved.test')
     })
