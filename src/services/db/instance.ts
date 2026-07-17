@@ -73,26 +73,39 @@ const _createOrUpdateSchema = function (db: DbConnection) {
   }
 }
 
+/**
+ * Drop EVERY table — the factory reset (see DeveloperScreen).
+ *
+ * The list is read from the database itself rather than written out here. A
+ * hand-maintained list drifts the moment a table is added, and this one had:
+ * it named seven tables while the schema had eleven, so a factory reset silently
+ * left wallet_counters, onchain_mint_quotes, mints and mint_keysets behind —
+ * i.e. the user's mints and their onchain deposit addresses SURVIVED a wipe.
+ *
+ * It also caused real damage during development: a leftover onchain_mint_quotes
+ * from a bad build outlived the reset, and because a create-migration uses
+ * `IF NOT EXISTS`, the migration that should have built it fresh silently skipped
+ * it — and the ALTER that follows died on "duplicate column name", taking every
+ * migration down with it.
+ *
+ * Asking sqlite_master cannot drift, and it clears artifacts from any past bug too.
+ */
 export const cleanAll = function () {
-  const dropQueries = [
-    ['DROP TABLE transactions'],
-    ['DROP TABLE proofs'],
-    ['DROP TABLE dbversion'],
-    // IF EXISTS: these tables were added by later migrations, so a very old DB
-    // may lack them; without the guard a missing table aborts the atomic batch.
-    ['DROP TABLE IF EXISTS reservations'],
-    ['DROP TABLE IF EXISTS mint_counters'],
-    ['DROP TABLE IF EXISTS melt_recovery'],
-    ['DROP TABLE IF EXISTS inflight_requests'],
-  ] as SQLBatchTuple[]
-
   try {
     const db = getInstance()
-    const {rowsAffected} = db.executeBatch(dropQueries)
 
-    if (rowsAffected && rowsAffected > 0) {
-      log.info('[cleanAll]', 'Database tables were deleted')
-    }
+    const {rows} = db.execute(
+      // sqlite_% is SQLite's own bookkeeping (sqlite_sequence and friends) and is
+      // not ours to drop.
+      `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`,
+    )
+    const tables: string[] = (rows?._array ?? []).map((r: any) => r.name)
+
+    if (tables.length === 0) return
+
+    db.executeBatch(tables.map(name => [`DROP TABLE IF EXISTS "${name}"`]) as SQLBatchTuple[])
+
+    log.info('[cleanAll]', 'Database tables were deleted', {tables})
   } catch (e: any) {
     throw dbError('Could not delete database schema', e)
   }

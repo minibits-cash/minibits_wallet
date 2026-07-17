@@ -233,3 +233,54 @@ describe('upgrading an existing database (the device path)', () => {
     })
   })
 })
+
+describe('cleanAll — the factory reset', () => {
+  test('drops EVERY table, not a hand-listed subset', () => {
+    jest.resetModules()
+    const {Database} = require('../src/services/db')
+    Database.getInstance() // builds the current schema
+
+    Database.cleanAll()
+
+    const db = Database.getInstance()
+    const remaining = (
+      db.execute(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`)
+        .rows?._array ?? []
+    ).map((r: any) => r.name)
+
+    // The old list named seven tables while the schema had eleven, so a factory
+    // reset left the user's mints and their onchain deposit addresses behind.
+    expect(remaining).toEqual([])
+  })
+
+  test('also clears tables no list would know about', () => {
+    // The failure mode that broke a test device: a leftover table from a bad build
+    // outlived the reset, and the create-migration that should have rebuilt it
+    // skipped it (IF NOT EXISTS) — so the ALTER after it hit "duplicate column".
+    jest.resetModules()
+    require('@op-engineering/op-sqlite').__seedNextDatabase((db: any) => {
+      db.exec(`CREATE TABLE some_leftover_table (id TEXT)`)
+    })
+    const {Database} = require('../src/services/db')
+    Database.getInstance()
+
+    Database.cleanAll()
+
+    const db = Database.getInstance()
+    const remaining = (
+      db.execute(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`)
+        .rows?._array ?? []
+    ).map((r: any) => r.name)
+
+    expect(remaining).toEqual([])
+  })
+
+  test('is safe on an already-empty database', () => {
+    jest.resetModules()
+    const {Database} = require('../src/services/db')
+    Database.getInstance()
+
+    Database.cleanAll()
+    expect(() => Database.cleanAll()).not.toThrow()
+  })
+})
