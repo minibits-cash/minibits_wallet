@@ -1,11 +1,11 @@
 export * from "./mmkvStorage"
 export * from "./sqlite"
 export * from "./keyChain"
+export * from "./orphanedSeed"
 export * from "./walletService"
 export * from "./minibitsService"
 export * from "./nostrService"
 export * from "./logService"
-export * from "./torService"
 export * from "./syncQueueService"
 export * from "./notificationService"
 

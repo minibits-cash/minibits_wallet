@@ -1,5 +1,6 @@
 // AppStack
 export * from './WelcomeScreen'
+export * from './OrphanedSeedScreen'
 export * from './RecoveryOptionsScreen'
 export * from './SeedRecoveryOptionsScreen'
 export * from './SeedRecoveryScreen'

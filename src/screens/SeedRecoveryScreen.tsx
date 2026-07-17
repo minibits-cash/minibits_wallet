@@ -507,6 +507,13 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
 
             setStatusMessage(translate('recovery_completed'))
 
+            // Recovery is now also an EXIT from onboarding: OrphanedSeedScreen sends a
+            // user here who has agreed to the terms but never reached the end of
+            // WelcomeScreen, the only other place this is set. Without it they would
+            // land in the wallet and then be shown the terms again on the next cold
+            // start. A no-op for the usual caller, who is onboarded already.
+            userSettingsStore.setIsOnboarded(true)
+
             // go directly to the wallet (profile has been rehydrated from the one with the seed)
             //@ts-ignore
             navigation.navigate('Tabs')

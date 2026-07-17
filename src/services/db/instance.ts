@@ -6,6 +6,24 @@ import {log} from '../logService'
 
 let _db: DbConnection
 
+let _schemaCreatedThisLaunch = false
+
+/**
+ * True when THIS launch built the database from nothing, rather than opening or
+ * migrating an existing one.
+ *
+ * The fact is knowable exactly once — inside _createOrUpdateSchema, at the moment
+ * the version row is found missing — and is destroyed immediately afterwards, since
+ * from then on the schema simply exists. Nothing else can reconstruct it: by the time
+ * any screen renders, setupRootStore has long since called getInstance().
+ *
+ * It matters because, combined with a seed in the keychain, it identifies a wallet
+ * whose keys outlived its data. On iOS that is a reinstall: deleting an app removes
+ * its container (this database, and MMKV with it) but NOT its keychain items, so the
+ * seed comes back while every derivation counter is gone. See services/orphanedSeed.
+ */
+export const wasSchemaCreatedThisLaunch = () => _schemaCreatedThisLaunch
+
 export const getInstance = function () {
   if (!_db) {
     // 1. creates database
@@ -56,6 +74,7 @@ const _createOrUpdateSchema = function (db: DbConnection) {
       // that produced that shape are correctly skipped.
       db.executeBatch(createSchemaQueries)
       seedDatabaseVersion(db)
+      _schemaCreatedThisLaunch = true
       log.info('[_createOrUpdateSchema]', `New database created at version ${_dbVersion}`)
       return
     }

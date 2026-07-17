@@ -17,7 +17,7 @@ import {
 } from 'mobx-state-tree'
 import * as Sentry from '@sentry/react-native'
 import type { RootStore } from '../RootStore'
-import { Database, MMKVStorage } from '../../services'
+import { captureOrphanedSeed, Database, MMKVStorage } from '../../services'
 import type { MeltRecoverySeed, InFlightRequestSeed, CounterSeed } from '../../services/db'
 import type { Mint } from '../Mint'
 import { log } from  '../../services/logService'
@@ -92,6 +92,12 @@ export async function setupRootStore(rootStore: RootStore, opts: SetupRootStoreO
         // SQLite — on any launch, not just a migrating one. See
         // hydrateMintsFromDatabase for why that must not be gated on a version.
         mintsStore.hydrateMintsFromDatabase()
+
+        // Did the keychain outlive the wallet? Answered HERE because both halves are
+        // only true here: the database has just been opened (so "was it built this
+        // launch" is meaningful), and no screen has rendered yet (so onboarding cannot
+        // have generated the very keys we are asking about). See services/orphanedSeed.
+        await captureOrphanedSeed()
 
         if(walletProfileStore.walletId) {
             Sentry.setUser({ id: walletProfileStore.walletId })

@@ -10,6 +10,7 @@ import React from "react"
 import Config from "../config"
 import {
   WelcomeScreen,
+  OrphanedSeedScreen,
   SeedRecoveryScreen,
   MintsScreen,
   SeedRecoveryOptionsScreen,
@@ -42,8 +43,10 @@ const RootStack = createNativeStackNavigator({
     //contentStyle: {backgroundColor: bgColor} 
   },
   screens: {
-    Welcome: WelcomeScreen,    
-    
+    Welcome: WelcomeScreen,
+    // Only ever reached from Welcome, when the keychain outlived the wallet.
+    OrphanedSeed: OrphanedSeedScreen,
+
     SeedRecovery: SeedRecoveryScreen,
     ImportBackup: ImportBackupScreen,
     RecoverWalletAddress: RecoverWalletAddressScreen,   

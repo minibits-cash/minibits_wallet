@@ -25,7 +25,7 @@ import {translate} from '../i18n'
 import AppError from '../utils/AppError'
 import { MINIBITS_MINT_URL } from '@env'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
-import { KeyChain, log } from '../services'
+import { hasOrphanedSeed, KeyChain, log } from '../services'
 import { delay } from '../utils/utils'
 import { htmlToBlocks, Block, InlineSegment } from '../utils/htmlToBlocks'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
@@ -79,8 +79,22 @@ export const WelcomeScreen = function ({ route }: Props) {
           setIsLoading(true)
           setStatusMessage(translate('welcomeScreen_creatingKeys'))
 
-          // check if keys already exist (if onboarding is repeated or if iOS did not wipe keys?)
+          // Keys can already exist here for benign reasons — onboarding replayed from
+          // the developer screen, or isOnboarded flipped back to re-show updated terms.
+          // In both the wallet behind them is intact, so they are simply reused.
           let keys = await KeyChain.getWalletKeys()
+
+          // The one case that is NOT benign: keys with no wallet behind them, which is
+          // an iOS reinstall (the container goes, the keychain stays). Every derivation
+          // counter died with the database, so resuming this seed would re-derive
+          // blinded secrets the mint has already signed. Hand the decision to the user
+          // rather than deriving from a zeroed counter. See services/orphanedSeed.
+          if(keys && hasOrphanedSeed()) {
+            setIsLoading(false)
+            setStatusMessage('')
+            navigation.navigate('OrphanedSeed')
+            return
+          }
 
           if(!keys) {
             const newKeys = KeyChain.generateWalletKeys()
