@@ -234,6 +234,85 @@ describe('upgrading an existing database (the device path)', () => {
   })
 })
 
+/**
+ * The two paths must AGREE.
+ *
+ * instance.ts is strictly either/or: a database with no version row is BUILT from
+ * createSchemaQueries, everything else is MIGRATED. Nothing has ever checked that
+ * the two land on the same schema, and today nothing would notice — the shipped
+ * native bundle is v26, so every real device (a brand-new install included) takes
+ * the migrate path, and the build path runs only on simulators.
+ *
+ * The next NATIVE release inverts that: it makes createSchemaQueries the floor for
+ * every new install, while existing wallets stay on the migrated shape forever. Any
+ * disagreement between them then forks the population in two, permanently, and every
+ * migration written afterwards is correct for only one half.
+ *
+ * Column ORDER is not compared — the repos name their columns, so order carries no
+ * meaning (PROOFS_COLUMN_NAMES, which does depend on it, is pinned in dbSchema.test).
+ * Names, types, nullability, defaults and primary keys are compared exactly.
+ */
+describe('the built schema and the migrated schema are the same schema', () => {
+  const schemaOf = (db: any): Record<string, unknown[]> => {
+    const tables: string[] = (
+      db.execute(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`,
+      ).rows?._array ?? []
+    ).map((r: any) => r.name)
+
+    return Object.fromEntries(
+      tables.map(table => [
+        table,
+        (db.execute(`PRAGMA table_info(${table})`).rows?._array ?? [])
+          .map((c: any) => ({
+            name: c.name,
+            type: c.type,
+            notnull: c.notnull,
+            dflt_value: c.dflt_value,
+            pk: c.pk,
+          }))
+          .sort((a: any, b: any) => a.name.localeCompare(b.name)),
+      ]),
+    )
+  }
+
+  /** No seed ⇒ no version row ⇒ instance.ts BUILDS. What a native install gets. */
+  const buildFresh = () => {
+    jest.resetModules()
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const {Database} = require('../src/services/db')
+    return Database.getInstance()
+  }
+
+  test('a fresh install and an upgraded v26 wallet end up with identical tables', () => {
+    const built = schemaOf(buildFresh())
+    const migrated = schemaOf(upgradeFromV26().db)
+
+    expect(Object.keys(migrated)).toEqual(Object.keys(built))
+  })
+
+  test('every table matches column for column', () => {
+    const built = schemaOf(buildFresh())
+    const migrated = schemaOf(upgradeFromV26().db)
+
+    // Per table rather than one whole-object compare, so a failure names the table
+    // that drifted instead of dumping eleven of them.
+    for (const table of Object.keys(built)) {
+      expect({[table]: migrated[table]}).toEqual({[table]: built[table]})
+    }
+  })
+
+  test('a fresh install records the current version and runs no migrations', () => {
+    jest.resetModules()
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const {Database} = require('../src/services/db')
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const {_dbVersion} = require('../src/services/db/migrations')
+
+    expect(Database.getDatabaseVersion(Database.getInstance()).version).toBe(_dbVersion)
+  })
+})
+
 describe('cleanAll — the factory reset', () => {
   test('drops EVERY table, not a hand-listed subset', () => {
     jest.resetModules()
