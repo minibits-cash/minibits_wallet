@@ -302,6 +302,19 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
 
     const walletInstance = (await walletStore.getWallet(mintUrl, unit, {withSeed: true})) as CashuWallet
 
+    // Prefer spending proofs from inactive/legacy keysets so this withdrawal also
+    // rotates that ecash off (NUT-02: wallets SHOULD prioritize moving proofs off
+    // inactive keysets). Mirrors the Send path's inactive-first selection. The
+    // outputs (melt change) still go to the active keyset chosen in getWallet.
+    const inactiveKeysetIds = new Set(
+        (mintInstance.keysets ?? [])
+            .filter(k => k.unit === unit && !k.active)
+            .map(k => k.id),
+    )
+    const inactiveProofs = inactiveKeysetIds.size > 0
+        ? proofsFromMint.filter(p => inactiveKeysetIds.has(p.id))
+        : []
+
     // Select proofs covering amount + the network fee_reserve + the mint's per-proof
     // input fee on the selected proofs — `amount + fee_reserve + input_fee`, which is
     // what both NUT-05 and NUT-30 require the inputs to cover. The helper iterates to a
@@ -316,7 +329,7 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
                 amount + feeReserve,
                 proofsFromMint,
                 selected => walletInstance.getFeesForProofs(selected).toNumber(),
-                {caller: 'TransferOperationApi.prepare'},
+                {caller: 'TransferOperationApi.prepare', priorityProofs: inactiveProofs},
             ))
     } catch (e: any) {
         throw new ValidationError('There is not enough funds to send this amount.', {

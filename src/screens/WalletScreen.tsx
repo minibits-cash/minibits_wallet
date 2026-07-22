@@ -833,7 +833,7 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                 {/* Stub to preview the NWC card UI in the simulator (NWC unavailable there). */}
                 {__DEV__ && (
                     <View style={$nwcContainer}>
-                        {renderNwcCard('NWC conn', 100)}
+                        {renderNwcCard('Wisp', 100)}
                     </View>
                 )}
                 {isNwcVisible && (

@@ -225,6 +225,10 @@ async function prepare(input: PrepareSendInput): Promise<PreparedSendData> {
     } else {
         // ── Auto-select path ────────────────────────────────────────────
         const inactiveKeysetIds = getInactiveKeysetIds(mintInstance)
+        const inactiveIdSet = new Set(inactiveKeysetIds)
+        const inactiveProofs = inactiveKeysetIds.length > 0
+            ? proofsFromMint.filter(p => inactiveIdSet.has(p.id))
+            : []
         let candidates: Proof[] = inactiveKeysetIds.length > 0
             ? prioritizeFromInactiveKeysets(mintInstance, amount, unit, proofsFromMint)
             : CashuUtils.getProofsToSend(amount, proofsFromMint)
@@ -247,7 +251,7 @@ async function prepare(input: PrepareSendInput): Promise<PreparedSendData> {
                         amount,
                         proofsFromMint,
                         selected => walletInstance.getFeesForProofs(selected).toNumber(),
-                        {caller: 'SendOperationApi.prepare'},
+                        {caller: 'SendOperationApi.prepare', priorityProofs: inactiveProofs},
                     ))
             } catch (e: any) {
                 throw new ValidationError('There is not enough funds to send this amount.', {

@@ -6,29 +6,19 @@ import {
   TransactionType,
 } from '../../models/Transaction'
 import {rootStoreInstance} from '../../models'
-import {CashuUtils, CashuProof} from '../cashu/cashuUtils'
-import AppError, {Err} from '../../utils/AppError'
+import {CashuUtils} from '../cashu/cashuUtils'
 import {
-    Mint as CashuMint,
-    Wallet as CashuWallet,
-    CheckStateEnum,
     MintKeyset,
-    ProofState as CashuProofState,
-    getEncodedToken,
-    normalizeProofAmounts,
 } from '@cashu/cashu-ts'
-import { MAX_SWAP_INPUT_SIZE, TransactionTaskResult, WalletTask } from '../walletService'
+import { TransactionTaskResult } from '../walletService'
 import { Mint, MintBalance } from '../../models/Mint'
 import { Proof } from '../../models/Proof'
-import { poller } from '../../utils/poller'
 import { WalletUtils } from './utils'
 import { MintUnit } from './currency'
 
 const {
-    mintsStore,
     proofsStore,
     transactionsStore,    
-    walletStore
 } = rootStoreInstance
 
 export const SEND_TASK = 'sendTask'

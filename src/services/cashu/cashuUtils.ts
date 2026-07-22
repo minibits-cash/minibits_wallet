@@ -274,16 +274,95 @@ const getProofsToSend = function (requestedAmount: number, proofs: Proof[]): Pro
  * @param getFeesForProofs  Mint fee for a given proof set (wraps
  *                       `cashuWallet.getFeesForProofs`).
  * @param options.maxIterations  Convergence guard (default 32).
+ * @param options.priorityProofs  Proofs to spend first (e.g. proofs from
+ *                       inactive/legacy keysets, to rotate that ecash off per
+ *                       NUT-02). MUST be a subset of `proofs`. When they cover
+ *                       the fee-inclusive target on their own, selection stays
+ *                       entirely within them; otherwise ALL of them are spent
+ *                       and the rest of the pool tops up the remainder.
  * @throws VALIDATION_ERROR if available proofs cannot cover the converged total.
  */
 const selectProofsToSendWithFeeReserve = function (
   targetAmount: number,
   proofs: Proof[],
   getFeesForProofs: (selected: Proof[]) => number,
-  options?: {maxIterations?: number; caller?: string},
+  options?: {maxIterations?: number; caller?: string; priorityProofs?: Proof[]},
 ): {proofsToSend: Proof[]; feeReserve: number} {
   const maxIterations = options?.maxIterations ?? 32
   const caller = options?.caller ?? 'selectProofsToSendWithFeeReserve'
+  const priorityProofs = options?.priorityProofs ?? []
+
+  // No priority set → plain lowest-count selection over the whole pool.
+  if (priorityProofs.length === 0) {
+    return selectFromPoolWithFeeReserve(targetAmount, proofs, getFeesForProofs, maxIterations, caller)
+  }
+
+  const priorityAmount = getProofsAmount(priorityProofs)
+
+  // 1) If the priority proofs can cover the fee-inclusive target on their own,
+  //    spend ONLY from them (a minimal subset) — rotating that ecash off without
+  //    touching the rest of the pool. This is the optimal, fee-lean case.
+  if (priorityAmount >= targetAmount) {
+    try {
+      return selectFromPoolWithFeeReserve(targetAmount, priorityProofs, getFeesForProofs, maxIterations, caller)
+    } catch {
+      // Priority alone can't cover target + its own input fee; fall through to
+      // draining all priority proofs and topping up from the rest.
+    }
+  }
+
+  // 2) Drain ALL priority proofs, then add the minimal set of remaining proofs
+  //    needed to cover targetAmount + the input fee on the COMBINED set. Iterated
+  //    to a fixed point because each added top-up proof can raise the fee (NUT-02).
+  const prioritySecrets = new Set(priorityProofs.map(p => p.secret))
+  const restProofs = proofs.filter(p => !prioritySecrets.has(p.secret))
+  const totalAvailable = getProofsAmount(proofs)
+
+  let proofsToSend = priorityProofs
+  let feeReserve = getFeesForProofs(proofsToSend)
+
+  let guard = 0
+  while (getProofsAmount(proofsToSend) < targetAmount + feeReserve && guard++ < maxIterations) {
+    const amountWithFees = targetAmount + feeReserve
+    if (totalAvailable < amountWithFees) {
+      throw new AppError(
+        Err.VALIDATION_ERROR,
+        'There is not enough funds to send this amount.',
+        {totalAvailable, amountWithFees, caller},
+      )
+    }
+    // restTarget > 0 here: the loop condition means sum(proofsToSend) < amountWithFees,
+    // and sum(proofsToSend) >= priorityAmount, so amountWithFees > priorityAmount.
+    // The guard above also proves restTarget <= sum(restProofs), so getProofsToSend
+    // never throws for insufficiency here.
+    const restTarget = amountWithFees - priorityAmount
+    const topUp = getProofsToSend(restTarget, restProofs)
+    proofsToSend = [...priorityProofs, ...topUp]
+    feeReserve = getFeesForProofs(proofsToSend)
+  }
+
+  if (getProofsAmount(proofsToSend) < targetAmount + feeReserve) {
+    throw new AppError(
+      Err.VALIDATION_ERROR,
+      'There is not enough funds to send this amount.',
+      {totalAvailable, amountWithFees: targetAmount + feeReserve, caller},
+    )
+  }
+
+  return {proofsToSend, feeReserve}
+}
+
+/**
+ * Lowest-count fee-reserve selection over a single pool (the un-prioritized core
+ * of `selectProofsToSendWithFeeReserve`). See that function's docblock.
+ */
+const selectFromPoolWithFeeReserve = function (
+  targetAmount: number,
+  proofs: Proof[],
+  getFeesForProofs: (selected: Proof[]) => number,
+  maxIterations: number,
+  caller: string,
+): {proofsToSend: Proof[]; feeReserve: number} {
   const totalAvailable = getProofsAmount(proofs)
 
   let proofsToSend = getProofsToSend(targetAmount, proofs)

@@ -123,19 +123,18 @@ export const WalletStoreModel = types
         return mintsStore.findByUrl(mintUrl) as Mint        
       },
       getOptimalKeyset(mintInstance: Mint, unit: MintUnit) {
-        const optimalKeyset: MintKeyset =mintInstance.keysets!
-        .filter((k: MintKeyset) => k.unit === unit && k.active)
+        // Mirrors cashu-ts v4.7 KeyChain.getCheapestKeyset: among active keysets for
+        // this unit with a valid hex id (v00 `00…` or v2 `01…`; excludes deprecated
+        // base64 keysets that cannot create outputs), pick the lowest input fee.
+        const isHexKeysetId = (id: string) => /^[0-9a-f]+$/i.test(id)
+
+        const optimalKeyset: MintKeyset | undefined = mintInstance.keysets!
+        .filter((k: MintKeyset) => k.unit === unit && k.active && isHexKeysetId(k.id))
         .sort((a: MintKeyset, b: MintKeyset) => {
-            // Prioritize keysets that start with '00'
-            const aStartsWith00 = a.id.startsWith('00') ? 1 : 0;
-            const bStartsWith00 = b.id.startsWith('00') ? 1 : 0;
-    
-            if (aStartsWith00 !== bStartsWith00) {
-                return bStartsWith00 - aStartsWith00;
-            }
-    
-            // If both start with '00' or neither do, sort by input_fee_ppk
-            return (a.input_fee_ppk ?? 0) - (b.input_fee_ppk ?? 0);
+            const feeDelta = (a.input_fee_ppk ?? 0) - (b.input_fee_ppk ?? 0)
+            if (feeDelta !== 0) return feeDelta
+            // Equal fee: prefer the newer keyset version (v2 `01…` over v0 `00…`)
+            return b.id.localeCompare(a.id)
         })[0]
 
         if(!optimalKeyset) {

@@ -137,8 +137,7 @@ export const isBitcoinAddress = (address: string): boolean =>
 /**
  * Are non-mainnet addresses payable in this build?
  *
- * Debug builds only. Development is the one situation where paying a regtest address is
- * the POINT rather than a mistake: the CDK fakewallet backend settles onchain melts
+ * Debug builds only. The CDK fakewallet backend settles onchain melts
  * against a regtest chain, so a release-only guard would make the whole rail
  * untestable end to end.
  *
