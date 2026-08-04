@@ -28,7 +28,7 @@ Mints
 - [x] Remove mints
 - [x] Block receiving from mint
 - [x] Show mint balances grouped by currency units
-- [x] Handle mint keys rotation (not tested)
+- [x] Handle mint keys and URL rotation
 - [x] Mint status and information screen
 
 Receive ecash
@@ -55,6 +55,7 @@ Top up wallet
 - [x] Share encoded bitcoin Lightning invoice to pay
 - [x] Share lightning invoice with a contact over NOSTR message
 - [x] Top up balance with LNURL Withdraw
+- [x] Top up balance with Bitcoin onchain transaction [✨ New!]
 - [x] Enter transaction amount in fiat currency
 
 Pay / Cash out from wallet
@@ -63,6 +64,7 @@ Pay / Cash out from wallet
 - [x] Pay lightning invoices received from another contact
 - [x] Pay to LNURL Pay static links / codes
 - [x] Pay to Lightning address
+- [x] Pay to Bitcoin onchain address [✨ New!]
 - [ ] Swap ecash between mints / currencies in a single step
 
 Transaction history
@@ -111,7 +113,7 @@ Self-funding
 
 DevOps
 - [x] OTA updates (opt in)
-- [ ] Automated tests
+- [x] Automated tests
 - [ ] Automated release pipelines for both OTA updates and native releases
 
 
@@ -119,17 +121,14 @@ DevOps
 
 The wallet's design has been crafted to prioritize the following primary quality properties:
 - Support both Android and iOS mobile platforms
-- Achieve fast UX and startup time (despite using React Native)
+- Achieve fast UX and startup time
 - Minimize the risk of data/ecash loss
 - Bring ecash UX on par with the current standard of traditional finance (tradfi) mobile apps
 
 As a result, the following architectural constraints are in place:
 - Wherever available, use libraries with a fast JSI (JavaScript Interface) to native modules.
 - Avoid Expo modules.
-- Use fastest available storage for most wallet operations and a separate local database storage to store data that incrementally grows.
-- Leverage local SQLite database as persistent storage for ecash notes.
-
-<img src="https://www.minibits.cash/img/minibits_architecture_v2.png">
+- Use fastest available storage for most wallet operations and a separate local sqlite storage to store data that incrementally grows or require strong integrity.
 
 Open architectural concepts that were still open for discussion when the wallet had been released
 - [x] Contacts management - identities, sharing contacts, send ecash with the UX of tradfi instant payment while keeping privacy towards mints - Implemented as NOSTR keypairs and NIP05 public sharable names that ecash can be sent to
@@ -146,20 +145,18 @@ Minibits wallet is in early beta and available as of now only for Android device
 - [x] Download .apk file from Releases page and install it on your phone
 - [x] Try on Testflight
 - [x] Download from Freedomstore.io (for EU-based users)
-- [ ] Download from AppStore
+- [x] Download from AppStore
 
 
 # Development
 
-Minibits is a bare React Native app written in Typescript. The project structure and code itself are intentionally verbose to support readability. Critical wallet code is reasonably documented. However, there is vast space for existing code improvements, refactoring, and bug fixing. This is an early beta software and the author does not code for a living.
+Minibits is a bare React Native app written in Typescript. The project structure and code itself are intentionally verbose to support readability. Critical wallet code is reasonably documented.
 
-The code is derived from Ignite template, however with many libraries, notably Expo, stripped down to achieve fast startup times. Performance bottleneck on some Android devices is react-native-keychain. To overcome this, it has been patched not to warm-up on startup, caching for wallet operations is in place and its use to encrypt storage is opt-in.
+The code is derived from Ignite template, however with many libraries, such as Expo, stripped down to achieve fast startup times. Performance bottleneck on some Android devices is react-native-keychain. To overcome this, it has been patched not to warm-up on startup, with caching in place for repeated wallet operations.
 
-Wallet state is managed by mobx-state-tree and persisted in fast MMKV storage. Only the basic mobx concepts are in place, whole model could be improved. All critical wallet code is in services/walletService.ts and all ecash state changes are in models/ProofsStore.ts. Wallet communication with the mints is in model/Wallet.ts and uses [cashu-ts](https://github.com/cashubtc/cashu-ts) library.
+Wallet state is managed by mobx-state-tree and persisted in fast MMKV storage. Only the basic mobx concepts are in place, whole model could be improved. All critical wallet code is referenced from services/walletService.ts and all ecash state changes are in models/ProofsStore.ts. Wallet communication with the mints is in model/WalletStore.ts and uses [cashu-ts](https://github.com/cashubtc/cashu-ts) library.
 
-Crypto operations are handled by react-native-quick-crypto, that is fast and does not require awful javascript shims. Transaction history and ecash notes are stored in sqlite, with fast react-native-quick-sqlite driver that enables to run lighter queries synchronously.
-
-Wallet included own Tor daemon using react-native-tor library to connect to the mints over Tor network. However this seems not to be long term approach as this library is not properly maintained and future updates of React native will likely break it. Help with replacement would be appreciated.
+Crypto operations are handled by react-native-quick-crypto, that is fast and does not require awful javascript shims. Transaction history, mint keys and ecash notes are stored in sqlite, with fast op-sqlite driver that enables to run lighter queries synchronously.
 
 In case of breaking state and data model changes, versioning and code is ready to run necessary migrations on wallet startup.
 
