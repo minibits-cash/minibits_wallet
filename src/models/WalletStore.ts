@@ -502,12 +502,34 @@ export const WalletStoreModel = types
             }
 
             const cashuWallet: CashuWallet = yield self.getWallet(
-                mintUrl, 
-                unit, 
+                mintUrl,
+                unit,
                 {
-                    withSeed: true,         
+                    withSeed: true,
                 }
             )
+
+            // Load keys for every keyset that SIGNED the incoming proofs, including
+            // inactive ones. The wallet only ever fetches ACTIVE keys (getKeys with no
+            // id), but a received proof can be from an inactive keyset — most acutely
+            // after a mint migration, where the keyset that signed all existing ecash
+            // becomes inactive (e.g. nutshell -> cdk, 00107937... goes inactive while a
+            // new v2 keyset is issued). cashu-ts DLEQ-verifies every input proof that
+            // carries a DLEQ — regardless of requireDleq — and throws
+            // "Undefined key for amount N in keyset X" when X's keys are not loaded.
+            // ensureKeysetKeys fetches /v1/keys/{id}, verifies, and is a no-op once the
+            // keys are present, so this is cheap on the common path.
+            const inputKeysetIds = [...new Set(decodedToken.proofs.map(p => p.id))]
+            for (const keysetId of inputKeysetIds) {
+                try {
+                    yield cashuWallet.keyChain.ensureKeysetKeys(keysetId)
+                } catch (e: any) {
+                    // Leave it to cashu-ts to raise its own precise error if the keyset
+                    // is genuinely unknown; only the loadable-but-unloaded case matters
+                    // here and that one now succeeds.
+                    log.warn('[WalletStore.receive]', 'Could not load keys for input keyset', {keysetId, error: e.message})
+                }
+            }
 
             const currentCounter = mintInstance.getProofsCounterByKeysetId!(cashuWallet.keysetId)
 

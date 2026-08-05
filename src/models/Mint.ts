@@ -284,6 +284,22 @@ export const MintModel = types
                 self.keysets[index] = updatedKeyset
                 self.keysets = cast(self.keysets)
             }
+
+            // Keep the parallel `keys` entry's active flag in lockstep. MintKeys carries
+            // its own `active`, and getKeys() only ever returns ACTIVE keysets — so a
+            // keyset going inactive is never re-fetched, and its keys entry would keep a
+            // stale active:true forever (visible after a mint migration flips the old
+            // active keyset inactive). The keyset metadata is the authority; mirror it.
+            const keysIndex = self.keys.findIndex(k => k.id === freshKeyset.id)
+
+            if(keysIndex !== -1) {
+                const updatedKeys = {
+                    ...self.keys[keysIndex],
+                    active: freshKeyset.active
+                }
+                self.keys[keysIndex] = updatedKeys
+                self.keys = cast(self.keys)
+            }
         },
         setInputFeePpk(keysetId: string, inputFeePpk: number) {
             const index = self.keysets.findIndex(k => k.id === keysetId)
