@@ -347,7 +347,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
     const amountInputColor = useThemeColor('amountInput')
 
     return (
-      <Screen preset="auto" contentContainerStyle={$screen}>
+      <Screen preset="fixed" contentContainerStyle={$screen} hideTabBar>
             <MintHeader 
                 mint={undefined}
                 unit={unit}                
