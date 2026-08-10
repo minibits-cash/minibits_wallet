@@ -104,7 +104,6 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
             throw new AppError(
               Err.VALIDATION_ERROR, 
               translate("invalidRelayUrl"), 
-              newPublicRelay
             )
           }
 
@@ -170,7 +169,7 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
         </View>
         <View style={$contentContainer}>          
             <Card
-                style={[$card, {marginTop: spacing.medium}]}
+                style={[$card]}
                 ContentComponent={
                 <>   
                     <FlatList<Relay>
@@ -297,7 +296,7 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
 )
 
 const $screen: ViewStyle = {
-  //flex: 1,
+  flex: 1,
 }
 
 const $headerContainer: TextStyle = {
@@ -308,7 +307,7 @@ const $headerContainer: TextStyle = {
 
 const $contentContainer: TextStyle = {
   flex: 1,
-  marginTop: -spacing.extraLarge * 2,
+  marginTop: -spacing.extraLarge * 1.5,
   padding: spacing.extraSmall,
   // alignItems: 'center',
 }

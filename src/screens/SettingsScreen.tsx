@@ -319,7 +319,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
             scrollY={scrollY}
           />
           <Card
-            style={[$card, {marginTop: -spacing.extraLarge * 2}]}
+            style={[$card, {marginTop: -spacing.extraLarge * 1.5}]}
             ContentComponent={
               <>
                 <ListItem

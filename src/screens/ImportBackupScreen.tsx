@@ -462,7 +462,7 @@ const $headerContainer: TextStyle = {
 
 const $contentContainer: TextStyle = {
     flex: 1,
-    marginTop: -spacing.extraLarge * 2,
+    marginTop: -spacing.extraLarge * 1.5,
     padding: spacing.extraSmall,  
 }
 

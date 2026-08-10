@@ -582,6 +582,13 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     const label = useThemeColor('textDim')
     const headerTitleColor = useThemeColor('headerTitle')
 
+    const isNwcVisible = nwcStore.all.some(c => c.remainingDailyLimit !== c.dailyLimit)
+    const nwcCardsData = nwcStore.all.filter(c => c.remainingDailyLimit !== c.dailyLimit)
+    // True whenever the band below the transactions card renders an NWC card
+    // (in dev the preview stub always does), so the transactions list gives up
+    // a row to leave the band enough vertical space.
+    const isNwcBandVisible = __DEV__ || isNwcVisible
+
     const renderUnitTabs = function ({ route }: { route: { key: string } }) {
         const unitMints = groupedMints.find((mintUnit) => mintUnit.unit === route.key)
 
@@ -590,7 +597,10 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             log.trace('[renderUnitTabs]', {unitBalance})
 
             if(unitBalance) {
-                const recentTransactions = transactionsStore.getRecentByUnit(unitMints.unit)
+                // Drop the oldest row while NWC card(s) occupy the band below.
+                const recentTransactions = isNwcBandVisible
+                    ? transactionsStore.getRecentByUnit(unitMints.unit).slice(0, 2)
+                    : transactionsStore.getRecentByUnit(unitMints.unit)
 
                 return (
                     <View
@@ -729,9 +739,6 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
     
         return undefined
     }
-
-    const isNwcVisible = nwcStore.all.some(c => c.remainingDailyLimit !== c.dailyLimit)
-    const nwcCardsData = nwcStore.all.filter(c => c.remainingDailyLimit !== c.dailyLimit)
 
     // When the leftover band (measured) can't fit a full-height NWC card plus its
     // gaps, fall back to a compact card: the blank space between the "spent today"
@@ -1249,14 +1256,33 @@ const $screen: ViewStyle = {
    
 }
 
+// The transactions card is pulled up over the header container: $tabContainer
+// shifts up by CARD_PULL_UP and pads the card back down by spacing.small, so the
+// card's top edge ends up HEADER_CARD_OVERLAP above the header's bottom edge.
+const CARD_PULL_UP = spacing.extraLarge * 1.5
+const HEADER_CARD_OVERLAP = CARD_PULL_UP - spacing.small
+
+// Whitespace that sits above the balance digits but belongs to no visible
+// element: the tab bar track's own bottom margin (SegmentedTabBar $track,
+// marginVertical: spacing.small) plus CurrencyAmount's wrapper padding
+// (spacing.tiny). Nothing similar pads the bottom of the block - the mint chip's
+// padding is filled with the mint color - so centering on the raw boxes reads as
+// top-heavy. Padding the bottom by the same amount shifts the content up until
+// the two gaps look even.
+const HEADER_TOP_SLACK = spacing.small + spacing.tiny
+
 const $headerContainer: TextStyle = {
     alignItems: 'center',
-    //marginBottom: spacing.small,  
-    height: spacing.screenHeight * 0.22,
+    // Reserving the overlap as padding makes the visible box end exactly at the
+    // card's top edge, so centering leaves the same gap above the balance block
+    // (to the unit tab bar) as below it (to the transactions card).
+    justifyContent: 'center',
+    paddingBottom: HEADER_CARD_OVERLAP + HEADER_TOP_SLACK,
+    height: spacing.screenHeight * 0.28,
 }
 
 const $tabContainer: TextStyle = {
-    marginTop: -spacing.extraLarge * 1.5,
+    marginTop: -CARD_PULL_UP,
     paddingTop: spacing.small,
     // borderWidth: 1,
     // borderColor: 'green',

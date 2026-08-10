@@ -683,7 +683,7 @@ const $transactionList: ViewStyle = {
 
 const $actionCard: ViewStyle = {
   margin: spacing.extraSmall,
-  marginTop: -spacing.extraLarge * 2,
+  marginTop: -spacing.extraLarge * 1.5,
   paddingTop: 0,
 }
 
