@@ -14,6 +14,7 @@ export type UserSettings = {
   isLocalBackupOn: boolean
   isBatchClaimOn: boolean
   isReceiveOnlyFromContactsOn: boolean // allow receiving over Nostr from unknown contacts
+  isMintAuditOn: boolean // share a mint's url with the public auditor to show its availability
   isLoggerOn: boolean
   logLevel: LogLevel
 }
@@ -29,6 +30,11 @@ export const UserSettingsStoreModel = types
         isPOSAuthOn: types.optional(types.boolean, false),
         isBatchClaimOn: types.optional(types.boolean, true),
         isReceiveOnlyFromContactsOn: types.optional(types.boolean, false),
+        // Opt-out, not opt-in: the mint detail screen is the only caller, so the
+        // url leaves the device only when the user opens that one screen — and a
+        // silently empty availability section would read as "not audited".
+        // Optional with a default, so a pre-existing snapshot needs no migration.
+        isMintAuditOn: types.optional(types.boolean, true),
         isLoggerOn: types.optional(types.boolean, true),
         logLevel: types.optional(types.frozen<LogLevel>(), LogLevel.ERROR)
     })
@@ -75,7 +81,11 @@ export const UserSettingsStoreModel = types
             self.isReceiveOnlyFromContactsOn = isReceiveOnlyFromContactsOn            
             return isReceiveOnlyFromContactsOn
         },
-        setIsLoggerOn: (isLoggerOn: boolean) => {            
+        setIsMintAuditOn: (isMintAuditOn: boolean) => {
+            self.isMintAuditOn = isMintAuditOn
+            return isMintAuditOn
+        },
+        setIsLoggerOn: (isLoggerOn: boolean) => {
             self.isLoggerOn = isLoggerOn            
             return isLoggerOn
         },

@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { GetInfoResponse as CashuGetInfoResponse, SwapMethod } from '@cashu/cashu-ts'
-import { CashuUtils } from '../services/cashu/cashuUtils'
+import { verticalScale } from '@gocodingnow/rn-size-matters'
 import Clipboard from '@react-native-clipboard/clipboard'
+import numbro from 'numbro'
 import { observer } from 'mobx-react-lite'
 import { getSnapshot } from 'mobx-state-tree'
-import { DimensionValue, Image, LayoutAnimation, Platform, TextStyle, UIManager, View, ViewStyle } from 'react-native'
+import { LayoutAnimation, Linking, TextStyle, View, ViewStyle } from 'react-native'
 import Animated, {
   Extrapolation,
   interpolate,
@@ -13,11 +13,13 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated'
 import JSONTree from 'react-native-json-tree'
+import { SvgXml } from 'react-native-svg'
+import FastImage from 'react-native-fast-image'
+import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 import {
   $sizeStyles,
   Button,
   Card,
-  Header,
   Icon,
   IconTypes,
   InfoModal,
@@ -28,70 +30,51 @@ import {
   Text,
 } from '../components'
 import { CollapsibleText } from '../components/CollapsibleText'
-import { translate } from '../i18n'
+import { QRShareModal } from '../components/QRShareModal'
+import { translate, TxKeyPath } from '../i18n'
 import { useStores } from '../models'
 import { Mint, MintStatus } from '../models/Mint'
 import { log } from '../services'
-import { colors, spacing, typography, useThemeColor } from '../theme'
+import {
+  getMintAuditSummary,
+  MintAuditSummary,
+  MintAuditWarning,
+  MintAuditWarningCode,
+  MintSwapEvent,
+} from '../services/mintAuditService'
+import { formatCurrency, getCurrency } from '../services/wallet/currency'
+import { colors, spacing, useThemeColor } from '../theme'
 import useColorScheme from '../theme/useThemeColor'
+import { formatDayTime, formatRelativeToNow } from '../utils/dateUtils'
 import { useHeader } from '../utils/useHeader'
 import { CurrencySign } from './Wallet/CurrencySign'
-import { SvgXml } from 'react-native-svg'
-import { CurrencyCode, formatCurrency } from '../services/wallet/currency'
-import { QRShareModal } from '../components/QRShareModal'
-import { StaticScreenProps, useNavigation } from '@react-navigation/native'
-import FastImage from 'react-native-fast-image'
-
-interface DetailedNutInfo {
-  methods: Array<SwapMethod>;
-  disabled: boolean;
-}
-
-interface MethodLimit {
-  min?: number,
-  max?: number,
-}
-
-type GetInfoResponse = CashuGetInfoResponse & {icon_url: string}
-
-const iconMap: Partial<Record<keyof GetInfoResponse, IconTypes>> = {
-  'name': 'faTag',
-  'pubkey': 'faKey',
-  'version': 'faInfoCircle',
-  'contact': 'faAddressCard'
-}
-const contactIconMap: Record<string, IconTypes> = {
-  'email': 'faEnvelope',
-  'twitter': 'faTwitter',
-  'telegram': 'faTelegramPlane',
-  'discord': 'faDiscord',
-  'github': 'faGithub',
-  'reddit': 'faReddit',
-  'nostr': 'faCircleNodes'
-}
+import {
+  asNonEmptyString,
+  getContacts,
+  getMintCapabilities,
+  getNutSupport,
+  getPaymentMethods,
+  MethodLimit,
+  MintCapability,
+  MintContact,
+  MintInfo,
+  NutSupport,
+  PaymentMethodSummary,
+} from './Mints/mintInfoSummary'
 
 type Props = StaticScreenProps<{
-  mintUrl : string
+  mintUrl: string
 }>
 
-/** Every NUT-06 field is optional and mints may publish malformed values, so
- *  narrow to a usable string or give up. */
-function asNonEmptyString(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim() !== '' ? value : undefined
-}
-
-/** Renders any info value as a copyable string, without assuming its type. */
-function stringifyValue(value: unknown): string {
-  if (value === null || typeof value === 'undefined') return ''
-  if (typeof value === 'string') return value
-  if (typeof value === 'object') {
-    try {
-      return JSON.stringify(value) ?? ''
-    } catch (e) {
-      return ''
-    }
-  }
-  return String(value)
+const contactIconMap: Record<string, IconTypes> = {
+  email: 'faEnvelope',
+  twitter: 'faTwitter',
+  telegram: 'faTelegramPlane',
+  discord: 'faDiscord',
+  github: 'faGithub',
+  reddit: 'faReddit',
+  nostr: 'faCircleNodes',
+  website: 'faGlobe',
 }
 
 /** header height, and the scroll distance over which the header title hands off
@@ -102,55 +85,52 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
   const navigation = useNavigation()
   const scrollY = useSharedValue(0)
 
-  const { mintsStore, walletStore } = useStores()
-  //const { walletStore } = nonPersistedStores
+  const { mintsStore, walletStore, userSettingsStore } = useStores()
 
   const [isLoading, setIsLoading] = useState(false)
-  const [mintInfo, setMintInfo] = useState<GetInfoResponse | undefined>()
+  const [mintInfo, setMintInfo] = useState<MintInfo | undefined>()
   const [mint, setMint] = useState<Mint>()
-  const [isLocalInfoVisible, setIsLocalInfoVisible] = useState<boolean>(false)
+  const [audit, setAudit] = useState<MintAuditSummary | undefined>()
+  const [isLocalInfoVisible, setIsLocalInfoVisible] = useState(false)
   const [isShareModalVisible, setIsShareModalVisible] = useState(false)
   const [isInfoLoadFailed, setIsInfoLoadFailed] = useState(false)
-
   const [info, setInfo] = useState('')
+
+  const mintUrl = route.params?.mintUrl
 
   useEffect(() => {
     const getInfo = async () => {
-      const mintUrl = route.params?.mintUrl
-
       if (!mintUrl) {
-        log.error('[MintInfoScreen] Missing mintUrl route param')
+        log.error('[MintInfoScreen]', 'Missing mintUrl route param')
         setIsInfoLoadFailed(true)
         return
       }
 
-      log.trace('[MintInfoScreen] useEffect', { mintUrl })
-
       const mint = mintsStore.findByUrl(mintUrl)
 
       if (!mint) {
-        log.error('[MintInfoScreen] Could not find mint', { mintUrl })
+        log.error('[MintInfoScreen]', 'Could not find mint', { mintUrl })
         setIsInfoLoadFailed(true)
         return
       }
 
       setMint(mint)
       // show whatever we cached on device while the fresh info loads
-      const cachedInfo = mint.mintInfo as GetInfoResponse | undefined
+      const cachedInfo = mint.mintInfo as MintInfo | undefined
       setMintInfo(cachedInfo)
       setIsLoading(!cachedInfo)
 
       try {
-        const info: GetInfoResponse & {time: number} = await walletStore.getMintInfo(mint.mintUrl)
+        const freshInfo: MintInfo = await walletStore.getMintInfo(mint.mintUrl)
         mint.setStatus(MintStatus.ONLINE)
-        mint.setMintInfo(info)
-        if (info.name && info.name !== mint.shortname) {
+        mint.setMintInfo(freshInfo)
+        if (freshInfo.name && freshInfo.name !== mint.shortname) {
           await mint.setShortname()
         }
-        setMintInfo(info as GetInfoResponse)
+        setMintInfo(freshInfo)
         setIsInfoLoadFailed(false)
       } catch (e: any) {
-        log.warn('[MintInfoScreen] Could not load mint info', { mintUrl, message: e.message })
+        log.warn('[MintInfoScreen]', 'Could not load mint info', { mintUrl, message: e.message })
         mint.setStatus(MintStatus.OFFLINE)
         setIsInfoLoadFailed(true)
       } finally {
@@ -158,7 +138,31 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
       }
     }
     getInfo()
-  }, [])
+  }, [mintUrl])
+
+  // Independent of the mint's own info: the whole point of the auditor is that
+  // it answers even when the mint does not. Resolves undefined on any failure,
+  // which simply hides the section.
+  //
+  // Gated on the privacy setting, since this is the ONE request on this screen
+  // that tells a third party which mint the user is looking at. Reading it here
+  // rather than inside the service keeps the network call and the consent in the
+  // same place, and the effect re-runs if the switch is flipped mid-visit.
+  const isMintAuditOn = userSettingsStore.isMintAuditOn
+
+  useEffect(() => {
+    if (!mintUrl || !isMintAuditOn) {
+      setAudit(undefined)
+      return
+    }
+    let isCurrent = true
+
+    getMintAuditSummary(mintUrl).then(summary => {
+      if (isCurrent) setAudit(summary)
+    })
+
+    return () => { isCurrent = false }
+  }, [mintUrl, isMintAuditOn])
 
   const toggleLocalInfo = () => {
     LayoutAnimation.easeInEaseOut()
@@ -167,20 +171,19 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
 
   const toggleShareModal = () => setIsShareModalVisible(previousState => !previousState)
 
-  const gotoShare = function () {
-    toggleShareModal()
-  } 
+  const copyToClipboard = (value: string) => {
+    Clipboard.setString(value)
+    setInfo(translate('commonCopySuccessParam', { param: value }))
+  }
 
-  /** memoized mint limit info */
-  const mintLimitInfo = useMemo(() => {
-    if (typeof mintInfo === 'undefined') return;
-    return getMintLimits(mintInfo)
-  }, [mintInfo])
+  const capabilities = useMemo(() => getMintCapabilities(mintInfo), [mintInfo])
+  const nutSupport = useMemo(() => getNutSupport(mintInfo), [mintInfo])
+  const paymentMethods = useMemo(() => getPaymentMethods(mintInfo), [mintInfo])
+  const contacts = useMemo(() => getContacts(mintInfo), [mintInfo])
 
   const colorScheme = useColorScheme()
   const textDim = useThemeColor('textDim')
   const headerBg = useThemeColor('header')
-  const iconColor = useThemeColor('textDim')
   const headerTitle = useThemeColor('headerTitle')
 
   // every field of the NUT-06 info response is optional, so nothing may be trusted to exist
@@ -223,529 +226,874 @@ export const MintInfoScreen = observer(function MintInfoScreen({ route }: Props)
         onScroll={scrollHandler}
         scrollEventThrottle={16}
       >
-      <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-        <Animated.View style={[$headerContent, animatedHeaderStyle]}>
-      {iconUrl ? (
+        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
+          <Animated.View style={[$headerContent, animatedHeaderStyle]}>
+            {iconUrl ? (
               <FastImage
-                style={
-                  {
-                    width: spacing.extraLarge,
-                    height: spacing.extraLarge,
-                    borderRadius: spacing.small,
-                  }
-                }
+                style={{
+                  width: spacing.extraLarge,
+                  height: spacing.extraLarge,
+                  borderRadius: spacing.small,
+                }}
                 source={{uri: iconUrl}}
               />
-          ):(
-            <View
-              style={{
-                marginEnd: spacing.small,
-                flex: 0,
-                borderRadius: spacing.small,
-                padding: spacing.extraSmall,
-                backgroundColor: colors.palette.orange600
-              }}
-            >
-            <SvgXml
-              width={spacing.medium}
-              height={spacing.medium}
-              xml={MintIcon}
-              fill='white'
-            />
-          </View>
-        )}
-        <Text preset='subheading' text={mintName} style={{color: headerTitle}}/>
-        {mint?.units && (
-          <View style={{flexDirection: 'row'}}>
-            {mint.units.map(unit => (
-              <CurrencySign
-                //containerStyle={{marginTop: spacing.small}}
-                key={unit}
-                mintUnit={unit}
-                textStyle={{color: 'white'}}
-              />
-            ))}
-          </View>
-        )}
-        </Animated.View>
-      </View>
-      <View style={$contentContainer}>
-        {isLoading ? (
-          <View style={{height: spacing.screenHeight * 0.4}}><Loading/></View>
-        ) : (
-        <>
-        {isInfoLoadFailed && <InfoLoadFailedCard />}
-        {motd && <MOTDCard motd={motd} />}
-        {mintInfo && <DescriptionCard info={mintInfo} />}
-        <Card
-          labelTx={"mintInfo_mintUrlHeading"}          
-          HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
-          content={mint?.mintUrl}
-          RightComponent={
-            <View style={$rightContainer}>
-                <Button
-                    onPress={gotoShare}
-                    preset='secondary'
-                    LeftAccessory={() => <Icon icon='faQrcode' color={iconColor} />}
-                />                                                
-            </View>
-        }
-        />
-        {mintInfo && mintLimitInfo?.any && <MintLimitsCard info={mintInfo} limitInfo={mintLimitInfo}/>}
-        {mintInfo && 
-          <>
-            <ContactCard info={mintInfo} popupMessage={setInfo} />
-            <Card
-              labelTx={"mintInfo_keyValueInfoCardHeading"}            
-              ContentComponent={
-                <>
-                  {mintInfo && <MintInfoDetails info={mintInfo} popupMessage={setInfo} />}
-                </>
-              }
-            />
-          </>
-        }
-        {mintInfo && <NutsCard info={mintInfo} />}
-        <Card
-          ContentComponent={
+            ) : (
+              <View
+                style={{
+                  marginEnd: spacing.small,
+                  flex: 0,
+                  borderRadius: spacing.small,
+                  padding: spacing.extraSmall,
+                  backgroundColor: colors.palette.orange600,
+                }}
+              >
+                <SvgXml
+                  width={spacing.medium}
+                  height={spacing.medium}
+                  xml={MintIcon}
+                  fill='white'
+                />
+              </View>
+            )}
+            <Text preset='subheading' text={mintName} style={{color: headerTitle}}/>
+            {mint?.units && (
+              <View style={{flexDirection: 'row'}}>
+                {mint.units.map(unit => (
+                  <CurrencySign
+                    key={unit}
+                    mintUnit={unit}
+                    textStyle={{color: 'white'}}
+                  />
+                ))}
+              </View>
+            )}
+          </Animated.View>
+        </View>
+        <View style={$contentContainer}>
+          {isLoading ? (
+            <View style={{height: spacing.screenHeight * 0.4}}><Loading/></View>
+          ) : (
             <>
-              <ListItem
-                tx="onDeviceInfo"
+              {isInfoLoadFailed && <NoticeCard tx="mintInfo_loadFailed" icon="faTriangleExclamation" />}
+              {motd && <NoticeCard text={motd} icon="faCircleExclamation" />}
+              {mintInfo && <DescriptionCard info={mintInfo} />}
+              <Card
+                labelTx="mintInfo_mintUrlHeading"
+                HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
+                content={mint?.mintUrl}
                 RightComponent={
                   <View style={$rightContainer}>
                     <Button
-                      onPress={toggleLocalInfo}
-                      text={isLocalInfoVisible ? translate("commonHide") : translate("commonShow")}
-                      preset="secondary"
+                      onPress={toggleShareModal}
+                      preset='secondary'
+                      LeftAccessory={() => <Icon icon='faQrcode' color={textDim} />}
                     />
                   </View>
                 }
               />
-              {isLocalInfoVisible && mint && (
-                <JSONTree
-                  hideRoot
-                  data={(() => {
-                    const m = mint
-                    const snap = getSnapshot(m) as any
-                    // `counter` is stripped from every snapshot (it is mastered in
-                    // SQLite, not MMKV). Re-inject the live cache value per keyset
-                    // so this debug tree shows the real derivation index, not 0.
-                    return {
-                      ...snap,
-                      proofsCounters: snap.proofsCounters?.map((c: any) => ({
-                        ...c,
-                        counter: m?.proofsCounters?.find(pc => pc.keyset === c.keyset)?.counter ?? c.counter,
-                      })),
-                    }
-                  })() as any}
-                  theme={{
-                    scheme: 'default',
-                    base00: '#eee',
-                  }}
-                  invertTheme={colorScheme === 'light' ? false : true}
-                />
-              )}
+              {audit && <AvailabilityCard audit={audit} />}
+              {paymentMethods.length > 0 && <PaymentMethodsCard methods={paymentMethods} />}
+              {mintInfo && <CapabilitiesCard capabilities={capabilities} nuts={nutSupport} />}
+              {contacts.length > 0 && <ContactsCard contacts={contacts} onCopy={copyToClipboard} />}
+              {mintInfo && <DetailsCard info={mintInfo} onCopy={copyToClipboard} />}
+              <Card
+                ContentComponent={
+                  <>
+                    <ListItem
+                      tx="onDeviceInfo"
+                      RightComponent={
+                        <View style={$rightContainer}>
+                          <Button
+                            onPress={toggleLocalInfo}
+                            text={isLocalInfoVisible ? translate("commonHide") : translate("commonShow")}
+                            preset="secondary"
+                          />
+                        </View>
+                      }
+                    />
+                    {isLocalInfoVisible && mint && (
+                      <JSONTree
+                        hideRoot
+                        data={(() => {
+                          const m = mint
+                          const snap = getSnapshot(m) as any
+                          // `counter` is stripped from every snapshot (it is mastered in
+                          // SQLite, not MMKV). Re-inject the live cache value per keyset
+                          // so this debug tree shows the real derivation index, not 0.
+                          return {
+                            ...snap,
+                            proofsCounters: snap.proofsCounters?.map((c: any) => ({
+                              ...c,
+                              counter: m?.proofsCounters?.find(pc => pc.keyset === c.keyset)?.counter ?? c.counter,
+                            })),
+                          }
+                        })() as any}
+                        theme={{
+                          scheme: 'default',
+                          base00: '#eee',
+                        }}
+                        invertTheme={colorScheme === 'light' ? false : true}
+                      />
+                    )}
+                  </>
+                }
+              />
             </>
-          }
-        />
-        </>
-
-        )}
-      </View>
+          )}
+        </View>
       </Animated.ScrollView>
       <QRShareModal
-          data={route.params?.mintUrl ?? ''}
-          shareModalTx='mintsScreen_share'
-          subHeading={mintName ?? translate('mintInfo_loadingNamePlaceholder')}
-          type='URL'
-          isVisible={isShareModalVisible}
-          onClose={toggleShareModal}
-        />
+        data={mintUrl ?? ''}
+        shareModalTx='mintsScreen_share'
+        subHeading={mintName ?? translate('mintInfo_loadingNamePlaceholder')}
+        type='URL'
+        isVisible={isShareModalVisible}
+        onClose={toggleShareModal}
+      />
       {info && <InfoModal message={info} />}
     </Screen>
   )
 })
 
-
-function MOTDCard(props: {motd: string}) {
+/** Warning banner — used for both the MOTD and an unreachable mint. */
+function NoticeCard(props: {tx?: TxKeyPath, text?: string, icon: IconTypes}) {
   return (
     <Card
       RightComponent={
         <View style={{justifyContent: 'center'}}>
-          <Icon icon="faCircleExclamation" color={'white'} size={20} />
-        </View>
-      }
-      // heading='Important'
-      ContentComponent={
-        <Text style={{fontStyle: 'italic'}} text={props.motd} />
-      }
-      style={{backgroundColor: colors.dark.warn, marginBottom: spacing.small}}
-    />
-  )
-}
-
-/** Shown when the mint did not return its info (mint is switched to OFFLINE). */
-function InfoLoadFailedCard() {
-  return (
-    <Card
-      RightComponent={
-        <View style={{justifyContent: 'center'}}>
-          <Icon icon="faTriangleExclamation" color={'white'} size={20} />
+          <Icon icon={props.icon} color={'white'} size={20} />
         </View>
       }
       ContentComponent={
-        <Text style={{fontStyle: 'italic'}} tx="mintInfo_loadFailed" />
+        <Text style={{fontStyle: 'italic'}} tx={props.tx} text={props.text} />
       }
       style={{backgroundColor: colors.dark.warn}}
     />
   )
 }
 
-function MintLimitsCard(props: { info: GetInfoResponse, limitInfo: ReturnType<typeof getMintLimits> }) {
-  if (props.limitInfo.mintSats === false && props.limitInfo.meltSats === false) return null
-  log.trace('[MintLimitsCard]', props.limitInfo)
+function DescriptionCard(props: {info: MintInfo}) {
+  const description = asNonEmptyString(props.info.description)
+  const descriptionLong = asNonEmptyString(props.info.description_long)
 
-  const limitText = (m: false | MethodLimit): string | undefined => {
-    if (!m) return undefined
-    const min = `${formatCurrency(m.min as number, CurrencyCode.SAT)}`
-    const max = `${formatCurrency(m.max as number, CurrencyCode.SAT)}`
+  if (!description && !descriptionLong) return null
 
-    return (typeof m.min !== 'undefined' && typeof m.max !== 'undefined' ? `${min} – ${max}`
-    : typeof m.min !== 'undefined' && typeof m.max === 'undefined' ? `min: ${min}`
-    : typeof m.max !== 'undefined' && typeof m.min === 'undefined' ? `max: ${max}`
-    : void 0)
-  }
+  const summary = description ?? (descriptionLong as string)
+  const full = descriptionLong && description !== descriptionLong
+    ? [description, descriptionLong].filter(Boolean).join('\n')
+    : ''
 
-  // a mint may publish limits for only one of the two methods
-  const LimitItem = (props: { m: false | MethodLimit, type: 'mint' | 'melt' }) => (
-  <View style={$limitItem}>
-    <Icon
-      icon={props.type === 'mint' ? 'faCircleArrowDown' : 'faCircleArrowUp'}
-      color={colors.palette.success200}
-      size={16}
-      containerStyle={$nutIcon}
-    />
-    <Text text={limitText(props.m) ?? '–'} />
-  </View>)
-
-  return (<Card
-    labelTx="mintInfo_mintMeltHeading"
-    // HeadingTextProps={{ style: [$sizeStyles.sm, { color: textDim }] }}
-    ContentComponent={<>
-      <View style={$limitItemWrapper}>
-        <Text tx="mintInfo_depositMint" style={{ width: '50%' }} />
-        <Text tx="mintInfo_withdrawMelt" style={{ width: '50%' }} />
-      </View>
-      <View style={$limitItemWrapper}>
-        <LimitItem m={props.limitInfo.mintSats} type="mint" />
-        <LimitItem m={props.limitInfo.meltSats} type="melt" />
-      </View>
-    </>}
-  />)
-}
-
-function DescriptionCard(props: {info: GetInfoResponse}) {
-  const description = asNonEmptyString(props.info?.description)
-  const descriptionLong = asNonEmptyString(props.info?.description_long)
-
-  return (<Card
-    // labelTx="mintInfo_descriptionHeading"
-    //headingTx="mintInfo_descriptionHeading"
-    // HeadingTextProps={{ style: [$sizeStyles.sm, { color: textDim }] }}
-    ContentComponent={
-      description ? (
-        <CollapsibleText
-          collapsed={true}
-          summary={description}
-          text={descriptionLong && description !== descriptionLong
-            ? description + '\n' + descriptionLong
-            : ''
-          }
-        />
-      ) : (
-        <Text
-          style={{fontStyle: 'italic'}}
-          text={translate('mintInfo_emptyValueParam', {
-            param: translate('mintInfo_descriptionHeading'),
-          })}
-        />
-      )
-    }
-  />)
-}
-
-/** one-line item for NUT specifications and adjacent things like limits */
-function NutItem(props: {
-  enabled: boolean,
-  nutNameNumber: string,
-  width?: DimensionValue
-  customIcon?: IconTypes,
-  customIconColor?: string,
-}) {
   return (
-    <View style={[$nutItem, { width: props?.width ?? 'auto'}]}>
+    <Card
+      ContentComponent={
+        <CollapsibleText collapsed={true} summary={summary} text={full} />
+      }
+    />
+  )
+}
+
+// === Availability (mint auditor) ===
+
+const AUDIT_WARNING_LABELS: Record<MintAuditWarningCode, TxKeyPath> = {
+  lastSwapFailed: 'mintInfo_audit_warn_lastSwapFailed',
+  lastSwapFailedReliable: 'mintInfo_audit_warn_lastSwapFailedReliable',
+  lastSwapFailedUnreliable: 'mintInfo_audit_warn_lastSwapFailedUnreliable',
+  unknownQuality: 'mintInfo_audit_warn_unknownQuality',
+  notEnoughData: 'mintInfo_audit_warn_notEnoughData',
+  lowSuccessRate: 'mintInfo_audit_warn_lowSuccessRate',
+  inactive: 'mintInfo_audit_warn_inactive',
+  noSuccessfulSwaps: 'mintInfo_audit_warn_noSuccessfulSwaps',
+  slow: 'mintInfo_audit_warn_slow',
+}
+
+/**
+ * `2783 ms` under ten seconds, `12.34 s` above — cashu.me's auditor panel reads
+ * the same way, and at this precision a slow mint is the thing worth seeing.
+ *
+ * Not date-fns' `formatDuration`: its smallest unit is the second, so a typical
+ * sub-second swap would render as "0 seconds". Elapsed CALENDAR time on this
+ * screen (last audit) does go through date-fns.
+ */
+function formatSwapDuration(ms: number): string {
+  return ms < 10000
+    ? `${numbro(Math.round(ms)).format({thousandSeparated: true})} ms`
+    : `${(ms / 1000).toFixed(2)} s`
+}
+
+/**
+ * Independent availability signal from the public mint auditor: what the
+ * auditor thinks is wrong, the two headline numbers, and a timeline of the
+ * swaps behind them. Rendered only when the auditor knows this mint and
+ * answered; see mintAuditService.
+ */
+function AvailabilityCard(props: {audit: MintAuditSummary}) {
+  const {audit} = props
+  const textDim = useThemeColor('textDim')
+
+  return (
+    <Card
+      labelTx="mintInfo_audit_heading"
+      ContentComponent={
+        <>
+          {audit.warnings.length > 0 && <AuditWarningsBox warnings={audit.warnings} />}
+          {audit.swap && (
+            <View style={$statTileRow}>
+              <StatTile
+                labelTx="mintInfo_audit_swapSuccess"
+                value={`${audit.swap.successRate}%`}
+                caption={translate('mintInfo_audit_swapSuccessValue', {
+                  ok: audit.swap.okCount,
+                  total: audit.swap.totalCount,
+                })}
+              />
+              <StatTile
+                labelTx="mintInfo_audit_swapTime"
+                value={typeof audit.swap.averageMs !== 'undefined'
+                  ? formatSwapDuration(audit.swap.averageMs)
+                  : '–'
+                }
+                captionTx="mintInfo_audit_forSuccessfulSwaps"
+              />
+            </View>
+          )}
+          <SwapTimeline history={audit.history} />
+          <ListItem
+            tx="mintInfo_audit_source"
+            subText={audit.updatedAt
+              ? translate('mintInfo_audit_lastCheckedParam', {
+                  ago: formatRelativeToNow(audit.updatedAt),
+                })
+              : undefined
+            }
+            textStyle={[$sizeStyles.xs, {color: textDim}]}
+            subTextStyle={[$sizeStyles.xxs, {color: textDim}]}
+            topSeparator
+            RightComponent={<Icon icon="faUpRightFromSquare" color={textDim} size={14} />}
+            onPress={() => Linking.openURL(audit.auditUrl).catch(e =>
+              log.warn('[AvailabilityCard]', 'Could not open auditor url', {message: e?.message}),
+            )}
+            style={$compactListItem}
+          />
+          {/* Reliability over time is not solvency — say so, as the auditor does. */}
+          <Text tx="mintInfo_audit_disclaimer" size="xxs" style={{color: textDim}} />
+        </>
+      }
+    />
+  )
+}
+
+/** The auditor's judgements, as a bulleted callout. */
+function AuditWarningsBox(props: {warnings: MintAuditWarning[]}) {
+  const warnColor = useThemeColor('warn')
+
+  return (
+    <View style={[$warningsBox, {borderColor: warnColor}]}>
       <Icon
-          icon={props?.customIcon ?? (props.enabled ? 'faCheckCircle' : 'faXmark')}
-          color={props?.customIconColor ?? (props.enabled ? colors.palette.success200 : colors.palette.angry500)}
-          size={16}
-          containerStyle={$nutIcon}
-        />
-      <Text size='xs'>NUT-{props.nutNameNumber}</Text>
+        icon="faTriangleExclamation"
+        color={warnColor as string}
+        size={18}
+        containerStyle={$tightIcon}
+      />
+      <View style={$warningsText}>
+        <Text tx="mintInfo_audit_warningsHeading" size="xs" style={{color: warnColor}} />
+        {props.warnings.map(warning => (
+          <View key={warning.code} style={$warningBullet}>
+            <Text text="•" size="xxs" style={{color: warnColor}} />
+            <Text
+              text={translate(AUDIT_WARNING_LABELS[warning.code], warning.params)}
+              size="xxs"
+              style={[$statValueLeft, {color: warnColor}]}
+            />
+          </View>
+        ))}
+      </View>
     </View>
   )
 }
 
-function NutsCard(props: {info: GetInfoResponse}) {
-  const supportedNutsDetailed: [string, DetailedNutInfo][] = []
-  const nutsSimple: [string, boolean][] = []
+/** One headline number: caption above, figure, sub-caption. */
+function StatTile(props: {labelTx: TxKeyPath, value: string, caption?: string, captionTx?: TxKeyPath}) {
+  const textDim = useThemeColor('textDim')
+  const tileBg = useThemeColor('background')
 
-  const nuts = CashuUtils.isObj(props.info?.nuts) ? props.info.nuts : {}
+  return (
+    <View style={[$statTile, {backgroundColor: tileBg}]}>
+      <Text tx={props.labelTx} size="xxs" style={{color: textDim}} />
+      <Text text={props.value} preset="subheading" />
+      <Text tx={props.captionTx} text={props.caption} size="xxs" style={{color: textDim}} />
+    </View>
+  )
+}
 
-  // detailed nuts are separated from simple ones if we want to show more info abt them in the future
-  for (const [nut, info] of Object.entries(nuts)) {
-    // a mint may publish a null / primitive value instead of a settings object;
-    // `in` would throw on those, so resolve them before any further checks
-    if (info === null || typeof info === 'undefined') {
-      nutsSimple.push([nut, false])
-      continue;
-    }
-    if (typeof info !== 'object') {
-      nutsSimple.push([nut, !!info])
-      continue;
-    }
-    if (nut === '15' && 'methods' in info && Array.isArray(info.methods) && info.methods.length > 0) {
-      // see https://github.com/cashubtc/nuts/blob/main/15.md - multipath payments
-      // in the future, it might be nice to show for which currencies are multipath payments supported
-      // for example by extending NutItem
-      nutsSimple.push(['15', true])
-      continue;
-    }
-    // see https://github.com/cashubtc/nutshell/issues/588
-    if (nut === '17' && Array.isArray(info) && info.length > 0) {
-      nutsSimple.push(['17', info.some(m => m?.unit === 'sat')])
-      continue;
-    }
-    // proper nut-17 response handling (not implemented in nutshell yet)
-    if (nut === '17' && 'supported' in info && Array.isArray(info.supported) && info.supported.length > 0) {
-      nutsSimple.push(['17', info.supported.some(m => m?.unit === 'sat')])
-      continue;
-    }
-    if (nut === '19' && 'cached_endpoints' in info && Array.isArray(info.cached_endpoints) && info.cached_endpoints.length > 0) {
-      nutsSimple.push(['19', info.cached_endpoints.some(e => e?.method === 'POST')])
-      continue;
-    }
-    if (nut === '29' && (('supported' in info && info.supported === true) || ('methods' in info && Array.isArray(info.methods) && info.methods.length > 0))) {
-      nutsSimple.push(['29', true])
-      continue;
-    }
-    if ('disabled' in info && info.disabled === false) { // detailed
-      supportedNutsDetailed.push([nut, info as unknown as DetailedNutInfo])
-    } else if ('supported' in info && typeof info.supported !== 'undefined') { // simple
-      nutsSimple.push([nut, !!info.supported])
-    } else if (!('disabled' in info) && 'methods' in info && Array.isArray(info.methods) && info.methods.length > 0) {
-      // `disabled` is optional - a nut advertising methods is supported unless it says otherwise
-      nutsSimple.push([nut, true])
-    } else {
-      nutsSimple.push([nut, false]) // fallback or detailed but disabled nut
-    }
+// === Swap timeline ===
+
+/**
+ * How many bars the timeline is divided into.
+ *
+ * Fixed rather than derived from the measured width (as cashu.me does): the
+ * bars are laid out with `flex: 1`, so the row fills whatever width it gets
+ * without a measure pass, and on a phone there is no width range wide enough to
+ * make a variable count worth the re-render.
+ */
+const TIMELINE_BUCKETS = 28
+
+type SwapBucket = {count: number, okCount: number}
+
+/**
+ * Bucket the sampled swaps by TIME, newest bucket first.
+ *
+ * By time, not by index, which is the whole point: a mint that stopped
+ * answering leaves EMPTY buckets, and those gaps are the signal. An
+ * index-based chart would silently close them up and show an unbroken run of
+ * green.
+ */
+function bucketByTime(history: MintSwapEvent[]): SwapBucket[] {
+  const buckets: SwapBucket[] = Array.from({length: TIMELINE_BUCKETS}, () => ({count: 0, okCount: 0}))
+  if (history.length === 0) return buckets
+
+  // `history` is oldest-first (see mintAuditService.toHistory).
+  const oldest = history[0].at.getTime()
+  const newest = history[history.length - 1].at.getTime()
+  const span = newest - oldest
+
+  for (const event of history) {
+    // 0 = newest → leftmost bucket, 1 = oldest → rightmost.
+    const fromNewest = span === 0 ? 0 : (newest - event.at.getTime()) / span
+    const index = Math.min(Math.floor(fromNewest * TIMELINE_BUCKETS), TIMELINE_BUCKETS - 1)
+    buckets[index].count += 1
+    if (event.ok) buckets[index].okCount += 1
   }
 
-  const smallNutCols = 4
+  return buckets
+}
+
+/** Red at 0% through amber at 50% to green at 100%, as the auditor colours it. */
+function successColor(rate: number): string {
+  if (rate >= 1) return colors.palette.success200
+  if (rate <= 0) return colors.palette.angry500
+  const mix = (from: number, to: number, t: number) => Math.round(from + (to - from) * t)
+  // angry500 #8F3403 -> accent400 #FFBB50 -> success200 #599D52
+  const stops = rate < 0.5
+    ? [[0x8f, 0x34, 0x03], [0xff, 0xbb, 0x50], rate * 2] as const
+    : [[0xff, 0xbb, 0x50], [0x59, 0x9d, 0x52], (rate - 0.5) * 2] as const
+  const [from, to, t] = stops
+  return `rgb(${mix(from[0], to[0], t)}, ${mix(from[1], to[1], t)}, ${mix(from[2], to[2], t)})`
+}
+
+/**
+ * Every sampled swap as one bar per time slice, newest on the left.
+ *
+ * Renders nothing without history: an axis with no bars would suggest the mint
+ * has no record, when in fact the request for it failed.
+ */
+function SwapTimeline(props: {history: MintSwapEvent[]}) {
+  const textDim = useThemeColor('textDim')
+  const buckets = useMemo(() => bucketByTime(props.history), [props.history])
+
+  if (props.history.length === 0) return null
+
+  const oldest = props.history[0].at
+  const newest = props.history[props.history.length - 1].at
+  const middle = new Date((oldest.getTime() + newest.getTime()) / 2)
+
+  return (
+    <View style={$timeline}>
+      <View style={$timelineBars}>
+        {buckets.map((bucket, index) => (
+          <View
+            key={index}
+            style={[
+              $timelineBar,
+              bucket.count === 0
+                // An empty slice is drawn as an outline, not a coloured bar: no
+                // swap happened then, which is not the same as a failed one.
+                ? {borderWidth: 1, borderColor: textDim as string, opacity: 0.4}
+                : {backgroundColor: successColor(bucket.okCount / bucket.count)},
+            ]}
+          />
+        ))}
+      </View>
+      <View style={$timelineAxis}>
+        <Text tx="mintInfo_audit_now" size="xxs" style={{color: textDim}} />
+        <Text text={formatDayTime(middle)} size="xxs" style={{color: textDim}} />
+        <Text text={formatDayTime(oldest)} size="xxs" style={{color: textDim}} />
+      </View>
+    </View>
+  )
+}
+
+// === Payment methods ===
+
+/** Amount without a unit suffix, so a range can carry the unit only once. */
+function formatLimitAmount(amount: number, limit: MethodLimit): string {
+  if (limit.mintUnit) {
+    try {
+      return formatCurrency(amount, getCurrency(limit.mintUnit).code)
+    } catch {
+      // unit the wallet has no currency data for — fall through to the raw value
+    }
+  }
+  return String(amount)
+}
+
+function unitLabel(limit: MethodLimit): string {
+  if (limit.mintUnit) {
+    try {
+      return getCurrency(limit.mintUnit).symbol
+    } catch {
+      // fall through
+    }
+  }
+  return limit.unit.toUpperCase()
+}
+
+/** `0 – 1,000,000 SAT`, or a one-sided / absent bound. */
+function limitText(limit: MethodLimit): string {
+  const unit = unitLabel(limit)
+  const hasMin = typeof limit.min !== 'undefined'
+  const hasMax = typeof limit.max !== 'undefined'
+
+  if (hasMin && hasMax) {
+    return `${formatLimitAmount(limit.min as number, limit)} – ${formatLimitAmount(limit.max as number, limit)} ${unit}`
+  }
+  if (hasMax) {
+    return translate('mintInfo_limitMax', {amount: `${formatLimitAmount(limit.max as number, limit)} ${unit}`})
+  }
+  if (hasMin) {
+    return translate('mintInfo_limitMin', {amount: `${formatLimitAmount(limit.min as number, limit)} ${unit}`})
+  }
+  return translate('mintInfo_limitNone')
+}
+
+/**
+ * The rails the mint settles on, each with its deposit and withdrawal limits.
+ *
+ * Deposit and withdrawal are shown SEPARATELY per rail because they are
+ * independent: a mint commonly accepts onchain deposits without paying onchain
+ * out, and the limits differ even when both directions exist.
+ */
+function PaymentMethodsCard(props: {methods: PaymentMethodSummary[]}) {
+  const textDim = useThemeColor('textDim')
+
   return (
     <Card
-      labelTx="mintInfo_nutsHeading"
-      style={{marginBottom: spacing.small}}
-      // HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
+      labelTx="mintInfo_paymentMethodsHeading"
       ContentComponent={
-        supportedNutsDetailed.length === 0 && nutsSimple.length === 0 ? (
-          <Text
-            style={{fontStyle: 'italic'}}
-            text={translate('mintInfo_emptyValueParam', { param: translate('mintInfo_nutsHeading') })}
-          />
-        ) : (
-        <View style={{flexDirection: 'row', flexWrap: 'wrap'}}>
-          {supportedNutsDetailed.map(([nut, info]) => (
-            <NutItem
-              nutNameNumber={nut}
-              enabled={true}
-              key={`detailed-${nut}`}
-              width={`${Math.round(100 / smallNutCols)}%`}
-            />
+        <>
+          {props.methods.map((method, index) => (
+            <View key={method.method} style={index > 0 ? $methodBlockSeparated : undefined}>
+              <View style={$methodHeaderRow}>
+                <Icon icon={method.icon} color={textDim} size={16} containerStyle={$tightIcon} />
+                <Text
+                  tx={method.labelTx}
+                  text={method.labelTx ? undefined : method.method}
+                  style={$methodName}
+                />
+                {typeof method.confirmations !== 'undefined' && (
+                  <Text
+                    text={translate('mintInfo_confirmationsParam', {count: method.confirmations})}
+                    size="xxs"
+                    style={{color: textDim}}
+                  />
+                )}
+              </View>
+              <DirectionRows direction="mint" limits={method.mint} />
+              <DirectionRows direction="melt" limits={method.melt} />
+            </View>
           ))}
-          {nutsSimple.map(([nut, enabled]) => (
-            <NutItem
-              nutNameNumber={nut}
-              enabled={enabled}
-              key={`simple-${nut}`}
-              width={`${Math.round(100 / smallNutCols)}%`}
-            />
-          ))}
-        </View>
-        )
+        </>
       }
     />
   )
 }
 
-function ContactCard(props: { info: GetInfoResponse, popupMessage: (msg: string) => void }) {
+function DirectionRows(props: {direction: 'mint' | 'melt', limits: MethodLimit[]}) {
   const textDim = useThemeColor('textDim')
-  type Contact = {method: string, info: string}
+  const isMint = props.direction === 'mint'
+  const label = translate(isMint ? 'mintInfo_depositMint' : 'mintInfo_withdrawMelt')
+  const icon: IconTypes = isMint ? 'faCircleArrowDown' : 'faCircleArrowUp'
 
-  // `contact` is optional and its entries may be malformed or partially filled
-  const rawContacts = Array.isArray(props.info?.contact) ? props.info.contact : []
-
-  let contacts: Contact[] = []
-  for (const contact of rawContacts) {
-    if (!contact) continue
-
-    // legacy tuple form: ['email', 'contact@me.com']
-    if (Array.isArray(contact)) {
-      const method = asNonEmptyString(contact[0])
-      const info = asNonEmptyString(contact[1])
-      if (method && info) contacts.push({ method, info })
-      continue
-    }
-
-    if (typeof contact === 'object') {
-      const method = asNonEmptyString((contact as Contact).method)
-      const info = asNonEmptyString((contact as Contact).info)
-      if (method && info) contacts.push({ method, info })
-    }
+  if (props.limits.length === 0) {
+    return (
+      <View style={$limitRow}>
+        <Icon icon={icon} color={textDim} size={14} containerStyle={$tightIcon} />
+        <Text text={label} size="xs" style={{color: textDim}} />
+        <Text tx="mintInfo_notSupported" size="xs" style={[$statValue, {color: textDim}]} />
+      </View>
+    )
   }
+
+  // A rail may settle in several units; name the unit on the label only then,
+  // so the common single-unit mint stays uncluttered.
+  const isMultiUnit = props.limits.length > 1
+
+  return (
+    <>
+      {props.limits.map(limit => (
+        <View key={`${props.direction}-${limit.unit}`} style={$limitRow}>
+          <Icon icon={icon} color={colors.palette.success200} size={14} containerStyle={$tightIcon} />
+          <Text
+            text={isMultiUnit ? `${label} · ${unitLabel(limit)}` : label}
+            size="xs"
+            style={{color: textDim}}
+          />
+          <Text text={limitText(limit)} size="xs" style={$statValue} />
+        </View>
+      ))}
+    </>
+  )
+}
+
+// === Capabilities ===
+
+/**
+ * What the mint can do, in plain language. Supported capabilities carry a line
+ * explaining what it buys the user; unsupported ones are listed dimmed without
+ * the explanation, so the card stays scannable.
+ *
+ * The raw NUT numbers are still here, one tap away, for anyone who wants them.
+ */
+function CapabilitiesCard(props: {capabilities: MintCapability[], nuts: NutSupport[]}) {
+  const [isTechnicalVisible, setIsTechnicalVisible] = useState(false)
+  const textDim = useThemeColor('textDim')
+
+  const toggleTechnical = () => {
+    LayoutAnimation.easeInEaseOut()
+    setIsTechnicalVisible(!isTechnicalVisible)
+  }
+
+  // Caveats (`warning`) are shown only when present — see MintCapability.
+  const supported = props.capabilities.filter(c => c.supported && !c.warning)
+  const caveats = props.capabilities.filter(c => c.supported && c.warning)
+  const unsupported = props.capabilities.filter(c => !c.supported && !c.warning)
+
+  return (
+    <Card
+      labelTx="mintInfo_capabilitiesHeading"
+      ContentComponent={
+        <>
+          {supported.length === 0 && caveats.length === 0 && (
+            <Text
+              style={{fontStyle: 'italic'}}
+              size="xs"
+              tx="mintInfo_capabilitiesUnknown"
+            />
+          )}
+          {[...supported, ...caveats].map(capability => (
+            <View key={capability.key} style={$capabilityRow}>
+              <Icon
+                icon={capability.icon}
+                color={capability.warning ? colors.palette.accent400 : colors.palette.success200}
+                size={16}
+                containerStyle={$capabilityIcon}
+              />
+              <View style={$capabilityText}>
+                <Text tx={capability.labelTx} size="xs" />
+                <Text tx={capability.descriptionTx} size="xxs" style={{color: textDim}} />
+              </View>
+            </View>
+          ))}
+          {unsupported.length > 0 && (
+            <View style={$unsupportedWrapper}>
+              {unsupported.map(capability => (
+                <View key={capability.key} style={$capabilityRow}>
+                  <Icon icon="faXmark" color={textDim} size={16} containerStyle={$capabilityIcon} />
+                  <Text tx={capability.labelTx} size="xs" style={{color: textDim}} />
+                </View>
+              ))}
+            </View>
+          )}
+          <ListItem
+            tx="mintInfo_technicalDetails"
+            textStyle={[$sizeStyles.xs, {color: textDim}]}
+            topSeparator
+            RightComponent={
+              <Icon icon={isTechnicalVisible ? 'faChevronUp' : 'faChevronDown'} color={textDim} size={14} />
+            }
+            onPress={toggleTechnical}
+            style={$compactListItem}
+          />
+          {isTechnicalVisible && (
+            <>
+              {props.nuts.length === 0 ? (
+                <Text
+                  style={{fontStyle: 'italic'}}
+                  size="xxs"
+                  text={translate('mintInfo_emptyValueParam', {param: translate('mintInfo_nutsHeading')})}
+                />
+              ) : (
+                props.nuts.map(nut => (
+                  <View key={nut.nut} style={$nutRow}>
+                    <Text text={nut.code} size="xxs" style={[$nutCode, {color: textDim}]} />
+                    <Text
+                      text={nut.title ?? ''}
+                      size="xxs"
+                      style={[$statValueLeft, !nut.supported && {color: textDim}]}
+                    />
+                    <Icon
+                      icon={nut.supported ? 'faCheck' : 'faXmark'}
+                      color={nut.supported ? colors.palette.success200 : textDim}
+                      size={12}
+                      containerStyle={$tightIcon}
+                    />
+                  </View>
+                ))
+              )}
+            </>
+          )}
+        </>
+      }
+    />
+  )
+}
+
+// === Contacts and details ===
+
+function ContactsCard(props: {contacts: MintContact[], onCopy: (value: string) => void}) {
+  const textDim = useThemeColor('textDim')
 
   return (
     <Card
       labelTx="mintInfo_contactsHeading"
-      //HeadingTextProps={{style: [$sizeStyles.sm, {color: textDim}]}}
       ContentComponent={
-        contacts.length === 0 ? (
-          <Text
-            style={{fontStyle: 'italic'}}
-            text={translate('mintInfo_emptyValueParam', { param: translate('mintInfo_contactsHeading') })}
-          />
-        ) : (
-          <>
-            {contacts.map(({ method, info }, index) => (
-              <ListItem
-                style={$contactListItem}
-                key={`${method}-${index}`}
-                text={method}
-                textStyle={$sizeStyles.xs}
-                LeftComponent={<Icon icon={method in contactIconMap ? contactIconMap[method] : 'faAddressBook'} color={textDim}/>}
-                RightComponent={<View style={{ width: spacing.screenWidth * 0.6 }}><Text text={info}/></View>}
-                topSeparator={index !== 0}
-                onLongPress={() => {
-                  Clipboard.setString(info)
-                  props.popupMessage(translate('commonCopySuccessParam', { param: info }))
-                }}
-              />
-            ))}
-          </>
-        )
+        <>
+          {props.contacts.map(({method, info}, index) => (
+            <ListItem
+              style={$compactListItem}
+              key={`${method}-${index}`}
+              text={method}
+              textStyle={$sizeStyles.xs}
+              LeftComponent={
+                <Icon icon={contactIconMap[method] ?? 'faAddressBook'} color={textDim} />
+              }
+              RightComponent={
+                <View style={{width: spacing.screenWidth * 0.6}}>
+                  <Text text={info} size="xs" />
+                </View>
+              }
+              topSeparator={index !== 0}
+              onLongPress={() => props.onCopy(info)}
+            />
+          ))}
+        </>
       }
     />
   )
 }
 
-/** don't render these because they're rendered in separate components */
-const detailsHiddenKeys = new Set(['name', 'motd', 'description', 'description_long', 'nuts', 'contact', 'icon_url', 'time'])
+/** `023cf092…3d489554` — long hex is unreadable in full and copyable anyway. */
+function truncateMiddle(value: string, lead = 8, tail = 8): string {
+  return value.length <= lead + tail + 1 ? value : `${value.slice(0, lead)}…${value.slice(-tail)}`
+}
 
-/** key-value pairs of details about the mint */
-function MintInfoDetails(props: { info: GetInfoResponse, popupMessage: (msg: string) => void }) {
-  const iconColor = useThemeColor('textDim')
+/**
+ * The remaining identity/version facts, as an explicit list.
+ *
+ * This used to iterate over every key of the info response minus a hidden-key
+ * set, which meant any new NUT-06 field appeared as a raw JSON blob with its
+ * snake_case name as the label. The full response is still one tap away under
+ * "On-device information".
+ */
+function DetailsCard(props: {info: MintInfo, onCopy: (value: string) => void}) {
+  const textDim = useThemeColor('textDim')
 
-  const items: React.JSX.Element[] = Object.entries(props.info ?? {})
-    .filter(([key, value]) => !(detailsHiddenKeys.has(key)))
-    .map(([key, value], index) => {
-      const missingComponent = <Text
-        style={{fontStyle: 'italic'}}
-        size="xs"
-        key={key}
-        text={translate('mintInfo_emptyValueParam', { param: key })}
-      />
+  const version = asNonEmptyString(props.info.version)
+  const pubkey = asNonEmptyString(props.info.pubkey)
+  const tosUrl = asNonEmptyString(props.info.tos_url)
+  const urls = Array.isArray(props.info.urls)
+    ? props.info.urls.map(asNonEmptyString).filter(Boolean).join('\n')
+    : undefined
 
-      const stringValue = stringifyValue(value)
-      const valueComponent = stringValue.trim() !== ''
-        ? <Text size='xs' text={stringValue} />
-        : missingComponent;
+  const rows: Array<{key: string, labelTx: TxKeyPath, icon: IconTypes, display: string, copy: string, onPress?: () => void}> = []
 
-      const handleLongPress = () => {
-        if (stringValue.trim() === '') return;
-        Clipboard.setString(stringValue)
-        props.popupMessage(translate('commonCopySuccessParam', { param: stringValue }))
-      }
-
-      // @ts-ignore no-implicit-any
-      const leftComponent = key in iconMap ? <Icon icon={iconMap[key]} color={iconColor}/> : void 0
-      // @ts-ignore no-implicit-any
-
-      return <ListItem 
-        LeftComponent={leftComponent}
-        text={key}
-        textStyle={$sizeStyles.xs}
-        RightComponent={<View style={{ width: spacing.screenWidth * 0.6 }}>{valueComponent}</View>}
-        topSeparator={index !== 0}
-        key={key}
-        onLongPress={handleLongPress}
-        style={$listItem}
-      />
+  if (version) {
+    rows.push({key: 'version', labelTx: 'mintInfo_detail_version', icon: 'faInfoCircle', display: version, copy: version})
+  }
+  if (pubkey) {
+    rows.push({key: 'pubkey', labelTx: 'mintInfo_detail_pubkey', icon: 'faKey', display: truncateMiddle(pubkey), copy: pubkey})
+  }
+  if (urls) {
+    rows.push({key: 'urls', labelTx: 'mintInfo_detail_urls', icon: 'faGlobe', display: urls, copy: urls})
+  }
+  if (tosUrl) {
+    rows.push({
+      key: 'tos',
+      labelTx: 'mintInfo_detail_tos',
+      icon: 'faShieldHalved',
+      display: tosUrl,
+      copy: tosUrl,
+      onPress: () => Linking.openURL(tosUrl).catch(e =>
+        log.warn('[DetailsCard]', 'Could not open tos url', {message: e?.message}),
+      ),
     })
-  return <>{items}</>
-}
-
-/** the `methods` array of a given nut, or empty if the mint did not publish it */
-function getNutMethods(info: GetInfoResponse, nut: '4' | '5'): Array<SwapMethod> {
-  const methods = (info?.nuts as any)?.[nut]?.methods
-  return Array.isArray(methods) ? methods : []
-}
-
-function getSatLimit(methods: Array<SwapMethod>): false | MethodLimit {
-  for (const method of methods) {
-    if (!method || method.unit !== 'sat') continue
-    if (typeof method.min_amount === 'undefined' && typeof method.max_amount === 'undefined') continue
-    return {
-      min: method.min_amount !== undefined ? Number(method.min_amount) : undefined,
-      max: method.max_amount !== undefined ? Number(method.max_amount) : undefined,
-    }
   }
-  return false
+
+  if (rows.length === 0) return null
+
+  return (
+    <Card
+      labelTx="mintInfo_keyValueInfoCardHeading"
+      ContentComponent={
+        <>
+          {rows.map((row, index) => (
+            <ListItem
+              key={row.key}
+              style={$compactListItem}
+              tx={row.labelTx}
+              textStyle={$sizeStyles.xs}
+              LeftComponent={<Icon icon={row.icon} color={textDim} />}
+              RightComponent={
+                <View style={{width: spacing.screenWidth * 0.6}}>
+                  <Text text={row.display} size="xs" />
+                </View>
+              }
+              topSeparator={index !== 0}
+              onPress={row.onPress}
+              onLongPress={() => props.onCopy(row.copy)}
+            />
+          ))}
+        </>
+      }
+    />
+  )
 }
 
-function getMintLimits(info: GetInfoResponse) {
-  // later this can be adjusted to show USD/other units as well. for now only shows limits if they are in sats
-  const mintSats = getSatLimit(getNutMethods(info, '4'))
-  const meltSats = getSatLimit(getNutMethods(info, '5'))
+// === Styles ===
 
-  return {
-    mintSats,
-    meltSats,
-    any: mintSats || meltSats,
-    both: mintSats && meltSats,
-  }
+const $screen: ViewStyle = {}
+
+const $tightIcon: ViewStyle = {paddingHorizontal: 0}
+
+const $statValue: TextStyle = {
+  flex: 1,
+  textAlign: 'right',
 }
 
-const $screen: ViewStyle = { }
-const $nutIcon: ViewStyle = { paddingHorizontal: 0 }
+const $statValueLeft: TextStyle = {
+  flex: 1,
+}
 
-const $limitItem: ViewStyle = {
-  alignItems: 'center',
+const $warningsBox: ViewStyle = {
   flexDirection: 'row',
-  width: '50%',
+  alignItems: 'flex-start',
+  gap: spacing.small,
+  borderWidth: 1,
+  borderRadius: spacing.small,
+  padding: spacing.small,
+  marginBottom: spacing.small,
+}
+
+const $warningsText: ViewStyle = {
+  flex: 1,
+  gap: spacing.micro,
+}
+
+const $warningBullet: ViewStyle = {
+  flexDirection: 'row',
+  alignItems: 'flex-start',
   gap: spacing.extraSmall,
 }
-const $limitItemWrapper: ViewStyle = {
+
+const $statTileRow: ViewStyle = {
   flexDirection: 'row',
-  marginVertical: spacing.extraSmall  
+  gap: spacing.small,
+  marginBottom: spacing.small,
 }
 
-const $listItem: ViewStyle = {
-  columnGap: spacing.micro,
+const $statTile: ViewStyle = {
+  flex: 1,
+  borderRadius: spacing.small,
+  padding: spacing.small,
+  gap: spacing.micro,
+}
+
+const $timeline: ViewStyle = {
+  gap: spacing.extraSmall,
+  marginBottom: spacing.extraSmall,
+}
+
+const $timelineBars: ViewStyle = {
+  flexDirection: 'row',
+  alignItems: 'stretch',
+  gap: 2,
+  height: verticalScale(44),
+}
+
+const $timelineBar: ViewStyle = {
+  flex: 1,
+  borderRadius: 2,
+}
+
+const $timelineAxis: ViewStyle = {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+}
+
+const $methodBlockSeparated: ViewStyle = {
+  marginTop: spacing.small,
+  paddingTop: spacing.small,
+  borderTopWidth: 1,
+  borderTopColor: colors.palette.neutral500 + '40',
+}
+
+const $methodHeaderRow: ViewStyle = {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: spacing.extraSmall,
+  paddingVertical: spacing.tiny,
+}
+
+const $methodName: TextStyle = {
+  flex: 1,
+}
+
+const $limitRow: ViewStyle = {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: spacing.extraSmall,
+  paddingVertical: spacing.micro,
+  paddingLeft: spacing.small,
+}
+
+const $capabilityRow: ViewStyle = {
+  flexDirection: 'row',
+  alignItems: 'flex-start',
+  gap: spacing.extraSmall,
+  paddingVertical: spacing.tiny,
+}
+
+const $capabilityIcon: ViewStyle = {
+  paddingHorizontal: 0,
+  width: spacing.medium,
   alignItems: 'center',
 }
 
-const $headerContainer: TextStyle = {
+const $capabilityText: ViewStyle = {
+  flex: 1,
+}
+
+const $unsupportedWrapper: ViewStyle = {
+  marginTop: spacing.extraSmall,
+}
+
+const $nutRow: ViewStyle = {
+  flexDirection: 'row',
   alignItems: 'center',
-  // padding: spacing.tiny,
+  gap: spacing.extraSmall,
+  paddingVertical: spacing.micro,
+}
+
+const $nutCode: TextStyle = {
+  width: spacing.huge * 1.2,
+}
+
+const $compactListItem: ViewStyle = {
+  columnGap: spacing.tiny,
+  alignItems: 'center',
+}
+
+const $headerContainer: ViewStyle = {
+  alignItems: 'center',
   height: HEADER_HEIGHT,
 }
 
@@ -756,27 +1104,14 @@ const $headerContent: ViewStyle = {
   paddingBottom: spacing.huge,
 }
 
-const $contentContainer: TextStyle = {
+const $contentContainer: ViewStyle = {
   marginTop: -spacing.extraLarge * 1.5,
   rowGap: spacing.small,
   padding: spacing.extraSmall,
-  // alignItems: 'center',
 }
 
 const $rightContainer: ViewStyle = {
   padding: spacing.extraSmall,
   alignSelf: 'center',
   marginLeft: spacing.small,
-}
-
-const $nutItem: ViewStyle = {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'flex-start',
-  gap: spacing.extraSmall
-}
-
-const $contactListItem: ViewStyle = { 
-  flexDirection: 'row',
-  columnGap: spacing.tiny
 }

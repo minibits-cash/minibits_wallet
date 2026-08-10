@@ -55,6 +55,9 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
     const [isLoggerOn, setIsLoggerOn] = useState<boolean>(
         userSettingsStore.isLoggerOn,
     )
+    const [isMintAuditOn, setIsMintAuditOn] = useState<boolean>(
+        userSettingsStore.isMintAuditOn,
+    )
     const [isDerivedKeys, setIsDerivedKeys] = useState<boolean>(false)
     const [error, setError] = useState<AppError | undefined>()
 
@@ -81,6 +84,14 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
 
             setIsLoggerOn(result)
 
+        } catch (e: any) {
+            handleError(e)
+        }
+    }
+
+    const toggleMintAuditSwitch = () => {
+        try {
+            setIsMintAuditOn(userSettingsStore.setIsMintAuditOn(!isMintAuditOn))
         } catch (e: any) {
             handleError(e)
         }
@@ -358,6 +369,33 @@ export const PrivacyScreen = observer(function PrivacyScreen({ route }: Props) {
                                     onPress={upgradeToNostrDerivedKeys}
                                 />
                             )
+                        }
+                        style={$item}
+                    />
+                </>
+                }
+            />
+            <Card
+                style={[$card, {marginTop: spacing.medium}]}
+                ContentComponent={
+                <>
+                    <ListItem
+                        tx="privacyScreen_mintAudit"
+                        subTx="privacyScreen_mintAuditDescription"
+                        leftIcon={'faHeartPulse'}
+                        leftIconColor={
+                            isMintAuditOn
+                            ? colors.palette.iconViolet200
+                            : iconColor as string
+                        }
+                        leftIconInverse={true}
+                        RightComponent={
+                        <View style={$rightContainer}>
+                            <Switch
+                                onValueChange={toggleMintAuditSwitch}
+                                value={isMintAuditOn}
+                            />
+                        </View>
                         }
                         style={$item}
                     />
