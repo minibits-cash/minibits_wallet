@@ -1,6 +1,7 @@
-import {Token, TokenMetadata, getDecodedToken, getEncodedToken} from '@cashu/cashu-ts'
+import {Token, TokenMetadata, getEncodedToken} from '@cashu/cashu-ts'
 import {Mint} from '../../../models/Mint'
 import {CashuUtils} from '../../cashu/cashuUtils'
+import {decodeTokenWithKeysets} from '../decodeToken'
 import {MintUnit} from '../currency'
 import {
     receiveTask,
@@ -93,7 +94,7 @@ const receiveQueueAwaitable = (
         taskFunction: useBatch ? 'receiveBatchTask' : 'receiveTask',
         timeoutMessage: 'receiveQueue timed out',
         task: async () => {
-            const token = getDecodedToken(encodedToken, mint.keysetIds ?? [])
+            const token = await decodeTokenWithKeysets(encodedToken, mint.mintUrl)
             return (useBatch
                 ? await receiveBatchTask(token, amount, memo || '', encodedToken)
                 : await receiveTask(token, amount, memo || '', encodedToken)) as TransactionTaskResult

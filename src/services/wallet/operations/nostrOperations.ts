@@ -4,7 +4,6 @@ import {UnsignedEvent} from 'nostr-tools'
 import {
     PaymentRequestPayload,
     Token,
-    getDecodedToken,
     getTokenMetadata,
     decodePaymentRequest,
 } from '@cashu/cashu-ts'
@@ -33,6 +32,7 @@ import {
     receiveTask,
     receiveByCashuPaymentRequestTask,
 } from '../receiveTask'
+import {decodeTokenWithKeysets} from '../decodeToken'
 import {WalletUtils} from '../utils'
 import {
     HANDLE_CLAIM_TASK,
@@ -129,10 +129,16 @@ const handleClaimTask = async function (params: {
             }, Err.NOTFOUND_ERROR)
         }
 
-        decoded = getDecodedToken(encodedToken, mintKeysetIds)
+        // Refreshes the keysets and retries if the server minted this on a keyset
+        // the wallet has not seen yet — the claim is already consumed server-side
+        // at this point, so a decode failure here strands the ecash.
+        const decodedToken = await decodeTokenWithKeysets(encodedToken, tokenInfo.mint)
+        // Mirrored into the outer binding purely so the catch below can still report
+        // which mint the claim was for.
+        decoded = decodedToken
 
         const result: TransactionTaskResult = await receiveTask(
-            decoded,
+            decodedToken,
             Number(tokenInfo.amount),
             tokenInfo.memo || 'Received to Lightning address',
             encodedToken,
@@ -160,11 +166,11 @@ const handleClaimTask = async function (params: {
         }
 
         return {
-            mintUrl: decoded.mint,
+            mintUrl: decodedToken.mint,
             taskFunction: HANDLE_CLAIM_TASK,
             message: result.error ? result.error.message : 'Ecash sent to your lightning address has been received.',
             error: result.error || undefined,
-            proofsCount: decoded.proofs.length,
+            proofsCount: decodedToken.proofs.length,
             proofsAmount: result.transaction?.amount,
         } as WalletTaskResult
 
@@ -434,7 +440,10 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                 }, Err.NOTFOUND_ERROR)
             }
 
-            const decoded = getDecodedToken(incoming.encoded, mintKeysetIds)
+            // Refreshes the keysets and retries if the sender's ecash comes from a
+            // keyset this wallet has not seen yet (a mint that rotated keysets since
+            // the last time anything here touched it).
+            const decoded = await decodeTokenWithKeysets(incoming.encoded as string, mintUrl)
 
             const {transaction, receivedAmount} = await receiveTask(
                 decoded,

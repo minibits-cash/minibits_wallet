@@ -34,6 +34,7 @@ import {
     normalizeProofAmounts,
 } from '@cashu/cashu-ts'
 import {log} from '../../logService'
+import {decodeTokenWithKeysets} from '../decodeToken'
 import {MintError, ValidationError, WalletError} from '../../../utils/AppError'
 import {rootStoreInstance} from '../../../models'
 import {
@@ -304,7 +305,10 @@ async function execute(prepared: PreparedReceiveData): Promise<CompletedTransact
         throw new ValidationError('Missing mint', {mintUrl: prepared.mintUrl})
     }
 
-    const token = getDecodedToken(tx.inputToken, mintInstance.keysetIds ?? [])
+    // Refreshes the keysets and retries when the stored token turns out to carry a
+    // keyset id the wallet does not know — an offline-prepared receive can be
+    // executed long after it was prepared, by which time the mint may have rotated.
+    const token = await decodeTokenWithKeysets(tx.inputToken, mintInstance.mintUrl)
 
     // ── Swap proofs with the mint (with outputs-error healing retry) ────
     const {proofs, swapFeePaid} = await _receiveWithHealing(

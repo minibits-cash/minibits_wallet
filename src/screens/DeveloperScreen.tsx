@@ -38,7 +38,7 @@ import { TransactionStatus } from '../models/Transaction'
 import { maxTransactionsInHistory } from '../models/TransactionsStore'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 
-// refresh
+// 
 
 type Props = StaticScreenProps<undefined>
 

@@ -34,7 +34,7 @@ import { MINT_INFO_TTL_SECONDS, isMintInfoStale } from './helpers/mintInfoStale'
 import { getRootStore } from './helpers/getRootStore'
 import { Transaction } from './Transaction'
 
-// refresh
+// 
 
 /* 
    Not persisted, in-memory only model of the cashu-ts wallet instances and wallet keys persisted in the device secure store.
@@ -273,6 +273,59 @@ export const WalletStoreModel = types
           log.warn('[WalletStore.refreshMintInfoIfStale]', {mintUrl, error: e.message})
         }
       }),
+      /**
+       * Pull the mint's keyset list into the Mint model.
+       *
+       * Extracted from getMint, which is still the only routine caller: keysets are
+       * synced ONCE per process, on the first touch of a mint. There is deliberately
+       * no periodic refresh — the wallet is told when its list is wrong instead. A
+       * mint that rotates keysets (a nutshell -> cdk migration issues a new v2 `01…`
+       * keyset and flips the old `00…` ones inactive) makes the stale list fail
+       * loudly at exactly one place, the decode of an incoming token, because a v4
+       * token carries only an 8-byte PREFIX of a v2 id and getDecodedToken can map
+       * it back only through ids the wallet already knows. That failure calls
+       * refreshKeysetsNow and retries; polling would spend a /v1/keysets GET on
+       * every background wake to shorten a window that a cold start closes anyway.
+       *
+       * The keyset fetch runs BEFORE the model lookup on purpose: it is also how
+       * getMint learns the mint is reachable at all, and callers rely on that
+       * throw. `getKeys()` returns ACTIVE keys only (NUT-01), so it is worth
+       * calling only when a keyset we have never seen showed up.
+       */
+      syncKeysets: flow(function* syncKeysets(mintUrl: string, cashuMint: CashuMint) {
+        // All keysets, active and inactive.
+        const {keysets} = yield cashuMint.getKeySets() as Promise<GetKeysetsResponse>
+
+        // No model yet — this is a mint being added, and addMint seeds keysets and
+        // keys itself.
+        const mintInstance = self.getMintModelInstance(mintUrl)
+        if (!mintInstance) return
+
+        const newKeysets = keysets.filter((freshKeyset: MintKeyset) => {
+          return !mintInstance.keysets!.some((keyset: MintKeyset) => keyset.id === freshKeyset.id)
+        })
+
+        if (newKeysets.length > 0) {
+          const {keysets: keys} = yield cashuMint.getKeys() as Promise<GetKeysResponse>
+
+          // The mint may have been removed while the calls were in flight.
+          if (!isAlive(mintInstance)) return
+
+          mintInstance.refreshKeys!(keys)
+        }
+
+        if (!isAlive(mintInstance)) return
+
+        // Adds what is new, and syncs active flags and input fees on what is not.
+        mintInstance.refreshKeysets!(keysets)
+
+        if (newKeysets.length > 0) {
+          log.debug('[WalletStore.syncKeysets]', 'New keysets synced', {
+            mintUrl,
+            newKeysetIds: newKeysets.map((k: MintKeyset) => k.id),
+          })
+        }
+      }),
     }))
     .actions(self => ({
       getMint: flow(function* getMint(mintUrl: string) {
@@ -286,6 +339,12 @@ export const WalletStoreModel = types
           // once in a session never refreshed again for the rest of it. Fire-and-forget
           // so the caller's operation is not delayed by a getInfo() round trip;
           // observers re-render when fresher info lands.
+          //
+          // Keysets deliberately get NO periodic refresh to match: they are pulled
+          // once per process (below) and then only when something proves the list
+          // wrong — see refreshKeysetsNow. Polling them would put a /v1/keysets GET
+          // on every NWC background wake to cover a window (a session alive across a
+          // mint's keyset rotation) that a cold start closes by itself.
           void self.refreshMintInfoIfStale(mintUrl, mint as CashuMint)
           return mint as CashuMint
         }
@@ -296,29 +355,16 @@ export const WalletStoreModel = types
         // create cashu-ts mint instance
         const newMint = new CashuMint(mintUrl)
 
-        // get fresh keysets - returns all keysets, both active and inactive
-        const {keysets} = yield newMint.getKeySets()
+        // First touch in this process: sync keysets, keys and active statuses.
+        // Throws when the mint is unreachable, which is how callers learn it is
+        // offline — so this is awaited, not fired off.
+        yield self.syncKeysets(mintUrl, newMint)
 
         // get persisted mint model from wallet state
         const mintInstance = self.getMintModelInstance(mintUrl)
 
         // skip checks if this is new mint being added
         if(mintInstance) {
-          const newKeysets = keysets.filter((freshKeyset: MintKeyset) => {
-            return !mintInstance.keysets!.some((keyset: MintKeyset) => keyset.id === freshKeyset.id)
-          })
-
-          if(newKeysets.length > 0) {
-            // if we have new keysets, get and sync new keys
-            // this, for perf reasons, returns ONLY active keys so
-            // mintInstance can not be directly used to restore from inactive keysets
-            const {keysets: keys} = yield newMint.getKeys() as Promise<GetKeysResponse>
-            mintInstance.refreshKeys!(keys)
-          }
-
-          // sync wallet state with fresh keysets, active statuses and keys
-          mintInstance.refreshKeysets!(keysets)
-
           // fetch and cache mintInfo if not already cached or gone stale
           if(isMintInfoStale(mintInstance.mintInfo)) {
             const info: GetInfoResponse = yield newMint.getInfo()
@@ -333,7 +379,28 @@ export const WalletStoreModel = types
       })
     }))
     .actions(self => ({
-      getWallet: flow(function* getWallet(    
+      /**
+       * Re-pull the mint's keyset list NOW, and wait for it.
+       *
+       * The wallet's one signal that its list has gone stale: a token decode that
+       * failed because a v2 keyset id — which travels through a v4 token as an
+       * 8-byte prefix — could not be expanded against any id the wallet holds. Since
+       * keysets are otherwise pulled once per process, this is what closes the gap
+       * after a mint rotates its keysets, and it is why nothing has to poll.
+       *
+       * getMint's own cold path has just synced when it had to CREATE the cashu-ts
+       * instance, so the second pull is skipped in that case rather than fetching
+       * the same list twice.
+       */
+      refreshKeysetsNow: flow(function* refreshKeysetsNow(mintUrl: string) {
+        const wasCached = self.mints.some(m => m.mintUrl === mintUrl)
+        const cashuMint: CashuMint = yield self.getMint(mintUrl)
+
+        if (wasCached) {
+          yield self.syncKeysets(mintUrl, cashuMint)
+        }
+      }),
+      getWallet: flow(function* getWallet(
         mintUrl: string,
         unit: MintUnit,
         options?: {
