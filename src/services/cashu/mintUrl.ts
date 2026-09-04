@@ -1,3 +1,4 @@
+import {normalizeMintUrl as cashuNormalizeMintUrl} from '@cashu/cashu-ts'
 import AppError, {Err} from '../../utils/AppError'
 
 /**
@@ -34,52 +35,45 @@ export const isOnionMintUrl = function (mintUrl: string): boolean {
 /**
  * Normalize a mint url to its canonical form, or throw AppError(VALIDATION_ERROR).
  *
- * Two rules, from different authorities:
+ * The canonicalization itself is cashu-ts's `normalizeMintUrl`, not a copy of it.
+ * That matters because WalletStore finds cached CashuMint/CashuWallet instances by
+ * comparing our stored string against `CashuMint.mintUrl` (`m.mintUrl === mintUrl`,
+ * `w.mint.mintUrl === mintUrl`), and `new CashuMint(url)` stores exactly what this
+ * function returns. Any drift between the two spellings would make every cache
+ * lookup miss and the wallet would treat one mint as two.
  *
- *  1. NUT-00 requires the trailing slash be gone. On the v3 token: "The mint URL
- *     must be stripped of any trailing slashes (/)"; on v4: "The mint URL MUST be
- *     normalized by stripping any trailing slashes (/)". That is the whole of what
- *     the spec mandates — it says nothing about case or any other form.
+ * This used to reimplement the rule (`parsed.href` with trailing slashes stripped)
+ * because cashu-ts's version was `@internal`. cashu-ts 4.8 renamed it to
+ * `normalizeMintUrl` and made it public, so the copy — and the standing obligation
+ * to keep it in step by hand — is gone.
  *
- *  2. cashu-ts canonicalizes further, and we MUST match it. `new CashuMint(url)`
- *     stores `normalizeUrl(url)` = `parsed.href` with trailing slashes stripped,
- *     which also lowercases scheme and host and drops a default port. WalletStore
- *     compares our stored string against that value directly (`m.mintUrl ===
- *     mintUrl`, `w.mint.mintUrl === mintUrl`) to find cached CashuMint/CashuWallet
- *     instances. Normalizing the raw input instead would let `https://Mint.Example`
- *     be stored while cashu-ts holds `https://mint.example`: every cache lookup
- *     misses, and the wallet would treat the two spellings as two different mints.
- *     cashu-ts's normalizeUrl is @internal (not exported), hence the reimplementation
- *     here — it must be kept in step with it.
+ * cashu-ts enforces NUT-00's trailing-slash rule plus its own canonical form
+ * (lowercased scheme and host, default port dropped), and rejects credentials,
+ * query strings, fragments and percent-encoded paths. Those rejections used to be
+ * left to the `new CashuMint()` call further down; delegating moves them here,
+ * which is strictly earlier and therefore better.
  *
  * The https requirement is ours alone and stricter than cashu-ts, which permits
- * http for any host.
- *
- * cashu-ts additionally rejects credentials, query strings, fragments and
- * percent-encoded paths. Those are deliberately NOT re-checked here: both callers
- * construct a CashuMint against the url before anything is stored, so cashu-ts
- * raises them itself — duplicating the rules would only invite drift.
+ * http for any host — so it stays here, applied to the normalized url.
  */
 export const normalizeMintUrl = function (mintUrl: string): string {
   if (!mintUrl || !mintUrl.trim()) {
     throw new AppError(Err.VALIDATION_ERROR, 'Mint URL is required.')
   }
 
-  let parsed: URL
+  let normalized: string
   try {
-    parsed = new URL(mintUrl.trim())
+    normalized = cashuNormalizeMintUrl(mintUrl.trim())
   } catch {
+    // cashu-ts raises CTSError; the wallet speaks AppError.
     throw new AppError(Err.VALIDATION_ERROR, 'Invalid Mint URL.', {mintUrl})
   }
 
-  // Protocol equality, not `startsWith('https')` — the latter also accepts a
-  // scheme merely PREFIXED with https (`https-evil://host` parses fine).
-  if (parsed.protocol !== 'https:' && !isOnionMintUrl(parsed.href)) {
+  // Checked on the NORMALIZED url, so the scheme has already been lowercased and
+  // the host is the parsed hostname rather than a substring of the raw input.
+  if (!normalized.startsWith('https:') && !isOnionMintUrl(normalized)) {
     throw new AppError(Err.VALIDATION_ERROR, 'Mint URL needs to start with https.', {mintUrl})
   }
 
-  // `href` first (canonical), THEN strip: the parser appends a trailing slash to
-  // an origin-only url, so stripping last removes both that and any the caller
-  // typed. Identical to cashu-ts normalizeUrl.
-  return parsed.href.replace(/\/+$/, '')
+  return normalized
 }

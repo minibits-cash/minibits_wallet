@@ -15,8 +15,15 @@ import { IconTypes } from '../../components'
 import { TxKeyPath } from '../../i18n'
 import { MintUnit, MintUnits } from '../../services/wallet/currency'
 
-/** `icon_url` is not in cashu-ts' type yet, but every mint publishes it. */
-export type MintInfo = GetInfoResponse & {icon_url?: string; tos_url?: string; urls?: string[]}
+/**
+ * A mint's NUT-06 info, named for what it is at this layer.
+ *
+ * This used to widen `GetInfoResponse` with `icon_url`, `tos_url` and `urls`,
+ * which mints publish but cashu-ts did not type. cashu-ts 4.10 carries all
+ * three (plus `time` and `max_array_length`), so the widening is gone and the
+ * response type is taken as-is.
+ */
+export type MintInfo = GetInfoResponse
 
 // === NUT support ===
 

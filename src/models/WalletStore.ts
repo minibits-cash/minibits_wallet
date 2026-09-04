@@ -636,8 +636,7 @@ export const WalletStoreModel = types
                 }
             }
 
-            // @ts-ignore
-            if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
+            if (cashuWallet.getMintInfo().isSupported(19).supported && !options?.inFlightRequest) {
                 Database.addInFlightRequest(transactionId, receiveParams)
             }
 
@@ -751,8 +750,7 @@ export const WalletStoreModel = types
                 }
             }
 
-            // @ts-ignore
-            if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
+            if (cashuWallet.getMintInfo().isSupported(19).supported && !options?.inFlightRequest) {
                 Database.addInFlightRequest(transactionId, sendParams)
             }
 
@@ -1061,8 +1059,7 @@ export const WalletStoreModel = types
             // request hits the mint's NUT-19 cache and returns the same signatures.
             // Identical outputs depend on the counter NOT having advanced, which holds:
             // onCountersReserved never fired, so we never wrote it back.
-            // @ts-ignore
-            if (cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
+            if (cashuWallet.getMintInfo().isSupported(19).supported && !options?.inFlightRequest) {
                 Database.addInFlightRequest(transactionId, mintParams)
             }
 
@@ -1163,8 +1160,7 @@ export const WalletStoreModel = types
                 }
             }
 
-            // @ts-ignore
-            if(cashuWallet.getMintInfo().nuts['19'] && !options?.inFlightRequest) {
+            if (cashuWallet.getMintInfo().isSupported(19).supported && !options?.inFlightRequest) {
                 Database.addInFlightRequest(transactionId, mintParams)
             }
 
