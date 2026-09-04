@@ -27,7 +27,8 @@ import AppError, { Err } from '../utils/AppError'
 import { LightningUtils } from '../services/lightning/lightningUtils'
 import EventEmitter from '../utils/eventEmitter'
 import { addSeconds } from 'date-fns/addSeconds'
-import { Transaction, TransactionStatus, TransactionType } from './Transaction'
+import { Transaction, TransactionStatus } from './Transaction'
+import { toNwcTransaction, toNwcTransactionQuery } from './NwcTransaction'
 import { MeltQuoteBolt11Response } from '@cashu/cashu-ts'
 import { WalletStore } from './WalletStore'
 import { ProofsStore } from './ProofsStore'
@@ -75,19 +76,6 @@ const isNwcPending = (
     r: NwcResponse | NwcError | NwcPending,
 ): r is NwcPending => (r as NwcPending).pending === true
 
-type NwcTransaction = {
-    type: string,
-    invoice: string,
-    description: string | null,
-    preimage: string | null,
-    payment_hash: string | null,
-    amount: number,
-    fees_paid: number | null,
-    created_at: number,
-    settled_at: number | null
-    expires_at: number | null
-}
-
 export const nwcPngUrl = 'https://1044827509-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2F0JQfRPMJ4uO7z9wmnAOK%2Fuploads%2FVO76qdgzHHzWSDsHQXdu%2FGroup%201000001143%20(1).png?alt=media&token=0fdb70b7-bb19-4bed-a752-a0560585c2f4&width=512&dpr=1&quality=100&sign=57c41699&sv=1'
 
 const getConnectionRelays = function () {
@@ -98,6 +86,17 @@ const getConnectionRelays = function () {
 }
 
 export const LISTEN_FOR_NWC_EVENTS = 'listenForNwcEvents'
+
+/**
+ * NWC methods whose failures are worth a local notification, with the prefix each
+ * one gets. Only the money-moving commands: everything else a client sends is
+ * either a probe or a query it can safely retry.
+ */
+const NOTIFIED_ERROR_METHODS: {[method: string]: string} = {
+    pay_invoice: 'Pay invoice error: ',
+    multi_pay_invoice: 'Multi pay invoice error: ',
+    make_invoice: 'Create invoice error: ',
+}
 
 export const MIN_LIGHTNING_FEE = 2 // sats
 export const LIGHTNING_FEE_PERCENT = 1
@@ -239,37 +238,19 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             created_at: Math.floor(Date.now() / 1000)
         }
         
-        // notify errors
-        
-        if((nwcResponse as NwcError).error) {
-            let body = ''
-            if(nwcResponse.result_type === 'pay_invoice') {
-                body = 'Pay invoice error: '
-            }
+        // Notify errors — but only the ones the user can act on.
+        //
+        // A client is entitled to probe: it asks for methods this wallet does not
+        // implement and gets NOT_IMPLEMENTED, which is the correct answer, not a
+        // failure. Read-only queries are retried freely for the same reason. Buzzing
+        // the phone for either trains the user to ignore NWC notifications, so only
+        // the commands that were going to move money notify.
+        const error = (nwcResponse as NwcError).error
 
-            if(nwcResponse.result_type === 'multi_pay_invoice') {
-                body = 'Multi pay invoice error: '
-            }
-
-            if(nwcResponse.result_type === 'get_balance') {
-                body = 'Get balance error: '
-            }
-
-            if(nwcResponse.result_type === 'list_transactions') {
-                body = 'List transactions error: '
-            }
-
-            if(nwcResponse.result_type === 'make_invoice') {
-                body = 'Create invoice error: '
-            }
-
-            if(nwcResponse.result_type === 'lookup_invoice') {
-                body = 'Lookup invoice error: '
-            }            
-            
+        if(error && error.code !== 'NOT_IMPLEMENTED' && NOTIFIED_ERROR_METHODS[nwcResponse.result_type]) {
             yield NotificationService.createLocalNotification(
                 Platform.OS === 'android' ? `<b>${self.name}</b> - Nostr Wallet Connect` : `${self.name} - Nostr Wallet Connect`,
-                body + (nwcResponse as NwcError).error.message,
+                NOTIFIED_ERROR_METHODS[nwcResponse.result_type] + error.message,
                 nwcPngUrl
             )            
         }    
@@ -455,30 +436,16 @@ export const NwcConnectionModel = types.model('NwcConnection', {
         return nwcResponse   
     },
     handleListTransactions (nwcRequest: NwcRequest): NwcResponse {
-        const rootStore = getRootStore(self)
-        const {transactionsStore} = rootStore
-        const lightningTransactions = transactionsStore.history.filter(
-            (t: Transaction) => (t.type === TransactionType.TOPUP || 
-            t.type === TransactionType.TRANSFER) && 
-            t.status === TransactionStatus.COMPLETED
-        )
+        // Read straight from SQLite. transactionsStore.history is the wrong source
+        // twice over: it holds only the last handful of rows, and on a lean
+        // background NWC wake it has not been hydrated at all — which is how a
+        // wallet full of transactions answered this with an empty list.
+        const transactions = Database
+            .getTransactionsForNwc(toNwcTransactionQuery(nwcRequest.params))
+            .map(toNwcTransaction)
 
-        // TODO barebones implementation, no paging commands support
-        const transactions = lightningTransactions.map((t: Transaction) => {
-            return {                
-                type: t.type === TransactionType.TOPUP ? 'incoming' : 'outgoing',
-                invoice: t.paymentRequest,
-                description: t.memo,
-                preimage: t.proof,
-                payment_hash: t.paymentId,
-                amount: t.amount * 1000,
-                fees_paid: t.fee,
-                created_at: Math.floor(t.createdAt.getTime() / 1000),
-                settled_at: Math.floor(t.createdAt.getTime() / 1000),
-                expires_at: t.expiresAt ? Math.floor(t.expiresAt.getTime() / 1000) : 0,                  
-            } as NwcTransaction
-        })
-        
+        log.trace('[Nwc.handleListTransactions]', {connection: self.name, returned: transactions.length})
+
         const nwcResponse: NwcResponse = {
             result_type: nwcRequest.method,
             result: {
@@ -491,15 +458,15 @@ export const NwcConnectionModel = types.model('NwcConnection', {
     handleGetBalance(nwcRequest: NwcRequest) {
         // Read from SQLite so this works on a lean NWC wake (proof map not
         // hydrated). Mirrors proofsStore.getMintBalanceWithMaxBalance('sat').
+        //
+        // Reports the spendable balance, NOT min(balance, remaining daily limit).
+        // The limit is a per-connection spending budget, not the user's money, and
+        // clamping the balance to it made the wallet appear to lose funds as the
+        // day's limit was used up and gain them back at midnight. The limit is
+        // still enforced where it belongs — in payInvoice, which rejects a payment
+        // over it with a message saying so.
         const balance = Database.getMintBalanceWithMaxBalance('sat')
-        const limit = self.remainingDailyLimit
-        let resultBalanceMsat = 0
-
-        if(balance && balance > 0 && limit > 0) {
-            resultBalanceMsat = (Math.min(balance, limit)) * 1000
-        } else {
-            resultBalanceMsat = 0
-        }
+        const resultBalanceMsat = balance && balance > 0 ? balance * 1000 : 0
 
         const nwcResponse: NwcResponse = {
             result_type: nwcRequest.method,
@@ -549,18 +516,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             const {transaction} = result
             nwcResponse = {
                 result_type: 'make_invoice',
-                result: {
-                    type: 'incoming',
-                    invoice: transaction.paymentRequest,
-                    description: transaction.memo,                                    
-                    payment_hash: transaction.paymentId,
-                    amount: transaction.amount * 1000,
-                    fees_paid: transaction.fee,
-                    created_at: Math.floor(transaction.createdAt!.getTime() / 1000),
-                    expires_at: Math.floor(transaction.expiresAt!.getTime() / 1000),                    
-                    preimage: null,
-                    settled_at: null
-                } as NwcTransaction
+                result: toNwcTransaction(transaction)
             } as NwcResponse
 
             yield NotificationService.createLocalNotification(
@@ -597,20 +553,13 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             } as NwcError
         }
 
+        // Same mapper as list_transactions: the direction follows the transaction
+        // type (this can be asked about an outgoing payment), settled_at is null
+        // while the invoice is unpaid, and a transaction with no expiry does not
+        // throw on a missing expiresAt.
         return {
             result_type: nwcRequest.method,
-            result: {
-                type: 'incoming',
-                invoice: transaction.paymentRequest,
-                description: transaction.memo,                                    
-                payment_hash: transaction.paymentId,
-                amount: transaction.amount * 1000,
-                fees_paid: transaction.fee,
-                created_at: Math.floor(transaction.createdAt!.getTime() / 1000),
-                expires_at: Math.floor(transaction.expiresAt!.getTime() / 1000),                    
-                preimage: transaction.proof,
-                settled_at: Math.floor(transaction.createdAt!.getTime() / 1000)
-            } as NwcTransaction
+            result: toNwcTransaction(transaction)
         } as NwcResponse
     },
     handlePayInvoice: flow(function* handlePayInvoice(nwcRequest: NwcRequest, requestEvent: NostrEvent) {
@@ -718,7 +667,10 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                     error: { code: 'NOT_IMPLEMENTED', message}
                 } as NwcError
 
-                log.error(message, {nwcRequest})
+                // Routine, not an anomaly: clients legitimately probe for optional
+                // methods and NOT_IMPLEMENTED is the answer NIP-47 asks for. This
+                // used to be log.error, which reported every probe to Sentry.
+                log.debug('[Nwc.handleRequest]', message, {method: nwcRequest.method})
         }
 
         // support for multiple responses from one nwc request (multi_pay_invoice)

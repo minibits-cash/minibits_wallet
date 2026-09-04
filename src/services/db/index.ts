@@ -15,6 +15,7 @@ import {
   getTransactionsAsync,
   searchTransactionsAsync,
   searchTransactionsCount,
+  getTransactionsForNwc,
   getPendingTopups,
   getPendingTopupsCount,
   getPendingTransfers,
@@ -89,7 +90,7 @@ import {
   seedMints,
 } from './mintsRepo'
 
-export type {TransactionSearchFilters} from './transactionsRepo'
+export type {TransactionSearchFilters, NwcTransactionQuery} from './transactionsRepo'
 export type {
   LockedProofSnapshot,
   ReservationRow,
@@ -119,6 +120,7 @@ export const Database = {
   getTransactionsAsync,
   searchTransactionsAsync,
   searchTransactionsCount,
+  getTransactionsForNwc,
   getPendingTopups,
   getPendingTopupsCount,
   getPendingTransfers,

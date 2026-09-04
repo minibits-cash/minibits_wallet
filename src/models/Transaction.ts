@@ -41,6 +41,39 @@ export enum TransactionType {
     TRANSFER_ONCHAIN = 'TRANSFER_ONCHAIN',
 }
 
+/**
+ * Transaction types that ADD to the balance.
+ *
+ * Direction is a property of the type, not of the payment rail: ecash arriving in
+ * a token (RECEIVE), over a Lightning address (also RECEIVE — the mint melts for
+ * the payer and the wallet receives the ecash), by payment request, or minted from
+ * a bolt11/onchain deposit all move money the same way.
+ *
+ * Single source of truth for the incoming/outgoing split, shared by the history
+ * search filters and the NIP-47 `type` field over NWC.
+ */
+export const INCOMING_TRANSACTION_TYPES: TransactionType[] = [
+    TransactionType.RECEIVE,
+    TransactionType.RECEIVE_OFFLINE,
+    TransactionType.RECEIVE_NOSTR,
+    TransactionType.RECEIVE_BY_PAYMENT_REQUEST,
+    TransactionType.TOPUP,
+    TransactionType.TOPUP_ONCHAIN,
+]
+
+/** Transaction types that SUBTRACT from the balance. See INCOMING_TRANSACTION_TYPES. */
+export const OUTGOING_TRANSACTION_TYPES: TransactionType[] = [
+    TransactionType.SEND,
+    TransactionType.TRANSFER,
+    TransactionType.TRANSFER_ONCHAIN,
+]
+
+export type TransactionDirection = 'incoming' | 'outgoing'
+
+export const getTransactionDirection = function (type: TransactionType): TransactionDirection {
+    return INCOMING_TRANSACTION_TYPES.includes(type) ? 'incoming' : 'outgoing'
+}
+
 export enum TransactionStatus {
     DRAFT = 'DRAFT',
     PREPARED = 'PREPARED',

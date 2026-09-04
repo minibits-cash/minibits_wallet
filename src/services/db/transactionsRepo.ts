@@ -1,4 +1,10 @@
-import {Transaction, TransactionStatus} from '../../models/Transaction'
+import {
+  INCOMING_TRANSACTION_TYPES,
+  OUTGOING_TRANSACTION_TYPES,
+  Transaction,
+  TransactionDirection,
+  TransactionStatus,
+} from '../../models/Transaction'
 import AppError, {Err} from '../../utils/AppError'
 import {log} from '../logService'
 import {getInstance} from './instance'
@@ -128,8 +134,11 @@ export type TransactionSearchFilters = {
   pending: boolean
 }
 
-const INCOMING_TYPES = ['RECEIVE', 'RECEIVE_OFFLINE', 'RECEIVE_BY_PAYMENT_REQUEST', 'RECEIVE_NOSTR', 'TOPUP']
-const OUTGOING_TYPES = ['SEND', 'TRANSFER']
+// Shared with the NIP-47 `type` field over NWC — see models/Transaction.ts. The
+// onchain types used to be missing here, which silently hid every onchain topup
+// and melt from the incoming/outgoing search filters.
+const INCOMING_TYPES: string[] = INCOMING_TRANSACTION_TYPES
+const OUTGOING_TYPES: string[] = OUTGOING_TRANSACTION_TYPES
 
 const buildSearchWhere = (term: string, filters: TransactionSearchFilters): {clause: string; params: any[]} => {
   const conditions: string[] = []
@@ -208,6 +217,82 @@ export const searchTransactionsCount = function (
     throw dbError('Transactions search count failed', e)
   }
 }
+
+export type NwcTransactionQuery = {
+  /** NWC speaks sats only, so the caller pins the unit. */
+  unit: string
+  /** Restrict to one NIP-47 direction; both when omitted. */
+  direction?: TransactionDirection
+  /** Inclusive lower/upper bounds on createdAt. */
+  from?: Date
+  until?: Date
+  /** NIP-47 `unpaid`: also return transactions that have not settled yet. */
+  unpaid?: boolean
+  limit: number
+  offset: number
+}
+
+/**
+ * A page of transactions for a NIP-47 `list_transactions` reply.
+ *
+ * Queries SQLite rather than reading transactionsStore.history, for two reasons:
+ * history keeps only the last `maxTransactionsInHistory` rows, and on a lean
+ * background NWC wake it is not hydrated at all — so paging over it could never
+ * answer the request, and off a background wake it would have answered "no
+ * transactions" for a wallet full of them.
+ *
+ * `createdAt` is stored as an ISO-8601 UTC string, so the range bounds compare
+ * lexicographically.
+ */
+export const getTransactionsForNwc = function (q: NwcTransactionQuery): Transaction[] {
+  try {
+    const types =
+      q.direction === 'incoming'
+        ? INCOMING_TYPES
+        : q.direction === 'outgoing'
+        ? OUTGOING_TYPES
+        : [...INCOMING_TYPES, ...OUTGOING_TYPES]
+
+    // RECOVERED settled too — it is a stuck operation that did complete (a mint
+    // quote paid after expiry), and the money moved.
+    const statuses = [TransactionStatus.COMPLETED, TransactionStatus.RECOVERED]
+    if (q.unpaid) statuses.push(TransactionStatus.PENDING)
+
+    const conditions = [
+      'unit = ?',
+      `type IN (${types.map(() => '?').join(',')})`,
+      `status IN (${statuses.map(() => '?').join(',')})`,
+    ]
+    const params: any[] = [q.unit, ...types, ...statuses]
+
+    if (q.from) {
+      conditions.push('createdAt >= ?')
+      params.push(q.from.toISOString())
+    }
+    if (q.until) {
+      conditions.push('createdAt <= ?')
+      params.push(q.until.toISOString())
+    }
+
+    const query = `
+      SELECT *
+      FROM transactions
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY createdAt DESC, id DESC
+      LIMIT ? OFFSET ?
+    `
+
+    const db = getInstance()
+    const {rows} = db.execute(query, [...params, q.limit, q.offset])
+
+    log.trace(`[getTransactionsForNwc] Returned ${rows?.length} rows`)
+
+    return normalizeTransactionRows(rows)
+  } catch (e: any) {
+    throw dbError('Transactions could not be retrieved from the database', e)
+  }
+}
+
 
 export const getPendingTopups = function () {
   try {
