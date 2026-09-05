@@ -11,9 +11,14 @@
  *     Undefined key for amount N in keyset X
  *
  * when X's keys are not loaded. This test reproduces that precondition at the cashu-ts
- * KeyChain level (the layer WalletStore.getWallet builds) and proves that
- * `ensureKeysetKeys` — which WalletStore.receive now calls for every input proof's
- * keyset — loads the missing keys.
+ * KeyChain level (the layer WalletStore.getWallet builds), and then proves that a
+ * receive resolves it WITHOUT the wallet's help.
+ *
+ * WalletStore.receive used to pre-load those keys itself, looping
+ * `keyChain.ensureKeysetKeys` over the token's proof ids. cashu-ts 4.9 made that
+ * redundant: `wallet.receive` -> `prepareSwapToReceive` calls
+ * `_ensureOperableKeysets` over the same ids before its DLEQ loop. The loop was
+ * removed, and the last describe below is what licenses that removal.
  *
  * Deterministic and offline: keysets are generated with cashu-ts crypto primitives, so
  * the derived ids genuinely verify against their keys (a partial or fake keyset would
@@ -25,12 +30,27 @@ import {
   deriveKeysetId,
   getPubKeyFromPrivKey,
   KeyChain,
+  Wallet,
 } from '@cashu/cashu-ts'
 import type {MintKeys, MintKeyset} from '@cashu/cashu-ts'
 import {bytesToHex} from '@noble/curves/utils.js'
 
 const MINT_URL = 'https://mint.test/sat'
 const AMOUNTS = [1, 2, 4, 8, 16, 32]
+
+/** Minimal NUT-06 info — enough for MintInfo to construct; no capabilities are read. */
+const MINT_INFO = {
+  name: 'test mint',
+  pubkey: '02'.padEnd(66, 'a'),
+  version: 'test/1.0',
+  description: '',
+  contact: [],
+  nuts: {
+    '4': {methods: [], disabled: false},
+    '5': {methods: [], disabled: false},
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+} as any
 
 /** A valid v0 keyset whose id genuinely derives from its keys. */
 const makeKeyset = (
@@ -100,7 +120,7 @@ describe('a keychain that also has the inactive keyset keys', () => {
   })
 })
 
-describe('ensureKeysetKeys — the fix WalletStore.receive relies on', () => {
+describe('KeyChain.ensureKeysetKeys — the mechanism cashu-ts uses internally', () => {
   test('loads keys for an inactive keyset that the active-only cache omitted', async () => {
     // A mint that serves the inactive keyset's keys on the per-id endpoint — cdk does
     // exactly this at /v1/keys/{id}, verified against the live migration mint.
@@ -145,5 +165,90 @@ describe('ensureKeysetKeys — the fix WalletStore.receive relies on', () => {
     await kc.ensureKeysetKeys(active.meta.id)
 
     expect(fakeMint.getKeys).not.toHaveBeenCalled()
+  })
+})
+
+describe('prepareSwapToReceive loads input keyset keys on its own', () => {
+  // The evidence for deleting WalletStore.receive's ensureKeysetKeys loop. A wallet
+  // is given the cache the wallet really builds — every keyset's metadata, but keys
+  // for the ACTIVE one only — and handed a token signed by the INACTIVE keyset. If
+  // cashu-ts did not fetch those keys itself, its own DLEQ loop would throw
+  // "Undefined key for amount 16".
+  const buildWallet = () => {
+    const getKeys = jest.fn(async (id?: string) => ({
+      keysets: [id === inactive.meta.id ? inactive.keys : active.keys],
+    }))
+
+    const fakeMint = {
+      mintUrl: MINT_URL,
+      getKeys,
+      getInfo: jest.fn(async () => MINT_INFO),
+      setMintInfo: jest.fn(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any
+
+    const wallet = new Wallet(fakeMint, {unit: 'sat'})
+    wallet.loadMintFromCache(
+      MINT_INFO,
+      // Active keys only — exactly what getKeys() with no id returns (NUT-01).
+      KeyChain.mintToCacheDTO(MINT_URL, [inactive.meta, active.meta], [active.keys]),
+    )
+
+    return {wallet, getKeys}
+  }
+
+  /** A token from the inactive keyset. No DLEQ: absent is valid, only INVALID throws. */
+  const tokenFromInactive = () =>
+    ({
+      mint: MINT_URL,
+      unit: 'sat',
+      proofs: [{id: inactive.meta.id, amount: 16, secret: 's1', C: '02' + '11'.repeat(32)}],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }) as any
+
+  test('the cache really is missing the inactive keys to begin with', () => {
+    const {wallet} = buildWallet()
+
+    expect(wallet.keyChain.getKeyset(inactive.meta.id).hasKeys).toBe(false)
+  })
+
+  test('it fetches the inactive keyset by id', async () => {
+    const {wallet, getKeys} = buildWallet()
+
+    await wallet.prepareSwapToReceive(tokenFromInactive())
+
+    expect(getKeys).toHaveBeenCalledWith(inactive.meta.id)
+  })
+
+  test('the keys land in the keychain, so the DLEQ loop can read them', async () => {
+    const {wallet} = buildWallet()
+
+    await wallet.prepareSwapToReceive(tokenFromInactive())
+
+    const loaded = wallet.keyChain.getKeyset(inactive.meta.id)
+    expect(loaded.hasKeys).toBe(true)
+    expect(loaded.keys['16']).toBeDefined()
+  })
+
+  test('so the receive prepares without the wallet pre-loading anything', async () => {
+    const {wallet} = buildWallet()
+
+    await expect(wallet.prepareSwapToReceive(tokenFromInactive())).resolves.toBeDefined()
+  })
+
+  test('PRECONDITION: it is a no-op when mint info was never loaded', async () => {
+    // _ensureOperableKeysets returns early on a wallet with no mint info, so the
+    // safety net simply is not there. WalletStore.getWallet always loads it — via
+    // loadMintFromCache or loadMint — before any receive, which is what makes the
+    // deletion safe. Pinned so that invariant cannot be broken silently.
+    const getKeys = jest.fn(async () => ({keysets: [inactive.keys]}))
+    const fakeMint = {mintUrl: MINT_URL, getKeys, setMintInfo: jest.fn()}
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const wallet = new Wallet(fakeMint as any, {unit: 'sat'})
+
+    // No loadMint / loadMintFromCache, so no keysets and no mint info.
+    await expect(wallet.prepareSwapToReceive(tokenFromInactive())).rejects.toThrow()
+    expect(getKeys).not.toHaveBeenCalled()
   })
 })
