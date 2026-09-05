@@ -1336,12 +1336,25 @@ export const WalletStoreModel = types
                 return meltResponse
 
             } catch (e: any) {
-                if(!e.message.toLowerCase().includes('timeout') &&
-                   !e.message.toLowerCase().includes('network request failed')) {
-                  // remove only if it was not a timeout or network error
-                  Database.removeMeltRecovery(transactionId)
-                }   
-
+                // The melt recovery record is deliberately NOT removed here.
+                //
+                // By the time completeMelt throws, the melt request may already have
+                // been executed by the mint — cashu-ts 4.10 makes that explicit with
+                // MeltChangeError, which is raised only AFTER the payment went through
+                // and means solely that the NUT-08 change could not be reconstructed.
+                // The inputs are spent and the payment stands.
+                //
+                // Callers handle exactly that: TransferOperationApi._handleExecuteError
+                // re-checks the quote and, when it comes back PAID, calls
+                // recoverMeltQuoteChange to rebuild the change from this record. Deleting
+                // it here — which the old `unless the message says timeout/network` test
+                // did for every other error, MeltChangeError included — destroyed the one
+                // input that recovery needs, one step before it was read, and the user
+                // silently forfeited the change.
+                //
+                // Removal belongs with whoever learns the quote's terminal state:
+                // recoverMeltQuoteChange on PAID/UNPAID, and the UNPAID paths in
+                // TransferOperationApi. A PENDING melt must keep it either way.
                 let message = 'Lightning payment failed.'
                 if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
                 throw new AppError(
@@ -1533,11 +1546,11 @@ export const WalletStoreModel = types
                 return meltResponse
 
             } catch (e: any) {
-                if(!e.message.toLowerCase().includes('timeout') &&
-                   !e.message.toLowerCase().includes('network request failed')) {
-                    Database.removeMeltRecovery(transactionId)
-                }
-
+                // Kept for the same reason as payLightningMelt: the mint may already
+                // have executed the melt, and the record is what change recovery reads.
+                // NUT-30 makes this sharper — an onchain melt is asynchronous by
+                // mandate, so "the request threw" says even less about whether the mint
+                // acted on it.
                 let message = 'Onchain payment failed.'
                 if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
                 throw new AppError(

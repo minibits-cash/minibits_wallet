@@ -923,6 +923,13 @@ async function refresh(transactionId: number): Promise<Transaction> {
         })
         tx.update({status: TransactionStatus.REVERTED, data: JSON.stringify(txData)})
 
+        // Terminal failure: no change will ever come back for this quote, so the
+        // melt recovery record written before submission is now dead weight. Without
+        // this, every async melt that resolves UNPAID left an orphaned row behind —
+        // the row is only ever cleaned on the PAID path (_unblindMeltChange) and by
+        // recoverMeltQuoteChange, neither of which this branch reaches.
+        Database.removeMeltRecovery(transactionId)
+
         log.debug('[TransferOperationApi.refresh] Transaction reverted (UNPAID)', {transactionId})
 
         EventEmitter.emit('ev_asyncMeltResult', {
@@ -1080,6 +1087,13 @@ async function _handleExecuteError(
     }
 
     // ── UNPAID by mint ──────────────────────────────────────────────────
+    // The mint did not pay, so this quote will never return change to unblind and
+    // the melt recovery record is now dead weight. Dropped here rather than in
+    // WalletStore's catch, which cannot know the quote's terminal state and used to
+    // delete the record even when the melt had in fact succeeded. Covers all three
+    // exits below, since every one of them is reached only with state UNPAID.
+    Database.removeMeltRecovery(tx.id)
+
     if (WalletUtils.isTokenAlreadySpentError(e)) {
         // Mint says one of our inputs is already spent. Sync will reconcile;
         // drop the reservation without restoring (proofs likely SPENT at mint).
