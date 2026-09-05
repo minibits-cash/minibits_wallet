@@ -135,8 +135,11 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
         try {
             setSelectedMintUrl(mint.mintUrl)
             const allKeysets = getSnapshot(mint.keysets!)
-            const defaultKeyset = walletStore.getOptimalKeyset(mint, 'sat')
-         
+            // cashu-ts picks it (newest keyset version, then lowest fee); we still
+            // need the whole keyset here, since the screen shows its unit and id.
+            const defaultKeysetId = walletStore.getOptimalKeysetId(mint, 'sat')
+            const defaultKeyset = allKeysets.find(k => k.id === defaultKeysetId)
+
             setSelectedKeyset(defaultKeyset)
             setSelectedMintKeysets(allKeysets)
             setStartIndex(0)

@@ -19,6 +19,7 @@ import {
   type ProofState,
   type OperationCounters,
   type MeltPreview,
+  type KeyChainCache,
   MeltQuoteState,
 } from '@cashu/cashu-ts'
 import { JS_BUNDLE_VERSION } from '@env'
@@ -122,29 +123,52 @@ export const WalletStoreModel = types
         const mintsStore = getRootStore(self).mintsStore        
         return mintsStore.findByUrl(mintUrl) as Mint        
       },
-      getOptimalKeyset(mintInstance: Mint, unit: MintUnit) {
-        // Mirrors cashu-ts v4.7 KeyChain.getCheapestKeyset: among active keysets for
-        // this unit with a valid hex id (v00 `00…` or v2 `01…`; excludes deprecated
-        // base64 keysets that cannot create outputs), pick the lowest input fee.
-        const isHexKeysetId = (id: string) => /^[0-9a-f]+$/i.test(id)
+      /**
+       * The keyset a new wallet for this unit should bind to, chosen by cashu-ts.
+       *
+       * This used to mirror KeyChain.getCheapestKeyset by hand — filter to active
+       * hex-id keysets for the unit, sort by fee, break ties on id. That copy has
+       * been replaced by the real thing, for two reasons beyond removing a
+       * duplicate.
+       *
+       * The orderings had diverged. 4.10 (#836) sorts by keyset id VERSION first,
+       * then fee, then final_expiry; the copy sorted fee first and only used
+       * version as a tiebreak. They disagree whenever a mint prices its newer v2
+       * keyset above an old v0 one, and the wallet would then keep minting on the
+       * retired keyset. The library's order is the intended one.
+       *
+       * It also filters on `hasKeys`, which the copy could not: it selected on
+       * keyset metadata and left the caller to discover that the matching keys were
+       * missing. A keyset without keys cannot create outputs, so excluding it up
+       * front turns a late failure into no selection at all.
+       *
+       * `hasHexId` additionally classifies odd-length hex ids as legacy (#840),
+       * which the old `/^[0-9a-f]+$/i` test accepted.
+       */
+      getOptimalKeysetId(mintInstance: Mint, unit: MintUnit, cache?: KeyChainCache): string {
+        try {
+          // getWallet has already built the cache for loadMintFromCache and passes it
+          // in; other callers just want the answer and let it be built here.
+          const keychainCache =
+            cache ??
+            CashuKeyChain.mintToCacheDTO(
+              mintInstance.mintUrl,
+              [...mintInstance.keysets!],
+              [...mintInstance.keys!],
+            )
 
-        const optimalKeyset: MintKeyset | undefined = mintInstance.keysets!
-        .filter((k: MintKeyset) => k.unit === unit && k.active && isHexKeysetId(k.id))
-        .sort((a: MintKeyset, b: MintKeyset) => {
-            const feeDelta = (a.input_fee_ppk ?? 0) - (b.input_fee_ppk ?? 0)
-            if (feeDelta !== 0) return feeDelta
-            // Equal fee: prefer the newer keyset version (v2 `01…` over v0 `00…`)
-            return b.id.localeCompare(a.id)
-        })[0]
-
-        if(!optimalKeyset) {
-          throw new AppError(Err.VALIDATION_ERROR, 'Wallet has not any active keyset for the selected unit.', {
-            mintUrl: mintInstance.mintUrl, 
-            unit
+          return CashuKeyChain.fromCache(mintInstance.mintUrl, unit, keychainCache)
+            .getCheapestKeyset()
+            .id
+        } catch (e: any) {
+          // cashu-ts raises CTSError for "not initialized" and "no active keyset for
+          // unit"; both mean the same thing to a caller here.
+          throw new AppError(Err.VALIDATION_ERROR, 'Wallet has no usable active keyset for the selected unit, refresh mint settings.', {
+            mintUrl: mintInstance.mintUrl,
+            unit,
+            message: e.message,
           })
         }
-        
-        return optimalKeyset
       }, 
     }))
     .actions(self => ({
@@ -189,6 +213,12 @@ export const WalletStoreModel = types
       // its own KeyChain read. Volatile (never persisted), so it resets on a
       // fresh cold start, which is exactly when we want a single fresh read.
       walletKeysInFlight: null as Promise<WalletKeys> | null,
+      // Wallet instances used by seed recovery, keyed by mintUrl|unit|keysetId.
+      //
+      // Kept OUT of `wallets`/`seedWallets` on purpose: recovery walks inactive
+      // keysets, and those instances must not become the ones ordinary operations
+      // pick up. Kept out of the snapshot too — these hold a bip39 seed.
+      restoreWallets: new Map<string, CashuWallet>(),
     }))
     .actions(self => ({
       getCachedWalletKeys: flow(function* getWalletKeys() {
@@ -419,12 +449,20 @@ export const WalletStoreModel = types
           })
         }
         
-        // select keys to be used to find or create new cashu-ts wallet instance
-        let walletKeys: MintKeys
+        // Built ONCE per call and reused for both the keyset choice and, below,
+        // loadMintFromCache — mintToCacheDTO walks every keyset and key, so building
+        // it twice would double that for no reason.
+        const hasCachedMint = Boolean(
+          mintInstance.mintInfo && mintInstance.keysets?.length && mintInstance.keys?.length,
+        )
+        const keychainCache: KeyChainCache | undefined = hasCachedMint
+          ? CashuKeyChain.mintToCacheDTO(mintUrl, [...mintInstance.keysets!], [...mintInstance.keys!])
+          : undefined
+
+        // Which keyset this wallet instance binds to. Also the cache key for the
+        // instance itself, so it has to be settled before the lookup below.
+        let keysetId: string
         if(options && options.keysetId) {
-
-          //log.warn(mintInstance.keys)
-
           const requestedKeys = mintInstance.keys!.find((k: MintKeys) => k.id === options.keysetId)
 
           if(!requestedKeys) {
@@ -442,31 +480,25 @@ export const WalletStoreModel = types
             })
           }
 
-          walletKeys = requestedKeys
+          keysetId = requestedKeys.id
         } else {
-          // if not we find active keyset with lowest fees and related keys
-          const activeKeyset: MintKeyset = self.getOptimalKeyset(mintInstance, unit) // throws
-
-          log.trace('[WalletStore.getWallet] Optimal keyset for this unit', {activeKeyset, unit, mintUrl})
-
-          const activeKeys = mintInstance.keys!.find((k: MintKeys) => k.id === activeKeyset.id)
-
-          if(!activeKeys) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Wallet has no active keys for the selected unit, refresh mint settings.', {
-              mintUrl, 
+          if (!keychainCache) {
+            throw new AppError(Err.VALIDATION_ERROR, 'Wallet has no usable active keyset for the selected unit, refresh mint settings.', {
+              mintUrl,
               unit,
-              activeKeysetId: activeKeyset.id
             })
           }
-            
-          walletKeys = activeKeys      
+
+          keysetId = self.getOptimalKeysetId(mintInstance, unit, keychainCache) // throws
+
+          log.trace('[WalletStore.getWallet] Optimal keyset for this unit', {keysetId, unit, mintUrl})
         }    
 
         if (options && options.withSeed) {
 
           const seedWallet: CashuWallet | undefined = self.seedWallets.find(
             w => w.mint.mintUrl === mintUrl &&         
-            w.keysetId === walletKeys.id
+            w.keysetId === keysetId
           )
           
           if (seedWallet) {
@@ -478,16 +510,19 @@ export const WalletStoreModel = types
 
           const newSeedWallet = new CashuWallet(cashuMint, {
             unit,
-            keysetId: walletKeys.id,
+            keysetId,
             bip39seed: seed
           })
 
-          if (mintInstance.mintInfo && mintInstance.keysets?.length && mintInstance.keys?.length) {
-            const keychainCache = CashuKeyChain.mintToCacheDTO(mintUrl, [...mintInstance.keysets], [...mintInstance.keys])
-            newSeedWallet.loadMintFromCache(mintInstance.mintInfo, keychainCache)
+          if (keychainCache) {
+            newSeedWallet.loadMintFromCache(mintInstance.mintInfo!, keychainCache)
           } else {
             yield newSeedWallet.loadMint()
           }
+
+          // Write back anything cashu-ts loads or repairs on its own, so the next
+          // instance built from the Mint model starts with it already present.
+          newSeedWallet.on.keychainUpdated(({cache}) => persistKeychainUpdates(mintInstance, cache))
 
           self.seedWallets.push(newSeedWallet)
 
@@ -498,7 +533,7 @@ export const WalletStoreModel = types
 
         const wallet: CashuWallet | undefined = self.wallets.find(
             w => w.mint.mintUrl === mintUrl &&         
-            w.keysetId === walletKeys.id
+            w.keysetId === keysetId
         )
 
         if (wallet) {
@@ -508,15 +543,16 @@ export const WalletStoreModel = types
         
         const newWallet = new CashuWallet(cashuMint, {
           unit,
-          keysetId: walletKeys.id,
+          keysetId,
         })
 
-        if (mintInstance.mintInfo && mintInstance.keysets?.length && mintInstance.keys?.length) {
-          const keychainCache = CashuKeyChain.mintToCacheDTO(mintUrl, [...mintInstance.keysets], [...mintInstance.keys])
-          newWallet.loadMintFromCache(mintInstance.mintInfo, keychainCache)
+        if (keychainCache) {
+          newWallet.loadMintFromCache(mintInstance.mintInfo!, keychainCache)
         } else {
           yield newWallet.loadMint()
         }
+
+        newWallet.on.keychainUpdated(({cache}) => persistKeychainUpdates(mintInstance, cache))
 
         self.wallets.push(newWallet)
           
@@ -550,6 +586,8 @@ export const WalletStoreModel = types
       resetWallets() {
         self.seedWallets.clear()
         self.wallets.clear()
+        // Also drops the seeds these hold.
+        self.restoreWallets.clear()
       }
     }))
     .actions(self => ({
@@ -1616,19 +1654,37 @@ export const WalletStoreModel = types
               // PERF: Time wallet creation
               const perfWalletCreate = performance.now()
 
-              // Create separate CashuMint and CashuWallet instances for restore operation
-              // to avoid polluting the main wallet state with inactive keyset data.
-              // cashu-ts 3.4.1+ supports restore from inactive keysets natively.
-              const cashuMint = new CashuMint(mintUrl)
-              const cashuWallet = new CashuWallet(cashuMint, {
-                unit,
-                keysetId,
-                bip39seed: seed
-              })
+              // Separate CashuMint/CashuWallet instances from the ones ordinary
+              // operations use, so walking inactive keysets during recovery does not
+              // pollute the main wallet state. cashu-ts 3.4.1+ restores from inactive
+              // keysets natively.
+              //
+              // REUSED across batches. SeedRecoveryScreen calls this once per
+              // RESTORE_INDEX_INTERVAL (50) counters, so a recovery that scans a few
+              // hundred indices used to build a wallet and call loadMint() — getInfo,
+              // getKeysets, getKeys — for every one of them. It also threw away the
+              // BIP-32 parent-node cache that 4.7.2 (#802) added to the deriver, which
+              // is per-instance and exists precisely to make repeated derivation on one
+              // keyset cheap. Recovery is the single most derivation-heavy path in the
+              // wallet, so it is the one that most wanted that cache kept.
+              const restoreKey = `${mintUrl}|${unit}|${keysetId}`
+              let cashuWallet: CashuWallet | undefined = self.restoreWallets.get(restoreKey)
 
-              yield cashuWallet.loadMint()
+              if (cashuWallet) {
+                log.info('[PERF][WalletStore.restore] CashuWallet REUSED:', { ms: (performance.now() - perfWalletCreate).toFixed(2) })
+              } else {
+                const cashuMint = new CashuMint(mintUrl)
+                cashuWallet = new CashuWallet(cashuMint, {
+                  unit,
+                  keysetId,
+                  bip39seed: seed
+                })
 
-              log.info('[PERF][WalletStore.restore] CashuWallet created:', { ms: (performance.now() - perfWalletCreate).toFixed(2) })
+                yield cashuWallet.loadMint()
+                self.restoreWallets.set(restoreKey, cashuWallet)
+
+                log.info('[PERF][WalletStore.restore] CashuWallet created:', { ms: (performance.now() - perfWalletCreate).toFixed(2) })
+              }
 
               const count = Math.abs(indexTo - indexFrom)
               log.info('[PERF][WalletStore.restore] About to restore', { indexFrom, count, keysetId })
@@ -1685,6 +1741,42 @@ export const WalletStoreModel = types
       }          
     })
 
+
+    /**
+     * Persist keychain data that cashu-ts fetched on its own.
+     *
+     * cashu-ts updates its keychain mid-operation — lazily loading keys for a keyset
+     * whose keys we never had, or repairing an id it did not recognise with a
+     * loadMint(true). Nothing wrote those results back, so they died with the wallet
+     * instance and the NEXT wallet built from the Mint model re-fetched exactly the
+     * same keys. That got more relevant once WalletStore.receive stopped pre-loading
+     * input keyset keys itself: the lazy fetch is now the only thing that loads them.
+     *
+     * Errors are logged and swallowed. This runs INSIDE the caller's operation, and a
+     * cache write must never break the send or receive that happened to trigger it —
+     * the same rule refreshMintInfoIfStale follows. initKeyset in particular throws on
+     * a unit the wallet does not support, which a multi-unit mint will produce.
+     */
+    function persistKeychainUpdates(mintInstance: Mint, cache: KeyChainCache) {
+      try {
+        if (!isAlive(mintInstance)) return
+
+        const {keysets, keys} = CashuKeyChain.cacheToMintDTO(cache)
+
+        mintInstance.refreshKeysets!(keysets)
+        mintInstance.refreshKeys!(keys)
+
+        log.trace('[WalletStore.persistKeychainUpdates]', 'Persisted keychain update', {
+          mintUrl: mintInstance.mintUrl,
+          keysets: keysets.length,
+        })
+      } catch (e: any) {
+        log.warn('[WalletStore.persistKeychainUpdates]', {
+          mintUrl: mintInstance.mintUrl,
+          error: e.message,
+        })
+      }
+    }
 
     function isOnionMint(mintUrl: string) {
       return new URL(mintUrl).hostname.endsWith('.onion')
