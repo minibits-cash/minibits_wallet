@@ -127,8 +127,23 @@ export function useAmountEntry({
 
   /** 0 = settled layout, 1 = amount fills the screen. */
   const entryProgress = useSharedValue(initiallyExpanded ? 1 : 0)
-  /** Window Y of the keyboard's top edge — the bottom of the area we centre in. */
+  /**
+   * Best estimate of where the keyboard's top edge will be — the bottom of the area the
+   * amount is centred in. Starts as an assumption (or what the last keyboard of the
+   * session measured) so the amount is placed once, for the layout it is about to be in,
+   * rather than moving under the user as the keyboard arrives.
+   */
   const keyboardTop = useSharedValue(0)
+  /**
+   * How far down the header colour reaches.
+   *
+   * The same as `keyboardTop` once a keyboard has actually been seen, but the screen
+   * BOTTOM before that — the colour has no reason to stop at a keyboard that is not there
+   * yet, and stopping short of one drew a hard line across the middle of the screen for
+   * the few hundred milliseconds before the keyboard opened. It closes up to the
+   * keyboard's edge as the keyboard rises, in step with it.
+   */
+  const visibleBottom = useSharedValue(spacing.screenHeight)
   /**
    * Centre of the whole visible amount block — amount, converted value, swap hint and
    * any caption — relative to the top of the animated area.
@@ -149,12 +164,21 @@ export function useAmountEntry({
     isMeasured.value = withTiming(1, {duration: 150})
   }
 
-  useKeyboardTop((top, duration) => {
+  useKeyboardTop((top, duration, isEstimate) => {
     // Only the OPEN position is recorded. Following the keyboard down would swing the
-    // amount block towards the bottom of the screen at exactly the moment the screen is
-    // collapsing, which reads as the two animations fighting.
+    // amount block towards the bottom of the screen, and reopen the colour to full height,
+    // at exactly the moment the screen is collapsing — two animations fighting.
     if (top >= spacing.screenHeight) return
+
+    // A withTiming() result carries its own start state, so the two values get one each
+    // rather than sharing a single animation object.
     keyboardTop.value = duration > 0 ? withTiming(top, {duration}) : top
+
+    // The colour closes up only for a keyboard that is actually on screen. Closing it
+    // against the mount-time estimate is what drew the line across the middle.
+    if (!isEstimate) {
+      visibleBottom.value = duration > 0 ? withTiming(top, {duration}) : top
+    }
   })
 
   useEffect(() => {
@@ -234,7 +258,7 @@ export function useAmountEntry({
   }))
 
   const $animatedBackdropStyle = useAnimatedStyle(() => {
-    const visibleHeight = keyboardTop.value - wrapperTop.value
+    const visibleHeight = visibleBottom.value - wrapperTop.value
     const expandedHeight = Math.max(COLLAPSED_HEADER_HEIGHT, visibleHeight)
     return {
       opacity: isMeasured.value,

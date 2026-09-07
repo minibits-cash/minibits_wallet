@@ -24,7 +24,16 @@ let lastKeyboardTop: number | null = null
 
 export const DEFAULT_KEYBOARD_ANIMATION_DURATION = 280
 
-export type KeyboardTopHandler = (top: number, duration: number) => void
+/**
+ * `isEstimate` marks the value reported on mount — a remembered or assumed height, not a
+ * keyboard that is on screen. Callers that place content can use it right away; callers
+ * that draw to the keyboard's edge should wait for the real thing.
+ */
+export type KeyboardTopHandler = (
+  top: number,
+  duration: number,
+  isEstimate: boolean,
+) => void
 
 /**
  * Calls `onChange` with the window Y of the keyboard's top edge whenever it moves, plus
@@ -43,6 +52,7 @@ export function useKeyboardTop(onChange: KeyboardTopHandler) {
     handlerRef.current(
       lastKeyboardTop ?? screenBottom * (1 - ASSUMED_KEYBOARD_RATIO),
       0,
+      true,
     )
 
     // iOS reports `will` events ahead of the movement and carries a duration; Android
@@ -53,11 +63,15 @@ export function useKeyboardTop(onChange: KeyboardTopHandler) {
     const onShow = (e: KeyboardEvent) => {
       const top = e.endCoordinates.screenY
       if (top > 0) lastKeyboardTop = top
-      handlerRef.current(top, e.duration || DEFAULT_KEYBOARD_ANIMATION_DURATION)
+      handlerRef.current(top, e.duration || DEFAULT_KEYBOARD_ANIMATION_DURATION, false)
     }
 
     const onHide = (e: KeyboardEvent) => {
-      handlerRef.current(screenBottom, e?.duration || DEFAULT_KEYBOARD_ANIMATION_DURATION)
+      handlerRef.current(
+        screenBottom,
+        e?.duration || DEFAULT_KEYBOARD_ANIMATION_DURATION,
+        false,
+      )
     }
 
     const showSub = Keyboard.addListener(showEvent, onShow)
