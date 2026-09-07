@@ -25,7 +25,6 @@ import { useStores } from '../models'
 import {MnemonicInput} from './Recovery/MnemonicInput'
 import { MINIBITS_MINT_URL } from '@env'
 import { delay } from '../utils/utils'
-import { applySnapshot} from 'mobx-state-tree'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { translate } from '../i18n'
 import { MintsStoreSnapshot } from '../models/MintsStore'
@@ -212,17 +211,39 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
           }
         }
 
-        // applySnapshot(proofsStore, walletSnapshot.proofsStore)
+        // Mints FIRST, because the proofs have to follow them. The backup is folded
+        // into whatever this wallet already holds rather than replacing it — a mint
+        // is recognised by its keysets, so the same mint reached at a different url
+        // is merged rather than duplicated, and a mint only this device has keeps
+        // its ecash spendable. See MintsStore.mergeFromBackup.
+        const urlByBackupUrl = mintsStore.mergeFromBackup(walletSnapshot.mintsStore)
+
+        // A merged mint keeps the url THIS wallet reaches it at, so a proof arriving
+        // under the backup's url has to be repointed: `proofs.mintUrl` is a
+        // denormalized copy of the locator, and a proof whose url matches no mint
+        // belongs to no mint — it counts toward the balance and cannot be spent.
+        // Cheap to do here, while these are still plain objects from the JSON; once
+        // they are rows, moving them means a transaction (see mintsRepo.updateMintUrl).
+        for (const proof of walletSnapshot.proofsStore.proofs) {
+          const resolvedUrl = urlByBackupUrl.get(proof.mintUrl)
+
+          if (resolvedUrl && resolvedUrl !== proof.mintUrl) {
+            log.trace('[importWallet] Repointing an imported proof', {
+              from: proof.mintUrl,
+              to: resolvedUrl,
+            })
+            proof.mintUrl = resolvedUrl
+          }
+        }
+
         proofsStore.importProofs(walletSnapshot.proofsStore.proofs)
         proofsStore.importPendingByMintSecrets(walletSnapshot.proofsStore.pendingByMintSecrets)
-        // Mints are mastered in SQLite, so restoring them is more than an
-        // applySnapshot — the mints being replaced have rows of their own that have
-        // to go. See MintsStore.restoreFromBackup.
-        mintsStore.restoreFromBackup(walletSnapshot.mintsStore)
-        applySnapshot(contactsStore, walletSnapshot.contactsStore)
+        // Merged, not applied: an applySnapshot here used to discard every contact
+        // added on this device, and a contact list has no second copy anywhere.
+        contactsStore.mergeFromBackup(walletSnapshot.contactsStore)
 
         // The backup carries real derivation counters in its raw MST snapshot.
-        // `counter` is VOLATILE in the model (mastered in SQLite), so the restore
+        // `counter` is VOLATILE in the model (mastered in SQLite), so the merge
         // above does NOT load it — read the values straight from
         // the backup snapshot, seed SQLite (monotonic, never lowers), then
         // hydrate the in-memory cache from the authority. Seeding 0 from the

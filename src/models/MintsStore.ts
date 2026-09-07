@@ -3,7 +3,6 @@ import {
     SnapshotOut,
     types,
     destroy,
-    applySnapshot,
     isStateTreeNode,
     detach,
     flow,
@@ -48,8 +47,8 @@ export type MintsByUnit = {
 // class this whole effort has been about — each mint gets one onSnapshot observer
 // that persists its row whenever anything in its subtree changes. It cannot be
 // forgotten. Note the one thing it does NOT cover: nodes that arrive already-formed
-// rather than by mutation never fire an observer, which is why restoring a backup
-// goes through restoreFromBackup instead of a bare applySnapshot.
+// rather than by mutation never fire an observer, which is why a backup is folded in
+// by mergeFromBackup, which writes them through explicitly.
 //
 // Derivation counters are unaffected: `counter` is volatile, so it never appears in
 // a snapshot and a bump never fires these.
@@ -238,9 +237,9 @@ export const MintsStoreModel = types
         /**
          * Write every mint through, unconditionally.
          *
-         * For when mints arrive already-formed rather than by mutation — i.e.
-         * ImportBackup's applySnapshot. Observers only fire on CHANGE, so freshly
-         * applied nodes would otherwise never reach SQLite.
+         * For when mints arrive already-formed rather than by mutation — i.e. the
+         * ones mergeFromBackup builds. Observers only fire on CHANGE, so a mint that
+         * was complete before it entered the tree would otherwise never reach SQLite.
          */
         persistAllMints() {
             for (const mint of self.mints) self.persistMint(getSnapshot(mint as any))
@@ -249,61 +248,118 @@ export const MintsStoreModel = types
     .actions(self => ({
 
         /**
-         * Replace the wallet's mints with the ones from a backup — in BOTH engines.
+         * Fold a backup's mints into the wallet's own. Nothing is replaced and
+         * nothing is removed — the counterpart to `backupSnapshot`.
          *
-         * The counterpart to `backupSnapshot`, and it exists for the same reason:
-         * ImportBackup used to do this inline, as applySnapshot + persistAllMints,
-         * and that covers only half of it. applySnapshot REPLACES the mints in the
-         * model, but a mint the wallet already had keeps its SQLite row — under its
-         * own id, which the backup's copy of the same mint does not share. The
-         * import screen is reached from an onboarded wallet, which always has the
-         * Minibits mint (WelcomeScreen adds it), so this was not an edge case: the
-         * next launch hydrated BOTH rows and the user saw the same mint twice.
+         * IDENTITY IS THE KEYSETS, not the url. One mint can be reached at several
+         * urls, and matching on the url would file the same mint twice; that is not
+         * merely untidy, it breaks an invariant the storage layer rests on.
+         * mint_keysets is keyed by keysetId with a single mintId column, and
+         * hydrateCountersFromDatabase resolves a counter's owner as "whichever mint
+         * holds that keyset" — so two entries claiming one keyset means the second
+         * upsert steals the row (mintId = excluded.mintId) and the first rehydrates
+         * as a husk with no keysets and no keys. Exactly one mint entry per keyset
+         * id, wallet-wide, is the rule this enforces.
          *
-         * Worse than a duplicate: mint_keysets is keyed by keysetId and its upsert
-         * reassigns mintId, so the imported mint takes the keysets with it and the
-         * stale row rehydrates as a husk with no keysets and no keys.
+         * The url is the fallback signal, for a mint that has rotated every keyset
+         * since the backup was taken. Two different mints can never share a url, so
+         * a url match is safe once the keysets have failed to match.
          *
-         * So the removals are the point. Under MMKV this came for free — the
-         * snapshot WAS the state, and applying one dropped whatever it omitted.
-         * With mints mastered in SQLite, dropping them has to be said out loud.
+         * On a match the LOCAL entry wins: its id (transactions reference it), its
+         * url (the one this device is reachable on — changing it is a deliberate act
+         * in mint settings), its colour and name. The backup contributes keysets,
+         * keys, and mint info the wallet does not have.
          *
-         * Observers are disposed first (they point at nodes applySnapshot is about
-         * to destroy) and re-attached at the end, once the array has settled.
+         * @returns backup url → the url that mint now lives at, so the caller can
+         *   repoint the proofs it is about to import. `proofs.mintUrl` is a
+         *   denormalized copy of the locator, and a proof whose url matches no mint
+         *   is spendable by nothing.
          */
-        restoreFromBackup(snapshot: MintsStoreSnapshot) {
-            const previousMintIds = self.mints.map(m => m.id as string)
+        mergeFromBackup(snapshot: MintsStoreSnapshot): Map<string, string> {
+            const urlByBackupUrl = new Map<string, string>()
+            let added = 0
 
-            for (const mintId of [...self.mintObservers.keys()]) self.unobserveMint(mintId)
+            for (const backupMint of snapshot?.mints ?? []) {
+                if (!backupMint?.mintUrl) continue
 
-            applySnapshot(self, snapshot as any)
+                const backupKeysetIds = (backupMint.keysets ?? []).map((k: any) => k.id)
 
-            const restoredMintIds = new Set(self.mints.map(m => m.id as string))
+                let mint =
+                    self.mints.find(m => m.keysetIds.some((id: string) => backupKeysetIds.includes(id))) ??
+                    self.findByUrl(backupMint.mintUrl)
 
-            // Rows for mints the backup does not carry. Their mint_counters rows
-            // stay behind, as they do on any mint removal, so re-adding a mint
-            // recovers its real derivation counter rather than restarting at 0.
-            for (const mintId of previousMintIds) {
-                if (restoredMintIds.has(mintId)) continue
-                try {
-                    Database.removeMintById(mintId)
-                } catch (e: any) {
-                    log.error('[restoreFromBackup]', 'Could not remove a replaced mint', {
-                        error: e?.message,
-                        mintId,
-                    })
+                const isNew = !mint
+
+                if (!mint) {
+                    // Built outside the tree and pushed once complete, as addMint does:
+                    // keysets, keys and units all arrive through initKeyset/initKeys
+                    // below, so a mint restored from a backup is assembled exactly like
+                    // one added by hand — collision check and counter shells included.
+                    mint = MintModel.create({
+                        ...(backupMint as any),
+                        keysets: [],
+                        keys: [],
+                        units: [],
+                        proofsCounters: [],
+                        createdAt: backupMint.createdAt ? new Date(backupMint.createdAt) : undefined,
+                    } as any)
+                    added++
                 }
+
+                // Per keyset, not per mint: a keyset the wallet cannot take (an unknown
+                // unit, or an id colliding with another mint's) must not cost the user
+                // the rest of the mint.
+                for (const keyset of backupMint.keysets ?? []) {
+                    try {
+                        mint.initKeyset(keyset as any, self.allKeysetIds)
+                    } catch (e: any) {
+                        log.warn('[mergeFromBackup]', 'Skipped a keyset from the backup', {
+                            mintUrl: backupMint.mintUrl,
+                            keysetId: (keyset as any)?.id,
+                            error: e?.message,
+                        })
+                    }
+                }
+
+                for (const keys of backupMint.keys ?? []) {
+                    try {
+                        mint.initKeys(keys as any)
+                    } catch (e: any) {
+                        log.warn('[mergeFromBackup]', 'Skipped a keyset\'s keys from the backup', {
+                            mintUrl: backupMint.mintUrl,
+                            keysetId: (keys as any)?.id,
+                            error: e?.message,
+                        })
+                    }
+                }
+
+                // Only where the wallet has none: capabilities are read off mintInfo,
+                // and a backup's copy is better than nothing until the next refresh.
+                if (!mint.mintInfo && backupMint.mintInfo) {
+                    mint.setMintInfo!(backupMint.mintInfo as any)
+                }
+
+                if (isNew) self.mints.push(mint)
+
+                urlByBackupUrl.set(backupMint.mintUrl, mint.mintUrl)
             }
 
-            // Nodes that arrive already-formed never fire an observer, so the write
-            // through has to be explicit.
-            self.persistAllMints()
-            self.observeMints()
+            for (const blockedUrl of snapshot?.blockedMintUrls ?? []) {
+                if (!self.blockedMintUrls.includes(blockedUrl)) self.blockedMintUrls.push(blockedUrl)
+            }
 
-            log.info('[restoreFromBackup]', 'Mints restored from a backup', {
-                restored: self.mints.length,
-                removed: previousMintIds.filter(id => !restoredMintIds.has(id)).length,
+            // Mints that arrive already-formed never fire an observer, so the write
+            // through is explicit; observers are (re)attached once the array settles.
+            self.observeMints()
+            self.persistAllMints()
+
+            log.info('[mergeFromBackup]', 'Mints merged from a backup', {
+                added,
+                merged: urlByBackupUrl.size - added,
+                total: self.mints.length,
             })
+
+            return urlByBackupUrl
         },
 
         hydrateCountersFromDatabase() {

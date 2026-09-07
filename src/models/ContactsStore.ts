@@ -71,7 +71,54 @@ import { MINIBITS_NIP05_DOMAIN } from '@env'
     
                 return contactInstance
             },
-            saveNote (pubkey: string, note: string) {              
+            /**
+             * Fold a backup's contacts into the wallet's own.
+             *
+             * Same rule as the mints: the LOCAL entry wins, the backup fills gaps.
+             * An import used to applySnapshot over this store, which silently threw
+             * away every contact the user had added on this device — and unlike
+             * ecash, a contact list has no other copy to recover it from.
+             *
+             * Not addContact: that stamps `createdAt` with now and resets `type`,
+             * which would rewrite history the backup is carrying faithfully. It does
+             * contribute the two checks worth keeping — a pubkey already present, and
+             * a nip05 already claimed by a different pubkey, since the wallet treats
+             * a nip05 as an address and two contacts sharing one would be ambiguous.
+             */
+            mergeFromBackup(snapshot: ContactsStoreSnapshot) {
+                let added = 0
+
+                for (const contact of snapshot?.contacts ?? []) {
+                    if (!contact?.pubkey || self.alreadyExists(contact.pubkey)) continue
+
+                    if (contact.nip05 && self.nip05AlreadyExists(contact.nip05)) {
+                        log.warn('[mergeFromBackup]', 'Skipped a backup contact whose nip05 is already taken', {
+                            nip05: contact.nip05,
+                        })
+                        continue
+                    }
+
+                    self.contacts.push(ContactModel.create(contact))
+                    added++
+                }
+
+                // Wallet-level fields the backup also carries: adopted only where this
+                // wallet has nothing, so restoring onto a fresh install gets them and
+                // merging into a live wallet leaves its own alone.
+                if (!self.publicPubkey && snapshot?.publicPubkey) {
+                    self.publicPubkey = snapshot.publicPubkey
+                }
+
+                if (!self.lastPendingReceivedCheck && snapshot?.lastPendingReceivedCheck) {
+                    self.lastPendingReceivedCheck = snapshot.lastPendingReceivedCheck
+                }
+
+                log.info('[mergeFromBackup]', 'Contacts merged from a backup', {
+                    added,
+                    total: self.contacts.length,
+                })
+            },
+            saveNote (pubkey: string, note: string) {
                 const contactInstance = self.findByPubkey(pubkey)
                 if (contactInstance) {
                     contactInstance.setNoteToSelf(note)

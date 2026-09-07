@@ -21,7 +21,7 @@ jest.mock('../src/services/logService', () => ({
 }))
 
 import {mnemonicToSeedSync} from '@scure/bip39'
-import {types, getSnapshot, applySnapshot} from 'mobx-state-tree'
+import {types, getSnapshot} from 'mobx-state-tree'
 import {encodeBackup, decodeBackup} from '../src/services/backup/backupCodec'
 import {MintsStoreModel, MintsStoreSnapshot} from '../src/models/MintsStore'
 import {ProofsStoreModel} from '../src/models/ProofsStore'
@@ -107,10 +107,18 @@ const importBackup = (root: Instance, encoded: string, keysByMintUrl: Record<str
     for (const keys of keysByMintUrl[mint.mintUrl] ?? []) mint.keys.push(keys)
   }
 
+  // Mints first: a merged mint keeps the url this wallet reaches it at, and the
+  // proofs about to be imported have to be repointed at it.
+  const urlByBackupUrl = root.mintsStore.mergeFromBackup(backup.mintsStore as MintsStoreSnapshot)
+
+  for (const proof of backup.proofsStore.proofs) {
+    const resolvedUrl = urlByBackupUrl.get(proof.mintUrl)
+    if (resolvedUrl && resolvedUrl !== proof.mintUrl) proof.mintUrl = resolvedUrl
+  }
+
   root.proofsStore.importProofs(backup.proofsStore.proofs)
   root.proofsStore.importPendingByMintSecrets(backup.proofsStore.pendingByMintSecrets)
-  root.mintsStore.restoreFromBackup(backup.mintsStore as MintsStoreSnapshot)
-  applySnapshot(root.contactsStore, backup.contactsStore)
+  root.contactsStore.mergeFromBackup(backup.contactsStore)
 
   // The counters ride in the backup's raw JSON (they are volatile in the model),
   // seed the SQLite authority, and are read back from it.
@@ -231,8 +239,8 @@ describe('importing over an existing wallet', () => {
   // Onboarding adds the Minibits mint before the user can ever reach the import
   // screen, so the wallet ALWAYS has a mint here — and the backup's copy of that
   // same mint carries a different local id.
-  const onboardedWallet = () => {
-    const root = TestRoot.create({mintsStore: {mints: [mintSnapshot({id: 'onboard1'})]}})
+  const onboardedWallet = (mints: any[] = [mintSnapshot({id: 'onboard1'})]) => {
+    const root = TestRoot.create({mintsStore: {mints}})
     root.mintsStore.persistAllMints()
     root.mintsStore.observeMints()
     return root
@@ -247,12 +255,14 @@ describe('importing over an existing wallet', () => {
 
     importBackup(target, backup)
 
-    expect(Database.getMints().map(m => m.id)).toEqual(['backup01'])
+    // Merged into the local entry, which keeps its own id: transactions reference
+    // mintId, and this device's history must keep resolving.
+    expect(Database.getMints().map(m => m.id)).toEqual(['onboard1'])
   })
 
   // The duplicate was not even the worst of it: mint_keysets is keyed by keysetId
-  // and its upsert moves mintId, so the replaced mint's row was left with no
-  // keysets and no keys — and rehydrated on the next launch as an unusable husk.
+  // and its upsert moves mintId, so a second entry for one mint left the first with
+  // no keysets and no keys — an unusable husk after the next launch.
   test('and the next launch sees exactly one, intact', () => {
     const source = TestRoot.create({mintsStore: {mints: [mintSnapshot({id: 'backup01'})]}})
 
@@ -267,45 +277,86 @@ describe('importing over an existing wallet', () => {
     expect(restarted.mintsStore.mints[0].keys.map((k: any) => k.id)).toEqual([KEYSET_1])
   })
 
-  // The backup is the wallet being restored: a mint it does not carry is gone,
-  // exactly as it was when the whole state lived in one MMKV snapshot.
-  test('a mint the backup does not carry is removed from the database too', () => {
-    const source = TestRoot.create({mintsStore: {mints: [mintSnapshot({id: 'backup01'})]}})
-
-    const target = TestRoot.create({
-      mintsStore: {
-        mints: [
-          mintSnapshot({id: 'onboard1'}),
-          mintSnapshot({
-            id: 'straymint',
-            mintUrl: OTHER_MINT_URL,
-            hostname: 'other.test',
-            keysets: [{id: KEYSET_2, unit: 'sat', active: true, input_fee_ppk: 0}],
-            keys: [{id: KEYSET_2, unit: 'sat', keys: {'1': '02cc'}}],
-            proofsCounters: [{keyset: KEYSET_2, unit: 'sat'}],
-          }),
-        ],
-      },
+  // A mint can be reached at more than one url, so the url cannot be what says
+  // "same mint" — the keysets do. Matching on the url would file this mint twice.
+  test('the same mint at a different url is merged, not duplicated', () => {
+    const source = TestRoot.create({
+      mintsStore: {mints: [mintSnapshot({id: 'backup01', mintUrl: OTHER_MINT_URL, hostname: 'other.test'})]},
+      proofsStore: {proofs: {b1: {...proofSnapshot('b1'), mintUrl: OTHER_MINT_URL}}} as any,
     })
-    target.mintsStore.persistAllMints()
-    target.mintsStore.observeMints()
-    expect(Database.getMints()).toHaveLength(2)
+
+    const target = onboardedWallet()
+    importBackup(target, exportBackup(source))
+
+    expect(target.mintsStore.mints).toHaveLength(1)
+    // The local url wins — it is the one this device is reaching the mint on.
+    expect(target.mintsStore.mints[0].mintUrl).toBe(MINT_URL)
+    // ...so the imported proof has to arrive under it, or it belongs to no mint.
+    expect(target.proofsStore.getBySecret('b1')?.mintUrl).toBe(MINT_URL)
+    expect(target.proofsStore.findOrphanedProofs()).toEqual([])
+  })
+
+  // The reason for merging rather than replacing: this mint is the only place the
+  // wallet's own ecash can be spent, and the backup has never heard of it.
+  test('a mint the backup does not carry is left alone, with its ecash spendable', () => {
+    const source = TestRoot.create({
+      mintsStore: {mints: [mintSnapshot({id: 'backup01'})]},
+      proofsStore: {proofs: {b1: proofSnapshot('b1')}} as any, // 2 sat at MINT_URL
+    })
+
+    const target = onboardedWallet([
+      mintSnapshot({id: 'onboard1'}),
+      mintSnapshot({
+        id: 'straymint',
+        mintUrl: OTHER_MINT_URL,
+        hostname: 'other.test',
+        keysets: [{id: KEYSET_2, unit: 'sat', active: true, input_fee_ppk: 0}],
+        keys: [{id: KEYSET_2, unit: 'sat', keys: {'1': '02cc'}}],
+        proofsCounters: [{keyset: KEYSET_2, unit: 'sat'}],
+      }),
+    ])
+    target.proofsStore.importProofs([
+      {...proofSnapshot('own1'), id: KEYSET_2, mintUrl: OTHER_MINT_URL, amount: 42},
+    ] as any)
 
     importBackup(target, exportBackup(source))
 
-    expect(Database.getMints().map(m => m.mintUrl)).toEqual([MINT_URL])
+    expect(Database.getMints().map(m => m.mintUrl).sort()).toEqual([MINT_URL, OTHER_MINT_URL].sort())
+    expect(target.proofsStore.findOrphanedProofs()).toEqual([])
+    expect(target.proofsStore.getUnitBalance('sat').unitBalance).toBe(44)
+  })
+
+  test('contacts are merged too, keeping the ones added on this device', () => {
+    const source = TestRoot.create({
+      contactsStore: {contacts: [{pubkey: 'aa', npub: 'npub-aa', name: 'from-backup'}]} as any,
+    })
+
+    const target = onboardedWallet()
+    target.contactsStore.mergeFromBackup({
+      contacts: [{pubkey: 'bb', npub: 'npub-bb', name: 'added-here'}],
+    } as any)
+
+    importBackup(target, exportBackup(source))
+
+    expect(target.contactsStore.contacts.map((c: any) => c.name).sort()).toEqual([
+      'added-here',
+      'from-backup',
+    ])
   })
 
   // Counters are keyed by keysetId and deliberately outlive their mint, so
   // re-adding one recovers its real derivation index instead of restarting at 0.
-  test('but that mint keeps its derivation counters', () => {
+  test('a keyset the wallet already advanced keeps the higher counter', () => {
     const source = TestRoot.create({mintsStore: {mints: [mintSnapshot({id: 'backup01'})]}})
+    source.mintsStore.mints[0].proofsCounters[0].increaseProofsCounter(5)
 
     const target = onboardedWallet()
-    Database.seedCounters([{keysetId: KEYSET_2, unit: 'sat', counter: 99}])
+    Database.seedCounters([{keysetId: KEYSET_1, unit: 'sat', counter: 99}])
 
     importBackup(target, exportBackup(source))
 
-    expect(Database.getCounters().find(c => c.keysetId === KEYSET_2)?.counter).toBe(99)
+    // Monotonic: a backup taken before this device advanced can never rewind it,
+    // which is what stops a blinded secret being derived at an index twice.
+    expect(Database.getCounters().find(c => c.keysetId === KEYSET_1)?.counter).toBe(99)
   })
 })
