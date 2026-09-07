@@ -16,7 +16,7 @@
 import {observer} from 'mobx-react-lite'
 import React, {useCallback, useEffect, useReducer, useRef, useState} from 'react'
 import {StackActions, StaticScreenProps, useNavigation} from '@react-navigation/native'
-import {TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {TextInput, View, ViewStyle} from 'react-native'
 import numbro from 'numbro'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {MeltQuoteOnchainResponse} from '@cashu/cashu-ts'
@@ -54,6 +54,7 @@ import {
     selectDefaultFeeOption,
 } from '../services/wallet/operations/onchainAmounts'
 import {MintHeader} from './Mints/MintHeader'
+import {AmountEntryLayout, useAmountEntry} from '../components/AmountEntryLayout'
 import {MintBalanceSelector} from './Mints/MintBalanceSelector'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {TranItem} from './TranDetailScreen'
@@ -262,6 +263,17 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
 
     const address = route.params.address
 
+    /**
+     * Whether the payee named the amount in the BIP21 URI.
+     *
+     * It is still editable — the URI's amount is a suggestion, not a commitment — but the
+     * user is CONFIRMING an amount rather than entering one, and that is a different
+     * screen. Amount entry hides everything else, and on this screen "everything else"
+     * includes the Bitcoin address the payment is going to, which is the one thing worth
+     * checking before paying it.
+     */
+    const hasPayeeAmount = !!route.params.amountSat && route.params.amountSat > 0
+
     useEffect(() => {
         try {
             const {unit, amountSat, memo: bip21Memo} = route.params
@@ -298,9 +310,6 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
         } catch (e: any) {
             handleError(e)
         }
-
-        const timer = setTimeout(() => amountInputRef.current?.focus(), 100)
-        return () => clearTimeout(timer)
     }, [])
 
     const handleError = (e: AppError) => dispatch({type: 'SET_ERROR', error: e})
@@ -640,6 +649,33 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
         transactionStatus === TransactionStatus.COMPLETED ||
         transactionStatus === TransactionStatus.PENDING
 
+    const isAmountEditable = !hasQuote && !isSettled && !hasNoOnchainMint
+
+    const hasAutofocused = useRef(false)
+
+    /**
+     * Focus the amount once there is an amount to enter and a field able to take it.
+     *
+     * Not on a plain mount timer, because `hasNoOnchainMint` is answered from CACHED mint
+     * info: a mint whose capabilities have never been fetched reports "cannot melt
+     * onchain" until the background refresh above lands, so for the first few hundred
+     * milliseconds the field is not editable — and focus() on a non-editable field does
+     * not raise the keyboard. A fixed timer fired into that window and the keyboard never
+     * appeared.
+     */
+    useEffect(() => {
+        if (hasPayeeAmount || !isAmountEditable || hasAutofocused.current) return
+
+        hasAutofocused.current = true
+        const timer = setTimeout(() => amountInputRef.current?.focus(), 100)
+        return () => clearTimeout(timer)
+    }, [hasPayeeAmount, isAmountEditable])
+
+    const amountEntry = useAmountEntry({
+        isEnabled: isAmountEditable,
+        initiallyExpanded: !hasPayeeAmount,
+    })
+
     // With one tier there is nothing to choose. Showing a picker that opens a list of one
     // asks the user to make a decision that does not exist. The CDK fakewallet returns
     // exactly one, so this is the common case, not the edge case.
@@ -648,35 +684,40 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
     return (
         <Screen preset="fixed" contentContainerStyle={$screen} hideTabBar>
             <MintHeader mint={selectedMint} unit={unitRef.current} />
-            <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-                <View style={$amountContainer}>
-                    <AmountInput
-                        ref={amountInputRef}
-                        value={amountToTransfer}
-                        onChangeText={amount => {
-                            setAmountToTransfer(amount)
-                            // Any amount change invalidates the quote — it was priced for the
-                            // old one, and paying against it would send the wrong amount.
-                            if (meltQuote) dispatch({type: 'QUOTE_CLEAR'})
-                        }}
-                        selectTextOnFocus={true}
-                        unit={unitRef.current}
-                        editable={!hasQuote && !isSettled && !hasNoOnchainMint}
-                        style={{color: amountInputColor}}
-                    />
-                </View>
-                <Text
-                    size="xs"
-                    tx="payCommon_amountToPayLabel"
-                    style={{
-                        color: amountInputColor,
-                        textAlign: 'center',
-                        marginTop: spacing.extraSmall,
-                    }}
-                />
-            </View>
-
-            <View style={$contentContainer}>
+            <AmountEntryLayout
+                entry={amountEntry}
+                headerBackgroundColor={headerBg}
+                AmountComponent={
+                    <>
+                        <View style={$amountContainer}>
+                            <AmountInput
+                                ref={amountInputRef}
+                                value={amountToTransfer}
+                                onChangeText={amount => {
+                                    setAmountToTransfer(amount)
+                                    // Any amount change invalidates the quote — it was priced for the
+                                    // old one, and paying against it would send the wrong amount.
+                                    if (meltQuote) dispatch({type: 'QUOTE_CLEAR'})
+                                }}
+                                selectTextOnFocus={true}
+                                unit={unitRef.current}
+                                editable={isAmountEditable}
+                                style={{color: amountInputColor}}
+                                {...amountEntry.inputProps}
+                            />
+                        </View>
+                        <Text
+                            size="xs"
+                            tx="payCommon_amountToPayLabel"
+                            style={{
+                                color: amountInputColor,
+                                textAlign: 'center',
+                                marginTop: spacing.extraSmall,
+                            }}
+                        />
+                    </>
+                }
+            >
                 {/*
                   * Destination, and the payee's description of the payment when the BIP21 URI
                   * carried one.
@@ -889,7 +930,7 @@ export const OnchainTransferScreen = observer(function OnchainTransferScreen({ro
                         </View>
                     </View>
                 )}
-            </View>
+            </AmountEntryLayout>
 
             {/* Fee tier picker */}
             <BottomModal
@@ -1022,22 +1063,11 @@ const $screen: ViewStyle = {
     flex: 1,
 }
 
-const $headerContainer: TextStyle = {
-    alignItems: 'center',
-    padding: spacing.extraSmall,
-    paddingTop: 0,
-    height: spacing.screenHeight * 0.2,
-}
 
 const $amountContainer: ViewStyle = {
     marginTop: -spacing.tiny,
 }
 
-const $contentContainer: TextStyle = {
-    flex: 1,
-    padding: spacing.extraSmall,
-    marginTop: -spacing.extraLarge * 1.5,
-}
 
 const $card: ViewStyle = {
     marginBottom: spacing.small,

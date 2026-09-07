@@ -47,6 +47,8 @@ const FOCUS_SWAP_GRACE = 120
  * back button. Screens autofocus their amount within a few hundred milliseconds; missing
  * that deadline means it is not going to happen, whatever the reason, and the settled
  * layout is the right place to land.
+ *
+ * Counted from when focus became POSSIBLE, not from mount — see the effect that uses it.
  */
 const ENTRY_FOCUS_TIMEOUT = 1500
 
@@ -199,15 +201,19 @@ export function useAmountEntry({
     })
   }, [isAmountEntry, entryProgress])
 
+  // Restarted when `isEnabled` turns on, so the deadline counts from the moment the field
+  // could first take focus. A screen whose editability depends on data that arrives late
+  // would otherwise spend its whole grace period waiting for a focus that was not yet
+  // possible, and settle just as the autofocus finally fired.
   useEffect(() => {
-    if (!initiallyExpanded) return
+    if (!initiallyExpanded || !isEnabled) return
 
     const timer = setTimeout(() => {
       if (!hasEverFocused.current) setIsExpanded(false)
     }, ENTRY_FOCUS_TIMEOUT)
 
     return () => clearTimeout(timer)
-  }, [initiallyExpanded])
+  }, [initiallyExpanded, isEnabled])
 
   useEffect(() => {
     return () => {
