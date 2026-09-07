@@ -1,11 +1,12 @@
-import React, { forwardRef, useState, useEffect } from "react"
-import { TextInput, TextStyle, View } from "react-native"
+import React, { forwardRef, useState, useEffect, useRef, useCallback } from "react"
+import { TextInput, TextStyle, View, ViewStyle } from "react-native"
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
 } from "react-native-reanimated"
 import { spacing, useThemeColor, typography } from "../theme"
+import { Icon } from "./Icon"
 import { verticalScale } from "@gocodingnow/rn-size-matters"
 import {
   Currencies,
@@ -33,7 +34,19 @@ interface AmountInputProps {
   onFocus?: () => void
   onBlur?: () => void
   style?: TextStyle
+  /**
+   * Opens up the gap between the amount and its converted value and puts a tappable
+   * swap affordance in it — the only hint that the converted line is an INPUT too.
+   *
+   * Opt-in, and animated rather than mounted/unmounted, so a screen can show it while
+   * the amount has the whole display to itself and fade it back out when the layout
+   * tightens up again. Screens that have not opted in are unchanged.
+   */
+  isSwapHintVisible?: boolean
 }
+
+/** Height the swap affordance claims between the two amounts when fully shown. */
+const SWAP_HINT_HEIGHT = spacing.large
 
 export const AmountInput = forwardRef<TextInput, AmountInputProps>(
   (
@@ -47,11 +60,26 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
       onFocus,
       onBlur,
       style,
+      isSwapHintVisible = false,
       ...rest
     },
     ref
   ) => {
     const { walletStore, userSettingsStore } = useStores()
+
+    // The forwarded ref belongs to the parent (it autofocuses the amount), but the swap
+    // affordance has to move focus between the two fields, so both are also held here.
+    const topInputRef = useRef<TextInput | null>(null)
+    const bottomInputRef = useRef<TextInput | null>(null)
+
+    const setTopInputRef = useCallback(
+      (node: TextInput | null) => {
+        topInputRef.current = node
+        if (typeof ref === "function") ref(node)
+        else if (ref) (ref as React.MutableRefObject<TextInput | null>).current = node
+      },
+      [ref]
+    )
 
     const [focused, setFocused] = useState<"top" | "bottom">("top")
     const [isConvertedValueVisible, setIsConvertedValueVisible] = useState<boolean>(false)
@@ -272,6 +300,27 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
       }
     }, [focused, topScale, bottomScale])
 
+    // The hint is animated open and shut rather than mounted and unmounted: it sits
+    // between two fields whose own sizes are animated, and a mount would step the layout
+    // in one frame while everything around it was still gliding.
+    const swapHintProgress = useSharedValue(isSwapHintVisible ? 1 : 0)
+
+    useEffect(() => {
+      swapHintProgress.value = withTiming(isSwapHintVisible ? 1 : 0, { duration: 250 })
+    }, [isSwapHintVisible, swapHintProgress])
+
+    const animatedSwapHintStyle = useAnimatedStyle(() => ({
+      height: SWAP_HINT_HEIGHT * swapHintProgress.value,
+      opacity: swapHintProgress.value,
+      transform: [{ scale: 0.7 + 0.3 * swapHintProgress.value }],
+    }))
+
+    const onSwapPress = () => {
+      if (!editable) return
+      if (focused === "top") bottomInputRef.current?.focus()
+      else topInputRef.current?.focus()
+    }
+
     const TOP_FONT_SIZE = verticalScale(56)
 
     const defaultTopStyle: TextStyle = {
@@ -339,7 +388,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
       <>
         {/* Top input */}
         <AnimatedTextInput
-          ref={ref}
+          ref={setTopInputRef}
           value={topDisplayValue}
           onChangeText={handleTopChange}
           onEndEditing={onAmountEndEditing}
@@ -359,6 +408,22 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
         />
 
         {isConvertedValueVisible && (
+          <Animated.View style={[$swapHintContainer, animatedSwapHintStyle]}>
+            <Icon
+              icon="faArrowRightArrowLeft"
+              // Vertical arrows: the two amounts are stacked, so a left/right glyph
+              // would point at nothing.
+              transform="rotate-90"
+              size={spacing.medium}
+              color={convertedAmountColor}
+              containerStyle={$swapHintIcon}
+              onPress={onSwapPress}
+              hitSlop={spacing.small}
+            />
+          </Animated.View>
+        )}
+
+        {isConvertedValueVisible && (
           <View
           style={{
             flexDirection: "row",
@@ -373,6 +438,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
           </Animated.Text>
         
           <AnimatedTextInput
+            ref={bottomInputRef}
             value={bottomDisplayValue}
             onChangeText={handleBottomChange}
             onEndEditing={onAmountEndEditing}
@@ -397,5 +463,18 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
     )
   }
 )
+
+// `overflow: hidden` is what lets the animated height crop the icon instead of the icon
+// forcing the row open — the glyph keeps its size the whole way and simply runs out of room.
+const $swapHintContainer: ViewStyle = {
+  alignItems: "center",
+  justifyContent: "center",
+  overflow: "hidden",
+  alignSelf: "center",
+}
+
+const $swapHintIcon: ViewStyle = {
+  padding: 0,
+}
 
 AmountInput.displayName = "AmountInput"
