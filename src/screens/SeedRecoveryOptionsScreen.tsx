@@ -48,6 +48,15 @@ export const SeedRecoveryOptionsScreen = observer(function SeedRecoveryOptionsSc
           ContentComponent={
             <>
               <ListItem
+                tx="recoveryOptionsFromSeed"
+                subTx="recoveryOptionsFromSeedDescription"
+                leftIcon="faSeedling"
+                leftIconColor={colors.palette.orange400}
+                leftIconInverse
+                style={$item}
+                onPress={gotoSeedRecovery}
+              />
+              <ListItem
                 tx="recoveryOptionsFromBackup"
                 subTx="recoveryOptionsFromBackupDescription"
                 leftIcon="faDownload"
@@ -56,15 +65,6 @@ export const SeedRecoveryOptionsScreen = observer(function SeedRecoveryOptionsSc
                 bottomSeparator
                 style={$item}
                 onPress={gotoImportBackup}
-              />
-              <ListItem
-                tx="recoveryOptionsFromSeed"
-                subTx="recoveryOptionsFromSeedDescription"
-                leftIcon="faSeedling"
-                leftIconColor={colors.palette.orange400}
-                leftIconInverse
-                style={$item}
-                onPress={gotoSeedRecovery}
               />
               <ListItem
                 tx="walletAddressRecovery"

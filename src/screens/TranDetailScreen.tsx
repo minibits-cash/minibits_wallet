@@ -384,6 +384,12 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
                   navigation={navigation}
                 />
               )}
+              {transaction.type === TransactionType.RECEIVE_IMPORT && (
+                <ReceiveImportInfoBlock
+                  transaction={transaction}
+                  mint={mint}
+                />
+              )}
               {transaction.type === TransactionType.SEND && (
                 <SendInfoBlock
                   transaction={transaction}
@@ -1174,6 +1180,79 @@ const ReceiveOfflineInfoBlock = function (props: {
     </>
     )
 }
+
+/**
+ * The detail body for ecash restored from a backup.
+ *
+ * Every transaction type needs one of these: the screen renders the note card and
+ * the audit trail generically, and NOTHING else — so a type with no block of its
+ * own shows a detail page with no transaction data on it at all.
+ *
+ * Deliberately plain. There is no counterparty, no payment request and no retry:
+ * the proofs were already signed when they arrived, which is also why the status
+ * is unconditionally COMPLETED and `balanceAfter` needs no gate here.
+ */
+const ReceiveImportInfoBlock = function (props: {
+    transaction: Transaction
+    mint?: Mint
+}) {
+    const {transaction, mint} = props
+
+    return (
+    <>
+        <Card
+            label='Transaction data'
+            style={$dataCard}
+            ContentComponent={
+                <>
+                    <TranItem
+                        label="tranDetailScreen_amount"
+                        value={transaction.amount}
+                        unit={transaction.unit}
+                        isCurrency={true}
+                        isFirst={true}
+                    />
+                    <TranItem
+                        label="tranDetailScreen_type"
+                        value={transaction.type as string}
+                    />
+                    <TranItem
+                        label="tranDetailScreen_status"
+                        value={transaction.status as string}
+                    />
+                    <TranItem
+                        label="tranDetailScreen_balanceAfter"
+                        value={transaction.balanceAfter || 0}
+                        unit={transaction.unit}
+                        isCurrency={true}
+                    />
+                    <TranItem
+                        label="tranDetailScreen_createdAt"
+                        value={(transaction.createdAt as Date).toLocaleString()}
+                    />
+                    <TranItem label="tranDetailScreen_id" value={`${transaction.id}`} />
+                </>
+            }
+        />
+        <Card
+            labelTx='transactionCommon_receivedTo'
+            style={$dataCard}
+            ContentComponent={
+              mint ? (
+                <MintListItem
+                  mint={mint}
+                  isSelectable={false}
+                  isUnitVisible={false}
+                />
+              ) : (
+                  <Text text={transaction.mint} />
+              )
+            }
+        />
+    </>
+    )
+}
+
 
 const SendInfoBlock = function (props: {
     transaction: Transaction
