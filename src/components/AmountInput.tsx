@@ -45,8 +45,38 @@ interface AmountInputProps {
   isSwapHintVisible?: boolean
 }
 
-/** Height the swap affordance claims between the two amounts when fully shown. */
-const SWAP_HINT_HEIGHT = spacing.large
+// ─── Swap hint spacing ───────────────────────────────────────────────────────
+//
+// The arrows have to look equidistant from the two amounts, and centring them in the gap
+// between the two text BOXES does not achieve that: a text box is taller than the digits
+// it draws. A 56px amount carries roughly a quarter of an em of empty descender space
+// below its digits; the 16px converted line below carries the same fraction of a much
+// smaller em. So the box gap above the arrows is already generously padded and the one
+// below is not, and arrows centred between the boxes read as low.
+//
+// The block below is that correction, expressed as the numbers actually being reasoned
+// about: the clear space wanted on each side, and how much of it the top amount's own
+// descender already provides.
+
+/** Clear space wanted between the arrows and each amount. */
+const SWAP_HINT_GAP = spacing.small
+
+/** Size of the arrow glyph. */
+const SWAP_HINT_ICON_SIZE = spacing.medium
+
+/**
+ * How much taller the empty space under the top amount's digits is than the empty space
+ * over the converted amount's. Applied as bottom padding, which lifts the arrows off the
+ * converted line by exactly that much and puts them on the optical centre.
+ *
+ * Derived from the fonts' descent (~0.24em) at the two sizes the amounts are drawn at,
+ * so it is an estimate — tune it here if the arrows still read as sitting low or high.
+ */
+const SWAP_HINT_BASELINE_SLACK = verticalScale(10)
+
+/** Total height the swap affordance claims between the two amounts when fully shown. */
+const SWAP_HINT_HEIGHT =
+  SWAP_HINT_GAP * 2 + SWAP_HINT_ICON_SIZE + SWAP_HINT_BASELINE_SLACK
 
 export const AmountInput = forwardRef<TextInput, AmountInputProps>(
   (
@@ -414,7 +444,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
               // Vertical arrows: the two amounts are stacked, so a left/right glyph
               // would point at nothing.
               transform="rotate-90"
-              size={spacing.medium}
+              size={SWAP_HINT_ICON_SIZE}
               color={convertedAmountColor}
               containerStyle={$swapHintIcon}
               onPress={onSwapPress}
@@ -471,6 +501,9 @@ const $swapHintContainer: ViewStyle = {
   justifyContent: "center",
   overflow: "hidden",
   alignSelf: "center",
+  // Eats into the content box (heights are border-box here), so the centred glyph is
+  // lifted off the converted amount by SWAP_HINT_BASELINE_SLACK. See the constants above.
+  paddingBottom: SWAP_HINT_BASELINE_SLACK,
 }
 
 const $swapHintIcon: ViewStyle = {

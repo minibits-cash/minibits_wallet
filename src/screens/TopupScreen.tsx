@@ -428,7 +428,10 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
     const keyboardTop = useSharedValue(0)
     /** Window Y of the animated area (i.e. just below the MintHeader). */
     const wrapperTop = useSharedValue(0)
-    /** Centre of the amount block, relative to the top of the animated area. */
+    /**
+     * Centre of the whole visible amount block — amount, converted value, swap hint and
+     * caption — relative to the top of the animated area.
+     */
     const amountCentre = useSharedValue(0)
     /**
      * 0 until the geometry above is known.
@@ -1141,12 +1144,15 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
             style={[$headerBackdrop, {backgroundColor: headerBg}, $animatedBackdropStyle]}
           />
           <Animated.View style={[$headerContainer, $animatedAmountStyle]}>
+            {/* Everything that is on screen during amount entry, in one box that hugs its
+                content — centring the amount alone would leave the caption below it
+                hanging past the middle and the whole thing reading as too low. */}
             <View
-              style={$amountContainer}
+              style={$amountBlock}
               onLayout={e => {
                 const {y, height} = e.nativeEvent.layout
-                // The backdrop is absolute, so this container's offset within the header
-                // band is also its offset within the animated area.
+                // The backdrop is absolute, so this block's offset within the header band
+                // is also its offset within the animated area.
                 //
                 // Re-measured as the swap hint opens and closes, which is what we want:
                 // the block is centred as it actually appears at the time.
@@ -1157,31 +1163,33 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                 settleMeasurement()
               }}
             >
-              <AmountInput
-                  ref={amountInputRef}
-                  value={amountToTopup}
-                  onChangeText={amount => setAmountToTopup(amount)}
-                  unit={unitRef.current}
-                  onEndEditing={onAmountEndEditing}
-                  onFocus={onAmountFocus}
-                  onBlur={onAmountBlur}
-                  isSwapHintVisible={isAmountEntry}
-                  selectTextOnFocus={true}
-                  editable={
-                    transactionStatus === TransactionStatus.PENDING ? false : true
-                  }
-                  style={{color: amountInputColor}}
+              <View style={$amountContainer}>
+                <AmountInput
+                    ref={amountInputRef}
+                    value={amountToTopup}
+                    onChangeText={amount => setAmountToTopup(amount)}
+                    unit={unitRef.current}
+                    onEndEditing={onAmountEndEditing}
+                    onFocus={onAmountFocus}
+                    onBlur={onAmountBlur}
+                    isSwapHintVisible={isAmountEntry}
+                    selectTextOnFocus={true}
+                    editable={
+                      transactionStatus === TransactionStatus.PENDING ? false : true
+                    }
+                    style={{color: amountInputColor}}
+                />
+              </View>
+              <Text
+                size="xs"
+                text={getAmountTitle()}
+                style={{
+                  color: amountInputColor,
+                  textAlign: 'center',
+                  // marginTop: spacing.extraSmall
+                }}
               />
             </View>
-            <Text
-              size="xs"
-              text={getAmountTitle()}
-              style={{
-                color: amountInputColor,
-                textAlign: 'center',
-                // marginTop: spacing.extraSmall
-              }}
-            />
           </Animated.View>
           <Animated.View
             style={[$contentContainer, $animatedContentStyle]}
@@ -1828,6 +1836,16 @@ const $headerContainer: TextStyle = {
   padding: spacing.extraSmall,
   paddingTop: 0,
   height: COLLAPSED_HEADER_HEIGHT,
+}
+
+/**
+ * Hugs the amount block's content, so its measured centre is the centre of what is
+ * actually drawn. $headerContainer cannot serve: it has a fixed height, so its own centre
+ * is a property of the settled layout rather than of the content.
+ */
+const $amountBlock: ViewStyle = {
+  alignSelf: 'stretch',
+  alignItems: 'center',
 }
 
 const $amountContainer: ViewStyle = {
