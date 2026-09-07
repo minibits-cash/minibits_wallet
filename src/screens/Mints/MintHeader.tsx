@@ -8,7 +8,7 @@ import { CurrencySign } from "../Wallet/CurrencySign"
 import { CurrencyAmount } from "../Wallet/CurrencyAmount"
 import { observer } from "mobx-react-lite"
 import { StackNavigationProp } from "@react-navigation/stack"
-import { moderateScale } from "@gocodingnow/rn-size-matters"
+import { moderateScale, verticalScale } from "@gocodingnow/rn-size-matters"
 import { useNavigation } from "@react-navigation/native"
 
 export const MintHeader = observer(function(props: {
@@ -69,6 +69,7 @@ export const MintHeader = observer(function(props: {
                     <Text
                         text={mint.shortname}
                         numberOfLines={1}
+                        ellipsizeMode='tail'
                         style={[$mintName, {color: textColor || headerTitle}]}
                         size='xxs'
                     />
@@ -86,6 +87,10 @@ export const MintHeader = observer(function(props: {
                                 amountStyle={{color: resolvedTextColor}}
                                 symbolStyle={{color: resolvedTextColor}}
                                 size='medium'
+                                // CurrencyAmount pads itself on all four sides, which here
+                                // only pushes the balance away from the name above it. The
+                                // sides are still wanted — $mintName aligns to them.
+                                containerStyle={{paddingTop: 0}}
                             />
                         )
                     )}
@@ -108,10 +113,15 @@ const $hiddenBalance: TextStyle = {
 }
 
 const $mintName: TextStyle = {
-    // Bounded so a long mint name cannot grow this block across the centred pill, which
-    // is absolutely positioned and would simply be overlapped.
+    // Bounded so a long mint name cannot grow this block across the centred pill, which is
+    // absolutely positioned and would simply be overlapped. Past this, numberOfLines
+    // ellipsises it.
     maxWidth: spacing.screenWidth * 0.28,
     // Matches CurrencyAmount's own padding, so the name's right edge lines up with the
     // balance digits rather than hanging a few pixels past them.
     paddingRight: spacing.tiny,
+    // The xxs preset's line box is half again as tall as its text, and the empty half
+    // below the name is spacing the two lines apart. Set to the font's own line height:
+    // tight enough to close the gap, loose enough that a descender is not clipped.
+    lineHeight: verticalScale(14),
 }
