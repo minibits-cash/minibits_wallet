@@ -3,7 +3,7 @@ import React, {FC, useEffect, useRef, useState} from 'react'
 import {LayoutAnimation, Platform, ScrollView, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {validateMnemonic} from '@scure/bip39'
 import QuickCrypto from 'react-native-quick-crypto'
-import { wordlist } from '@scure/bip39/wordlists/english'
+import { wordlist } from '@scure/bip39/wordlists/english.js'
 import { mnemonicToSeedSync } from '@scure/bip39'
 import {colors, spacing, typography, useThemeColor} from '../theme'
 import {
@@ -16,7 +16,8 @@ import {
   ErrorModal,
   InfoModal,
   Button,
-  Header,  
+  Header,
+  BottomModal,
 } from '../components'
 import AppError, { Err } from '../utils/AppError'
 import { Database, KeyChain, log } from '../services'
@@ -34,6 +35,9 @@ import { Mint as CashuMint, GetKeysResponse } from '@cashu/cashu-ts'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 import { Proof } from '../models/Proof'
 import { decodeBackup } from '../services/backup/backupCodec'
+import { groupImportedProofs } from '../services/backup/importSummary'
+import { TransactionStatus, TransactionType } from '../models/Transaction'
+import { ResultModalInfo } from './Wallet/ResultModalInfo'
 
 type Props = StaticScreenProps<undefined>
 
@@ -45,6 +49,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
         contactsStore, 
         walletProfileStore, 
         walletStore,
+        transactionsStore,
         authStore
     } = useStores()
     
@@ -66,6 +71,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
     const [isLoading, setIsLoading] = useState(false)    
     const [error, setError] = useState<AppError | undefined>()        
     const [statusMessage, setStatusMessage] = useState<string>()
+    const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false)
 
 
     const onBack = () => {
@@ -104,12 +110,12 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
     
     const onPasteBackup = async function () {
         try {
-            setStatusMessage('Inserting backup...')
+            setStatusMessage(translate('importBackupInserting'))
             setIsLoading(true)
             const maybeBackup = await Clipboard.getString()
 
             if(!maybeBackup) {
-                throw new AppError(Err.VALIDATION_ERROR, 'Copy and paste the wallet backup.')
+                throw new AppError(Err.VALIDATION_ERROR, translate('importBackupMissingClipboard'))
             }
 
             const cleaned = maybeBackup.trim()
@@ -141,7 +147,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
       }
 
       if(!snapshot?.proofsStore || !snapshot?.mintsStore || !snapshot?.contactsStore) {
-        throw new AppError(Err.VALIDATION_ERROR, 'This does not look like a Minibits wallet backup.')
+        throw new AppError(Err.VALIDATION_ERROR, translate('importBackupNotAWalletBackup'))
       }
 
       return snapshot
@@ -153,7 +159,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
           // seedRef, not just seedHashRef: an encrypted backup cannot be opened
           // without the seed itself.
           if(!backup || !seedRef.current) {
-            throw new AppError(Err.VALIDATION_ERROR, 'Missing backup or seed.')
+            throw new AppError(Err.VALIDATION_ERROR, translate('importBackupMissingBackupOrSeed'))
           }
 
           LayoutAnimation.easeInEaseOut()    
@@ -168,10 +174,99 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
     }
 
     
+    const toggleConfirmModal = () =>
+        setIsConfirmModalVisible(previousState => !previousState)
+
+
+    const onConfirmImport = function () {
+        setIsConfirmModalVisible(false)
+        importWallet()
+    }
+
+
+    /**
+     * What the import is about to do that cannot be undone.
+     *
+     * Mints and contacts are merged, so nothing already in this wallet is lost —
+     * the seed is the exception, and it is the whole reason this modal exists. The
+     * ecash clause is conditional because it is noise on the flow that brings most
+     * people here: a fresh install with nothing in it yet.
+     */
+    const confirmMessage = function () {
+        const holdsEcash = proofsStore.proofsCount > 0 || proofsStore.pendingProofsCount > 0
+
+        return [
+            translate('importBackupConfirmSeed'),
+            holdsEcash ? translate('importBackupConfirmEcash') : undefined,
+            translate('importBackupConfirmMerge'),
+        ]
+            .filter(Boolean)
+            .join('\n\n')
+    }
+
+
+    /**
+     * Write one COMPLETED RECEIVE_IMPORT transaction per (mint, unit) restored.
+     *
+     * Without it the balance jumps and the history cannot explain it — every total
+     * after an import would be unaccountable. Only what was actually ADDED counts:
+     * proofs the wallet already held are not ecash the import brought.
+     *
+     * There is deliberately NO failure path. The status is always COMPLETED,
+     * because the proofs are already in hand and nothing at the mint can refuse
+     * them; and if writing the history fails, that is logged and the import
+     * carries on — the ecash is restored either way, and an ERROR transaction
+     * would claim a loss that did not happen.
+     */
+    const addImportTransactions = async function (importedProofs: Proof[]) {
+      try {
+        for (const group of groupImportedProofs(importedProofs)) {
+          const transactionData = [{
+            status: TransactionStatus.COMPLETED,
+            importedAmount: group.amount,
+            importedProofsCount: group.proofs.length,
+            mintUrl: group.mintUrl,
+            unit: group.unit,
+            createdAt: new Date(),
+          }]
+
+          const transaction = await transactionsStore.addTransaction({
+            type: TransactionType.RECEIVE_IMPORT,
+            amount: group.amount,
+            fee: 0,
+            unit: group.unit,
+            data: JSON.stringify(transactionData),
+            mint: group.mintUrl,
+            status: TransactionStatus.COMPLETED,
+            // The unit total once everything the import brought is in — the same
+            // reading every other flow records here.
+            balanceAfter: proofsStore.getUnitBalance(group.unit)?.unitBalance,
+          })
+
+          for (const proof of group.proofs) {
+            proof.setTransactionId(transaction.id)
+          }
+
+          log.info('[addImportTransactions]', 'Recorded imported ecash', {
+            transactionId: transaction.id,
+            mintUrl: group.mintUrl,
+            unit: group.unit,
+            amount: group.amount,
+          })
+        }
+      } catch (e: any) {
+        // Never fatal: the ecash is restored whether or not its history is.
+        log.error('[addImportTransactions]', 'Could not record the imported ecash in the history', {
+          error: e?.message,
+        })
+      }
+    }
+
+
     const importWallet = async function () {
       try {
         if(!walletSnapshot) {
-          throw new AppError(Err.VALIDATION_ERROR, 'Missing wallet spnapshot decoded from backup.')
+          throw new AppError(Err.VALIDATION_ERROR, translate('importBackupMissingSnapshot'))
         }
 
         setStatusMessage(translate("recovery_starting"))
@@ -236,7 +331,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
           }
         }
 
-        proofsStore.importProofs(walletSnapshot.proofsStore.proofs)
+        const importedProofs = proofsStore.importProofs(walletSnapshot.proofsStore.proofs)
         proofsStore.importPendingByMintSecrets(walletSnapshot.proofsStore.pendingByMintSecrets)
         // Merged, not applied: an applySnapshot here used to discard every contact
         // added on this device, and a contact list has no second copy anywhere.
@@ -265,6 +360,12 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
         mintsStore.hydrateCountersFromDatabase()
 
         log.trace('After import and mint keys hydration', {mintsStore})
+
+        // Record the restored ecash in the history, BEFORE the proofs are written:
+        // each one is then stamped with the id of the transaction that accounts for
+        // it, so an imported proof references a transaction that exists in THIS
+        // wallet rather than one left behind on the other device.
+        await addImportTransactions(importedProofs)
 
         // import proofs into the db
         if(proofsStore.proofsCount > 0) {
@@ -374,7 +475,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
         <View style={[$headerContainer, {backgroundColor: headerBg}]}>            
             <Text 
               preset="heading" 
-              text={"Import backup"} 
+              tx="importBackupTitle" 
               style={{color: headerTitle, textAlign: 'center'}}               
             />
         </View>
@@ -393,7 +494,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                     ContentComponent={
                         <ListItem
                             tx="importBackupInsertWalletBackup"
-                            subText={'Paste the backup exported from previous wallet.'}
+                            subTx="importBackupPasteHint"
                             LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>}                  
                             style={$item}                            
                         /> 
@@ -408,7 +509,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                             multiline={true}
                             autoCapitalize='none'
                             keyboardType='default'                            
-                            placeholder={'Paste your backup'}
+                            placeholder={translate('importBackupPastePlaceholder')}
                             placeholderTextColor={placeholderTextColor}
                             selectTextOnFocus={true}                    
                             style={[$backupInput, {backgroundColor: inputBg, flexWrap: 'wrap', color: inputText}]}
@@ -436,7 +537,7 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                     style={$card}
                     ContentComponent={
                         <ListItem
-                            text='Wallet backup'
+                            tx="importBackupWalletBackup"
                             subText={`${backup.slice(0, 50)}...`}
                             subTextStyle={{fontFamily: typography.code?.normal}}
                             LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text='2'/></View>}                  
@@ -450,8 +551,8 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                 style={$card}
                 ContentComponent={
                     <ListItem
-                        text={'Wallet profile recovery'}
-                        subText="While importing the wallet we'll try to recover wallet address and avatar linked to the provided seed."
+                        tx="importBackupProfileRecoveryTitle"
+                        subTx="importBackupProfileRecoveryDesc"
                         LeftComponent={<View style={[$numIcon, {backgroundColor: numIconColor}]}><Text text={'3'}/></View>}
                         style={$item}                            
                     /> 
@@ -465,20 +566,47 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
                   <>
                     {isValidBackup && (
                       <Button                        
-                        text={`Import wallet`}
+                        tx="importBackupImportWallet"
                         LeftAccessory={() => (
                           <Icon
                               icon='faDownload'                            
                               size={spacing.medium}                  
                           />
                         )}
-                        onPress={importWallet}                                               
+                        onPress={toggleConfirmModal}                                               
                       />
                     )}
                   </>                
             </View>            
         </View>    
         )}           
+        <BottomModal
+            isVisible={isConfirmModalVisible}
+            ContentComponent={
+                <>
+                    <ResultModalInfo
+                        icon='faTriangleExclamation'
+                        iconColor={colors.palette.accent300}
+                        title={translate('importBackupConfirmTitle')}
+                        message={confirmMessage()}
+                    />
+                    <View style={$buttonContainer}>
+                        <Button
+                            tx="importBackupImportWallet"
+                            onPress={onConfirmImport}
+                            style={{marginRight: spacing.small}}
+                        />
+                        <Button
+                            preset='secondary'
+                            tx='commonCancel'
+                            onPress={toggleConfirmModal}
+                        />
+                    </View>
+                </>
+            }
+            onBackButtonPress={toggleConfirmModal}
+            onBackdropPress={toggleConfirmModal}
+        />
         {error && <ErrorModal error={error} />}
         {info && <InfoModal message={info} />}
         {isLoading && <Loading statusMessage={statusMessage} textStyle={{color: 'white'}} style={{backgroundColor: headerBg, opacity: 1}}/>}    

@@ -1,11 +1,11 @@
 import * as _Keychain from 'react-native-keychain'
 import AppError, {Err} from '../utils/AppError'
 import QuickCrypto from 'react-native-quick-crypto'
-import { wordlist } from "@scure/bip39/wordlists/english"
+import { wordlist } from "@scure/bip39/wordlists/english.js"
 
 import * as bip39 from '@scure/bip39'
 
-import { bytesToHex } from '@noble/hashes/utils'
+import { bytesToHex } from '@noble/hashes/utils.js'
 import { generateSecretKey, getPublicKey } from 'nostr-tools/pure'
 import { accountFromSeedWords } from 'nostr-tools/nip06'
 import {log} from './logService'

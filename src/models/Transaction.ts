@@ -32,6 +32,17 @@ export enum TransactionType {
      */
     TOPUP_ONCHAIN = 'TOPUP_ONCHAIN',
     /**
+     * Ecash restored from a wallet backup.
+     *
+     * Not a payment: nothing moved at the mint, the proofs were already signed and
+     * simply arrived on this device. It exists so the history still explains the
+     * balance — without it, importing a backup raises the balance out of nowhere
+     * and every later total is unaccountable. One per (mint, unit) actually
+     * imported, always COMPLETED: proofs that are already in hand cannot fail, and
+     * a failed import writes no transaction at all rather than an ERROR one.
+     */
+    RECEIVE_IMPORT = 'RECEIVE_IMPORT',
+    /**
      * Melt to a Bitcoin onchain address (NUT-30).
      *
      * Always asynchronous: the mint validates, returns PENDING, and broadcasts in
@@ -57,6 +68,7 @@ export const INCOMING_TRANSACTION_TYPES: TransactionType[] = [
     TransactionType.RECEIVE_OFFLINE,
     TransactionType.RECEIVE_NOSTR,
     TransactionType.RECEIVE_BY_PAYMENT_REQUEST,
+    TransactionType.RECEIVE_IMPORT,
     TransactionType.TOPUP,
     TransactionType.TOPUP_ONCHAIN,
 ]

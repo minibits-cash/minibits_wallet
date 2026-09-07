@@ -12,10 +12,15 @@ module.exports = {
   // mmkvStorage / keyChain / db). That is what made MST stores impossible to
   // instantiate in a test at all; these mappings are what make store tests possible.
   moduleNameMapper: {
-    '^@noble/hashes/utils$': '@noble/hashes/utils.js',
-    // Same shape as the @noble mapping: the package only exports the explicit
-    // `.js` subpath, which jest's resolver will not infer.
-    '^@scure/bip39/wordlists/(.*)$': '@scure/bip39/wordlists/$1.js',
+    // Same shape as the @scure/bip39 mapping below: the package's exports map
+    // names only the suffixed path, so app code imports it that way. This accepts
+    // both spellings, for transitive dependencies still using the bare one.
+    '^@noble/hashes/utils(?:\\.js)?$': '@noble/hashes/utils.js',
+    // The package's exports map lists ONLY the explicit `.js` subpath, so app code
+    // imports it that way (moduleResolution is "bundler", which honours exports).
+    // This accepts both spellings, since a transitive dependency may still use the
+    // extensionless one, which no resolver can infer from that map.
+    '^@scure/bip39/wordlists/([^/.]+)(?:\\.js)?$': '@scure/bip39/wordlists/$1.js',
     // quick-crypto's native module is unavailable under jest; route to a
     // Node `crypto` shim so deps that import it at load time (e.g. bip32) work.
     '^react-native-quick-crypto$': '<rootDir>/__mocks__/react-native-quick-crypto.js',
@@ -34,5 +39,9 @@ module.exports = {
     // cross the nested copies onto the top-level @noble versions — on crypto code.
     // Mock the surface instead; nothing in the model layer needs real nostr.
     '^nostr-tools(/.*)?$': '<rootDir>/__mocks__/nostr-tools.js',
+    // react-native-localize is a native TurboModule, and src/i18n calls getLocales()
+    // at module scope — so without this, importing `translate` anywhere makes the
+    // module unloadable under jest.
+    '^react-native-localize$': '<rootDir>/__mocks__/react-native-localize.js',
   },
 }

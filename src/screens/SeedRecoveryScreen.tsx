@@ -3,7 +3,7 @@ import React, {FC, useEffect, useRef, useState} from 'react'
 import {FlatList, LayoutAnimation, Platform, Pressable, ScrollView, Switch, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
 import {validateMnemonic} from '@scure/bip39'
 import QuickCrypto from 'react-native-quick-crypto'
-import { wordlist } from '@scure/bip39/wordlists/english'
+import { wordlist } from '@scure/bip39/wordlists/english.js'
 import {colors, spacing, useThemeColor} from '../theme'
 import {
   Icon,

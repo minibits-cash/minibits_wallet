@@ -31,6 +31,7 @@
 import QuickCrypto from 'react-native-quick-crypto'
 import AppError, {Err} from '../../utils/AppError'
 import {log} from '../logService'
+import {translate} from '../../i18n'
 
 const PREFIX = 'minibits'
 /** Plaintext JSON. Decoded, never produced. */
@@ -52,10 +53,10 @@ const HKDF_INFO = 'minibits/backup/v1'
 const CIPHER = 'aes-256-gcm'
 
 /**
- * Every failure in here is shown to the user as-is, so each message is a whole
- * sentence naming what went wrong and, where there is one, what to do about it.
- * AppError also carries them to Sentry — a wallet that cannot restore its backup
- * is exactly what we want to hear about.
+ * Every failure in here is shown to the user as-is, so each message is a whole,
+ * translated sentence naming what went wrong and, where there is one, what to do
+ * about it. AppError also carries it to Sentry — a wallet that cannot restore its
+ * backup is exactly what we want to hear about.
  */
 const backupError = (message: string, params?: Record<string, any>) =>
     new AppError(Err.VALIDATION_ERROR, message, params)
@@ -100,7 +101,7 @@ const deriveBackupKey = function (seed: Uint8Array, salt: Uint8Array) {
  */
 export const encodeBackup = function (payload: unknown, seed: Uint8Array): string {
     if (!seed || seed.length === 0) {
-        throw backupError('Missing the wallet seed to encrypt the backup with.', {
+        throw backupError(translate('backupCodec_missingSeedToEncrypt'), {
             caller: 'encodeBackup',
         })
     }
@@ -118,7 +119,7 @@ export const encodeBackup = function (payload: unknown, seed: Uint8Array): strin
 
         encoded = PREFIX + VERSION_ENCRYPTED + Buffer.concat([salt, iv, tag, ciphertext]).toString('base64')
     } catch (e: any) {
-        throw backupError(`Could not encrypt the wallet backup: ${e.message}`, {
+        throw backupError(translate('backupCodec_encryptFailed', {error: e.message}), {
             caller: 'encodeBackup',
         })
     }
@@ -128,14 +129,14 @@ export const encodeBackup = function (payload: unknown, seed: Uint8Array): strin
     try {
         verified = decodeBackup(encoded, seed)
     } catch (e: any) {
-        throw backupError('The backup was encrypted but could not be read back, so it was not exported.', {
+        throw backupError(translate('backupCodec_verifyFailed'), {
             caller: 'encodeBackup',
             error: e.message,
         })
     }
 
     if (!Buffer.from(JSON.stringify(verified), 'utf8').equals(plaintext)) {
-        throw backupError('The encrypted backup did not decrypt back to the wallet state, so it was not exported.', {
+        throw backupError(translate('backupCodec_verifyMismatch'), {
             caller: 'encodeBackup',
         })
     }
@@ -155,7 +156,7 @@ const parsePayload = function (json: string): unknown {
     try {
         return JSON.parse(json)
     } catch (e: any) {
-        throw backupError('The backup could not be read. It may have been cut short when it was copied.', {
+        throw backupError(translate('backupCodec_unreadable'), {
             caller: 'decodeBackup',
             error: e.message,
         })
@@ -167,7 +168,9 @@ const parseEnvelope = function (backup: string): {version: string; body: string}
     const trimmed = (backup ?? '').trim()
 
     if (!trimmed.startsWith(PREFIX) || trimmed.length <= PREFIX.length) {
-        throw backupError(`A Minibits backup starts with '${PREFIX}'.`, {caller: 'decodeBackup'})
+        throw backupError(translate('backupCodec_notABackup', {prefix: PREFIX}), {
+            caller: 'decodeBackup',
+        })
     }
 
     return {
@@ -195,14 +198,13 @@ export const decodeBackup = function (backup: string, seed: Uint8Array): unknown
     }
 
     if (version !== VERSION_ENCRYPTED) {
-        throw backupError(
-            `This backup was made by a newer version of Minibits (format ${version}). Update the app to restore it.`,
-            {caller: 'decodeBackup'},
-        )
+        throw backupError(translate('backupCodec_unsupportedVersion', {version}), {
+            caller: 'decodeBackup',
+        })
     }
 
     if (!seed || seed.length === 0) {
-        throw backupError('Missing the seed phrase this backup was encrypted with.', {
+        throw backupError(translate('backupCodec_missingSeedToDecrypt'), {
             caller: 'decodeBackup',
         })
     }
@@ -210,9 +212,7 @@ export const decodeBackup = function (backup: string, seed: Uint8Array): unknown
     const envelope = Buffer.from(body, 'base64')
 
     if (envelope.length <= SALT_BYTES + IV_BYTES + TAG_BYTES) {
-        throw backupError('The backup is incomplete — it may have been cut short when it was copied.', {
-            caller: 'decodeBackup',
-        })
+        throw backupError(translate('backupCodec_incomplete'), {caller: 'decodeBackup'})
     }
 
     const salt = envelope.subarray(0, SALT_BYTES)
@@ -229,10 +229,7 @@ export const decodeBackup = function (backup: string, seed: Uint8Array): unknown
     } catch (e: any) {
         // GCM cannot tell a wrong key from altered bytes — both fail the same tag
         // check — so the message names both, in the order the user should check.
-        throw backupError(
-            'Could not decrypt the backup. It belongs to a different seed phrase, or it was damaged in transit.',
-            {caller: 'decodeBackup'},
-        )
+        throw backupError(translate('backupCodec_decryptFailed'), {caller: 'decodeBackup'})
     }
 
     return parsePayload(plaintext.toString('utf8'))

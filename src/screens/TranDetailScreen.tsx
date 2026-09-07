@@ -229,7 +229,13 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
         if (!transaction) { return '' }
 
         switch (transaction?.type) {
-            case TransactionType.RECEIVE || TransactionType.RECEIVE_OFFLINE || TransactionType.RECEIVE_BY_PAYMENT_REQUEST:
+            // Stacked labels, not `A || B || C` — that expression evaluates to A
+            // alone, so offline and payment-request receives fell through to the
+            // default and showed their amount with no sign at all.
+            case TransactionType.RECEIVE:
+            case TransactionType.RECEIVE_OFFLINE:
+            case TransactionType.RECEIVE_BY_PAYMENT_REQUEST:
+            case TransactionType.RECEIVE_IMPORT:
             return `+${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`
             case TransactionType.SEND:
             return `-${formatCurrency(transaction.amount, getCurrency(transaction.unit).code)}`

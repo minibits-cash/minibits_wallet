@@ -23,6 +23,7 @@ jest.mock('../src/services/logService', () => ({
 import {mnemonicToSeedSync} from '@scure/bip39'
 import {types, getSnapshot} from 'mobx-state-tree'
 import {encodeBackup, decodeBackup} from '../src/services/backup/backupCodec'
+import {groupImportedProofs} from '../src/services/backup/importSummary'
 import {MintsStoreModel, MintsStoreSnapshot} from '../src/models/MintsStore'
 import {ProofsStoreModel} from '../src/models/ProofsStore'
 import {ContactsStoreModel} from '../src/models/ContactsStore'
@@ -116,7 +117,7 @@ const importBackup = (root: Instance, encoded: string, keysByMintUrl: Record<str
     if (resolvedUrl && resolvedUrl !== proof.mintUrl) proof.mintUrl = resolvedUrl
   }
 
-  root.proofsStore.importProofs(backup.proofsStore.proofs)
+  const importedProofs = root.proofsStore.importProofs(backup.proofsStore.proofs)
   root.proofsStore.importPendingByMintSecrets(backup.proofsStore.pendingByMintSecrets)
   root.contactsStore.mergeFromBackup(backup.contactsStore)
 
@@ -139,6 +140,9 @@ const importBackup = (root: Instance, encoded: string, keysByMintUrl: Record<str
   if (root.proofsStore.pendingProofsCount > 0) {
     Database.addOrUpdateProofs(root.proofsStore.allPendingProofs, 'PENDING')
   }
+
+  // What ImportBackupScreen turns into RECEIVE_IMPORT transactions.
+  return importedProofs
 }
 
 // The store instances are structurally typed here; the models' own Instance types
@@ -358,5 +362,92 @@ describe('importing over an existing wallet', () => {
     // Monotonic: a backup taken before this device advanced can never rewind it,
     // which is what stops a blinded secret being derived at an index twice.
     expect(Database.getCounters().find(c => c.keysetId === KEYSET_1)?.counter).toBe(99)
+  })
+})
+
+/**
+ * The history side of an import: one RECEIVE_IMPORT transaction per (mint, unit)
+ * restored. Without it the balance rises with nothing in the history to account
+ * for it, and every total after the import is unexplainable.
+ *
+ * The screen writes the transactions; what it writes them FROM is here — the
+ * proofs importProofs reports as added, grouped by groupImportedProofs.
+ */
+describe('recording the imported ecash', () => {
+  test('one group per mint and unit, holding what that mint restored', () => {
+    const source = TestRoot.create({
+      mintsStore: {
+        mints: [
+          mintSnapshot({id: 'backup01'}),
+          mintSnapshot({
+            id: 'backup02',
+            mintUrl: OTHER_MINT_URL,
+            hostname: 'other.test',
+            keysets: [{id: KEYSET_2, unit: 'sat', active: true, input_fee_ppk: 0}],
+            keys: [{id: KEYSET_2, unit: 'sat', keys: {'1': '02cc'}}],
+            proofsCounters: [{keyset: KEYSET_2, unit: 'sat'}],
+          }),
+        ],
+      },
+      proofsStore: {
+        proofs: {
+          a1: proofSnapshot('a1'),
+          a2: proofSnapshot('a2'),
+          b1: {...proofSnapshot('b1'), id: KEYSET_2, mintUrl: OTHER_MINT_URL, amount: 5},
+        },
+      } as any,
+    })
+
+    const imported = importBackup(TestRoot.create({}), exportBackup(source))
+
+    expect(groupImportedProofs(imported)).toEqual([
+      expect.objectContaining({mintUrl: MINT_URL, unit: 'sat', amount: 4}),
+      expect.objectContaining({mintUrl: OTHER_MINT_URL, unit: 'sat', amount: 5}),
+    ])
+  })
+
+  // The transaction must claim what the import BROUGHT, not what the wallet ends
+  // up holding — otherwise re-importing the same backup would keep announcing
+  // ecash that was already here.
+  test('ecash the wallet already had is not counted again', () => {
+    const source = TestRoot.create({
+      mintsStore: {mints: [mintSnapshot({id: 'backup01'})]},
+      proofsStore: {proofs: {a1: proofSnapshot('a1'), a2: proofSnapshot('a2')}} as any,
+    })
+    const backup = exportBackup(source)
+
+    const target = TestRoot.create({})
+    expect(groupImportedProofs(importBackup(target, backup))[0].amount).toBe(4)
+
+    // The very same backup, imported a second time.
+    expect(groupImportedProofs(importBackup(target, backup))).toEqual([])
+    expect(target.proofsStore.proofs.size).toBe(2)
+  })
+
+  // A PENDING proof is locked in an operation the other device had in flight. It
+  // arrives, but it is not part of the balance this transaction accounts for.
+  test('pending proofs arrive but are left out of the amount', () => {
+    const source = TestRoot.create({
+      mintsStore: {mints: [mintSnapshot({id: 'backup01'})]},
+      proofsStore: {
+        proofs: {a1: proofSnapshot('a1'), a2: proofSnapshot('a2', 'PENDING')},
+      } as any,
+    })
+
+    const target = TestRoot.create({})
+    const imported = importBackup(target, exportBackup(source))
+
+    expect(imported).toHaveLength(2)
+    expect(groupImportedProofs(imported)).toEqual([
+      expect.objectContaining({mintUrl: MINT_URL, amount: 2}),
+    ])
+  })
+
+  test('an import that restored no ecash writes no transaction', () => {
+    const source = TestRoot.create({mintsStore: {mints: [mintSnapshot({id: 'backup01'})]}})
+
+    const imported = importBackup(TestRoot.create({}), exportBackup(source))
+
+    expect(groupImportedProofs(imported)).toEqual([])
   })
 })

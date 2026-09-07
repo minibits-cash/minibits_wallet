@@ -29,9 +29,10 @@
  * only supply the key.
  */
 import {HDKey} from '@scure/bip32'
-// `.js` suffix: the bare '@noble/hashes/utils' specifier used elsewhere in this
-// codebase does not resolve under tsc (the package's exports map only names the
-// suffixed path). Both forms work at runtime; this one also typechecks.
+// `.js` suffix, as everywhere this package is imported: its exports map names
+// only the suffixed path, and moduleResolution "bundler" honours that map — the
+// bare specifier does not typecheck. Both forms resolve at runtime today, but
+// only this one survives a bundler that enforces exports.
 import {bytesToHex} from '@noble/hashes/utils.js'
 import {allocateNextCounter, NUT20_COUNTER} from '../db/walletCountersRepo'
 import AppError, {Err} from '../../utils/AppError'

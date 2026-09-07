@@ -19,7 +19,7 @@ import type {
   SerializedBlindedSignature,
   HasKeysetKeys,
 } from '@cashu/cashu-ts'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import AppError, {Err} from '../../utils/AppError'
 import { getTokenMetadata } from '@cashu/cashu-ts'
 import {Proof} from '../../models/Proof'

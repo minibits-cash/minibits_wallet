@@ -2,7 +2,7 @@ import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
 import {JwtTokens, KeyChain, log, MinibitsClient, NostrEvent, NostrKeyPair, NostrUnsignedEvent} from '../services'
 import AppError, { Err } from '../utils/AppError'
 import { finalizeEvent, getEventHash, verifyEvent } from 'nostr-tools/pure'
-import { hexToBytes } from '@noble/hashes/utils'
+import { hexToBytes } from '@noble/hashes/utils.js'
 import { decodeJwtExpiry } from '../utils/authUtils'
 
 export type AuthState = {

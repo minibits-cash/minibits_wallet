@@ -323,11 +323,32 @@ import {
         },
 
         // Import proofs from backup without validation or side effects
-        importProofs(proofs: Proof[]) {
-            for (const proof of proofs) {
+        /**
+         * Add a backup's proofs to the wallet's own.
+         *
+         * A secret already here is SKIPPED, not overwritten: the local copy carries
+         * this device's state and transaction id, and a backup — which may be
+         * months old — must not reset a proof to how it looked then.
+         *
+         * @returns the proofs actually added, which is what the import writes its
+         *   RECEIVE_IMPORT transactions from. Counting the whole input instead would
+         *   claim ecash the wallet already had.
+         */
+        importProofs(proofs: Proof[]): Proof[] {
+            const added: Proof[] = []
+
+            for (const proof of proofs ?? []) {
+                if (!proof?.secret || self.proofs.has(proof.secret)) continue
+
                 self.proofs.put(ProofModel.create(proof))
+
+                const instance = self.proofs.get(proof.secret)
+                if (instance) added.push(instance)
             }
-            log.trace('[importProofs]', `Imported ${proofs.length} proofs from backup`)
+
+            log.trace('[importProofs]', `Imported ${added.length} of ${proofs?.length ?? 0} proofs from backup`)
+
+            return added
         },
 
         // ─────────────────────────────────────────────────────────────

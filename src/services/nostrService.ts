@@ -10,7 +10,7 @@ import { encrypt, decrypt } from 'nostr-tools/nip04'
 import { wrapEvent, unwrapEvent } from 'nostr-tools/nip59'
 import { neventEncode as nostrNeventEncode, npubEncode, decode as nip19Decode, nprofileEncode } from 'nostr-tools/nip19'
 import {SimplePool} from 'nostr-tools/pool'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { PrivateDirectMessage, Metadata } from 'nostr-tools/kinds'
 /*import {
     MINIBITS_RELAY_URL,    

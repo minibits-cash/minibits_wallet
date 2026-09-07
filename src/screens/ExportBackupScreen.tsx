@@ -80,7 +80,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
 
             if (orphaned.length > 0) {                
               setOrphanedProofs(orphaned)
-              setInfo(`Found ${orphaned.length} orphaned proofs not belonging to any active mint. Those won't be included to the backup, but you can copy them separately.`)
+              setInfo(translate('exportBackupOrphanedProofsFound', {count: orphaned.length}))
             }
 
             // log.trace('[loadProofs]', {refreshedProofs: proofsStore.proofs})
@@ -182,10 +182,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
           const mnemonic: string = await walletStore.getCachedMnenomic()
 
           if(!mnemonic) {
-            throw new AppError(
-              Err.VALIDATION_ERROR,
-              'This wallet has no seed phrase to encrypt the backup with.',
-            )
+            throw new AppError(Err.VALIDATION_ERROR, translate('exportBackupMissingMnemonic'))
           }
 
           const encodedBackup = encodeBackup(exportedSnapshot, mnemonicToSeedSync(mnemonic))
@@ -199,7 +196,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
       } catch (e: any) {
           // Everything the codec raises is already written for the user; only an
           // unexpected failure (the share sheet, the keychain) needs framing.
-          setInfo(e instanceof AppError ? e.message : `Could not export the wallet backup: ${e.message}`)
+          setInfo(e instanceof AppError ? e.message : translate('exportBackupFailed', {error: e.message}))
           setIsLoading(false)  
       }
   }
@@ -335,7 +332,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
               {totalProofsCount > 0 && (
                   <ListItem
                     tx="exportBackupEcashProofs"
-                    subText={`Number of proofs: ${proofsStore.proofsCount}`}
+                    subText={translate('exportBackupProofsCount', {count: proofsStore.proofsCount})}
                     RightComponent={
                       <View style={$rightContainer}>
                         {proofsStore.proofsCount > OPTIMIZE_FROM_PROOFS_COUNT && (
@@ -344,7 +341,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
                             onPress={() => navigation.navigate('OptimizeEcash')}
                             textStyle={{lineHeight: verticalScale(16), fontSize: verticalScale(14)}}
                             style={{minHeight: verticalScale(40), paddingVertical: verticalScale(spacing.tiny), marginRight: spacing.tiny, marginTop: -spacing.tiny}}
-                            text={'Optimize'}
+                            tx="exportBackupOptimize"
                           />
                         )}
                         <Switch
@@ -358,7 +355,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
               {mintsStore.mintCount > 0 && (
                   <ListItem
                     tx="exportBackupMints"
-                    subText={`Number of mints: ${mintsStore.mintCount}`}
+                    subText={translate('exportBackupMintsCount', {count: mintsStore.mintCount})}
                     RightComponent={
                       <View style={$rightContainer}>
                         <Switch
@@ -373,7 +370,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
               {contactsStore.count > 0 && (
                   <ListItem
                     tx="contacts"
-                    subText={`Number of contacts: ${contactsStore.count}`}
+                    subText={translate('exportBackupContactsCount', {count: contactsStore.count})}
                     RightComponent={
                         <View style={$rightContainer}>
                         <Switch
@@ -404,7 +401,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
               style={{color: hint}} 
               size='xs'
               preset='formHelper' 
-              text='This backup is encrypted with your seed phrase. You will need those words to restore it.'
+              tx="exportBackupSeedHint"
             />
           </View>
           <View style={$buttonContainer}>              

@@ -100,6 +100,9 @@ export const TransactionListItem = observer(function (props: TransactionListProp
           : translate('transactionCommon_youPaid'))
       // Onchain has no contact/profile to name — the counterparty is an address,
       // and for a topup it may not even be known (anyone can pay it).
+      // No counterparty to name: the ecash came from the user's own backup.
+      case TransactionType.RECEIVE_IMPORT:
+        return tx.memo ? tx.memo : translate('transactionType_receiveImport')
       case TransactionType.TOPUP_ONCHAIN:
         return tx.memo ? tx.memo : translate('transactionType_topupOnchain')
       case TransactionType.TRANSFER_ONCHAIN:
@@ -183,6 +186,10 @@ export const TransactionListItem = observer(function (props: TransactionListProp
         return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnDown" size={spacing.medium} color={txReceiveColor}/>)
       }
 
+      if([TransactionType.RECEIVE_IMPORT].includes(tx.type)) {
+          return (<Icon containerStyle={$txIconContainer} icon="faDownload" size={spacing.medium} color={txReceiveColor}/>)
+      }
+
       if([TransactionType.RECEIVE_OFFLINE].includes(tx.type)) {
           return (<Icon containerStyle={$txIconContainer} icon="faArrowTurnDown" size={spacing.medium} color={txPendingColor}/>)        
       }
@@ -251,7 +258,7 @@ export const TransactionListItem = observer(function (props: TransactionListProp
         LeftComponent={getLeftIcon(tx)}  
         RightComponent={
           <View style={$txContainer}>
-            {([TransactionType.RECEIVE, TransactionType.RECEIVE_OFFLINE, TransactionType.RECEIVE_BY_PAYMENT_REQUEST].includes(tx.type)) && (
+            {([TransactionType.RECEIVE, TransactionType.RECEIVE_OFFLINE, TransactionType.RECEIVE_BY_PAYMENT_REQUEST, TransactionType.RECEIVE_IMPORT].includes(tx.type)) && (
                 <>
                 {[TransactionStatus.COMPLETED, TransactionStatus.RECOVERED].includes(tx.status) && (
                     <CurrencyAmount 
