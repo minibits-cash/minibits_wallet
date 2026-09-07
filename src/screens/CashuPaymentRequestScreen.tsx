@@ -30,6 +30,7 @@ import { Transaction, TransactionStatus } from "../models/Transaction"
 import { MintBalance } from "../models/Mint"
 import { ResultModalInfo } from "./Wallet/ResultModalInfo"
 import { MintHeader } from "./Mints/MintHeader"
+import { AmountEntryLayout, useAmountEntry } from "../components/AmountEntryLayout"
 import { MemoInputCard } from "../components/MemoInputCard"
 
 type Props = StaticScreenProps<{
@@ -178,6 +179,10 @@ export const CashuPaymentRequestScreen = observer(function CashuPaymentRequestSc
     resultModalInfo,
     isResultModalVisible,
   } = state
+
+  const amountEntry = useAmountEntry({
+    isEnabled: transactionStatus !== TransactionStatus.PENDING,
+  })
 
   useEffect(() => {
     const focus = () => {
@@ -422,31 +427,37 @@ return (
       }
       unit={unitRef.current}          
     />
-    <View style={[$headerContainer, { backgroundColor: headerBg }]}>
-      <View style={$amountContainer}>
-        <AmountInput
-            ref={amountInputRef}
-            value={amountToRequest}
-            onChangeText={amount => setAmountToRequest(amount)}
-            unit={unitRef.current}
-            onEndEditing={onAmountEndEditing}
-            selectTextOnFocus={true}
-            editable={
-              transactionStatus === TransactionStatus.PENDING ? false : true
-            }
-        />
-      </View>
-      <Text
-          size="xs"
-          text={translate("amountRequested")}
-          style={{
-            color: amountInputColor,
-            textAlign: "center",
-            marginTop: spacing.extraSmall
-          }}
-        />
-    </View>
-    <View style={$contentContainer}>
+    <AmountEntryLayout
+      entry={amountEntry}
+      headerBackgroundColor={headerBg}
+      AmountComponent={
+        <>
+          <View style={$amountContainer}>
+            <AmountInput
+                ref={amountInputRef}
+                value={amountToRequest}
+                onChangeText={amount => setAmountToRequest(amount)}
+                unit={unitRef.current}
+                onEndEditing={onAmountEndEditing}
+                selectTextOnFocus={true}
+                editable={
+                  transactionStatus === TransactionStatus.PENDING ? false : true
+                }
+                {...amountEntry.inputProps}
+            />
+          </View>
+          <Text
+              size="xs"
+              text={translate("amountRequested")}
+              style={{
+                color: amountInputColor,
+                textAlign: "center",
+                marginTop: spacing.extraSmall
+              }}
+            />
+        </>
+      }
+    >
       {!encodedPaymentRequest && (
         <MemoInputCard
           memo={memo}
@@ -523,7 +534,7 @@ return (
           </View>
         </>
       )}
-    </View>
+    </AmountEntryLayout>
     <BottomModal
       isVisible={isResultModalVisible ? true : false}
       ContentComponent={
@@ -580,23 +591,12 @@ const $screen: ViewStyle = {
 flex: 1,
 }
 
-const $headerContainer: TextStyle = {
-alignItems: "center",
-padding: spacing.extraSmall,
-paddingTop: 0,
-height: spacing.screenHeight * 0.2,
-}
 
 const $amountContainer: ViewStyle = {
   marginTop: -spacing.tiny,
   // height: spacing.screenHeight * 0.11,
 }
 
-const $contentContainer: TextStyle = {
-flex: 1,
-padding: spacing.extraSmall,
-marginTop: -spacing.extraLarge * 1.5,
-}
 
 const $memoCard: ViewStyle = {
 marginBottom: spacing.small,

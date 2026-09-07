@@ -47,6 +47,7 @@ import { getImageSource, infoMessage } from '../utils/utils'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { MintUnit, MintUnits, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
+import { AmountEntryLayout, useAmountEntry } from '../components/AmountEntryLayout'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import { round, toNumber } from '../utils/number'
 import { QRCodeBlock } from './Wallet/QRCode'
@@ -423,6 +424,12 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             post: { sending: isPostSending, success: isPostSuccess },
         },
     } = state
+
+    // Mirrors the AmountInput's own `editable` below: a Cashu request that names its own
+    // amount leaves nothing to enter, so the screen opens in the settled layout.
+    const amountEntry = useAmountEntry({
+        isEnabled: transactionStatus !== TransactionStatus.PENDING && !isCashuPrWithAmount,
+    })
 
     /* 
         This ensures that amount input get focus on screen load.
@@ -1485,55 +1492,61 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             mint={mintBalanceToSendFrom ? mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl) : undefined}
             unit={unitRef.current}            
         />
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>        
-            <View style={$amountContainer}>
-                <AmountInput
-                    ref={amountInputRef}                    
-                    value={amountToSend}
-                    onChangeText={amount => setAmountToSend(amount)}
-                    unit={unitRef.current}
-                    onEndEditing={transactionStatus !== TransactionStatus.PENDING ? onAmountEndEditing : undefined}
-                    selectTextOnFocus={true}
-                    editable={(transactionStatus === TransactionStatus.PENDING || isCashuPrWithAmount)
-                        ? false 
-                        : true
-                    }
-                />
-            </View>
-            {lockedPubkey ? (
-                <View
-                    style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        //marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
-                    }}
-                >
-                    <Icon 
-                        icon="faLock"
-                        size={spacing.small}
-                        color={amountInputColor} 
-                    />
-                    <Text
-                        size='xs'
-                        tx="sendLocked"
-                        style={{color: amountInputColor, marginLeft: spacing.tiny}}
-                    />
+        <AmountEntryLayout
+          entry={amountEntry}
+          headerBackgroundColor={headerBg}
+          AmountComponent={
+            <>
+              <View style={$amountContainer}>
+                  <AmountInput
+                      ref={amountInputRef}                    
+                      value={amountToSend}
+                      onChangeText={amount => setAmountToSend(amount)}
+                      unit={unitRef.current}
+                      onEndEditing={transactionStatus !== TransactionStatus.PENDING ? onAmountEndEditing : undefined}
+                      selectTextOnFocus={true}
+                      editable={(transactionStatus === TransactionStatus.PENDING || isCashuPrWithAmount)
+                          ? false 
+                          : true
+                      }
+                      {...amountEntry.inputProps}
+                  />
+              </View>
+              {lockedPubkey ? (
+                  <View
+                      style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          //marginTop: isConvertedAmountVisible() ? -spacing.extraSmall : undefined
+                      }}
+                  >
+                      <Icon 
+                          icon="faLock"
+                          size={spacing.small}
+                          color={amountInputColor} 
+                      />
+                      <Text
+                          size='xs'
+                          tx="sendLocked"
+                          style={{color: amountInputColor, marginLeft: spacing.tiny}}
+                      />
 
-                </View>
-            ) : (
-                <Text
-                    size='xs'
-                    tx='amountSend'
-                    style={{
-                        color: amountInputColor,
-                        textAlign: 'center',
-                        //marginTop: spacing.extraSmall                            
-                    }}
-                />
-            )}         
-        </View>
-        <View style={$contentContainer}>
+                  </View>
+              ) : (
+                  <Text
+                      size='xs'
+                      tx='amountSend'
+                      style={{
+                          color: amountInputColor,
+                          textAlign: 'center',
+                          //marginTop: spacing.extraSmall                            
+                      }}
+                  />
+              )}         
+            </>
+          }
+        >
             {!encodedTokenToSend && (
               <MemoInputCard
                 memo={memo}
@@ -1616,7 +1629,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     </View>
                 </View>
             )}
-        </View>
+        </AmountEntryLayout>
         <BottomModal
           isVisible={isProofSelectorModalVisible}
           ContentComponent={
@@ -2364,13 +2377,6 @@ const $screen: ViewStyle = {
   flex: 1,
 }
 
-const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  padding: spacing.extraSmall,
-  paddingTop: 0,
-  height: spacing.screenHeight * 0.20,
-
-}
 
 const $pubkeyInput: TextStyle = {
     flex: 1,
@@ -2386,13 +2392,6 @@ const $pubkeyInput: TextStyle = {
 const $amountContainer: ViewStyle = {
     marginTop: -spacing.tiny,
     //height: spacing.screenHeight * 0.11,
-}
-
-
-const $contentContainer: TextStyle = {
-    flex: 1,
-    padding: spacing.extraSmall,
-    marginTop: -spacing.extraLarge * 1.5
 }
 
 

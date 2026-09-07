@@ -4,7 +4,6 @@ import {StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@r
 import {
   UIManager,
   Platform,
-  TextStyle,
   View,
   ViewStyle,
   FlatList,
@@ -41,6 +40,7 @@ import { FeeBadge } from './Wallet/FeeBadge'
 import { MeltQuoteBolt11Response } from '@cashu/cashu-ts'
 import EventEmitter from '../utils/eventEmitter'
 import { MintHeader } from './Mints/MintHeader'
+import { AmountEntryLayout, useAmountEntry } from '../components/AmountEntryLayout'
 import { MintBalanceSelector } from './Mints/MintBalanceSelector'
 import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
@@ -276,6 +276,14 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
         error,
     } = state
 
+
+    // Only the LNURL path asks for an amount — a scanned invoice arrives with one, and
+    // this screen focuses the field for exactly that case, so entry mode opens on the same
+    // condition. `isAmountEditable` then closes it again once the invoice is fetched.
+    const amountEntry = useAmountEntry({
+        isEnabled: isAmountEditable,
+        initiallyExpanded: route.params?.paymentOption === TransferOption.LNURL_PAY,
+    })
 
     useEffect(() => {
         const focus = () => {
@@ -942,37 +950,43 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
           }
           unit={unitRef.current}          
         />
-        <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-          <View style={$amountContainer}>
-            <AmountInput
-              ref={amountInputRef}
-              value={amountToTransfer}
-              onChangeText={amount => setAmountToTransfer(amount)}
-              selectTextOnFocus={true}
-              unit={unitRef.current}
-              editable={isAmountEditable}
-              style={{color: amountInputColor}}
-            />
-          </View>
-          {encodedInvoice && (meltQuote?.fee_reserve || finalFee) ? (
-              <FeeBadge
-                currencyCode={getCurrency(unitRef.current).code}
-                estimatedFee={meltQuote?.fee_reserve.toNumber() ?? 0}
-                finalFee={finalFee}
-              />
-            ) : (
-              <Text
-                  size='xs'
-                  tx='payCommon_amountToPayLabel'
-                  style={{
-                      color: amountInputColor,
-                      textAlign: 'center',
-                      marginTop: spacing.extraSmall                            
-                  }}
-              />
-            )}
-        </View>
-        <View style={$contentContainer}>
+        <AmountEntryLayout
+          entry={amountEntry}
+          headerBackgroundColor={headerBg}
+          AmountComponent={
+            <>
+              <View style={$amountContainer}>
+                <AmountInput
+                  ref={amountInputRef}
+                  value={amountToTransfer}
+                  onChangeText={amount => setAmountToTransfer(amount)}
+                  selectTextOnFocus={true}
+                  unit={unitRef.current}
+                  editable={isAmountEditable}
+                  style={{color: amountInputColor}}
+                  {...amountEntry.inputProps}
+                />
+              </View>
+              {encodedInvoice && (meltQuote?.fee_reserve || finalFee) ? (
+                  <FeeBadge
+                    currencyCode={getCurrency(unitRef.current).code}
+                    estimatedFee={meltQuote?.fee_reserve.toNumber() ?? 0}
+                    finalFee={finalFee}
+                  />
+                ) : (
+                  <Text
+                      size='xs'
+                      tx='payCommon_amountToPayLabel'
+                      style={{
+                          color: amountInputColor,
+                          textAlign: 'center',
+                          marginTop: spacing.extraSmall                            
+                      }}
+                  />
+                )}
+            </>
+          }
+        >
           {transactionStatus !== TransactionStatus.COMPLETED && (
             <Card
               style={$memoCard}
@@ -1108,7 +1122,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
               </View>
             </View>
           )}
-        </View>
+        </AmountEntryLayout>
         <BottomModal
           isVisible={isResultModalVisible}
           ContentComponent={
@@ -1245,12 +1259,6 @@ const $screen: ViewStyle = {
     flex: 1,
 }
 
-const $headerContainer: TextStyle = {
-    alignItems: 'center',
-    padding: spacing.extraSmall,
-    paddingTop: 0,
-    height: spacing.screenHeight * 0.20,  
-  }
   
   const $amountContainer: ViewStyle = {
     marginTop: -spacing.tiny,
@@ -1258,11 +1266,6 @@ const $headerContainer: TextStyle = {
   }
   
 
-const $contentContainer: TextStyle = {
-    flex: 1,
-    padding: spacing.extraSmall,
-    marginTop: -spacing.extraLarge * 1.5    
-}
 
 const $memoCard: ViewStyle = {
   marginBottom: spacing.small,

@@ -70,13 +70,7 @@ import {TranItem} from './TranDetailScreen'
 import {translate} from '../i18n'
 import { TOPUP_TASK } from '../services/wallet/topupTask'
 import FastImage from 'react-native-fast-image'
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated'
-import {useKeyboardTop} from '../utils/useKeyboardTop'
+import {AmountEntryLayout, useAmountEntry} from '../components/AmountEntryLayout'
 
 type Props = StaticScreenProps<{
   unit: MintUnit,
@@ -85,50 +79,6 @@ type Props = StaticScreenProps<{
   lnurlParams?: LNURLWithdrawParams,
   mintUrl?: string, 
 }>
-
-// ─── Amount-entry animation ──────────────────────────────────────────────────
-//
-// The screen has two shapes. While the amount is being entered it is nothing but the
-// amount: the header colour fills everything the keyboard leaves visible and the amount
-// block sits in the middle of it, landing close to where the wallet balance was on the
-// screen the user just came from. Once the amount is confirmed it settles back into the
-// familiar layout — header band on top, memo and mint cards below.
-//
-// Both shapes are the SAME tree. Nothing is mounted, unmounted or re-laid-out to switch
-// between them: the amount block and the content are translated, the content is faded,
-// and only the colour band's height actually animates. That keeps the whole transition on
-// the UI thread, so it can stay in step with the keyboard instead of racing it.
-
-/** Header band height in the settled layout — the height this screen has always had. */
-const COLLAPSED_HEADER_HEIGHT = spacing.screenHeight * 0.20
-
-const ENTRY_ANIMATION_DURATION = 320
-
-/**
- * How long a blur is allowed to be "on the way to" another focus before it counts as
- * leaving the amount behind.
- *
- * Tapping the converted amount blurs one field and focuses the other, and without this
- * the screen would collapse and re-expand between those two events.
- */
-const FOCUS_SWAP_GRACE = 120
-
-/**
- * How far the amount block has to travel to sit in the middle of what the keyboard leaves
- * visible. All three inputs are in the same space: `wrapperTop` and `keyboardTop` are
- * window coordinates, `amountCentre` is relative to the top of the animated area.
- *
- * Zero until both measurements are in, so the first frame is drawn in the settled
- * position rather than against a half-known geometry.
- *
- * Module-level, so both animated styles share one stable worklet instead of rebuilding
- * themselves around a new closure on every render.
- */
-function entryShift(wrapperTop: number, keyboardTop: number, amountCentre: number) {
-  'worklet'
-  if (wrapperTop <= 0 || amountCentre <= 0) return 0
-  return Math.max(0, (keyboardTop - wrapperTop) / 2 - amountCentre)
-}
 
 // ─── State machine ───────────────────────────────────────────────────────────
 
@@ -412,124 +362,9 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
         error,
     } = state
 
-    // ── Amount-entry animation ──────────────────────────────────────────────
-    //
-    // Driven off focus rather than off the submit handler: "done" on the keyboard blurs
-    // the field, so a focus-driven collapse rides the keyboard down for free, and an
-    // amount that fails validation puts the layout back too instead of stranding the
-    // user on a screen with no keyboard and nothing else on it.
-    const [isAmountEntry, setIsAmountEntry] = useState<boolean>(true)
-    const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-    const animationWrapperRef = useRef<View>(null)
-
-    /** 0 = settled layout, 1 = amount fills the screen. */
-    const entryProgress = useSharedValue(1)
-    /** Window Y of the keyboard's top edge — the bottom of the area we centre in. */
-    const keyboardTop = useSharedValue(0)
-    /** Window Y of the animated area (i.e. just below the MintHeader). */
-    const wrapperTop = useSharedValue(0)
-    /**
-     * Centre of the whole visible amount block — amount, converted value, swap hint and
-     * caption — relative to the top of the animated area.
-     */
-    const amountCentre = useSharedValue(0)
-    /**
-     * 0 until the geometry above is known.
-     *
-     * onLayout and measureInWindow both report a frame AFTER the one they describe, so
-     * the screen's very first paint would place the amount in the settled position and
-     * then snap it to the centre. Fading in over that gap costs nothing on a screen that
-     * is being pushed in anyway, and removes the snap.
-     */
-    const isMeasured = useSharedValue(0)
-
-    const settleMeasurement = function () {
-      if (isMeasured.value !== 0) return
-      if (wrapperTop.value > 0 && amountCentre.value > 0) {
-        isMeasured.value = withTiming(1, {duration: 150})
-      }
-    }
-
-    useKeyboardTop((top, duration) => {
-      // Only the OPEN position is recorded. Following the keyboard down would swing the
-      // amount block towards the bottom of the screen at exactly the moment the screen is
-      // collapsing, which reads as the two animations fighting.
-      if (top >= spacing.screenHeight) return
-      keyboardTop.value = duration > 0 ? withTiming(top, {duration}) : top
+    const amountEntry = useAmountEntry({
+      isEnabled: transactionStatus !== TransactionStatus.PENDING,
     })
-
-    useEffect(() => {
-      entryProgress.value = withTiming(isAmountEntry ? 1 : 0, {
-        duration: ENTRY_ANIMATION_DURATION,
-        easing: Easing.out(Easing.cubic),
-      })
-    }, [isAmountEntry, entryProgress])
-
-    useEffect(() => {
-      return () => {
-        if (collapseTimer.current) clearTimeout(collapseTimer.current)
-      }
-    }, [])
-
-    const onAmountFocus = function () {
-      if (collapseTimer.current) {
-        clearTimeout(collapseTimer.current)
-        collapseTimer.current = null
-      }
-      setIsAmountEntry(true)
-    }
-
-    const onAmountBlur = function () {
-      if (collapseTimer.current) clearTimeout(collapseTimer.current)
-      collapseTimer.current = setTimeout(() => {
-        collapseTimer.current = null
-        setIsAmountEntry(false)
-      }, FOCUS_SWAP_GRACE)
-    }
-
-    const $animatedAmountStyle = useAnimatedStyle(() => ({
-      opacity: isMeasured.value,
-      transform: [
-        {
-          translateY:
-            entryProgress.value *
-            entryShift(wrapperTop.value, keyboardTop.value, amountCentre.value),
-        },
-      ],
-    }))
-
-    // The content travels with the amount block instead of on a shift of its own, so the
-    // whole screen reads as one movement rather than two overlapping ones. It is well
-    // below the fold long before the fade finishes.
-    const $animatedContentStyle = useAnimatedStyle(() => ({
-      opacity: isMeasured.value * (1 - entryProgress.value),
-      transform: [
-        {
-          translateY:
-            entryProgress.value *
-            entryShift(wrapperTop.value, keyboardTop.value, amountCentre.value),
-        },
-      ],
-    }))
-
-    const $animatedBackdropStyle = useAnimatedStyle(() => {
-      const visibleHeight = keyboardTop.value - wrapperTop.value
-      const expandedHeight = Math.max(COLLAPSED_HEADER_HEIGHT, visibleHeight)
-      return {
-        opacity: isMeasured.value,
-        height:
-          COLLAPSED_HEADER_HEIGHT +
-          entryProgress.value * (expandedHeight - COLLAPSED_HEADER_HEIGHT),
-      }
-    })
-
-    const onAnimationWrapperLayout = function () {
-      // Window coordinates, because that is the space the keyboard reports itself in.
-      animationWrapperRef.current?.measureInWindow((_x, y) => {
-        if (y > 0) wrapperTop.value = y
-        settleMeasurement()
-      })
-    }
 
     useEffect(() => {
         const focus = () => {
@@ -653,7 +488,6 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
         }
       }, [route.params?.paymentOption]),
     )
-
 
 
     useEffect(() => {
@@ -1131,38 +965,11 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
           }
           unit={unitRef.current}          
         />
-        <View
-          ref={animationWrapperRef}
-          style={$animationWrapper}
-          onLayout={onAnimationWrapperLayout}
-        >
-          {/* The header colour as a layer of its own, so it can grow to cover everything
-              the keyboard leaves visible without the amount block's position depending on
-              how tall it currently is. */}
-          <Animated.View
-            pointerEvents="none"
-            style={[$headerBackdrop, {backgroundColor: headerBg}, $animatedBackdropStyle]}
-          />
-          <Animated.View style={[$headerContainer, $animatedAmountStyle]}>
-            {/* Everything that is on screen during amount entry, in one box that hugs its
-                content — centring the amount alone would leave the caption below it
-                hanging past the middle and the whole thing reading as too low. */}
-            <View
-              style={$amountBlock}
-              onLayout={e => {
-                const {y, height} = e.nativeEvent.layout
-                // The backdrop is absolute, so this block's offset within the header band
-                // is also its offset within the animated area.
-                //
-                // Re-measured as the swap hint opens and closes, which is what we want:
-                // the block is centred as it actually appears at the time.
-                const centre = y + height / 2
-                if (Math.abs(centre - amountCentre.value) > 0.5) {
-                  amountCentre.value = centre
-                }
-                settleMeasurement()
-              }}
-            >
+        <AmountEntryLayout
+          entry={amountEntry}
+          headerBackgroundColor={headerBg}
+          AmountComponent={
+            <>
               <View style={$amountContainer}>
                 <AmountInput
                     ref={amountInputRef}
@@ -1170,14 +977,12 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                     onChangeText={amount => setAmountToTopup(amount)}
                     unit={unitRef.current}
                     onEndEditing={onAmountEndEditing}
-                    onFocus={onAmountFocus}
-                    onBlur={onAmountBlur}
-                    isSwapHintVisible={isAmountEntry}
                     selectTextOnFocus={true}
                     editable={
                       transactionStatus === TransactionStatus.PENDING ? false : true
                     }
                     style={{color: amountInputColor}}
+                    {...amountEntry.inputProps}
                 />
               </View>
               <Text
@@ -1189,12 +994,9 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
                   // marginTop: spacing.extraSmall
                 }}
               />
-            </View>
-          </Animated.View>
-          <Animated.View
-            style={[$contentContainer, $animatedContentStyle]}
-            pointerEvents={isAmountEntry ? 'none' : 'auto'}
-          >
+            </>
+          }
+        >
           {!invoiceToPay && (
             <Card
               style={$memoCard}
@@ -1350,8 +1152,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
               </View>
             </View>
           )}
-          </Animated.View>
-        </View>
+        </AmountEntryLayout>
         <BottomModal
           isVisible={isNostrDMModalVisible ? true : false}
           ContentComponent={
@@ -1815,50 +1616,12 @@ const $screen: ViewStyle = {
   flex: 1,
 }
 
-const $animationWrapper: ViewStyle = {
-  flex: 1,
-}
-
-/**
- * The header colour, drawn behind everything else in the animated area. Absolute so that
- * growing it to cover the whole visible screen moves nothing: the amount block and the
- * content keep the offsets the settled layout gives them, and only travel by transform.
- */
-const $headerBackdrop: ViewStyle = {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-}
-
-const $headerContainer: TextStyle = {
-  alignItems: 'center',
-  padding: spacing.extraSmall,
-  paddingTop: 0,
-  height: COLLAPSED_HEADER_HEIGHT,
-}
-
-/**
- * Hugs the amount block's content, so its measured centre is the centre of what is
- * actually drawn. $headerContainer cannot serve: it has a fixed height, so its own centre
- * is a property of the settled layout rather than of the content.
- */
-const $amountBlock: ViewStyle = {
-  alignSelf: 'stretch',
-  alignItems: 'center',
-}
 
 const $amountContainer: ViewStyle = {
   marginTop: -spacing.tiny,
   // height: spacing.screenHeight * 0.11,
 }
 
-
-const $contentContainer: TextStyle = {
-  flex: 1,
-  padding: spacing.extraSmall,
-  marginTop: -spacing.extraLarge * 1.5,
-}
 
 const $memoCard: ViewStyle = {
   marginBottom: spacing.small,
