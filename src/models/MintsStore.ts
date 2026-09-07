@@ -3,6 +3,7 @@ import {
     SnapshotOut,
     types,
     destroy,
+    applySnapshot,
     isStateTreeNode,
     detach,
     flow,
@@ -46,7 +47,9 @@ export type MintsByUnit = {
 // the ~20 Mint mutators — where forgetting one is SILENT staleness, the exact bug
 // class this whole effort has been about — each mint gets one onSnapshot observer
 // that persists its row whenever anything in its subtree changes. It cannot be
-// forgotten, and it gives ImportBackup persistence for free (applySnapshot fires it).
+// forgotten. Note the one thing it does NOT cover: nodes that arrive already-formed
+// rather than by mutation never fire an observer, which is why restoring a backup
+// goes through restoreFromBackup instead of a bare applySnapshot.
 //
 // Derivation counters are unaffected: `counter` is volatile, so it never appears in
 // a snapshot and a bump never fires these.
@@ -244,6 +247,64 @@ export const MintsStoreModel = types
         },
     }))
     .actions(self => ({
+
+        /**
+         * Replace the wallet's mints with the ones from a backup — in BOTH engines.
+         *
+         * The counterpart to `backupSnapshot`, and it exists for the same reason:
+         * ImportBackup used to do this inline, as applySnapshot + persistAllMints,
+         * and that covers only half of it. applySnapshot REPLACES the mints in the
+         * model, but a mint the wallet already had keeps its SQLite row — under its
+         * own id, which the backup's copy of the same mint does not share. The
+         * import screen is reached from an onboarded wallet, which always has the
+         * Minibits mint (WelcomeScreen adds it), so this was not an edge case: the
+         * next launch hydrated BOTH rows and the user saw the same mint twice.
+         *
+         * Worse than a duplicate: mint_keysets is keyed by keysetId and its upsert
+         * reassigns mintId, so the imported mint takes the keysets with it and the
+         * stale row rehydrates as a husk with no keysets and no keys.
+         *
+         * So the removals are the point. Under MMKV this came for free — the
+         * snapshot WAS the state, and applying one dropped whatever it omitted.
+         * With mints mastered in SQLite, dropping them has to be said out loud.
+         *
+         * Observers are disposed first (they point at nodes applySnapshot is about
+         * to destroy) and re-attached at the end, once the array has settled.
+         */
+        restoreFromBackup(snapshot: MintsStoreSnapshot) {
+            const previousMintIds = self.mints.map(m => m.id as string)
+
+            for (const mintId of [...self.mintObservers.keys()]) self.unobserveMint(mintId)
+
+            applySnapshot(self, snapshot as any)
+
+            const restoredMintIds = new Set(self.mints.map(m => m.id as string))
+
+            // Rows for mints the backup does not carry. Their mint_counters rows
+            // stay behind, as they do on any mint removal, so re-adding a mint
+            // recovers its real derivation counter rather than restarting at 0.
+            for (const mintId of previousMintIds) {
+                if (restoredMintIds.has(mintId)) continue
+                try {
+                    Database.removeMintById(mintId)
+                } catch (e: any) {
+                    log.error('[restoreFromBackup]', 'Could not remove a replaced mint', {
+                        error: e?.message,
+                        mintId,
+                    })
+                }
+            }
+
+            // Nodes that arrive already-formed never fire an observer, so the write
+            // through has to be explicit.
+            self.persistAllMints()
+            self.observeMints()
+
+            log.info('[restoreFromBackup]', 'Mints restored from a backup', {
+                restored: self.mints.length,
+                removed: previousMintIds.filter(id => !restoredMintIds.has(id)).length,
+            })
+        },
 
         hydrateCountersFromDatabase() {
             const rows = Database.getCounters()

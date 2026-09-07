@@ -34,6 +34,7 @@ import { ContactsStoreSnapshot } from '../models/ContactsStore'
 import { Mint as CashuMint, GetKeysResponse } from '@cashu/cashu-ts'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 import { Proof } from '../models/Proof'
+import { decodeBackup } from '../services/backup/backupCodec'
 
 type Props = StaticScreenProps<undefined>
 
@@ -123,36 +124,36 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
     }
 
     
+    /**
+     * Decode the pasted backup, whichever format it is in.
+     *
+     * The seed does the decrypting, and this is why the screen asks for the
+     * mnemonic FIRST: by the time a backup can be pasted at all, seedRef holds the
+     * seed those words derive — the same value the export encrypted with. Older
+     * plaintext backups ignore it and still restore. See services/backup for the
+     * envelope itself; every message it raises is already written for the user, so
+     * they are shown as they are rather than wrapped in another prefix.
+     */
     const getWalletSnapshot = function () {
-      try {
-            if(!backup.startsWith('minibitsA')) {
-                throw new Error('Minibits backup needs to start with minibitsA.')
-            }
-
-            // decode
-            const decoded = atob(backup.substring(9))
-            
-            // try to load as json
-            const snapshot = JSON.parse(decoded) as {
-                proofsStore: {proofs: Proof[], pendingByMintSecrets: string[]},
-                mintsStore: MintsStoreSnapshot,
-                contactsStore: ContactsStoreSnapshot,            
-            }
-          
-          if(!snapshot.proofsStore || !snapshot.mintsStore || !snapshot.contactsStore) {
-            throw new Error('Wrong backup format.')
-          }
-
-          return snapshot
-      } catch (e: any) {        
-        throw new AppError(Err.VALIDATION_ERROR, `Invalid backup: ${e.message}`)
+      const snapshot = decodeBackup(backup, seedRef.current!) as {
+          proofsStore: {proofs: Proof[], pendingByMintSecrets: string[]},
+          mintsStore: MintsStoreSnapshot,
+          contactsStore: ContactsStoreSnapshot,
       }
+
+      if(!snapshot?.proofsStore || !snapshot?.mintsStore || !snapshot?.contactsStore) {
+        throw new AppError(Err.VALIDATION_ERROR, 'This does not look like a Minibits wallet backup.')
+      }
+
+      return snapshot
     }
 
-    
+
     const onConfirmBackup = async function () {
       try {
-          if(!backup || !seedHashRef.current) {
+          // seedRef, not just seedHashRef: an encrypted backup cannot be opened
+          // without the seed itself.
+          if(!backup || !seedRef.current) {
             throw new AppError(Err.VALIDATION_ERROR, 'Missing backup or seed.')
           }
 
@@ -180,42 +181,49 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
         // import wallet snapshot into the state        
         // const rootStore = rootStoreInstance
 
-        // hydrate mint keys back to the backup as they are stripped from backup
+        // Hydrate mint keys back into the backup, which carries none: they are the
+        // bulk of the payload and the mint serves them.
+        //
+        // BEST EFFORT, per mint. A mint that has died, moved, or is simply offline
+        // right now used to throw here and abort the entire import — nothing was
+        // restored, and the user could never get their other mints back. Keys are
+        // not needed to restore a mint: the keyset metadata comes from the backup,
+        // hydrateMintsFromDatabase tolerates a keyset whose keys were never
+        // fetched, and the wallet re-fetches them on first use.
         for (const mint of walletSnapshot.mintsStore.mints) {
-          const cashuMint = new CashuMint(mint.mintUrl)
-          const keysResult: GetKeysResponse = await cashuMint.getKeys()
-          const {keysets: keys} = keysResult
+          try {
+            const cashuMint = new CashuMint(mint.mintUrl)
+            const keysResult: GetKeysResponse = await cashuMint.getKeys()
+            const {keysets: keys} = keysResult
 
-          for(const key of keys) {
-            if(!key.unit) {
-                key.unit = 'sat'
+            for(const key of keys) {
+              if(!key.unit) {
+                  key.unit = 'sat'
+              }
+
+              log.trace('[importWallet] Hydrating keys for', {keysetId: key.id})
+              mint.keys.push(key)
             }
-
-            log.trace('[importWallet] Hydrating keys for', {keysetId: key.id})
-            mint.keys.push(key)                    
+          } catch (e: any) {
+            log.warn('[importWallet]', 'Could not fetch keys, importing the mint without them', {
+              mintUrl: mint.mintUrl,
+              error: e?.message,
+            })
           }
         }
-  
+
         // applySnapshot(proofsStore, walletSnapshot.proofsStore)
         proofsStore.importProofs(walletSnapshot.proofsStore.proofs)
-        for(const secret of walletSnapshot.proofsStore.pendingByMintSecrets) {
-          proofsStore.pendingByMintSecrets.push(secret)
-        }
-        applySnapshot(mintsStore, walletSnapshot.mintsStore)
+        proofsStore.importPendingByMintSecrets(walletSnapshot.proofsStore.pendingByMintSecrets)
+        // Mints are mastered in SQLite, so restoring them is more than an
+        // applySnapshot — the mints being replaced have rows of their own that have
+        // to go. See MintsStore.restoreFromBackup.
+        mintsStore.restoreFromBackup(walletSnapshot.mintsStore)
         applySnapshot(contactsStore, walletSnapshot.contactsStore)
 
-        // Mints are mastered in SQLite, and applySnapshot only puts them in the
-        // model — so write them through explicitly. The per-mint observers fire on
-        // CHANGE, and these nodes arrived already-formed, so nothing else would
-        // persist them; the mints would then vanish on the next launch, which
-        // hydrates from the database. Re-attach the observers too: applySnapshot
-        // replaced the array, so the previous ones point at destroyed nodes.
-        mintsStore.persistAllMints()
-        mintsStore.observeMints()
-
         // The backup carries real derivation counters in its raw MST snapshot.
-        // `counter` is VOLATILE in the model (mastered in SQLite), so the
-        // applySnapshot above does NOT load it — read the values straight from
+        // `counter` is VOLATILE in the model (mastered in SQLite), so the restore
+        // above does NOT load it — read the values straight from
         // the backup snapshot, seed SQLite (monotonic, never lowers), then
         // hydrate the in-memory cache from the authority. Seeding 0 from the
         // live (just-reset) model would risk blinded-secret reuse on restore.
@@ -294,6 +302,12 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
 
           await KeyChain.saveWalletKeys(keysCopy)
           walletStore.cleanCachedWalletKeys()
+          // The cached CashuWallet instances hold the OLD bip39 seed. Dropping the
+          // keychain cache alone does not reach them, so anything already built in
+          // this session would keep deriving from the seed the import just
+          // replaced — against the imported counters, producing ecash the restored
+          // mnemonic cannot recover.
+          walletStore.resetWallets()
 
           // Re-authenticate with new derived keys to get fresh JWT tokens
           await authStore.clearTokens()

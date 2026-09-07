@@ -228,11 +228,31 @@ import {
         },
 
         // Called when the mint explicitly reports PENDING (lightning in-flight).
-        // Only place that adds to pendingByMintSecrets.
+        // The only place that adds to pendingByMintSecrets during normal operation
+        // (importPendingByMintSecrets below restores it from a backup).
         registerAsPendingAtMint(proofs: Proof[]) {
             for (const p of proofs) {
               if (!self.pendingByMintSecrets.includes(p.secret)) {
                   self.pendingByMintSecrets.push(p.secret)
+              }
+            }
+        },
+
+        /**
+         * Restore the mint-pending registry from a backup.
+         *
+         * Separate from registerAsPendingAtMint because the import holds bare
+         * secrets decoded from JSON, not Proof instances — and it has to be an
+         * ACTION: ImportBackupScreen used to push onto this array directly, which
+         * MST rejects on a protected tree ("the object is protected and can only be
+         * modified by using an action"). That threw in the middle of the import, so
+         * a backup taken while a payment was pending at the mint could not be
+         * restored at all.
+         */
+        importPendingByMintSecrets(secrets: string[]) {
+            for (const secret of secrets ?? []) {
+              if (!self.pendingByMintSecrets.includes(secret)) {
+                  self.pendingByMintSecrets.push(secret)
               }
             }
         },

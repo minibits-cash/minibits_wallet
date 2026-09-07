@@ -24,7 +24,7 @@ import {
 } from '../components'
 import {useHeader} from '../utils/useHeader'
 import {log} from '../services/logService'
-import AppError from '../utils/AppError'
+import AppError, { Err } from '../utils/AppError'
 import { Proof } from '../models/Proof'
 import { useStores } from '../models'
 import { CashuProof, CashuUtils } from '../services/cashu/cashuUtils'
@@ -38,6 +38,8 @@ import { ResultModalInfo } from './Wallet/ResultModalInfo'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { Token, getEncodedToken, normalizeProofAmounts } from '@cashu/cashu-ts'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { mnemonicToSeedSync } from '@scure/bip39'
+import { encodeBackup } from '../services/backup/backupCodec'
 
 const OPTIMIZE_FROM_PROOFS_COUNT = 10
 type Props = StaticScreenProps<undefined>
@@ -47,7 +49,8 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
   const { 
       mintsStore, 
       contactsStore, 
-      proofsStore 
+      proofsStore,
+      walletStore
   } = useStores()
 
   /* useHeader({
@@ -165,27 +168,38 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
           }
 
           log.trace({exportedSnapshot})
-          
-          const prefix = 'minibits'
-          const version = 'A'
 
-          // CBOR - WIP, not working
-          // const encodedData = encodeCBOR(exportedSnapshot)
-          // const base64Data = encodeUint8toBase64Url(encodedData)
+          // Encrypted to the wallet's seed. The payload is every proof's secret and
+          // signature — bearer money — and it used to leave the app as plain base64,
+          // readable by anything the user shared it through. See services/backup for
+          // the envelope.
+          //
+          // The key is derived from the MNEMONIC rather than read straight from the
+          // keychain seed, because the mnemonic is all the import has: it turns the
+          // words the user types into the seed with this same call. The two are the
+          // same value for every wallet this app has made, and deriving it the same
+          // way on both sides means they cannot quietly stop being.
+          const mnemonic: string = await walletStore.getCachedMnenomic()
 
-          // Simple BASE64
-          const base64Data = btoa(JSON.stringify(exportedSnapshot))
-          
-          const base64Encoded = prefix + version + base64Data
+          if(!mnemonic) {
+            throw new AppError(
+              Err.VALIDATION_ERROR,
+              'This wallet has no seed phrase to encrypt the backup with.',
+            )
+          }
+
+          const encodedBackup = encodeBackup(exportedSnapshot, mnemonicToSeedSync(mnemonic))
 
           await Share.share({
             title: 'minibits-backup.txt',
-            message: base64Encoded,
+            message: encodedBackup,
           })
           setIsLoading(false)
 
       } catch (e: any) {
-          setInfo(`Could not encode and export wallet backup: ${e.message}`)
+          // Everything the codec raises is already written for the user; only an
+          // unexpected failure (the share sheet, the keychain) needs framing.
+          setInfo(e instanceof AppError ? e.message : `Could not export the wallet backup: ${e.message}`)
           setIsLoading(false)  
       }
   }
@@ -390,7 +404,7 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
               style={{color: hint}} 
               size='xs'
               preset='formHelper' 
-              text='You will still need your seed phrase when using this backup to recover your wallet.'
+              text='This backup is encrypted with your seed phrase. You will need those words to restore it.'
             />
           </View>
           <View style={$buttonContainer}>              

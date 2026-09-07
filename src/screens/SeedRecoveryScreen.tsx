@@ -499,6 +499,9 @@ export const SeedRecoveryScreen = observer(function SeedRecoveryScreen({ route }
 
             await KeyChain.saveWalletKeys(keysCopy)
             walletStore.cleanCachedWalletKeys()
+            // Same reason as in ImportBackupScreen: cached CashuWallet instances
+            // carry the old bip39 seed and the keychain cache does not reach them.
+            walletStore.resetWallets()
 
             // Re-authenticate with new derived keys to get fresh JWT tokens
             await authStore.clearTokens()
