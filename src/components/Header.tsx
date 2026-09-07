@@ -324,8 +324,17 @@ function HeaderAction(props: HeaderActionProps) {
   return <View style={[$actionFillerContainer, { backgroundColor }]} />
 }
 
+/**
+ * Height of the header's own row, below the status-bar inset.
+ *
+ * Exported because a screen that positions content against the header's bottom edge can
+ * work it out from this plus the top inset, rather than measuring the header at runtime —
+ * a measurement that is a frame late at best.
+ */
+export const HEADER_HEIGHT = 56
+
 const $wrapper: ViewStyle = {
-  height: 56,
+  height: HEADER_HEIGHT,
   flexDirection: "row",
   alignItems: "center",  
   justifyContent: "space-between",

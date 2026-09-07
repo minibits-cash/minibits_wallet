@@ -1,5 +1,6 @@
 import React, {ReactNode, useEffect, useRef, useState} from 'react'
 import {ColorValue, Keyboard, Pressable, StyleSheet, View, ViewStyle} from 'react-native'
+import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -7,6 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import {spacing} from '../theme'
+import {HEADER_HEIGHT} from './Header'
 import {useKeyboardTop} from '../utils/useKeyboardTop'
 
 // ─── Amount-entry layout ─────────────────────────────────────────────────────
@@ -47,6 +49,16 @@ const FOCUS_SWAP_GRACE = 120
  * layout is the right place to land.
  */
 const ENTRY_FOCUS_TIMEOUT = 1500
+
+/**
+ * How long the fade-in below waits for the amount block's first onLayout.
+ *
+ * A backstop, not a schedule — the layout arrives within a frame or two. But the fade is
+ * what makes the screen visible at all, so anything that could keep it at zero would
+ * leave the user looking at a blank screen with an invisible amount field on it. Better
+ * to show the amount in the wrong place for one frame than to not show it.
+ */
+const MEASUREMENT_DEADLINE = 400
 
 /**
  * How far the amount block has to travel to sit in the middle of what the keyboard leaves
@@ -99,34 +111,42 @@ export function useAmountEntry({
 
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasEverFocused = useRef<boolean>(false)
-  const wrapperRef = useRef<View>(null)
+
+  /**
+   * Window Y of the animated area, i.e. the header's bottom edge.
+   *
+   * Derived rather than measured. The header is a status-bar inset plus a fixed row, and
+   * both numbers are known on the first render — whereas measureInWindow answers a frame
+   * late on iOS and, on Android, can answer 0 for a view that is laid out but not yet
+   * attached, with no second chance until something else forces a re-layout. Everything
+   * here is positioned against this value, so "late or never" is not a good enough
+   * guarantee: it left the screen blank.
+   */
+  const insets = useSafeAreaInsets()
+  const wrapperTop = useSharedValue(insets.top + HEADER_HEIGHT)
 
   /** 0 = settled layout, 1 = amount fills the screen. */
   const entryProgress = useSharedValue(initiallyExpanded ? 1 : 0)
   /** Window Y of the keyboard's top edge — the bottom of the area we centre in. */
   const keyboardTop = useSharedValue(0)
-  /** Window Y of the animated area (i.e. just below the screen's header). */
-  const wrapperTop = useSharedValue(0)
   /**
    * Centre of the whole visible amount block — amount, converted value, swap hint and
    * any caption — relative to the top of the animated area.
    */
   const amountCentre = useSharedValue(0)
   /**
-   * 0 until the geometry above is known.
+   * 0 until the amount block has been measured.
    *
-   * onLayout and measureInWindow both report a frame AFTER the one they describe, so the
-   * screen's first paint would place the amount in the settled position and then snap it
-   * to the centre. Fading in over that gap costs nothing on a screen that is being pushed
-   * in anyway, and removes the snap.
+   * onLayout reports a frame AFTER the one it describes, so the screen's first paint would
+   * place the amount in the settled position and then snap it to the centre. Fading in
+   * over that gap costs nothing on a screen that is being pushed in anyway, and removes
+   * the snap.
    */
   const isMeasured = useSharedValue(0)
 
   const settleMeasurement = function () {
     if (isMeasured.value !== 0) return
-    if (wrapperTop.value > 0 && amountCentre.value > 0) {
-      isMeasured.value = withTiming(1, {duration: 150})
-    }
+    isMeasured.value = withTiming(1, {duration: 150})
   }
 
   useKeyboardTop((top, duration) => {
@@ -136,6 +156,17 @@ export function useAmountEntry({
     if (top >= spacing.screenHeight) return
     keyboardTop.value = duration > 0 ? withTiming(top, {duration}) : top
   })
+
+  useEffect(() => {
+    wrapperTop.value = insets.top + HEADER_HEIGHT
+  }, [insets.top, wrapperTop])
+
+  // See MEASUREMENT_DEADLINE: the fade is what makes the screen visible, so it is never
+  // allowed to depend solely on a layout callback arriving.
+  useEffect(() => {
+    const timer = setTimeout(settleMeasurement, MEASUREMENT_DEADLINE)
+    return () => clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     entryProgress.value = withTiming(isAmountEntry ? 1 : 0, {
@@ -213,14 +244,6 @@ export function useAmountEntry({
     }
   })
 
-  const onWrapperLayout = function () {
-    // Window coordinates, because that is the space the keyboard reports itself in.
-    wrapperRef.current?.measureInWindow((_x, y) => {
-      if (y > 0) wrapperTop.value = y
-      settleMeasurement()
-    })
-  }
-
   const onAmountBlockLayout = function (y: number, height: number) {
     // The backdrop is absolute, so this block's offset within the header band is also its
     // offset within the animated area.
@@ -244,8 +267,6 @@ export function useAmountEntry({
     },
     /** Consumed by <AmountEntryLayout>. */
     layout: {
-      wrapperRef,
-      onWrapperLayout,
       onAmountBlockLayout,
       $animatedAmountStyle,
       $animatedContentStyle,
@@ -275,11 +296,7 @@ export function AmountEntryLayout(props: AmountEntryLayoutProps) {
   const {isAmountEntry, layout} = entry
 
   return (
-    <View
-      ref={layout.wrapperRef}
-      style={$animationWrapper}
-      onLayout={layout.onWrapperLayout}
-    >
+    <View style={$animationWrapper}>
       {/* The header colour as a layer of its own, so it can grow to cover everything the
           keyboard leaves visible without the amount block's position depending on how tall
           it currently is. */}
