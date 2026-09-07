@@ -66,8 +66,14 @@ const SWAP_HINT_ICON_SIZE = spacing.medium
 
 /**
  * How much taller the empty space under the top amount's digits is than the empty space
- * over the converted amount's. Applied as bottom padding, which lifts the arrows off the
- * converted line by exactly that much and puts them on the optical centre.
+ * over the converted amount's. Carried as the glyph's bottom MARGIN, which lifts it off
+ * the converted line by exactly that much and puts it on the optical centre.
+ *
+ * Margin rather than the container's padding, though the two would space the glyph
+ * identically: Yoga floors a node's height at its own padding and border, so a padded
+ * container could never animate shut. It would bottom out at the padding and leave that
+ * much blank space wedged between the two amounts in the settled layout. A child's margin
+ * is not part of that floor.
  *
  * Derived from the fonts' descent (~0.24em) at the two sizes the amounts are drawn at,
  * so it is an estimate — tune it here if the arrows still read as sitting low or high.
@@ -501,13 +507,13 @@ const $swapHintContainer: ViewStyle = {
   justifyContent: "center",
   overflow: "hidden",
   alignSelf: "center",
-  // Eats into the content box (heights are border-box here), so the centred glyph is
-  // lifted off the converted amount by SWAP_HINT_BASELINE_SLACK. See the constants above.
-  paddingBottom: SWAP_HINT_BASELINE_SLACK,
 }
 
 const $swapHintIcon: ViewStyle = {
   padding: 0,
+  // Centring happens on the glyph PLUS this margin, so the glyph itself ends up
+  // SWAP_HINT_BASELINE_SLACK above the box's centre. See the constants above.
+  marginBottom: SWAP_HINT_BASELINE_SLACK,
 }
 
 AmountInput.displayName = "AmountInput"
