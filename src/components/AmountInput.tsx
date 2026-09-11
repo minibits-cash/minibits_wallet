@@ -80,6 +80,22 @@ const SWAP_HINT_ICON_SIZE = spacing.medium
  */
 const SWAP_HINT_BASELINE_SLACK = verticalScale(10)
 
+// ─── Amount sizes ────────────────────────────────────────────────────────────
+//
+// Whichever field has focus is drawn at TOP_FONT_SIZE and the other at
+// BOTTOM_FONT_SIZE, so swapping focus swaps the two sizes and nothing else.
+//
+// The square roots are because each field's animated style sets fontSize AND a transform
+// scale from the same value, so what is actually drawn is fontSize x scale, i.e. the base
+// size x scale squared. Scaling by the plain size ratio left the converted amount a third
+// short of the size it was swapping into.
+
+const TOP_FONT_SIZE = verticalScale(56)
+const BOTTOM_FONT_SIZE = spacing.medium
+
+const TOP_SHRUNK_SCALE = Math.sqrt(BOTTOM_FONT_SIZE / TOP_FONT_SIZE)
+const BOTTOM_GROWN_SCALE = Math.sqrt(TOP_FONT_SIZE / BOTTOM_FONT_SIZE)
+
 /** Total height the swap affordance claims between the two amounts when fully shown. */
 const SWAP_HINT_HEIGHT =
   SWAP_HINT_GAP * 2 + SWAP_HINT_ICON_SIZE + SWAP_HINT_BASELINE_SLACK
@@ -322,7 +338,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
       ? bottomValue
       : formatForDisplay(bottomValue, bottomMantissa)
 
-    // --- animations (unchanged behavior) ---
+    // --- animations ---
     const topScale = useSharedValue(1)
     const bottomScale = useSharedValue(1)
 
@@ -331,8 +347,8 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
         topScale.value = withTiming(1, { duration: 250 })
         bottomScale.value = withTiming(1, { duration: 250 })
       } else {
-        topScale.value = withTiming(0.6, { duration: 250 })
-        bottomScale.value = withTiming(1.65, { duration: 250 })
+        topScale.value = withTiming(TOP_SHRUNK_SCALE, { duration: 250 })
+        bottomScale.value = withTiming(BOTTOM_GROWN_SCALE, { duration: 250 })
       }
     }, [focused, topScale, bottomScale])
 
@@ -356,8 +372,6 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
       if (focused === "top") bottomInputRef.current?.focus()
       else topInputRef.current?.focus()
     }
-
-    const TOP_FONT_SIZE = verticalScale(56)
 
     const defaultTopStyle: TextStyle = {
       //marginTop: spacing.small,
@@ -392,7 +406,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
       margin: 0,
       marginBottom: spacing.tiny,
       padding: 0,
-      fontSize: spacing.medium,
+      fontSize: BOTTOM_FONT_SIZE,
       fontFamily: typography.primary?.bold,
       fontWeight: 'bold', // android
       color: convertedAmountColor,      
@@ -400,7 +414,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
 
     const animatedBottomStyle = useAnimatedStyle(() => ({
       transform: [{ scale: bottomScale.value }],
-      fontSize: spacing.medium * bottomScale.value,  
+      fontSize: BOTTOM_FONT_SIZE * bottomScale.value,
     }))
 
     // symbol style
