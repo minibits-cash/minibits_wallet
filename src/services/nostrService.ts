@@ -8,7 +8,7 @@ import { finalizeEvent, validateEvent } from 'nostr-tools/pure'
 import { normalizeURL } from 'nostr-tools/utils'
 import { encrypt, decrypt } from 'nostr-tools/nip04'
 import { wrapEvent, unwrapEvent } from 'nostr-tools/nip59'
-import { neventEncode as nostrNeventEncode, npubEncode, decode as nip19Decode, nprofileEncode } from 'nostr-tools/nip19'
+import { neventEncode as nostrNeventEncode, naddrEncode as nostrNaddrEncode, npubEncode, decode as nip19Decode, nprofileEncode } from 'nostr-tools/nip19'
 import {SimplePool} from 'nostr-tools/pool'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { PrivateDirectMessage, Metadata } from 'nostr-tools/kinds'
@@ -141,9 +141,25 @@ const getHexkey = function (key: string): string {
     }          
 }
 
-const neventEncode = function (eventIdHex: string) : string {
+const neventEncode = function (eventIdHex: string, relays: string[] = []) : string {
     try {
-        return nostrNeventEncode({id: eventIdHex})        
+        return nostrNeventEncode({id: eventIdHex, relays})        
+    } catch (e: any) {
+        throw new AppError(Err.VALIDATION_ERROR, e.message)
+    }  
+}
+
+// encodes an `a` tag value of an addressable event (kind:pubkey:identifier) as naddr
+const naddrEncode = function (aTagValue: string, relays: string[] = []) : string {
+    try {
+        const [kind, pubkey, ...rest] = aTagValue.split(':')
+        const identifier = rest.join(':') // d tag may contain colons
+
+        if(!/^[0-9a-f]{64}$/.test(pubkey) || !Number.isInteger(Number(kind))) {
+            throw new Error(`Invalid a tag value: ${aTagValue}`)
+        }
+
+        return nostrNaddrEncode({kind: Number(kind), pubkey, identifier, relays})
     } catch (e: any) {
         throw new AppError(Err.VALIDATION_ERROR, e.message)
     }  
@@ -622,6 +638,7 @@ export const NostrClient = { // TODO split helper functions to separate module
     getNpubkey,
     getHexkey,
     neventEncode,
+    naddrEncode,
     decodeNprofile,
     encodeNprofile,
     // maybeConvertNpub,

@@ -589,14 +589,21 @@ const ReceiveInfoBlock = function (props: {
 
         try {
           const zapRequestData: NostrEvent = JSON.parse(transaction.zapRequest)
+          // zaps to addressable events (articles, apps...) are identified by the a tag, the e tag alone is not resolvable
+          const aTagValue = NostrClient.getFirstTagValue(zapRequestData.tags, 'a')
           const eventIdHex = NostrClient.getFirstTagValue(zapRequestData.tags, 'e')
+          const relays = (NostrClient.getTagsByName(zapRequestData.tags, 'relays') || []).slice(0, 2)
 
-          if(eventIdHex) {
+          const pointer = aTagValue
+            ? NostrClient.naddrEncode(aTagValue as string, relays)
+            : eventIdHex
+              ? NostrClient.neventEncode(eventIdHex as string, relays)
+              : undefined
 
-            const nevent = NostrClient.neventEncode(eventIdHex as string)
-            setEventUrl(`${urlPrefix}${nevent}`)
+          if(pointer) {
+            setEventUrl(`${urlPrefix}${pointer}`)
 
-            log.trace('[extractZapUrls]', {eventIdHex, nevent})
+            log.trace('[extractZapUrls]', {aTagValue, eventIdHex, pointer})
           }
         } catch(e: any) {
           return
