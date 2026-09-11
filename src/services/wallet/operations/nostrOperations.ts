@@ -1,6 +1,7 @@
 import {addSeconds} from 'date-fns'
 import {GiftWrap, EncryptedDirectMessage} from 'nostr-tools/kinds'
 import {UnsignedEvent} from 'nostr-tools'
+import {SubCloser} from 'nostr-tools/abstract-pool'
 import {
     PaymentRequestPayload,
     Token,
@@ -197,6 +198,8 @@ const handleNwcRequestQueue = async function (params: {requestEvent: NostrEvent}
     )
 }
 
+let _receiveSubscription: SubCloser | undefined = undefined
+
 /**
  * Checks with NOSTR relays whether there is ecash to be received or an invoice to be paid.
  */
@@ -231,7 +234,15 @@ const receiveEventsFromRelaysQueue = async function (): Promise<void> {
         let relaysToConnect = relaysStore.allUrls
         let eventsBatch: NostrEvent[] = []
 
-        pool.subscribeMany(relaysToConnect, filter, {
+        // this runs on every foreground, profile creation and manual reconnect, and
+        // the pool refires every subscription a relay still holds when it reconnects -
+        // so drop the previous one instead of stacking another REQ on every relay
+        if (_receiveSubscription) {
+            log.trace('[receiveEventsFromRelays]', 'Closing previous subscription')
+            _receiveSubscription.close()
+        }
+
+        _receiveSubscription = pool.subscribeMany(relaysToConnect, filter, {
             onevent(event) {
                 if (eventsBatch.some(ev => ev.id === event.id)) {
                     log.warn(
@@ -263,16 +274,13 @@ const receiveEventsFromRelaysQueue = async function (): Promise<void> {
             oneose() {
                 log.trace('[receiveEventsFromRelays]', `Eose: Got ${eventsBatch.length} receive events`)
 
+                // the pool drops a relay it has given up on, so walk the relays we
+                // subscribed to: one missing from the pool is down, not unchanged
                 const connections = pool.listConnectionStatus()
-                for (const conn of Array.from(connections)) {
-                    const relayInstance = relaysStore.findByUrl(conn[0])
-                    if (conn[1] === true) {
-                        log.trace('[receiveEventsFromRelays] Connection is OPEN', {conn: conn[0]})
-                        relayInstance?.setStatus(WebSocket.OPEN)
-                    } else {
-                        log.trace('[receiveEventsFromRelays] Connection is CLOSED', {conn: conn[0]})
-                        relayInstance?.setStatus(WebSocket.CLOSED)
-                    }
+                for (const relayInstance of relaysStore.allRelays) {
+                    const isConnected = connections.get(relayInstance.url) === true
+                    log.trace('[receiveEventsFromRelays]', 'Relay connection status', {relay: relayInstance.url, isConnected})
+                    relayInstance.setStatus(isConnected ? WebSocket.OPEN : WebSocket.CLOSED)
                 }
             },
         })
