@@ -61,7 +61,9 @@ let _pool: any = undefined
 
 const getRelayPool = function () {
     if(!_pool) {
-        _pool = new SimplePool()
+        // enableReconnect lets the pool restore dropped relay connections and refire
+        // their subscriptions with an advanced `since`, instead of silently going deaf.
+        _pool = new SimplePool({enableReconnect: true})
         return _pool as SimplePool
     }
 
@@ -96,7 +98,9 @@ const reconnectToRelays = async function (options: ReconnectToRelaysOptions) {
 
     log.trace('[reconnectToRelays] Current statuses', {connections: Object.fromEntries(connections)})
 
-    let isRefreshSubNeeded: boolean = false
+    // a relay the pool gave up on is dropped from its map entirely, so an empty map
+    // means everything is down, not that everything is fine
+    let isRefreshSubNeeded: boolean = connections.size === 0
 
     for (const conn of Array.from(connections)) {
         if(conn[1] === false) {

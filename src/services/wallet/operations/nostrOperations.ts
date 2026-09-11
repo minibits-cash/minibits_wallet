@@ -231,7 +231,7 @@ const receiveEventsFromRelaysQueue = async function (): Promise<void> {
         let relaysToConnect = relaysStore.allUrls
         let eventsBatch: NostrEvent[] = []
 
-        pool.subscribeMany(relaysToConnect, [filter], {
+        pool.subscribeMany(relaysToConnect, filter, {
             onevent(event) {
                 if (eventsBatch.some(ev => ev.id === event.id)) {
                     log.warn(

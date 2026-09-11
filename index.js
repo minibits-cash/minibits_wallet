@@ -3,7 +3,6 @@ import { install } from 'react-native-quick-crypto' // needed for secp256k1, con
 install()
 import 'react-native-url-polyfill/auto' // URL.host etc
 import 'text-encoding-polyfill' // cashu-ts
-import 'message-port-polyfill' // nostr-tools
 import notifee from '@notifee/react-native'
 import messaging from '@react-native-firebase/messaging'
 import {AppRegistry} from 'react-native'

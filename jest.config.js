@@ -4,8 +4,10 @@ module.exports = {
   // matches every .js file under __tests__, which would pull in the i18n
   // scripts (missingTranslations.js etc.) that are run via `yarn test:i18n`.
   testMatch: ['**/*.(test|spec).[jt]s?(x)'],
+  // The `(.*/)?` makes the allowlist apply at any depth: nostr-tools carries its
+  // own ESM-only @noble copies in a nested node_modules, and those need babel too.
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native|@react-native-community|@cashu|@noble|@scure|react-native-flash-message)/)',
+    'node_modules/(?!(.*/)?((jest-)?react-native|@react-native|@react-native-community|@cashu|@noble|@scure|react-native-flash-message)/)',
   ],
   // Several native or source-shipped packages are unusable under jest, and the
   // MODEL layer reaches all of them at import time (Mint -> services barrel ->
@@ -34,11 +36,6 @@ module.exports = {
     // parse. Mocking Sentry rather than logService lets the REAL logger load, so
     // tests can cover code that logs instead of stubbing the logger away.
     '^@sentry/react-native$': '<rootDir>/__mocks__/sentry-react-native.js',
-    // nostr-tools ships TS source and vendors its own @noble/curves + @noble/hashes
-    // (also source), importing subpaths jest cannot resolve. Mapping those would
-    // cross the nested copies onto the top-level @noble versions — on crypto code.
-    // Mock the surface instead; nothing in the model layer needs real nostr.
-    '^nostr-tools(/.*)?$': '<rootDir>/__mocks__/nostr-tools.js',
     // react-native-localize is a native TurboModule, and src/i18n calls getLocales()
     // at module scope — so without this, importing `translate` anywhere makes the
     // module unloadable under jest.

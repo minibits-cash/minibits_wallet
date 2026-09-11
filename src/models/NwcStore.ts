@@ -875,12 +875,12 @@ export const NwcStoreModel = types
                 const connectionsPubkeys = self.nwcConnections.map(c => c.connectionPubkey)
                 let eventsBatch: NostrEvent[] = []               
         
-                const filter = [{            
+                const filter = {            
                     kinds: [NWCWalletRequest],
                     authors: connectionsPubkeys,
                     "#p": [self.walletPubkey],
                     since
-                }]    
+                }    
                 
                 const pool = NostrClient.getRelayPool()
                 const relaysStore = getRootStore(self).relaysStore 
