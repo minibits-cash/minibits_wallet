@@ -238,7 +238,7 @@ const receiveEventsFromRelaysQueue = async function (): Promise<void> {
         // the pool refires every subscription a relay still holds when it reconnects -
         // so drop the previous one instead of stacking another REQ on every relay
         if (_receiveSubscription) {
-            log.trace('[receiveEventsFromRelays]', 'Closing previous subscription')
+            log.trace('[receiveEventsFromRelays] Closing previous subscription')
             _receiveSubscription.close()
         }
 
@@ -279,7 +279,7 @@ const receiveEventsFromRelaysQueue = async function (): Promise<void> {
                 const connections = pool.listConnectionStatus()
                 for (const relayInstance of relaysStore.allRelays) {
                     const isConnected = connections.get(relayInstance.url) === true
-                    log.trace('[receiveEventsFromRelays]', 'Relay connection status', {relay: relayInstance.url, isConnected})
+                    log.trace('[receiveEventsFromRelays] Relay connection status', {relay: relayInstance.url, isConnected})
                     relayInstance.setStatus(isConnected ? WebSocket.OPEN : WebSocket.CLOSED)
                 }
             },
