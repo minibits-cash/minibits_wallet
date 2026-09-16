@@ -57,6 +57,8 @@ type MethodEntry = {
 const mintWith = (opts: {
     mintMethods?: MethodEntry[]
     meltMethods?: MethodEntry[]
+    mintDisabled?: boolean
+    meltDisabled?: boolean
     nut20?: boolean
 }) =>
     MintModel.create({
@@ -67,8 +69,8 @@ const mintWith = (opts: {
             version: 'test/1',
             contact: [],
             nuts: {
-                '4': {methods: opts.mintMethods ?? [], disabled: false},
-                '5': {methods: opts.meltMethods ?? [], disabled: false},
+                '4': {methods: opts.mintMethods ?? [], disabled: opts.mintDisabled ?? false},
+                '5': {methods: opts.meltMethods ?? [], disabled: opts.meltDisabled ?? false},
                 ...(opts.nut20 === undefined ? {} : {'20': {supported: opts.nut20}}),
             },
             time: Math.floor(Date.now() / 1000),
@@ -109,6 +111,27 @@ describe('method settings lookup', () => {
         const mint = mintWith({mintMethods: [ONCHAIN_SAT]})
 
         expect(mint.mintMethodSetting('onchain', 'usd')).toBeUndefined()
+    })
+
+    it('survives the round trip through persisted storage', () => {
+        const stored = JSON.parse(
+            JSON.stringify({
+                name: 'test',
+                pubkey: 'aa',
+                version: 'test/1',
+                contact: [],
+                nuts: {
+                    '4': {methods: [BOLT11_SAT, ONCHAIN_SAT], disabled: false},
+                    '5': {methods: [BOLT11_SAT], disabled: false},
+                },
+                time: Math.floor(Date.now() / 1000),
+            }),
+        )
+        const mint = MintModel.create({mintUrl: 'https://mint.test', mintInfo: stored})
+
+        expect(mint.mintMethodSetting('bolt11', 'sat')).toMatchObject(BOLT11_SAT)
+        expect(mint.mintMethodSetting('onchain', 'sat')).toMatchObject(ONCHAIN_SAT)
+        expect(mint.meltMethodSetting('bolt11', 'sat')).toMatchObject(BOLT11_SAT)
     })
 
     it('keeps mint and melt lists separate', () => {
@@ -164,6 +187,61 @@ describe('supportsMint / supportsMelt', () => {
         expect(mint.supportsMelt('bolt11', 'sat')).toBe(false)
         expect(mint.supportsMint('onchain', 'sat')).toBe(true)
         expect(mint.supportsMelt('onchain', 'sat')).toBe(true)
+    })
+})
+
+describe('the NUT-04 / NUT-05 disabled flag', () => {
+    it('reports no mint method when NUT-04 is disabled, however many are listed', () => {
+        const mint = mintWith({mintMethods: [BOLT11_SAT, ONCHAIN_SAT], mintDisabled: true, nut20: true})
+
+        expect(mint.mintMethodSetting('bolt11', 'sat')).toBeUndefined()
+        expect(mint.mintMethodSetting('onchain', 'sat')).toBeUndefined()
+        expect(mint.supportsMint('bolt11', 'sat')).toBe(false)
+        expect(mint.supportsMint('onchain', 'sat')).toBe(false)
+    })
+
+    it('reports no melt method when NUT-05 is disabled', () => {
+        const mint = mintWith({meltMethods: [BOLT11_SAT], meltDisabled: true})
+
+        expect(mint.meltMethodSetting('bolt11', 'sat')).toBeUndefined()
+        expect(mint.supportsMelt('bolt11', 'sat')).toBe(false)
+    })
+
+    it('disables only the half that is switched off', () => {
+        // topups closed, payouts still open
+        const mint = mintWith({
+            mintMethods: [BOLT11_SAT],
+            mintDisabled: true,
+            meltMethods: [BOLT11_SAT],
+        })
+
+        expect(mint.supportsMint('bolt11', 'sat')).toBe(false)
+        expect(mint.supportsMelt('bolt11', 'sat')).toBe(true)
+    })
+
+    it('is not the same as unknown capabilities — a disabled mint has cached info', () => {
+        const mint = mintWith({mintMethods: [BOLT11_SAT], mintDisabled: true})
+
+        expect(mint.hasUnknownCapabilities).toBe(false)
+        expect(mint.supportsMint('bolt11', 'sat')).toBe(false)
+    })
+})
+
+describe('supportsNut20', () => {
+    it('is true when the mint advertises NUT-20', () => {
+        expect(mintWith({nut20: true}).supportsNut20).toBe(true)
+    })
+
+    it('is false when the mint advertises it as unsupported', () => {
+        expect(mintWith({nut20: false}).supportsNut20).toBe(false)
+    })
+
+    it('is false when the mint does not mention NUT-20 at all', () => {
+        expect(mintWith({}).supportsNut20).toBe(false)
+    })
+
+    it('is false when info was never cached', () => {
+        expect(mintWithUnknownInfo().supportsNut20).toBe(false)
     })
 })
 

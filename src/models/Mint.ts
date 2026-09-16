@@ -7,6 +7,7 @@ import {
     type MintMethod,
     type SwapMethod,
     Mint as CashuMint,
+    MintInfo,
 } from '@cashu/cashu-ts'
 // From '../theme/colors', NOT the '../theme' barrel. The barrel re-exports
 // useThemeColor, which imports '../services' — so a barrel import here would make
@@ -191,6 +192,16 @@ export const MintModel = types
         createdAt: types.optional(types.Date, new Date()),
     })
     .actions(withSetPropAction) // TODO? start to use across app to avoid pure setter methods, e.g. mint.setProp('color', '#ccc')
+
+    .views(self => ({
+        /** Rehydrates from the stored NUT-06 response with no network call, so the
+         * capability views keep working offline exactly as they did when they read
+         * the raw `nuts` map.
+         */
+        get mintInfoModel(): MintInfo | undefined {
+            return self.mintInfo ? new MintInfo(self.mintInfo) : undefined
+        },
+    }))
     .views(self => ({
         /**
          * The mint's advertised setting for a (method, unit) pair, or undefined when
@@ -204,20 +215,24 @@ export const MintModel = types
          *
          * The setting also carries `min_amount` / `max_amount` (and, for onchain,
          * `options.confirmations`), which callers need for limit checks.
+         *
+         * NUT-04 and NUT-05 each carry a `disabled` flag alongside their method
+         * list, and a mint that advertises methods while disabling the NUT is
+         * telling us it is off.
          */
         mintMethodSetting(method: PaymentMethod, unit: MintUnit): SwapMethod | undefined {
-            return self.mintInfo?.nuts?.['4']?.methods?.find(
-                m => m.method === method && m.unit === unit,
-            )
+            const {disabled, params} = self.mintInfoModel?.isSupported(4) ?? {disabled: true, params: []}
+            if (disabled) return undefined
+            return params.find(m => m.method === method && m.unit === unit)
         },
         meltMethodSetting(method: PaymentMethod, unit: MintUnit): SwapMethod | undefined {
-            return self.mintInfo?.nuts?.['5']?.methods?.find(
-                m => m.method === method && m.unit === unit,
-            )
+            const {disabled, params} = self.mintInfoModel?.isSupported(5) ?? {disabled: true, params: []}
+            if (disabled) return undefined
+            return params.find(m => m.method === method && m.unit === unit)
         },
         /** Does the mint advertise NUT-20 (signed mint quotes)? */
         get supportsNut20(): boolean {
-            return self.mintInfo?.nuts?.['20']?.supported === true
+            return self.mintInfoModel?.isSupported(20).supported === true
         },
         /** True while we have never managed to cache this mint's info. */
         get hasUnknownCapabilities(): boolean {
