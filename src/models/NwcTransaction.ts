@@ -17,6 +17,7 @@ export type NwcTransaction = {
     type: TransactionDirection
     /** Null for ecash that never had a bolt11 invoice — a token, or a payment request. */
     invoice: string | null
+    /** The serialized zap request for a zap, per NIP-57; the wallet memo otherwise. */
     description: string | null
     preimage: string | null
     payment_hash: string | null
@@ -51,7 +52,12 @@ export const toNwcTransaction = function (t: Transaction): NwcTransaction {
     return {
         type: getTransactionDirection(t.type),
         invoice: t.paymentRequest ?? null,
-        description: t.memo ?? null,
+        // NIP-57: a zap's invoice description IS the signed kind-9734 zap request, and
+        // clients recover the sender, comment and zapped note from it. Ecash received at
+        // a lightning address has no bolt11 to carry it, so it would otherwise reach the
+        // client as an anonymous credit — the memo alone attributes nothing. Falls back to
+        // the memo, which is the zap request's own `content` when there is one.
+        description: t.zapRequest ?? t.memo ?? null,
         preimage: t.proof ?? null,
         payment_hash: t.paymentId ?? null,
         amount: t.amount * 1000,

@@ -29,6 +29,25 @@ import {
 
 const MINT = 'https://mint.test'
 
+const SENDER_PUBKEY = '32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245'
+const ZAPPED_NOTE = '1f1e1d1c1b1a191817161514131211100f0e0d0c0b0a09080706050403020100'
+
+/** A real-shaped kind-9734, as the lnurl server stores it against the paid invoice. */
+const ZAP_REQUEST = JSON.stringify({
+  id: '9e1a1b0c2d3e4f50617283940a1b2c3d4e5f60718293a4b5c6d7e8f901234567',
+  pubkey: SENDER_PUBKEY,
+  created_at: 1757342998,
+  kind: 9734,
+  tags: [
+    ['p', '04c915daefee38317fa734444acee390a8269fe5810b2241e5e6dd343dfbecc9'],
+    ['e', ZAPPED_NOTE],
+    ['relays', 'wss://relay.damus.io', 'wss://nos.lol'],
+    ['amount', '21000'],
+  ],
+  content: 'nice one',
+  sig: 'c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00',
+})
+
 let nextId = 1
 
 const addTx = (tx: {
@@ -43,12 +62,13 @@ const addTx = (tx: {
   paymentId?: string
   proof?: string
   expiresAt?: string
+  zapRequest?: string
 }) => {
   const id = nextId++
   Database.getInstance().execute(
     `INSERT INTO transactions
-       (id, type, amount, fee, unit, data, memo, mint, mintId, status, paymentRequest, paymentId, proof, expiresAt, createdAt)
-     VALUES (?, ?, ?, ?, ?, '[]', ?, ?, 'mint1111', ?, ?, ?, ?, ?, ?)`,
+       (id, type, amount, fee, unit, data, memo, mint, mintId, status, paymentRequest, paymentId, proof, expiresAt, zapRequest, createdAt)
+     VALUES (?, ?, ?, ?, ?, '[]', ?, ?, 'mint1111', ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       tx.type,
@@ -62,6 +82,7 @@ const addTx = (tx: {
       tx.paymentId ?? null,
       tx.proof ?? null,
       tx.expiresAt ?? null,
+      tx.zapRequest ?? null,
       tx.createdAt ?? new Date().toISOString(),
     ],
   )
@@ -241,6 +262,31 @@ describe('list_transactions', () => {
         preimage: null,
         expires_at: null,
       })
+    })
+
+    it('carries the zap request as the description, so a received zap can be attributed', () => {
+      // A kind-9735 receipt is published to the relays the SENDER named, which the
+      // recipient often does not read, so clients recover zaps from list_transactions
+      // instead. That only works if the signed zap request is in `description` —
+      // with the memo there, the payment can only ever render as an anonymous credit.
+      addTx({type: TransactionType.RECEIVE, amount: 21, memo: 'Received zap', zapRequest: ZAP_REQUEST})
+
+      const [tx] = listTransactions()
+
+      const zapRequest = JSON.parse(tx.description as string)
+
+      expect(zapRequest.kind).toBe(9734)
+      expect(zapRequest.pubkey).toBe(SENDER_PUBKEY)
+      expect(zapRequest.tags).toContainEqual(['e', ZAPPED_NOTE])
+      expect(zapRequest.sig).toEqual(expect.any(String))
+    })
+
+    it('still reports the memo when a receive is not a zap', () => {
+      addTx({type: TransactionType.RECEIVE, memo: 'Received to lightning address'})
+
+      const [tx] = listTransactions()
+
+      expect(tx.description).toBe('Received to lightning address')
     })
 
     it('carries the invoice, payment hash and preimage of a lightning payment', () => {
