@@ -157,7 +157,19 @@ function _lastDataEntry(tx: Transaction): TransactionData | undefined {
 }
 
 /**
- * Manually recover minted ecash from a paid mint quote (e.g. lost topup)
+ * Manually recover minted ecash from a paid mint quote (e.g. lost topup).
+ *
+ * Takes a bare quote id, so it works where nothing else does: a quote made on
+ * another install of the same seed, or one whose transaction was lost with the
+ * wallet state. There is no transaction to start from — only what the mint still
+ * knows about the quote.
+ *
+ * Both rails are served through this one entry, because a quote id does not say
+ * which rail it belongs to. bolt11 is tried first (every mint has it, and it is
+ * what this has always recovered); an onchain (NUT-30) quote lives behind a
+ * different endpoint, so it is tried when the bolt11 lookup fails at a mint that
+ * advertises onchain minting. See OnchainTopupOperationApi.recoverQuote for what
+ * recovering an onchain quote additionally has to reconstruct.
  */
 const recoverMintQuote = async (
     params: {mintUrl: string; mintQuote: string},
@@ -172,7 +184,29 @@ const recoverMintQuote = async (
 
     log.trace('[recoverMintQuote] start', {mintUrl, mintQuote})
 
-    const {state, mintQuote: returnedQuote, encodedInvoice} = await walletStore.checkLightningMintQuote(mintUrl, mintQuote)
+    let lightningQuote
+
+    try {
+        lightningQuote = await walletStore.checkLightningMintQuote(mintUrl, mintQuote)
+    } catch (e: any) {
+        // Not a bolt11 quote at this mint — or the mint is unreachable, in which case
+        // the onchain lookup below fails too and its error is the one the user sees.
+        if (!mint.supportsMint!('onchain', unit)) {
+            throw e
+        }
+
+        log.debug('[recoverMintQuote] Not a bolt11 quote, trying onchain', {
+            mintUrl,
+            mintQuote,
+            error: e.message,
+        })
+
+        const {OnchainTopupOperationApi} = await import('./onchainTopupOperationApi')
+
+        return await OnchainTopupOperationApi.recoverQuote({mintUrl, quote: mintQuote})
+    }
+
+    const {state, mintQuote: returnedQuote, encodedInvoice} = lightningQuote
 
     if (returnedQuote !== mintQuote) {
         throw new ValidationError('Mint returned mismatched quote', {mintQuote, returnedQuote})

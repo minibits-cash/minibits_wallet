@@ -40,6 +40,7 @@ jest.mock('../src/services/db/walletCountersRepo', () => ({
 import {
     allocateQuoteKeypair,
     deriveQuoteKeypair,
+    findQuoteKeyIndex,
     quoteKeyDerivationPath,
 } from '../src/services/cashu/nut20'
 
@@ -109,6 +110,27 @@ describe('NUT-20 quote key derivation', () => {
         for (const {index, privkey, pubkey} of VECTOR) {
             expect(deriveQuoteKeypair(SEED, index)).toEqual({privkey, pubkey})
         }
+    })
+
+    // Recovering a quote whose row is gone (made on another install of the same
+    // seed, or before a wipe) turns on finding its index again from the pubkey the
+    // mint returns. Without the index there is no private key, and no signature —
+    // the money would be unmintable.
+    it('finds the index that produced a pubkey', () => {
+        expect(findQuoteKeyIndex(SEED, VECTOR[1].pubkey, 50)).toBe(1)
+    })
+
+    it('finds an index far above the local counter', () => {
+        // The case that matters: a wiped wallet's counter is back at 0 while the
+        // mint still holds a quote locked to a much higher index.
+        const {pubkey} = deriveQuoteKeypair(SEED, 137)
+        expect(findQuoteKeyIndex(SEED, pubkey, 200)).toBe(137)
+    })
+
+    it('does not claim a key from another seed', () => {
+        const otherSeed = new Uint8Array(SEED).fill(7)
+        const foreign = deriveQuoteKeypair(otherSeed, 3).pubkey
+        expect(findQuoteKeyIndex(SEED, foreign, 200)).toBeUndefined()
     })
 
     it('is deterministic for a given seed and index', () => {

@@ -57,7 +57,8 @@ import {
   CurrencyCode,
   MintUnit,  
   getCurrency,
-  convertToFromSats
+  convertToFromSats,
+  formatCurrency
 } from '../services/wallet/currency'
 import {MintHeader} from './Mints/MintHeader'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
@@ -690,6 +691,27 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       if (!mintBalanceToTopup) return
 
       try {
+        // The mint caps a single mint operation. Unlike bolt11 nothing on the mint
+        // side refuses an over-limit onchain topup — the quote is just an address and
+        // carries no amount — so a bigger deposit is credited but then has to be
+        // minted in instalments (capMintAmount), one per sweep. Say so up front
+        // instead of handing out an address with a hint the mint cannot honour.
+        // `AmountLike` in the cashu-ts types, but mint info is normalized straight off
+        // the JSON, so this is a plain number.
+        const maxAmount = selectedMint?.mintMethodSetting!('onchain', unitRef.current)
+          ?.max_amount as number | null | undefined
+
+        if (maxAmount && amountToTopupInt() > maxAmount) {
+          const currencyCode = getCurrency(unitRef.current).code
+          infoMessage(
+            translate('payCommon_maximumTopup', {
+              amount: formatCurrency(maxAmount, currencyCode),
+              currency: currencyCode,
+            }),
+          )
+          return
+        }
+
         dispatch({ type: 'TOPUP_START' })
 
         const created = await OnchainTopupOperationApi.createQuote({

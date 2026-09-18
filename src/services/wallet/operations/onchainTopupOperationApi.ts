@@ -61,8 +61,14 @@ import {
 } from '../../../models/Transaction'
 import {Database} from '../../../services'
 import {OnchainMintQuoteRecord} from '../../db/onchainQuotesRepo'
+import {NUT20_COUNTER} from '../../db'
 import type {Mint} from '../../../models/Mint'
-import {allocateQuoteKeypair, deriveQuoteKeypair} from '../../cashu/nut20'
+import {
+    allocateQuoteKeypair,
+    deriveQuoteKeypair,
+    findQuoteKeyIndex,
+    NUT20_RECOVERY_GAP_LIMIT,
+} from '../../cashu/nut20'
 import {capMintAmount, mintableAmount} from './onchainAmounts'
 import {CashuProof} from '../../cashu/cashuUtils'
 import {MintUnit} from '../currency'
@@ -260,7 +266,12 @@ export type RefreshOnchainQuoteResult = {
     quote: string
     amountPaid: number
     amountIssued: number
-    /** Ecash actually minted during THIS refresh. 0 when nothing new arrived. */
+    /**
+     * Ecash actually minted during THIS refresh. 0 when nothing new arrived, and
+     * less than `amountPaid - amountIssued` when the mint's per-operation maximum
+     * capped it — `amountPaid > amountIssued` afterwards means another run will
+     * take the rest.
+     */
     minted: number
     transactionId?: number
 }
@@ -300,15 +311,142 @@ async function refreshQuote(quoteId: string): Promise<RefreshOnchainQuoteResult>
         return {quote: quoteId, amountPaid, amountIssued, minted: 0}
     }
 
-    const transactionId = await _mintAvailable(row, mint, quoteResponse, mintable)
+    const {transactionId, minted} = await _mintAvailable(row, mint, quoteResponse, mintable)
 
+    // `minted`, NOT `mintable`: a deposit over the mint's per-operation maximum is
+    // minted in instalments, so this run may have taken only part of it. The rest
+    // stays credited on the quote and the watch rule (amountPaid > amountIssued)
+    // keeps it in the sweep — but the caller has to be told the truth about what
+    // landed, or the UI reports a partial recovery as a complete one.
     return {
         quote: quoteId,
         amountPaid,
-        amountIssued: amountIssued + mintable,
-        minted: mintable,
+        amountIssued: amountIssued + minted,
+        minted,
         transactionId,
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// recoverQuote()
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Mint an onchain quote this wallet has no record of.
+ *
+ * The manual recovery path (Recovery options → Recover mint quote), for a quote
+ * the wallet cannot reach through a transaction: one created on another install
+ * of the same seed, or before the wallet state was wiped. There is no quote row
+ * and no transaction — only the id the user pastes.
+ *
+ * Everything else the row holds can be read back off the mint: the address, the
+ * unit, the expiry, and how much is paid and issued. Everything but the NUT-20
+ * derivation index, which is local and is the one thing that can make the money
+ * unmintable. The mint does return the PUBKEY the quote is locked to, so the
+ * index is recovered by re-deriving from the seed until the pubkey matches
+ * (findQuoteKeyIndex). No match means the quote belongs to another seed — no
+ * signature we can produce will ever satisfy it, so this refuses rather than
+ * leaving the user tapping a button that cannot work.
+ *
+ * Once the row is rebuilt this is an ordinary quote again: the mint is done by
+ * refreshQuote through the sync queue, so the cap on a single mint operation, the
+ * instalments for an over-limit deposit, the settled transaction and the watch on
+ * any remainder all behave exactly as they do for a quote created here.
+ */
+async function recoverQuote(input: {
+    mintUrl: string
+    quote: string
+}): Promise<{recoveredAmount: number}> {
+    const {mintUrl, quote: quoteId} = input
+
+    const mintInstance = mintsStore.findByUrl(mintUrl)
+    if (!mintInstance) {
+        throw new ValidationError('Could not find mint', {mintUrl})
+    }
+
+    const quoteResponse = await walletStore.checkOnchainMintQuote(mintUrl, quoteId)
+
+    const amountPaid = Number(quoteResponse.amount_paid ?? 0)
+    const amountIssued = Number(quoteResponse.amount_issued ?? 0)
+
+    if (mintableAmount(amountPaid, amountIssued) <= 0) {
+        throw new ValidationError(
+            'This onchain quote has nothing left to mint.',
+            {quote: quoteId, amountPaid, amountIssued},
+        )
+    }
+
+    if (!Database.getOnchainMintQuote(quoteId)) {
+        const pubkey = quoteResponse.pubkey
+        if (!pubkey) {
+            throw new ValidationError(
+                'This onchain quote is not locked to a key, so this wallet cannot mint it.',
+                {quote: quoteId},
+            )
+        }
+
+        const seed: Uint8Array = await walletStore.getCachedSeed()
+        const scanTo = Database.getWalletCounter(NUT20_COUNTER) + NUT20_RECOVERY_GAP_LIMIT
+        const counterIndex = findQuoteKeyIndex(seed, pubkey, scanTo)
+
+        if (counterIndex === undefined) {
+            throw new ValidationError(
+                'This onchain quote is locked to a key that does not belong to this wallet seed.',
+                {quote: quoteId, pubkey, scanTo},
+            )
+        }
+
+        Database.addOnchainMintQuote({
+            mintId: mintInstance.id,
+            quote: quoteId,
+            mintUrl,
+            unit: quoteResponse.unit,
+            address: quoteResponse.request,
+            counterIndex,
+            pubkey,
+            // Unknowable now — it was only ever a BIP21 hint on the device that
+            // created the quote. What was actually paid comes from the mint.
+            amountRequested: null,
+            amountPaid,
+            amountIssued,
+            expiry: quoteResponse.expiry ?? null,
+        })
+
+        // A recovered index can sit far above the local counter (a wiped wallet
+        // starts back at 0), and handing it out again would lock two quotes to one
+        // key. setWalletCounter only ever raises the value, so this cannot walk the
+        // wallet back onto an index it has already used.
+        Database.setWalletCounter(NUT20_COUNTER, counterIndex + 1)
+
+        log.info('[OnchainTopupOperationApi.recoverQuote] Rebuilt a lost quote', {
+            quote: quoteId,
+            mintUrl,
+            counterIndex,
+            amountPaid,
+            amountIssued,
+        })
+    } else {
+        // Known quote, but the user is here because nothing settled it — the watch
+        // has very likely lapsed, and a check alone would not put it back in the
+        // watcher's set for the next deposit.
+        Database.extendOnchainMintQuoteWatch(quoteId)
+    }
+
+    // Through the queue, NOT straight to refreshQuote: minting derives blinded
+    // secrets from the keyset counter and the watcher sweep can be doing the same
+    // thing at this moment. SyncQueue (concurrency 1) is what keeps the two from
+    // advancing to the same counter and reusing secrets.
+    const {OnchainOperationService} = await import('./onchainOperations')
+    const result: any = await OnchainOperationService.enqueueOnchainQuoteCheck(quoteId)
+
+    // The watcher swallows errors by design (one bad quote must not abort a sweep),
+    // so a failure arrives as a value here. The user asked for this one explicitly
+    // and needs to see why it did not work.
+    if (result?.error) {
+        throw new MintError(result.error, {quote: quoteId, mintUrl})
+    }
+
+    return {recoveredAmount: result?.minted ?? 0}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -355,7 +493,7 @@ async function _mintAvailable(
     mintInstance: Mint,
     quoteResponse: any,
     mintable: number,
-): Promise<number> {
+): Promise<{transactionId: number; minted: number}> {
     const {quote, counterIndex} = row
     const unit = row.unit as MintUnit
 
@@ -458,11 +596,11 @@ async function _mintAvailable(
         mintedAmount,
     })
 
-    return transactionId
+    return {transactionId, minted: mintedAmount}
 }
 
 /**
- * The PENDING transaction waiting on this quote, or a new one.
+ * The unsettled transaction waiting on this quote, or a new one.
  *
  * A second deposit to an address whose transaction already COMPLETED is a genuinely
  * new receipt and gets its own transaction — an amount that mutates after
@@ -477,15 +615,23 @@ async function _findOrCreateTransaction(
 ): Promise<Transaction> {
     const last = transactionsStore.findLastBy({quote: row.quote})
 
-    // PREPARED counts as reusable, not just PENDING. createQuote passes through it on
-    // the way to PENDING, so a crash in that window leaves a PREPARED row for this
-    // quote — and settling onto a NEW transaction instead would leave the user with two
-    // rows for one deposit.
+    // PREPARED and ERROR count as reusable, not just PENDING.
+    //
+    // PREPARED: createQuote passes through it on the way to PENDING, so a crash in
+    // that window leaves a PREPARED row for this quote — and settling onto a NEW
+    // transaction instead would leave the user with two rows for one deposit.
+    //
+    // ERROR: the row of an attempt that failed (the mint refused the mint request,
+    // the app died mid-flight). It never received proofs — nothing is ERROR after a
+    // successful commit — so settling onto it is a recovery, not a rewrite: the user
+    // taps "check for deposits" and the failed topup they are looking at becomes the
+    // completed one, instead of staying broken beside a new row they did not expect.
     if (
         last &&
         last.type === TransactionType.TOPUP_ONCHAIN &&
         (last.status === TransactionStatus.PENDING ||
-            last.status === TransactionStatus.PREPARED)
+            last.status === TransactionStatus.PREPARED ||
+            last.status === TransactionStatus.ERROR)
     ) {
         return last
     }
@@ -538,4 +684,5 @@ function _parseData(tx: Transaction): TransactionData[] {
 export const OnchainTopupOperationApi = {
     createQuote,
     refreshQuote,
+    recoverQuote,
 }

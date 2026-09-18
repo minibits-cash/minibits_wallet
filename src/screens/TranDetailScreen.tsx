@@ -1559,6 +1559,21 @@ const OnchainTopupInfoBlock = function (props: {
                 setCheckResult(result.error)
             } else if (!result?.minted) {
                 setCheckResult(translate('tranDetail_onchainNoDeposits'))
+            } else if (result.amountPaid > result.amountIssued) {
+                // The mint caps a single mint operation, so a deposit above that cap
+                // is minted in instalments — this run took one. The remainder stays
+                // credited on the quote and the watcher will collect it, but say so
+                // here: the user is standing in front of the button that does it, and
+                // silence would read as "that is all there was".
+                setCheckResult(
+                    translate('tranDetail_onchainPartiallyMinted', {
+                        amount: formatCurrency(
+                            result.amountPaid - result.amountIssued,
+                            getCurrency(transaction.unit).code,
+                        ),
+                        currency: getCurrency(transaction.unit).code,
+                    }),
+                )
             }
             // A successful mint settles the transaction; the observer re-renders it.
         } catch (e: any) {

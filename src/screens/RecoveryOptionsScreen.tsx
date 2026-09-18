@@ -230,13 +230,18 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
           throw new AppError(Err.VALIDATION_ERROR, 'Mint is not selected.')
         }
 
-        if(mintQuote.length !== 40) {
-          throw new AppError(Err.VALIDATION_ERROR, 'Mint quote must have 40 characters.')
+        // Length is not checked beyond "looks like an id": a quote id is opaque and
+        // its shape is the mint's business — bolt11 ids here are 40 hex characters,
+        // an onchain (NUT-30) one may be a uuid or anything else the mint issues.
+        const quote = mintQuote.trim()
+
+        if(quote.length < 8) {
+          throw new AppError(Err.VALIDATION_ERROR, 'Enter the mint quote id as the mint issued it.')
         }
 
         const result = await WalletTask.recoverMintQuote({
           mintUrl: mintBalanceToRecoverFrom.mintUrl,
-          mintQuote
+          mintQuote: quote
         })
 
         setIsLoading(false)
@@ -490,7 +495,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
                         value={mintQuote}
                         autoCapitalize='none'
                         keyboardType='default'
-                        maxLength={40}                        
+                        maxLength={80}
                         selectTextOnFocus={true}
                         style={[$quoteInput, {backgroundColor: inputBg, color: inputText}]}
                     />

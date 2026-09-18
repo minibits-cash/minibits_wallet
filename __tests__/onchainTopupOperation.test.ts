@@ -124,4 +124,25 @@ describe('capMintAmount', () => {
     it('caps exactly at the boundary', () => {
         expect(capMintAmount(500000, 500000)).toBe(500000)
     })
+
+    // The over-limit recovery path. A deposit bigger than the mint will issue at
+    // once must not fail the mint request — it is taken in capped instalments, one
+    // per sweep or per "check for deposits" tap, until the quote is drained. Nothing
+    // is lost on the way, which is why an overpayment is recoverable rather than
+    // stuck.
+    it('drains an over-limit deposit across repeated tries', () => {
+        const paid = 1200000
+        const max = 500000
+        let issued = 0
+        const takes: number[] = []
+
+        while (mintableAmount(paid, issued) > 0) {
+            const take = capMintAmount(mintableAmount(paid, issued), max)
+            takes.push(take)
+            issued += take
+        }
+
+        expect(takes).toEqual([500000, 500000, 200000])
+        expect(issued).toBe(paid)
+    })
 })

@@ -102,3 +102,42 @@ export const allocateQuoteKeypair = function (
     const index = allocateNextCounter(NUT20_COUNTER)
     return {index, ...deriveQuoteKeypair(seed, index)}
 }
+
+/**
+ * How far past the wallet's own counter a recovery scan keeps looking.
+ *
+ * Allocation is burn-forward, so indices are skipped whenever a quote request
+ * fails — the used indices are a sparse prefix, not a dense one. And the counter
+ * itself is local state: a wiped wallet (or a wallet restored from the seed
+ * elsewhere) starts back at 0 while the mint still holds quotes locked to much
+ * higher indices. So the scan cannot stop at the local counter.
+ */
+export const NUT20_RECOVERY_GAP_LIMIT = 200
+
+/**
+ * Which derivation index produced `pubkey`, or undefined within `scanTo`.
+ *
+ * A quote is locked to a NUT-20 pubkey and only its private key can sign the mint
+ * request. When the quote row is gone — recovering a quote made on another
+ * install of the same seed, or after the wallet state was wiped — the index is
+ * the one thing missing, and the mint hands back the pubkey, so it can be found
+ * by re-deriving. Undefined means the quote belongs to a different seed and this
+ * wallet can never mint it.
+ *
+ * ponytail: re-derives from the master seed per index (~scanTo HMAC chains). At a
+ * few hundred indices behind a manual recovery button that is imperceptible; if
+ * the scan ever needs to be wide, derive the parent once and walk its children.
+ */
+export const findQuoteKeyIndex = function (
+    seed: Uint8Array,
+    pubkey: string,
+    scanTo: number,
+): number | undefined {
+    const target = pubkey.toLowerCase()
+
+    for (let index = 0; index <= scanTo; index++) {
+        if (deriveQuoteKeypair(seed, index).pubkey === target) return index
+    }
+
+    return undefined
+}
