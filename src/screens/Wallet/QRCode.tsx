@@ -27,6 +27,10 @@ import AppError, { Err } from '../../utils/AppError';
 export type QRCodeBlockTypes = 'EncodedV3Token' | 'EncodedV4Token' | 'Bolt11Invoice' | 'URL' | 'NWC' | 'PUBKEY' | 'PaymentRequest' | 'BitcoinAddress'
 
 const ANIMATED_QR_FRAGMENT_LENGTH = 150
+// ScanScreen passes scanThrottleDelay={0}, so our own scanner reads every camera
+// frame and the display rate is the only limit. 4 fps is kept deliberately: it is
+// what other cashu wallets animate at, and it survives a low-end camera that cannot
+// decode a frame in less than ~200ms. Do not raise it without device testing.
 const ANIMATED_QR_INTERVAL = 250
 
 export const QRCodeBlock = function (props: {

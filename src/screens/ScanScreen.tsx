@@ -41,10 +41,16 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
     const {mintsStore} = useStores()
 
     const [shouldLoad, setShouldLoad] = useState<boolean>(false)        
-    const [isScanned, setIsScanned] = useState<boolean>(false)
     const [prevRouteName, setPrevRouteName] = useState<string>('')
-    const [urDecoder, setUrDecoder] = useState<URDecoder | undefined>(undefined)
     const [urDecoderProgress, setUrDecoderProgress] = useState<number>(0)
+    /*
+     * Refs, not state: with scanThrottleDelay={0} onReadCode fires on every camera
+     * frame (~30/s), so a state flag would still be stale on the next few frames and
+     * let a completed scan navigate several times.
+     */
+    const urDecoder = useRef<URDecoder>(new URDecoder())
+    const isScanned = useRef<boolean>(false)
+    const lastPart = useRef<string>('')
     const [unit, setUnit] = useState<MintUnit>('sat')
     const [mint, setMint] = useState<Mint | undefined>(undefined) 
     const [error, setError] = useState<AppError | undefined>()
@@ -62,8 +68,6 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
               setPrevRouteName(prevRoute)
           }
 
-          const decoder = new URDecoder()
-          setUrDecoder(decoder)
         }
         load()
     }, [])
@@ -93,23 +97,28 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
 
 
     const onReadCode = async function(event: any) {
+        if (isScanned.current) { return }
+
         const scanned = event.nativeEvent.codeStringValue
-        
+
+        // The camera reads the same QR many times while it is on screen. Skipping the
+        // repeats keeps receivePart() and the progress re-render off the hot path.
+        if (scanned === lastPart.current) { return }
+        lastPart.current = scanned
+
         if (scanned.toLowerCase().startsWith("ur:")) {
-            if(!urDecoder) { return }
+            urDecoder.current.receivePart(scanned)
+            setUrDecoderProgress(Math.floor(urDecoder.current.estimatedPercentComplete() * 100))
 
-            urDecoder.receivePart(scanned)
-            setUrDecoderProgress(Math.floor(urDecoder.estimatedPercentComplete() * 100))
-
-            if (!urDecoder.isComplete()) {
+            if (!urDecoder.current.isComplete()) {
 				return;
 			}
 
-            if (urDecoder.isSuccess()) {
-                setIsScanned(true) 
+            if (urDecoder.current.isSuccess()) {
+                isScanned.current = true
                 setUrDecoderProgress(0)
 
-                const ur = urDecoder.resultUR()
+                const ur = urDecoder.current.resultUR()
                 const decodedBuffer = ur.decodeCBOR()                
 
                 const decodedData = Buffer.from(decodedBuffer).toString('utf8')
@@ -118,11 +127,11 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
 
                 return onIncomingData(decodedData)
             } else {
-                setError(new AppError(Err.SCAN_ERROR, urDecoder.resultError()))
+                setError(new AppError(Err.SCAN_ERROR, urDecoder.current.resultError()))
             }
         }
 
-        setIsScanned(true)        
+        isScanned.current = true        
         log.trace('Scanned', {scanned})
 
         return onIncomingData(scanned)
@@ -307,7 +316,8 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
             <Camera
                 cameraType={CameraType.Back}                      
                 scanBarcode
-                onReadCode={(event: any) => (isScanned ? undefined : onReadCode(event))}                
+                scanThrottleDelay={0}
+                onReadCode={onReadCode}                
                 style={{flex: 1}}            
             />
             <View style={$bottomContainer}>                

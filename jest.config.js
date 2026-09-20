@@ -7,13 +7,17 @@ module.exports = {
   // The `(.*/)?` makes the allowlist apply at any depth: nostr-tools carries its
   // own ESM-only @noble copies in a nested node_modules, and those need babel too.
   transformIgnorePatterns: [
-    'node_modules/(?!(.*/)?((jest-)?react-native|@react-native|@react-native-community|@cashu|@noble|@scure|react-native-flash-message)/)',
+    'node_modules/(?!(.*/)?((jest-)?react-native|@react-native|@react-native-community|@cashu|@noble|@scure|cborg|react-native-flash-message)/)',
   ],
   // Several native or source-shipped packages are unusable under jest, and the
   // MODEL layer reaches all of them at import time (Mint -> services barrel ->
   // mmkvStorage / keyChain / db). That is what made MST stores impossible to
   // instantiate in a test at all; these mappings are what make store tests possible.
   moduleNameMapper: {
+    // cborg (via @gandlaf21/bc-ur) is ESM-only and its exports map has an "import"
+    // condition only, which jest's CJS resolver cannot satisfy. Point at the entry
+    // file directly and let babel transform it (see transformIgnorePatterns above).
+    '^cborg$': '<rootDir>/node_modules/cborg/cborg.js',
     // Same shape as the @scure/bip39 mapping below: the package's exports map
     // names only the suffixed path, so app code imports it that way. This accepts
     // both spellings, for transitive dependencies still using the bare one.
