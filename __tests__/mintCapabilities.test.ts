@@ -225,9 +225,58 @@ describe('the NUT-04 / NUT-05 disabled flag', () => {
         expect(mint.hasUnknownCapabilities).toBe(false)
         expect(mint.supportsMint('bolt11', 'sat')).toBe(false)
     })
+
+    it('keeps melting available when disabled NUT-04 omits methods', () => {
+        const mint = MintModel.create({
+            mintUrl: 'https://mint.test',
+            mintInfo: {
+                nuts: {
+                    '4': {disabled: true},
+                    '5': {methods: [BOLT11_SAT], disabled: false},
+                },
+                time: Math.floor(Date.now() / 1000),
+            } as any,
+        })
+
+        expect(mint.supportsMint('bolt11', 'sat')).toBe(false)
+        expect(mint.supportsMelt('bolt11', 'sat')).toBe(true)
+    })
+
+    it('keeps minting available when disabled NUT-05 omits methods', () => {
+        const mint = MintModel.create({
+            mintUrl: 'https://mint.test',
+            mintInfo: {
+                nuts: {
+                    '4': {methods: [BOLT11_SAT], disabled: false},
+                    '5': {disabled: true},
+                },
+                time: Math.floor(Date.now() / 1000),
+            } as any,
+        })
+
+        expect(mint.supportsMint('bolt11', 'sat')).toBe(true)
+        expect(mint.supportsMelt('bolt11', 'sat')).toBe(false)
+    })
 })
 
 describe('supportsNut20', () => {
+    it.each(['true', 'false', 1])('rejects a truthy non-boolean support flag (%s)', supported => {
+        const mint = MintModel.create({
+            mintUrl: 'https://mint.test',
+            mintInfo: {
+                nuts: {
+                    '4': {methods: [ONCHAIN_SAT], disabled: false},
+                    '5': {methods: [], disabled: false},
+                    '20': {supported},
+                },
+                time: Math.floor(Date.now() / 1000),
+            } as any,
+        })
+
+        expect(mint.supportsNut20).toBe(false)
+        expect(mint.supportsMint('onchain', 'sat')).toBe(false)
+    })
+
     it('is true when the mint advertises NUT-20', () => {
         expect(mintWith({nut20: true}).supportsNut20).toBe(true)
     })

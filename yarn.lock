@@ -2869,15 +2869,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@cashu/cashu-ts@npm:^4.10.0":
-  version: 4.10.0
-  resolution: "@cashu/cashu-ts@npm:4.10.0"
+"@cashu/cashu-ts@npm:^4.11.0":
+  version: 4.11.0
+  resolution: "@cashu/cashu-ts@npm:4.11.0"
   dependencies:
-    "@noble/curves": ^2.2.0
-    "@noble/hashes": ^2.2.0
-    "@scure/base": ^2.2.0
-    "@scure/bip32": ^2.2.0
-  checksum: 55994116585f64acf6078e000ca747e5d082d307779165c9a1aece0803a6d2f1d1c3d9c0c5616cb1b3df8ac12ca2175d03c42f59d08ef3df21ab13c79ecc6b79
+    "@noble/curves": ^2.4.0
+    "@noble/hashes": ^2.4.0
+    "@scure/base": ^2.4.0
+    "@scure/bip32": ^2.4.0
+  checksum: 1adfa648fdb36bd6308e600535f6d1a1d258fbaeada371709e42a7aade425dd5ff0eb844bec09a29da79aad226ad7c4377fe3abcab6f8614e0371144ae4a2709
   languageName: node
   linkType: hard
 
@@ -5449,12 +5449,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/curves@npm:2.2.0, @noble/curves@npm:^2.2.0":
+"@noble/curves@npm:2.2.0":
   version: 2.2.0
   resolution: "@noble/curves@npm:2.2.0"
   dependencies:
     "@noble/hashes": 2.2.0
   checksum: 2b6f02c18918578f528791644886f54333c67323f5ccefe10bf250f08760f63786b807390d8d5f8562c661e70dd3559ce8e51e1fe360118c8fd47071c2bd6991
+  languageName: node
+  linkType: hard
+
+"@noble/curves@npm:2.4.0, @noble/curves@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "@noble/curves@npm:2.4.0"
+  dependencies:
+    "@noble/hashes": 2.4.0
+  checksum: 3e1d2a57efea01bd76cd2e0d711446b67ac4124988f4abe8b4b849f04a9d52b7fa1e7fa7d8ed94151ca31cb09c0bc7e00b77a057a7d99f114a0d45f8ead6d71e
   languageName: node
   linkType: hard
 
@@ -5465,10 +5474,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/hashes@npm:2.2.0, @noble/hashes@npm:^2.2.0":
+"@noble/hashes@npm:2.2.0":
   version: 2.2.0
   resolution: "@noble/hashes@npm:2.2.0"
   checksum: a8745fb5da57a73ddd3dd6d5ad45d156ea664be51ead5344ca1528f8e56ad0ba0720ec8adff3bda37c50c72a86a33a57332ec02c3fb8d2a2612f9c3e5e7079ab
+  languageName: node
+  linkType: hard
+
+"@noble/hashes@npm:2.4.0, @noble/hashes@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "@noble/hashes@npm:2.4.0"
+  checksum: 0eaf273e341c53ebf7de3e6dcc27755c2124da04152549a61580a525929844e05a7799aeeb9a6a46943cde59ff297ebe6d61968669b162577db188c62b948efe
   languageName: node
   linkType: hard
 
@@ -6463,10 +6479,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@scure/base@npm:2.2.0, @scure/base@npm:^2.2.0":
+"@scure/base@npm:2.2.0":
   version: 2.2.0
   resolution: "@scure/base@npm:2.2.0"
   checksum: 2dd91f310765366e2dcb5e37709eb35ccd57d3f2f112d36232ca03fb8819c8764708f333ac40935fa719ff2e943bd50e1912ab43d212e44e807100d21f835f13
+  languageName: node
+  linkType: hard
+
+"@scure/base@npm:2.4.0, @scure/base@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "@scure/base@npm:2.4.0"
+  checksum: 95014a31c1c0fc8d70913031535060deac181aef10cd84cacbc0bd394db58df22fd35ce7b14a73d34e158b472094fd92e614613598aa03378ffeb8967b5b007c
   languageName: node
   linkType: hard
 
@@ -6489,6 +6512,17 @@ __metadata:
     "@noble/hashes": 2.2.0
     "@scure/base": 2.2.0
   checksum: 6cd0ddf603b739d3c24a13618fc246d409bbf0dffec22bc2c3c8e3e64271bb58c7078bea0b6ab9601fcfe881a969ee31e3074d478affe13a439d7527a0b68ecf
+  languageName: node
+  linkType: hard
+
+"@scure/bip32@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "@scure/bip32@npm:2.4.0"
+  dependencies:
+    "@noble/curves": 2.4.0
+    "@noble/hashes": 2.4.0
+    "@scure/base": 2.4.0
+  checksum: fabadcab4673e17c3702bca8037f847f0c6e90b7bc751424de740c26f5de432bac957716dbd16fb775005db1701fd6e220cf8adc17a46d5e355b7086969faf39
   languageName: node
   linkType: hard
 
@@ -14762,7 +14796,7 @@ __metadata:
     "@babel/plugin-proposal-export-namespace-from": ^7.18.9
     "@babel/preset-env": ^7.25.3
     "@babel/runtime": ^7.25.0
-    "@cashu/cashu-ts": ^4.10.0
+    "@cashu/cashu-ts": ^4.11.0
     "@expo/fingerprint": ^0.13.4
     "@fortawesome/fontawesome-svg-core": ^7.1.0
     "@fortawesome/free-brands-svg-icons": ^7.1.0
