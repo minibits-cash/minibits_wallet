@@ -57,6 +57,8 @@ type MethodEntry = {
 const mintWith = (opts: {
     mintMethods?: MethodEntry[]
     meltMethods?: MethodEntry[]
+    mintDisabled?: boolean
+    meltDisabled?: boolean
     nut20?: boolean
 }) =>
     MintModel.create({
@@ -67,8 +69,8 @@ const mintWith = (opts: {
             version: 'test/1',
             contact: [],
             nuts: {
-                '4': {methods: opts.mintMethods ?? [], disabled: false},
-                '5': {methods: opts.meltMethods ?? [], disabled: false},
+                '4': {methods: opts.mintMethods ?? [], disabled: opts.mintDisabled ?? false},
+                '5': {methods: opts.meltMethods ?? [], disabled: opts.meltDisabled ?? false},
                 ...(opts.nut20 === undefined ? {} : {'20': {supported: opts.nut20}}),
             },
             time: Math.floor(Date.now() / 1000),
@@ -164,6 +166,53 @@ describe('supportsMint / supportsMelt', () => {
         expect(mint.supportsMelt('bolt11', 'sat')).toBe(false)
         expect(mint.supportsMint('onchain', 'sat')).toBe(true)
         expect(mint.supportsMelt('onchain', 'sat')).toBe(true)
+    })
+})
+
+/**
+ * A mint may advertise methods AND switch the whole NUT off — nutshell does this
+ * when its backend is unavailable. The flag wins over the list, or the wallet
+ * offers a flow the mint refuses at quote time.
+ */
+describe('the NUT-04 / NUT-05 disabled flag', () => {
+    it('reports no mint method when NUT-04 is disabled, however many are listed', () => {
+        const mint = mintWith({
+            mintMethods: [BOLT11_SAT, ONCHAIN_SAT],
+            mintDisabled: true,
+            nut20: true,
+        })
+
+        expect(mint.mintMethodSetting('bolt11', 'sat')).toBeUndefined()
+        expect(mint.mintMethodSetting('onchain', 'sat')).toBeUndefined()
+        expect(mint.supportsMint('bolt11', 'sat')).toBe(false)
+        expect(mint.supportsMint('onchain', 'sat')).toBe(false)
+    })
+
+    it('reports no melt method when NUT-05 is disabled', () => {
+        const mint = mintWith({meltMethods: [BOLT11_SAT], meltDisabled: true})
+
+        expect(mint.meltMethodSetting('bolt11', 'sat')).toBeUndefined()
+        expect(mint.supportsMelt('bolt11', 'sat')).toBe(false)
+    })
+
+    it('disables only the half that is switched off', () => {
+        // topups closed, payouts still open
+        const mint = mintWith({
+            mintMethods: [BOLT11_SAT],
+            mintDisabled: true,
+            meltMethods: [BOLT11_SAT],
+        })
+
+        expect(mint.supportsMint('bolt11', 'sat')).toBe(false)
+        expect(mint.supportsMelt('bolt11', 'sat')).toBe(true)
+    })
+
+    it('is not the same as unknown capabilities — a disabled mint has cached info', () => {
+        // the two resolve OPPOSITELY for bolt11: unknown assumes it, disabled refuses it
+        const mint = mintWith({mintMethods: [BOLT11_SAT], mintDisabled: true})
+
+        expect(mint.hasUnknownCapabilities).toBe(false)
+        expect(mint.supportsMint('bolt11', 'sat')).toBe(false)
     })
 })
 

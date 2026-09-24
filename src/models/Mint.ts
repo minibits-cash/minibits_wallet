@@ -204,16 +204,23 @@ export const MintModel = types
          *
          * The setting also carries `min_amount` / `max_amount` (and, for onchain,
          * `options.confirmations`), which callers need for limit checks.
+         *
+         * Each NUT carries a `disabled` flag beside its method list, and a mint that
+         * advertises methods while disabling the NUT is telling us that direction is
+         * off — nutshell sets it when its backend is unavailable. Ignoring the flag
+         * means offering a flow the mint then refuses. Same rule as `getMethods` in
+         * screens/Mints/mintInfoSummary.ts, which drives MintInfoScreen: the two must
+         * stay in step or the mint's detail screen contradicts the topup menu.
          */
         mintMethodSetting(method: PaymentMethod, unit: MintUnit): SwapMethod | undefined {
-            return self.mintInfo?.nuts?.['4']?.methods?.find(
-                m => m.method === method && m.unit === unit,
-            )
+            const nut4 = self.mintInfo?.nuts?.['4']
+            if (nut4?.disabled === true) return undefined
+            return nut4?.methods?.find(m => m.method === method && m.unit === unit)
         },
         meltMethodSetting(method: PaymentMethod, unit: MintUnit): SwapMethod | undefined {
-            return self.mintInfo?.nuts?.['5']?.methods?.find(
-                m => m.method === method && m.unit === unit,
-            )
+            const nut5 = self.mintInfo?.nuts?.['5']
+            if (nut5?.disabled === true) return undefined
+            return nut5?.methods?.find(m => m.method === method && m.unit === unit)
         },
         /** Does the mint advertise NUT-20 (signed mint quotes)? */
         get supportsNut20(): boolean {
