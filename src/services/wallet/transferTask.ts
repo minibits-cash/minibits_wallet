@@ -100,6 +100,9 @@ export const transferTask = async function (
             nwcEvent,
         } as TransactionTaskResult
     } catch (e: any) {
+        // prepare() may throw after creating the draft (e.g. expired invoice); its
+        // errors carry the transactionId so the draft still gets stamped ERROR/EXPIRED.
+        transactionIdForRecovery ??= e?.params?.transactionId
         let txAfterError = transactionIdForRecovery
             ? transactionsStore.findById(transactionIdForRecovery)
             : undefined
@@ -111,15 +114,17 @@ export const transferTask = async function (
                 txAfterError.status !== TransactionStatus.RECOVERED &&
                 txAfterError.status !== TransactionStatus.ERROR
             ) {
+                // Only prepare's expiry check puts `expiry` in the error params.
+                const status = e?.params?.expiry ? TransactionStatus.EXPIRED : TransactionStatus.ERROR
                 let transactionData: TransactionData[] = []
                 try { transactionData = JSON.parse(txAfterError.data) } catch {}
                 transactionData.push({
-                    status: TransactionStatus.ERROR,
+                    status,
                     error: WalletUtils.formatError(e),
                     createdAt: new Date(),
                 })
                 txAfterError.update({
-                    status: TransactionStatus.ERROR,
+                    status,
                     data: JSON.stringify(transactionData),
                 })
             }
@@ -216,6 +221,9 @@ export const transferOnchainTask = async function (
             nwcEvent,
         } as TransactionTaskResult
     } catch (e: any) {
+        // prepare() may throw after creating the draft (e.g. expired invoice); its
+        // errors carry the transactionId so the draft still gets stamped ERROR/EXPIRED.
+        transactionIdForRecovery ??= e?.params?.transactionId
         const txAfterError = transactionIdForRecovery
             ? transactionsStore.findById(transactionIdForRecovery)
             : undefined
@@ -228,15 +236,17 @@ export const transferOnchainTask = async function (
                 txAfterError.status !== TransactionStatus.RECOVERED &&
                 txAfterError.status !== TransactionStatus.ERROR
             ) {
+                // Only prepare's expiry check puts `expiry` in the error params.
+                const status = e?.params?.expiry ? TransactionStatus.EXPIRED : TransactionStatus.ERROR
                 let transactionData: TransactionData[] = []
                 try { transactionData = JSON.parse(txAfterError.data) } catch {}
                 transactionData.push({
-                    status: TransactionStatus.ERROR,
+                    status,
                     error: WalletUtils.formatError(e),
                     createdAt: new Date(),
                 })
                 txAfterError.update({
-                    status: TransactionStatus.ERROR,
+                    status,
                     data: JSON.stringify(transactionData),
                 })
             }

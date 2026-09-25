@@ -88,6 +88,8 @@ export const sendTask = async function (
         } as TransactionTaskResult
     } catch (e: any) {
         // Mark the tx ERROR if one was created during prepare.
+        // prepare() errors thrown after the draft exists carry its transactionId.
+        transactionIdForRecovery ??= e?.params?.transactionId
         if (transactionIdForRecovery) {
             const tx = transactionsStore.findById(transactionIdForRecovery)
             if (tx) {
