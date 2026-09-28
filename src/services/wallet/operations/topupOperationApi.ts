@@ -585,6 +585,24 @@ async function _monitorMintQuote(params: {
         MintOperationService.enqueuePendingTopupCheck(tx)
     }
 
+    // The websocket is the fast path; the poller is the fallback that has to run
+    // whenever it is not available. Two things must reach it: the subscribe failing
+    // outright, and an ESTABLISHED socket closing later — mints and proxies idle out
+    // long-lived subscriptions. cashu-ts reports the second case through the error
+    // callback (>= 4.11; before that an established subscription just went silent),
+    // so the fallback cannot live in the catch below — that catch has long since
+    // been left by then.
+    let settled = false
+    const startPoller = () => {
+        if (settled) return
+        settled = true
+        poller(
+            `handlePendingTopupPoller-${paymentHash}`,
+            enqueueRefresh,
+            {interval: 10 * 1000, maxPolls: 6, maxErrors: 2},
+        ).then(() => log.trace('[handlePendingTopupPoller] polling completed', {quote}))
+    }
+
     try {
         log.trace('[TopupOperationApi]', 'Subscribing to mintQuotePaid', {quote})
         const unsub = await wsWallet.on.mintQuotePaid(
@@ -598,10 +616,15 @@ async function _monitorMintQuote(params: {
                         {transactionId, error: e.message},
                     )
                 }
+                settled = true
                 unsub()
             },
             async (error: any) => {
-                throw error
+                log.warn(
+                    '[TopupOperationApi] Mint quote subscription closed, falling back to poller',
+                    {quote, transactionId, error: error?.message},
+                )
+                startPoller()
             },
         )
     } catch (error: any) {
@@ -610,11 +633,7 @@ async function _monitorMintQuote(params: {
             '[TopupOperationApi] WebSocket error for mint quote, starting poller.',
             error.message,
         )
-        poller(
-            `handlePendingTopupPoller-${paymentHash}`,
-            enqueueRefresh,
-            {interval: 10 * 1000, maxPolls: 6, maxErrors: 2},
-        ).then(() => log.trace('[handlePendingTopupPoller] polling completed', {quote}))
+        startPoller()
     }
 }
 

@@ -739,6 +739,25 @@ async function _monitorSentProofs(params: {mintUrl: string; proofsToSend: CashuP
     const wsMint = new CashuMint(mintUrl)
     const wsWallet = new CashuWallet(wsMint)
 
+    // The websocket is the fast path; the poller is the fallback that has to run
+    // whenever it is not available. Two things must reach it: the subscribe failing
+    // outright, and an ESTABLISHED socket closing later — mints and proxies idle out
+    // long-lived subscriptions. cashu-ts reports the second case through the error
+    // callback (>= 4.11; before that an established subscription just went silent),
+    // so the fallback cannot live in the catch below — that catch has long since
+    // been left by then.
+    let settled = false
+    const startPoller = () => {
+        if (settled) return
+        settled = true
+        poller(
+            `syncStateWithMintPoller-${mintUrl}`,
+            WalletTask.syncStateWithMintQueueAwaitable,
+            {interval: 10 * 1000, maxPolls: 3, maxErrors: 1},
+            {proofsToSync, mintUrl, proofState: 'PENDING' as const},
+        ).then(() => log.trace('[SendOperationApi]', 'polling completed', {mintUrl}))
+    }
+
     try {
         log.trace('[SendOperationApi]', 'Subscribing to proofStateUpdates', {secret: proofsToSend[0]?.secret})
         const unsub = await wsWallet.on.proofStateUpdates(
@@ -747,21 +766,21 @@ async function _monitorSentProofs(params: {mintUrl: string; proofsToSend: CashuP
                 log.trace(`[SendOperationApi] Websocket: proof state updated: ${proofState.state} with secret: ${proofsToSend[0].secret}`)
                 if (proofState.state === CheckStateEnum.SPENT) {
                     WalletTask.syncStateWithMintQueueAwaitable({proofsToSync, mintUrl, proofState: 'PENDING'})
+                    settled = true
                     unsub()
                 }
             },
             async (error: any) => {
-                throw error
+                log.warn(
+                    '[SendOperationApi] Proof state subscription closed, falling back to poller',
+                    {mintUrl, error: error?.message},
+                )
+                startPoller()
             },
         )
     } catch (error: any) {
         log.error(Err.NETWORK_ERROR, 'WebSocket subscription failed. Starting poller.', error.message)
-        poller(
-            `syncStateWithMintPoller-${mintUrl}`,
-            WalletTask.syncStateWithMintQueueAwaitable,
-            {interval: 10 * 1000, maxPolls: 3, maxErrors: 1},
-            {proofsToSync, mintUrl, proofState: 'PENDING' as const},
-        ).then(() => log.trace('[SendOperationApi]', 'polling completed', {mintUrl}))
+        startPoller()
     }
 }
 
