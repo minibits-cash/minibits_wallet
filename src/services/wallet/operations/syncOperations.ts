@@ -27,6 +27,7 @@ import {
     SYNC_STATE_WITH_ALL_MINTS_TASK,
     SYNC_STATE_WITH_MINT_TASK,
     SyncStateTaskResult,
+    TASK_QUEUE_TIMEOUT,
     TransactionStateUpdate,
     WalletTaskResult,
 } from '../types'
@@ -488,6 +489,7 @@ const syncStateWithAllMintsQueueAwaitable = (
 ): Promise<SyncStateTaskResult> =>
     createQueueAwaitable<SyncStateTaskResult>({
         taskFunction: 'syncSpendableStateTask',
+        timeoutMs: TASK_QUEUE_TIMEOUT,
         timeoutMessage: 'Sync all mints state timed out',
         task: () => syncStateWithAllMintsTask({proofState: options.proofState}),
     })
@@ -508,6 +510,7 @@ const syncStateWithMintQueueAwaitable = (
     return createQueueAwaitable<SyncStateTaskResult>({
         taskFunction: SYNC_STATE_WITH_MINT_TASK,
         prioritized: false,
+        timeoutMs: TASK_QUEUE_TIMEOUT,
         timeoutMessage: 'Sync mint state timed out',
         task: () => syncStateWithMintTask(options),
     })

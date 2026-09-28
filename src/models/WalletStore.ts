@@ -380,7 +380,12 @@ export const WalletStoreModel = types
         }
 
         setGlobalRequestOptions({
-            headers: {'User-Agent': `Minibits/${JS_BUNDLE_VERSION}`}
+            headers: {'User-Agent': `Minibits/${JS_BUNDLE_VERSION}`},
+            // Down from the cashu-ts default of 300s. Money-moving tasks have no
+            // queue timeout (see createQueueAwaitable), so this bounds how long
+            // the user waits for a network failure. NUT-19 cached endpoints
+            // (swap/melt/mint) are still retried within the mint's ttl.
+            requestTimeout: 60 * 1000,
         })
         // create cashu-ts mint instance
         const newMint = new CashuMint(mintUrl)

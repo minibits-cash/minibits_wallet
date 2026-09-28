@@ -1,7 +1,7 @@
 import EventEmitter from '../../utils/eventEmitter'
 import AppError, {Err} from '../../utils/AppError'
 import {SyncQueue} from '../syncQueueService'
-import {TASK_QUEUE_TIMEOUT, WalletTaskResult} from './types'
+import {WalletTaskResult} from './types'
 
 /**
  * Shared helper that wraps a task function with the SyncQueue + EventEmitter +
@@ -21,7 +21,15 @@ export interface QueueAwaitableOptions<T extends WalletTaskResult> {
     task: () => Promise<T>
     /** Use addPrioritizedTask when true, otherwise addTask. Defaults to true. */
     prioritized?: boolean
-    /** Timeout in ms before rejecting with TIMEOUT_ERROR. Defaults to TASK_QUEUE_TIMEOUT. */
+    /**
+     * Timeout in ms before rejecting with TIMEOUT_ERROR. Omitted = no timeout.
+     *
+     * The timeout only stops the CALLER waiting — the task keeps running in the
+     * queue and may still move money. Never set it on a task that spends, receives
+     * or mints ecash: the screen would report "failed" for an operation that is
+     * still in flight, inviting a retry or an app kill mid-operation. Such tasks
+     * settle on their own, bounded by the cashu-ts request timeout.
+     */
     timeoutMs?: number
     /** Message used for the timeout error. */
     timeoutMessage?: string
@@ -34,7 +42,7 @@ export const createQueueAwaitable = <T extends WalletTaskResult>(
         taskFunction,
         task,
         prioritized = true,
-        timeoutMs = TASK_QUEUE_TIMEOUT,
+        timeoutMs,
         timeoutMessage = `${taskFunction} timed out`,
     } = options
 
@@ -81,10 +89,12 @@ export const createQueueAwaitable = <T extends WalletTaskResult>(
 
         queued.then(resolveOnce).catch(rejectOnce)
 
-        setTimeout(() => {
-            if (!resolved) {
-                rejectOnce(new AppError(Err.TIMEOUT_ERROR, timeoutMessage))
-            }
-        }, timeoutMs)
+        if (timeoutMs !== undefined) {
+            setTimeout(() => {
+                if (!resolved) {
+                    rejectOnce(new AppError(Err.TIMEOUT_ERROR, timeoutMessage))
+                }
+            }, timeoutMs)
+        }
     })
 }

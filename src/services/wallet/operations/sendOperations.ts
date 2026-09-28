@@ -17,7 +17,6 @@ const sendQueueAwaitable = (
 ): Promise<TransactionTaskResult> =>
     createQueueAwaitable<TransactionTaskResult>({
         taskFunction: 'sendTask',
-        timeoutMessage: 'sendQueue timed out',
         task: () =>
             sendTask(
                 mintBalanceToSendFrom,
@@ -38,7 +37,6 @@ const cashuPaymentRequestQueueAwaitable = (
 ): Promise<TransactionTaskResult> =>
     createQueueAwaitable<TransactionTaskResult>({
         taskFunction: 'cashuPaymentRequestTask',
-        timeoutMessage: 'Cashu payment request timed out',
         task: () =>
             cashuPaymentRequestTask(
                 mintBalanceToReceiveTo,

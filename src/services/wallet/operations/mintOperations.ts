@@ -43,7 +43,6 @@ const topupQueueAwaitable = (
 ): Promise<TransactionTaskResult> =>
     createQueueAwaitable<TransactionTaskResult>({
         taskFunction: 'topupTask',
-        timeoutMessage: 'Topup task timed out',
         task: () =>
             topupTask(
                 mintBalanceToTopup,

@@ -8,7 +8,6 @@ const revertQueueAwaitable = (
 ): Promise<TransactionTaskResult> =>
     createQueueAwaitable<TransactionTaskResult>({
         taskFunction: 'revertTask',
-        timeoutMessage: 'Revert task timed out',
         task: () => revertTask(transaction),
     })
 

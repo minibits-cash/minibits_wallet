@@ -48,7 +48,6 @@ const transferQueueAwaitable = (
 ): Promise<TransactionTaskResult> =>
     createQueueAwaitable<TransactionTaskResult>({
         taskFunction: 'transferTask',
-        timeoutMessage: 'transferQueue timed out',
         task: () =>
             transferTask(
                 mintBalanceToTransferFrom,
@@ -86,7 +85,6 @@ const transferOnchainQueueAwaitable = (
 ): Promise<TransactionTaskResult> =>
     createQueueAwaitable<TransactionTaskResult>({
         taskFunction: 'transferOnchainTask',
-        timeoutMessage: 'transferOnchainQueue timed out',
         task: () =>
             transferOnchainTask(
                 mintBalanceToTransferFrom,

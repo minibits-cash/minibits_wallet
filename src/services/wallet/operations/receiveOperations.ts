@@ -92,7 +92,6 @@ const receiveQueueAwaitable = (
 
     return createQueueAwaitable<TransactionTaskResult>({
         taskFunction: useBatch ? 'receiveBatchTask' : 'receiveTask',
-        timeoutMessage: 'receiveQueue timed out',
         task: async () => {
             const token = await decodeTokenWithKeysets(encodedToken, mint.mintUrl)
             return (useBatch
@@ -112,7 +111,6 @@ const receiveOfflinePrepareQueueAwaitable = (
     return createQueueAwaitable<TransactionTaskResult>({
         taskFunction: 'receiveOfflinePrepareTask',
         prioritized: false,
-        timeoutMessage: 'Offline receive prepare timed out',
         task: () =>
             receiveOfflinePrepareTask(
                 mintUrl,
@@ -130,7 +128,6 @@ const receiveOfflineCompleteQueueAwaitable = (
     createQueueAwaitable<TransactionTaskResult>({
         taskFunction: 'receiveOfflineCompleteTask',
         prioritized: false,
-        timeoutMessage: 'Offline receive complete timed out',
         task: () => receiveOfflineCompleteTask(transactionId),
     })
 
