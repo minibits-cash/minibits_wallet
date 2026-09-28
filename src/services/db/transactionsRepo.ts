@@ -4,6 +4,7 @@ import {
   Transaction,
   TransactionDirection,
   TransactionStatus,
+  TransactionType,
 } from '../../models/Transaction'
 import AppError, {Err} from '../../utils/AppError'
 import {log} from '../logService'
@@ -516,6 +517,43 @@ export const getPendingAmount = function () {
   }
 }
 
+
+/**
+ * Outgoing operations a previous process abandoned before reaching the mint: still
+ * DRAFT or PREPARED, with no open reservation left (startup already rolled back or
+ * is holding every reservation). Run at startup only, before any operation can
+ * start — a live prepare() is DRAFT without a reservation too.
+ *
+ * TRANSFERs qualify only once prepare() stamped a quote: a DRAFT with no quote is an
+ * invoice received over Nostr, legitimately waiting for the user to pay it. EXECUTING
+ * is deliberately excluded — a mint call may have happened, so it cannot be declared
+ * unpaid without asking the mint.
+ */
+export const getAbandonedDraftTransactions = function (): Array<{id: number; data: string}> {
+  try {
+    const {rows} = getInstance().execute(
+      `SELECT id, data FROM transactions
+       WHERE status IN (?, ?)
+         AND (type = ? OR (type IN (?, ?) AND quote IS NOT NULL))
+         AND id NOT IN (SELECT transactionId FROM reservations)`,
+      [
+        TransactionStatus.DRAFT,
+        TransactionStatus.PREPARED,
+        TransactionType.SEND,
+        TransactionType.TRANSFER,
+        TransactionType.TRANSFER_ONCHAIN,
+      ],
+    )
+    const result: Array<{id: number; data: string}> = []
+    for (let i = 0; i < (rows?.length ?? 0); i++) {
+      const row = rows!.item(i)
+      result.push({id: row.id, data: row.data})
+    }
+    return result
+  } catch (e: any) {
+    throw dbError('Could not read abandoned draft transactions', e)
+  }
+}
 
 export const getTransactionById = function (id: number) {
   try {

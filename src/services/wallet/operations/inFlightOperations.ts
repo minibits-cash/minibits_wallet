@@ -56,6 +56,12 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                 continue
             }
 
+            // Held by an interrupted operation: the resolver settles it and removes this
+            // record. Replaying here would race it over the same inputs.
+            if (proofsStore.isTransactionInterrupted(tx.id)) {
+                continue
+            }
+
             // Already resolved elsewhere (e.g. sync confirmed the proofs SPENT and finalized
             // the tx): nothing to recover. Drop the lingering in-flight request so it isn't
             // retried on every sweep.

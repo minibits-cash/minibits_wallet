@@ -7,6 +7,7 @@ import {
   } from 'mobx-state-tree'
   import { withSetPropAction } from './helpers/withSetPropAction'
   import { ProofModel, Proof, ProofRecord, ProofState } from './Proof'
+  import { TransactionData, TransactionStatus } from './Transaction'
   import { log } from '../services/logService'
   import { getRootStore } from './helpers/getRootStore'
   import AppError, { Err } from '../utils/AppError'
@@ -33,11 +34,24 @@ import {
     // the interrupted-operation resolver. In memory only: the rows themselves are in
     // SQLite, and the next launch rebuilds this list from them.
     .volatile(() => ({
-      interruptedReservationIds: new Set<string>(),
+      interruptedReservations: new Map<string, {transactionId: number; secrets: Set<string>}>(),
     }))
 
     // ───────────────────── VIEWS ─────────────────────
     .views(self => ({
+        /** Locked by an interrupted operation awaiting the resolver — no one else may settle it. */
+        isHeldByInterruptedOperation(secret: string): boolean {
+            for (const held of self.interruptedReservations.values()) {
+                if (held.secrets.has(secret)) return true
+            }
+            return false
+        },
+        isTransactionInterrupted(transactionId: number): boolean {
+            for (const held of self.interruptedReservations.values()) {
+                if (held.transactionId === transactionId) return true
+            }
+            return false
+        },
         getBySecret(secret: string): Proof | undefined {
             return self.proofs.get(secret)
         },
@@ -668,7 +682,10 @@ import {
             let recoveredCount = 0
             for (const orphan of orphans) {
                 if (INTERRUPTIBLE_OPERATION_TYPES.has(orphan.operationType)) {
-                    self.interruptedReservationIds.add(orphan.id)
+                    self.interruptedReservations.set(orphan.id, {
+                        transactionId: orphan.transactionId,
+                        secrets: new Set(orphan.lockedProofs.map(p => p.secret)),
+                    })
                     log.warn('[recoverOrphanReservations] Holding interrupted operation for mint check', {
                         id: orphan.id,
                         transactionId: orphan.transactionId,
@@ -698,12 +715,58 @@ import {
                 }
             }
 
-            return { recoveredCount, heldCount: self.interruptedReservationIds.size }
+            return { recoveredCount, heldCount: self.interruptedReservations.size }
+        },
+
+        /**
+         * Close out outgoing operations a previous process abandoned before reaching
+         * the mint (see Database.getAbandonedDraftTransactions): tx → REVERTED with an
+         * `interrupted` audit entry, and any proofs still PENDING under it released.
+         * Those can only be a preemptive swap's outputs, committed PENDING just before
+         * the process died and before the melt reserved them — fresh, unspent ecash
+         * that nothing else would ever release.
+         *
+         * Startup only, after recoverOrphanReservations and before any operation can
+         * start. Writes the database directly: transactions are loaded afterwards.
+         */
+        revertAbandonedDrafts(): { revertedCount: number } {
+            let revertedCount = 0
+            for (const draft of Database.getAbandonedDraftTransactions()) {
+                try {
+                    const pending = self
+                        .getByTransactionId(draft.id)
+                        .filter(p => p.state === 'PENDING' && !self.isHeldByInterruptedOperation(p.secret))
+                    if (pending.length > 0) {
+                        Database.addOrUpdateProofs(pending, 'UNSPENT')
+                        for (const p of pending) p.state = 'UNSPENT'
+                    }
+
+                    let data: TransactionData[] = []
+                    try {
+                        data = JSON.parse(draft.data)
+                    } catch {}
+                    data.push({
+                        status: TransactionStatus.REVERTED,
+                        interrupted: true,
+                        message: 'Interrupted before reaching the mint. Nothing was paid.',
+                        ...(pending.length > 0 && {releasedAmount: pending.reduce((sum, p) => sum + p.amount, 0)}),
+                        createdAt: new Date(),
+                    })
+                    Database.updateTransaction(draft.id, {
+                        status: TransactionStatus.REVERTED,
+                        data: JSON.stringify(data),
+                    })
+                    revertedCount++
+                } catch (e: any) {
+                    log.error('[revertAbandonedDrafts] Could not revert', {transactionId: draft.id, error: e.message})
+                }
+            }
+            return { revertedCount }
         },
 
         /** The resolver settled this interrupted reservation; stop tracking it. */
         releaseInterruptedReservation(reservationId: string): void {
-            self.interruptedReservationIds.delete(reservationId)
+            self.interruptedReservations.delete(reservationId)
         },
     }))
 

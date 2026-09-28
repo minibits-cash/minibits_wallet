@@ -90,7 +90,10 @@ describe('recoverOrphanReservations', () => {
       expect(dbState(secret)).toBe('PENDING')
     }
     expect(Database.getOpenReservations().map(r => r.id)).toEqual([swap.id])
-    expect([...proofsStore.interruptedReservationIds]).toEqual([swap.id])
+    expect([...proofsStore.interruptedReservations.keys()]).toEqual([swap.id])
+    expect(proofsStore.isHeldByInterruptedOperation('swapIn1')).toBe(true)
+    expect(proofsStore.isHeldByInterruptedOperation('free')).toBe(false)
+    expect(proofsStore.isTransactionInterrupted(20)).toBe(true)
 
     // Held proofs are not spendable.
     expect(proofsStore.getMintBalance(MINT_URL)!.balances.sat).toBe(4 + 8)
@@ -103,7 +106,7 @@ describe('recoverOrphanReservations', () => {
     expect(proofsStore.recoverOrphanReservations()).toEqual({recoveredCount: 0, heldCount: 1})
 
     proofsStore.releaseInterruptedReservation(swap.id)
-    expect(proofsStore.interruptedReservationIds.size).toBe(0)
+    expect(proofsStore.interruptedReservations.size).toBe(0)
   })
 
   test.each(['transfer-swap', 'transfer-melt', 'transfer-melt-after-swap', 'send-online-swap'])(
@@ -117,7 +120,65 @@ describe('recoverOrphanReservations', () => {
 
       proofsStore.recoverOrphanReservations()
 
-      expect(proofsStore.interruptedReservationIds.has(swap.id)).toBe(true)
+      expect(proofsStore.interruptedReservations.has(swap.id)).toBe(true)
     },
   )
+})
+
+describe('revertAbandonedDrafts', () => {
+  const insertTx = (id: number, type: string, status: string, quote: string | null = null) =>
+    Database.getInstance().execute(
+      `INSERT INTO transactions (id, type, amount, fee, unit, mint, status, quote, data, createdAt)
+       VALUES (?, ?, 1, 0, 'sat', ?, ?, ?, ?, ?)`,
+      [id, type, MINT_URL, status, quote, JSON.stringify([{status: 'DRAFT'}]), new Date().toISOString()],
+    )
+  const txRow = (id: number) =>
+    Database.getInstance().execute('SELECT status, data FROM transactions WHERE id = ?', [id]).rows?.item(0)
+
+  function setup() {
+    const {proofsStore, swap} = crashedMidOperations()
+    Database.getInstance().execute('DELETE FROM transactions')
+
+    insertTx(40, 'TRANSFER', 'DRAFT', 'quote-40') // died after its preemptive swap committed
+    insertTx(41, 'TRANSFER', 'DRAFT') // Nostr invoice waiting for the user: no quote yet
+    insertTx(20, 'TRANSFER', 'DRAFT', 'quote-20') // owns the held transfer-swap reservation
+    insertTx(43, 'TOPUP', 'PREPARED', 'quote-43') // invoice issued, waiting for payment
+    insertTx(44, 'TRANSFER', 'EXECUTING', 'quote-44') // a mint call may have happened
+    insertTx(45, 'SEND', 'PREPARED')
+
+    // The swap's outputs, committed PENDING under tx 40 before the melt reserved them.
+    const out = proofsStore.getBySecret('free')!
+    out.setProp('state', 'PENDING')
+    out.setProp('tId', 40)
+    Database.addOrUpdateProofs([out], 'PENDING')
+
+    proofsStore.recoverOrphanReservations()
+    return {proofsStore, swap}
+  }
+
+  test('reverts abandoned transfers and sends, releasing their PENDING proofs', () => {
+    const {proofsStore} = setup()
+
+    expect(proofsStore.revertAbandonedDrafts()).toEqual({revertedCount: 2})
+
+    for (const id of [40, 45]) {
+      expect(txRow(id).status).toBe('REVERTED')
+      expect(JSON.parse(txRow(id).data).at(-1)).toMatchObject({status: 'REVERTED', interrupted: true})
+    }
+    expect(JSON.parse(txRow(40).data).at(-1).releasedAmount).toBe(4)
+    expect(proofsStore.getBySecret('free')!.state).toBe('UNSPENT')
+    expect(dbState('free')).toBe('UNSPENT')
+  })
+
+  test('leaves alone what may still be live or waiting', () => {
+    const {proofsStore} = setup()
+
+    proofsStore.revertAbandonedDrafts()
+
+    expect(txRow(41).status).toBe('DRAFT') // Nostr invoice
+    expect(txRow(20).status).toBe('DRAFT') // held for the resolver
+    expect(txRow(43).status).toBe('PREPARED') // topup
+    expect(txRow(44).status).toBe('EXECUTING')
+    expect(proofsStore.getBySecret('swapIn1')!.state).toBe('PENDING')
+  })
 })

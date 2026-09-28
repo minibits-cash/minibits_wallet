@@ -142,6 +142,12 @@ export async function setupRootStore(rootStore: RootStore, opts: SetupRootStoreO
             if (recoveredCount > 0 || heldCount > 0) {
                 log.warn('[setupRootStore] Orphan proof reservations', {rolledBack: recoveredCount, heldForMintCheck: heldCount})
             }
+
+            // Before transactions load, so they come up with their final status.
+            const { revertedCount } = proofsStore.revertAbandonedDrafts()
+            if (revertedCount > 0) {
+                log.warn('[setupRootStore] Reverted abandoned draft transactions', {revertedCount})
+            }
         }
         const orphansRecovered = performance.now()
 

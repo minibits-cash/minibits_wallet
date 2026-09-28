@@ -343,6 +343,9 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
             if (nowInSec - lastMintCheckRef.current > MINT_CHECK_INTERVAL) {
                 lastMintCheckRef.current = nowInSec
 
+                // Settle operations a killed process left mid-way. The sweeps below
+                // skip what these hold, so ordering between them does not matter.
+                WalletTask.resolveInterruptedQueue()
                 WalletTask.handleInFlightQueue()
                 WalletTask.handlePendingQueue()
                 await WalletTask.syncStateWithAllMintsQueueAwaitable({proofState: 'PENDING'})

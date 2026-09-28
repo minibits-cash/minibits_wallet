@@ -62,7 +62,12 @@ const syncStateWithMintTask = async function (
     const revertedTxIds: number[] = []
 
     try {
-        const aliveProofs = proofsToSync.filter(p => isAlive(p))
+        // Proofs held by an interrupted operation are the resolver's alone: the
+        // outcomes below (SPENT → finalize as success, UNSPENT → ignore) are wrong
+        // for a swap or melt whose process died mid-flight.
+        const aliveProofs = proofsToSync.filter(
+            p => isAlive(p) && !proofsStore.isHeldByInterruptedOperation(p.secret),
+        )
 
         if (aliveProofs.length === 0) {
             const message = `No ${proofState === 'PENDING' ? 'pending ' : ''}proofs to sync with mint`

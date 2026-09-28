@@ -18,6 +18,7 @@ import {SendOperationService} from './wallet/operations/sendOperations'
 import {ReceiveOperationService} from './wallet/operations/receiveOperations'
 import {SyncOperationService} from './wallet/operations/syncOperations'
 import {InFlightOperationService} from './wallet/operations/inFlightOperations'
+import {InterruptedOperationService} from './wallet/operations/interruptedOperations'
 import {PendingOperationService} from './wallet/operations/pendingOperations'
 import {NostrOperationService} from './wallet/operations/nostrOperations'
 import {RevertOperationService} from './wallet/operations/revertOperations'
@@ -68,6 +69,7 @@ type WalletTaskService = {
             proofState: ProofState
         },
     ) => Promise<SyncStateTaskResult | void>
+    resolveInterruptedQueue: () => void
     handleInFlightQueue: () => Promise<void>
     handlePendingQueue: () => Promise<void>
     handleClaimQueue: () => Promise<void>
@@ -184,6 +186,7 @@ export const WalletTask: WalletTaskService = {
     swapAllQueue: SyncOperationService.swapAllQueue,
     swapByDenominationQueue: SyncOperationService.swapByDenominationQueue,
     // In-flight recovery
+    resolveInterruptedQueue: InterruptedOperationService.resolveInterruptedQueue,
     handleInFlightQueue: InFlightOperationService.handleInFlightQueue,
     // Pending orchestration
     handlePendingQueue: PendingOperationService.handlePendingQueue,

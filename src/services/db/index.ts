@@ -10,6 +10,7 @@ import {getDatabaseVersion} from './migrations'
 import {
   getTransactionsCount,
   getTransactionById,
+  getAbandonedDraftTransactions,
   getLastTransactionBy,
   getRecentTransactionsByUnitAsync,
   getTransactionsAsync,
@@ -117,6 +118,7 @@ export const Database = {
   cleanAll,
   getTransactionsCount,
   getTransactionById,
+  getAbandonedDraftTransactions,
   getLastTransactionBy,
   getRecentTransactionsByUnitAsync,
   getTransactionsAsync,
