@@ -102,6 +102,12 @@ export const DBVERSION_COLUMNS = `
  *
  * Nullable for the same reason as onchain_mint_quotes: ALTER TABLE cannot backfill
  * from MST/MMKV. See the v38 seed in setupRootStore.
+ *
+ * `counters` (JSON {keysetId, start, count, next}) is the derivation-counter range
+ * a swap under this reservation used for its outputs, written BEFORE the request is
+ * sent. If the process dies after the mint executed the swap, those outputs exist
+ * only at the mint; the range is what lets recovery restore them (NUT-09). Null for
+ * operations that derive no outputs, and on rows opened before v36.
  */
 export const RESERVATIONS_COLUMNS = `
   id TEXT PRIMARY KEY NOT NULL,
@@ -111,6 +117,7 @@ export const RESERVATIONS_COLUMNS = `
   unit TEXT NOT NULL,
   operationType TEXT NOT NULL,
   lockedProofs TEXT NOT NULL,
+  counters TEXT,
   createdAt TEXT NOT NULL
 `
 

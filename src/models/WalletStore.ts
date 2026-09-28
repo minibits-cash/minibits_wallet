@@ -745,7 +745,13 @@ export const WalletStoreModel = types
             options?: {
               increaseCounterBy?: number,             
               inFlightRequest?: InFlightRequest<SendParams>
-              p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> }      
+              p2pk?: { pubkey: string; locktime?: number; refundKeys?: Array<string> }
+              /**
+               * Receives the output counter range once cashu-ts allocates it, before
+               * the swap request is sent. Callers record it on their reservation so a
+               * swap whose response is lost can have its outputs restored (NUT-09).
+               */
+              onCountersReserved?: (info: OperationCounters) => void
             }
         ) {
 
@@ -804,6 +810,7 @@ export const WalletStoreModel = types
                     onCountersReserved: (info: OperationCounters) => {
                       reservedCounters = info
                       log.debug('[WalletStore.send] Counters reserved', info)
+                      options?.onCountersReserved?.(info)
                     }
                   }
                 )

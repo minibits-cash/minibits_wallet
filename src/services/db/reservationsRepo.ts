@@ -48,7 +48,17 @@ export type ReservationRow = {
   unit: string
   operationType: string
   lockedProofs: LockedProofSnapshot[]
+  /** Counter range a swap under this reservation derived its outputs from (v36+). */
+  counters: ReservationCounters | null
   createdAt: Date
+}
+
+/** Derivation-counter range used by a swap's outputs: [start, start + count). */
+export type ReservationCounters = {
+  keysetId: string
+  start: number
+  count: number
+  next: number
 }
 
 /**
@@ -363,6 +373,37 @@ export const backfillReservationMintIds = function (
   }
 }
 
+/**
+ * Record the counter range a swap is about to derive its outputs from. Called
+ * synchronously from cashu-ts's onCountersReserved, which fires after the counters
+ * are allocated and BEFORE the swap request is sent — so the range is durable
+ * even if the process dies with the request in flight.
+ */
+export const setReservationCounters = function (
+  reservationId: string,
+  counters: ReservationCounters,
+): void {
+  try {
+    const {keysetId, start, count, next} = counters
+    getInstance().execute(`UPDATE reservations SET counters = ? WHERE id = ?`, [
+      JSON.stringify({keysetId, start, count, next}),
+      reservationId,
+    ])
+  } catch (e: any) {
+    throw dbError('Could not record reservation counters', e)
+  }
+}
+
+const _parseCounters = function (row: any): ReservationCounters | null {
+  if (!row.counters) return null
+  try {
+    return JSON.parse(row.counters)
+  } catch {
+    log.warn('[getOpenReservations] Could not parse counters JSON', {id: row.id})
+    return null
+  }
+}
+
 export const getOpenReservations = function (): ReservationRow[] {
   try {
     const db = getInstance()
@@ -386,6 +427,7 @@ export const getOpenReservations = function (): ReservationRow[] {
         unit: row.unit,
         operationType: row.operationType,
         lockedProofs,
+        counters: _parseCounters(row),
         createdAt: new Date(row.createdAt),
       })
     }

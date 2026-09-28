@@ -372,6 +372,7 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
                 unit,
                 swapInputProofs,
                 transactionId,
+                {onCountersReserved: info => Database.setReservationCounters(swapReservation.id, info)},
             )
 
             const returnedSecrets = new Set(swapResult.returnedProofs.map(p => p.secret))

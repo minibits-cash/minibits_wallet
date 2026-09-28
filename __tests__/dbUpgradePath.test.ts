@@ -164,6 +164,8 @@ describe('upgrading an existing database (the device path)', () => {
     // v33 / v34: the mint-identity columns.
     expect(columns(db, 'onchain_mint_quotes')).toContain('mintId')
     expect(columns(db, 'reservations')).toContain('mintId')
+    // v36: the swap output counter range.
+    expect(columns(db, 'reservations')).toContain('counters')
     expect(columns(db, 'transactions')).toContain('mintId')
 
     // v34 also rebuilt the child tables WITHOUT their duplicated mint reference.

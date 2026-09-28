@@ -138,9 +138,9 @@ export async function setupRootStore(rootStore: RootStore, opts: SetupRootStoreO
         // this runs on demand via proofsStore.ensureProofsLoaded() before the
         // first mutating command, and fully on the next foreground app open.
         if(!opts.skipProofs) {
-            const { recoveredCount } = proofsStore.recoverOrphanReservations()
-            if (recoveredCount > 0) {
-                log.warn(`[setupRootStore] Rolled back ${recoveredCount} orphan proof reservations`)
+            const { recoveredCount, heldCount } = proofsStore.recoverOrphanReservations()
+            if (recoveredCount > 0 || heldCount > 0) {
+                log.warn('[setupRootStore] Orphan proof reservations', {rolledBack: recoveredCount, heldForMintCheck: heldCount})
             }
         }
         const orphansRecovered = performance.now()

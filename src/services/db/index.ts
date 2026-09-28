@@ -46,6 +46,7 @@ import {
   commitReservation,
   rollbackReservation,
   getOpenReservations,
+  setReservationCounters,
   backfillReservationMintIds,
 } from './reservationsRepo'
 import {
@@ -94,6 +95,7 @@ export type {TransactionSearchFilters, NwcTransactionQuery} from './transactions
 export type {
   LockedProofSnapshot,
   ReservationRow,
+  ReservationCounters,
   ReservationTransactionUpdate,
 } from './reservationsRepo'
 export type {CounterRecord, CounterSeed} from './countersRepo'
@@ -147,6 +149,7 @@ export const Database = {
   commitReservation,
   rollbackReservation,
   getOpenReservations,
+  setReservationCounters,
   backfillReservationMintIds,
   getCounters,
   getCounter,

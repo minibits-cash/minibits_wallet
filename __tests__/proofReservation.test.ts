@@ -396,6 +396,36 @@ describe('Proof reservations', () => {
         })
     })
 
+    describe('swap counter range', () => {
+        test('is null until recorded, then read back with the reservation', () => {
+            const db = freshDb()
+            insertProof(db, 'sA', 100, 'UNSPENT')
+            openReservation(
+                db,
+                {
+                    id: 'r8',
+                    transactionId: 15,
+                    mintUrl: MINT,
+                    unit: 'sat',
+                    operationType: 'transfer-swap',
+                    lockedProofs: [{secret: 'sA', originalState: 'UNSPENT', originalTId: null}],
+                },
+                ['sA'],
+            )
+
+            expect(Database.getOpenReservations()[0].counters).toBeNull()
+
+            Database.setReservationCounters('r8', {keysetId: 'keyset1', start: 42, count: 7, next: 49})
+
+            expect(Database.getOpenReservations()[0].counters).toEqual({
+                keysetId: 'keyset1',
+                start: 42,
+                count: 7,
+                next: 49,
+            })
+        })
+    })
+
     describe('orphan recovery', () => {
         test('getOpenReservations returns all rows; rollback restores state', () => {
             const db = freshDb()

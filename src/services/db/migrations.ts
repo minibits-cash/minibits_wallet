@@ -275,6 +275,16 @@ export const MIGRATIONS: Migration[] = [
       [createTable('mint_keysets', MINT_KEYSETS_COLUMNS)],
     ],
   },
+  {
+    // Record the counter range a swap derives its outputs from, on the reservation
+    // that owns the swap. A swap whose response is lost (process killed, network
+    // drop) leaves its outputs signed at the mint and nowhere else; the wallet's
+    // counter is only advanced on success, so without this the range is unknown
+    // once anything else has used the keyset. Recovery restores the outputs from
+    // it (NUT-09). Nullable: rows opened before v36 simply have no range.
+    version: 36,
+    queries: [[`ALTER TABLE reservations ADD COLUMN counters TEXT`]],
+  },
 ]
 
 /**

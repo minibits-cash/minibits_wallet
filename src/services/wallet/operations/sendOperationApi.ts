@@ -50,7 +50,7 @@ import {
     getInactiveKeysetIds,
     prioritizeFromInactiveKeysets,
 } from '../sendTask'
-import {Database, ReservationRow} from '../../sqlite'
+import {Database, ReservationCounters, ReservationRow} from '../../sqlite'
 import {ProofReservation} from '../proofReservation'
 import {poller} from '../../../utils/poller'
 import AppError, {Err} from '../../../utils/AppError'
@@ -378,6 +378,8 @@ async function execute(prepared: PreparedSendData): Promise<PendingTransaction> 
         // ── Mint call ───────────────────────────────────────────────────
         const p2pk = method.method === 'p2pk' ? method.options : undefined
         let sendResult: {returnedProofs: CashuProof[]; proofsToSend: CashuProof[]; swapFeePaid: number}
+        const onCountersReserved = (info: ReservationCounters) =>
+            Database.setReservationCounters(reservation.id, info)
         try {
             sendResult = await walletStore.send(
                 mintUrl,
@@ -385,7 +387,7 @@ async function execute(prepared: PreparedSendData): Promise<PendingTransaction> 
                 unit,
                 lockedProofs,
                 tx.id,
-                {p2pk: p2pk && p2pk.pubkey ? p2pk : undefined},
+                {p2pk: p2pk && p2pk.pubkey ? p2pk : undefined, onCountersReserved},
             )
         } catch (e: any) {
             if (WalletUtils.shouldHealOutputsError(e)) {
@@ -396,7 +398,7 @@ async function execute(prepared: PreparedSendData): Promise<PendingTransaction> 
                     unit,
                     lockedProofs,
                     tx.id,
-                    {p2pk: p2pk && p2pk.pubkey ? p2pk : undefined, increaseCounterBy: 10},
+                    {p2pk: p2pk && p2pk.pubkey ? p2pk : undefined, increaseCounterBy: 10, onCountersReserved},
                 )
             } else {
                 // Rollback restores the reservation (proofs back to UNSPENT, tx

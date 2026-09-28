@@ -17,7 +17,7 @@ import {
   import { MintUnit } from '../services/wallet/currency'
   import { CashuProof } from '../services/cashu/cashuUtils'
   import { generateId } from '../utils/generateId'
-  import { ProofReservation } from '../services/wallet/proofReservation'
+  import { INTERRUPTIBLE_OPERATION_TYPES, ProofReservation } from '../services/wallet/proofReservation'
 
   export const ProofsStoreModel = types
     .model('ProofsStore', {
@@ -28,6 +28,13 @@ import {
       pendingByMintSecrets: types.array(types.string),
     })
     .actions(withSetPropAction)
+    // Reservations a previous process left open mid-way through an interruptible
+    // operation (see INTERRUPTIBLE_OPERATION_TYPES). Collected at startup, drained by
+    // the interrupted-operation resolver. In memory only: the rows themselves are in
+    // SQLite, and the next launch rebuilds this list from them.
+    .volatile(() => ({
+      interruptedReservationIds: new Set<string>(),
+    }))
 
     // ───────────────────── VIEWS ─────────────────────
     .views(self => ({
@@ -642,20 +649,33 @@ import {
 
         /**
          * Detect orphan reservations (rows left behind by a process that died
-         * before it could commit or rollback) and roll each one back.
+         * before it could commit or rollback) and roll each one back — except
+         * interruptible ones, whose proofs the mint may already have consumed.
+         * Those stay open with their proofs PENDING and are handed to the
+         * interrupted-operation resolver, which asks the mint before settling.
          *
          * Intended to run once at startup, after proofs have been loaded from
          * the database. Idempotent.
          */
-        recoverOrphanReservations(): { recoveredCount: number } {
+        recoverOrphanReservations(): { recoveredCount: number; heldCount: number } {
             const orphans = Database.getOpenReservations()
-            if (orphans.length === 0) return { recoveredCount: 0 }
+            if (orphans.length === 0) return { recoveredCount: 0, heldCount: 0 }
 
             log.warn(
-                `[recoverOrphanReservations] Found ${orphans.length} orphan reservations — rolling back`,
+                `[recoverOrphanReservations] Found ${orphans.length} orphan reservations`,
             )
 
+            let recoveredCount = 0
             for (const orphan of orphans) {
+                if (INTERRUPTIBLE_OPERATION_TYPES.has(orphan.operationType)) {
+                    self.interruptedReservationIds.add(orphan.id)
+                    log.warn('[recoverOrphanReservations] Holding interrupted operation for mint check', {
+                        id: orphan.id,
+                        transactionId: orphan.transactionId,
+                        operationType: orphan.operationType,
+                    })
+                    continue
+                }
                 try {
                     Database.rollbackReservation(orphan.id, orphan.lockedProofs)
                     // Mirror into MST: restore BOTH state and tId from the
@@ -669,6 +689,7 @@ import {
                             }
                         }
                     }
+                    recoveredCount++
                 } catch (e: any) {
                     log.error('[recoverOrphanReservations] rollback failed', {
                         id: orphan.id,
@@ -677,7 +698,12 @@ import {
                 }
             }
 
-            return { recoveredCount: orphans.length }
+            return { recoveredCount, heldCount: self.interruptedReservationIds.size }
+        },
+
+        /** The resolver settled this interrupted reservation; stop tracking it. */
+        releaseInterruptedReservation(reservationId: string): void {
+            self.interruptedReservationIds.delete(reservationId)
         },
     }))
 

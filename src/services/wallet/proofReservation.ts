@@ -10,8 +10,9 @@ import {MintUnit} from './currency'
  * completes.
  *
  * If the process dies between open and commit/rollback, the reservation row in
- * SQLite is detected at the next startup and rolled back automatically by
- * `proofsStore.recoverOrphanReservations()`.
+ * SQLite is detected at the next startup by `proofsStore.recoverOrphanReservations()`
+ * and rolled back — unless its type is in INTERRUPTIBLE_OPERATION_TYPES, in which
+ * case it is held open for the interrupted-operation resolver.
  *
  * The shape is intentionally a plain data record (no methods) so it can be
  * captured by closures, passed across MST action boundaries, and serialised
@@ -53,3 +54,21 @@ export type ProofReservation = {
      */
     lockedProofs: LockedProofSnapshot[]
 }
+
+/**
+ * Reservations whose operation sends the locked proofs to the mint while the row
+ * is open: a swap (transfer's preemptive swap, an online send) or a melt.
+ *
+ * If the process dies with one of these open, the mint may already have consumed
+ * the proofs — a blind rollback to UNSPENT would then show spent ecash as balance
+ * and, for a swap, abandon outputs that exist only at the mint. Startup therefore
+ * leaves them open (proofs stay PENDING) for the interrupted-operation resolver,
+ * which asks the mint what happened before settling them. Every other reservation
+ * type is rolled back at startup as before.
+ */
+export const INTERRUPTIBLE_OPERATION_TYPES: ReadonlySet<string> = new Set([
+    'transfer-swap',
+    'transfer-melt',
+    'transfer-melt-after-swap',
+    'send-online-swap',
+])
