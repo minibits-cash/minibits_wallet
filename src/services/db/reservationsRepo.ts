@@ -303,9 +303,12 @@ export const rollbackReservation = function (
     const now = new Date().toISOString()
     const batch: SQLBatchTuple[] = []
 
+    // A proof that went SPENT while locked (sync saw the mint spend it) is never
+    // restored: un-spending it would put ecash the mint has already consumed back
+    // into the balance. Matches the MST mirror, which skips SPENT nodes.
     for (const snap of lockedProofs) {
       batch.push([
-        `UPDATE proofs SET state = ?, tId = ?, updatedAt = ? WHERE secret = ?`,
+        `UPDATE proofs SET state = ?, tId = ?, updatedAt = ? WHERE secret = ? AND state != 'SPENT'`,
         [snap.originalState, snap.originalTId, now, snap.secret],
       ])
     }

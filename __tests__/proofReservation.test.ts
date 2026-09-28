@@ -366,6 +366,34 @@ describe('Proof reservations', () => {
             // Restored to PENDING (its original locked state), not to UNSPENT
             expect(getProofState(db, 'sA')).toBe('PENDING')
         })
+
+        test('never un-spends a proof that went SPENT while locked', () => {
+            const db = freshDb()
+            insertProof(db, 'sA', 100, 'UNSPENT')
+            insertProof(db, 'sB', 200, 'UNSPENT')
+
+            const lockedProofs: LockedProofSnapshot[] = [
+                {secret: 'sA', originalState: 'UNSPENT', originalTId: 7},
+                {secret: 'sB', originalState: 'UNSPENT', originalTId: 7},
+            ]
+            openReservation(
+                db,
+                {id: 'r7', transactionId: 14, mintUrl: MINT, unit: 'sat', operationType: 'transfer-swap', lockedProofs},
+                ['sA', 'sB'],
+            )
+
+            // While locked, a sync learns the mint consumed sA (e.g. a swap whose
+            // response was lost) and marks it SPENT.
+            Database.getInstance().execute(`UPDATE proofs SET state = 'SPENT' WHERE secret = 'sA'`)
+
+            rollbackReservation(db, 'r7', lockedProofs)
+
+            expect(getProofState(db, 'sA')).toBe('SPENT')
+            expect(getProofTId(db, 'sA')).toBe(14)
+            expect(getProofState(db, 'sB')).toBe('UNSPENT')
+            expect(getProofTId(db, 'sB')).toBe(7)
+            expect(reservationCount(db)).toBe(0)
+        })
     })
 
     describe('orphan recovery', () => {
