@@ -20,7 +20,7 @@ import type { RootStore } from '../RootStore'
 import { captureOrphanedSeed, Database, MMKVStorage } from '../../services'
 import type { MeltRecoverySeed, InFlightRequestSeed, CounterSeed } from '../../services/db'
 import type { Mint } from '../Mint'
-import { log } from  '../../services/logService'
+import { log, logMilestone } from  '../../services/logService'
 import { rootStoreModelVersion } from '../RootStore'
 import AppError, { Err } from '../../utils/AppError'
 
@@ -141,12 +141,18 @@ export async function setupRootStore(rootStore: RootStore, opts: SetupRootStoreO
             const { recoveredCount, heldCount } = proofsStore.recoverOrphanReservations()
             if (recoveredCount > 0 || heldCount > 0) {
                 log.warn('[setupRootStore] Orphan proof reservations', {rolledBack: recoveredCount, heldForMintCheck: heldCount})
+                // Production monitoring signal that startup recovery runs.
+                logMilestone('[setupRootStore] Recovery: orphan reservations found at startup', {
+                    rolledBack: recoveredCount,
+                    heldForMintCheck: heldCount,
+                })
             }
 
             // Before transactions load, so they come up with their final status.
             const { revertedCount } = proofsStore.revertAbandonedDrafts()
             if (revertedCount > 0) {
                 log.warn('[setupRootStore] Reverted abandoned draft transactions', {revertedCount})
+                logMilestone('[setupRootStore] Recovery succeeded: abandoned drafts reverted', {revertedCount})
             }
         }
         const orphansRecovered = performance.now()

@@ -8,6 +8,7 @@ import en from "../i18n_messages/en.json"
 import sk from "../i18n_messages/sk.json"
 import es from "../i18n_messages/es.json"
 import pt from "../i18n_messages/pt.json"
+import { log } from "../services/logService"
 
 type Translations = typeof en;
 export const i18n = new I18n()
@@ -57,7 +58,7 @@ const localeJSFormat = fullLocaleRN.includes("-")
 const deviceLocales = getLocales()
 i18n.locale = deviceLocales[0].languageCode
 
-console.log('[i18n]', {deviceLocales, locale: i18n.locale})
+log.debug('[i18n]', {deviceLocales, locale: i18n.locale})
 
 /**
  * Builds up valid keypaths for translations.

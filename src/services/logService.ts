@@ -254,4 +254,20 @@ const log = logger.createLogger({
     asyncFunc: (transport: any) => setTimeout(transport, 0),
 })
 
-export { log }
+/**
+ * Always-on operational signal for rare events worth monitoring in production —
+ * e.g. a recovery path running and succeeding. Sent to Sentry Logs at info level
+ * REGARDLESS of the user-selected logLevel (which defaults to ERROR, so plain
+ * log.info never leaves the device), without creating an error event/issue.
+ * Still honors isLoggerOn and the same redaction as every other log.
+ */
+const logMilestone = (message: string, params: Record<string, any> = {}): void => {
+    if (__DEV__) {
+        log.info(message, params)
+        return
+    }
+    if (!userSettings().isLoggerOn) return
+    Sentry.logger.info(redactSensitive(fixTagSpacing(message)), redactParams(params))
+}
+
+export { log, logMilestone }

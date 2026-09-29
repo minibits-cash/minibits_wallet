@@ -22,7 +22,7 @@ import {MintStatus} from '../../../models/Mint'
 import {Proof} from '../../../models/Proof'
 import {Transaction, TransactionData, TransactionStatus} from '../../../models/Transaction'
 import {NetworkError} from '../../../utils/AppError'
-import {log} from '../../logService'
+import {log, logMilestone} from '../../logService'
 import {Database, ReservationRow, ReservationTransactionUpdate} from '../../sqlite'
 import {SyncQueue} from '../../syncQueueService'
 import {CashuUtils} from '../../cashu/cashuUtils'
@@ -58,6 +58,19 @@ const resolveInterruptedOperationsTask = async function (): Promise<WalletTaskRe
                 operationType: row.operationType,
                 outcome,
             })
+            // Production monitoring signal. Operation type and outcome only — no ids or
+            // amounts. A lost swap needs the user to act, so that one is a real error.
+            if (outcome === 'swap-lost') {
+                log.error('[resolveInterruptedOperationsTask] Recovery incomplete, seed recovery needed', {
+                    operationType: row.operationType,
+                    outcome,
+                })
+            } else if (outcome !== 'unresolved') {
+                logMilestone('[resolveInterruptedOperationsTask] Recovery succeeded', {
+                    operationType: row.operationType,
+                    outcome,
+                })
+            }
         } catch (e: any) {
             // Held until the next sweep — most often the mint is unreachable.
             errors.push(`tId=${row.transactionId}: ${e.message}`)

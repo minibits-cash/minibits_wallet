@@ -1,5 +1,5 @@
 import {getEncodedToken, normalizeProofAmounts} from '@cashu/cashu-ts'
-import {log} from '../../logService'
+import {log, logMilestone} from '../../logService'
 import {Database} from '../../sqlite'
 import {CashuUtils} from '../../cashu/cashuUtils'
 import {rootStoreInstance} from '../../../models'
@@ -117,6 +117,9 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                             },
                         })
 
+                        logMilestone('[handleInFlightByMintTask] Recovery succeeded: in-flight request replayed', {
+                            type: TransactionType.RECEIVE,
+                        })
                         break
                     }
 
@@ -157,6 +160,9 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                             },
                         })
 
+                        logMilestone('[handleInFlightByMintTask] Recovery succeeded: in-flight request replayed', {
+                            type: TransactionType.TOPUP,
+                        })
                         break
                     }
 
@@ -233,6 +239,9 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                             Number(quoteResponse.amount_issued ?? 0),
                         )
 
+                        logMilestone('[handleInFlightByMintTask] Recovery succeeded: in-flight request replayed', {
+                            type: TransactionType.TOPUP_ONCHAIN,
+                        })
                         break
                     }
 

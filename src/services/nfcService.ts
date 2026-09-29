@@ -190,7 +190,7 @@ const isStringSafeForNFC = function (str: string): boolean {
       
       return bytes.length <= SAFE_NFC_BYTE_LIMIT
     } catch (error) {
-      console.warn('Error measuring string byte size:', error)
+      log.warn('Error measuring string byte size:', error)
       return false
     }
   }
