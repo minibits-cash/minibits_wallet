@@ -56,7 +56,7 @@ import {
     isPrepared,
     isReverted,
 } from '../../../models/TransactionStates'
-import {CashuProof} from '../../cashu/cashuUtils'
+import {CashuProof, CashuUtils} from '../../cashu/cashuUtils'
 import {LightningUtils} from '../../lightning/lightningUtils'
 import {MintUnit, formatCurrency, getCurrency} from '../currency'
 import {NostrEvent} from '../../nostrService'
@@ -533,7 +533,7 @@ async function _finalizePaid(tx: Transaction): Promise<CompletedTransaction> {
     })
 
     const currentSpendable = proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
-    const proofsAmount = proofs.reduce((acc, p) => acc + Number(p.amount), 0)
+    const proofsAmount = CashuUtils.getProofsAmount(proofs)
     const balanceAfter = currentSpendable + proofsAmount
 
     const txData = _parseData(tx)

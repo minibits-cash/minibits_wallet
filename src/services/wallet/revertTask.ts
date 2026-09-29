@@ -10,7 +10,7 @@ import { TransactionTaskResult } from '../walletService'
 import { ProofReservation } from './proofReservation'
 import { WalletUtils } from './utils'
 import { MintUnit } from './currency'
-import { Token, getEncodedToken, normalizeProofAmounts } from '@cashu/cashu-ts'
+import { Token, getEncodedToken, normalizeProofAmounts, sumProofs } from '@cashu/cashu-ts'
 
 const {
   mintsStore,
@@ -99,7 +99,7 @@ try {
     // simulated: the original pending proofs were PENDING (contribute 0 to
     // UNSPENT pool); moving them to SPENT changes nothing. The new fresh
     // proofs added as UNSPENT raise the spendable balance.
-    const receivedAmount = receivedProofs.reduce((sum, p) => sum + Number(p.amount), 0)
+    const receivedAmount = sumProofs(receivedProofs).toNumber()
     const currentSpendable = proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
     const balanceAfter = currentSpendable + receivedAmount
 

@@ -381,7 +381,7 @@ async function finalize(
         transactionId,
     )
 
-    const receivedAmount = receivedProofs.reduce((acc, p) => acc + Number(p.amount), 0)
+    const receivedAmount = CashuUtils.getProofsAmount(receivedProofs)
     const outputToken = getEncodedToken({
         mint: mintUrl,
         proofs: normalizeProofAmounts(receivedProofs),

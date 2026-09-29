@@ -39,10 +39,19 @@ const isObj = function(v: unknown): v is object {
 }
 
 /**
+ * An amount as a number. cashu-ts (4.x) types proof, token and payment-request
+ * amounts as `Amount` objects, while our own models hold plain numbers; `Number()`
+ * on an `Amount` is deprecated and throws in cashu-ts v5.
+ */
+const toNumberAmount = function(amount: number | Amount | bigint | string): number {
+  return typeof amount === 'number' ? amount : Amount.from(amount).toNumber()
+}
+
+/**
  * Sum the amounts of an array of proofs
  */
 const sumProofs = function(proofs: CashuProof[]): number {
-  return proofs.reduce((acc: number, proof: CashuProof) => acc + Number(proof.amount), 0)
+  return proofs.reduce((acc: number, proof: CashuProof) => acc + toNumberAmount(proof.amount as any), 0)
 }
 
 const CASHU_URI_PREFIXES = [
@@ -839,6 +848,7 @@ export const CashuUtils = {
     extractEncodedCashuPaymentRequest,
     getProofsAmount,
     getMintsFromToken,
+    toNumberAmount,
     findExactMatch,
     findMinExcess,
     getProofsToSend,

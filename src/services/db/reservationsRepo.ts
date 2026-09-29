@@ -1,4 +1,5 @@
 import {isAlive} from 'mobx-state-tree'
+import {Amount} from '@cashu/cashu-ts'
 import {Proof, ProofState} from '../../models/Proof'
 import {CashuProof} from '../cashu/cashuUtils'
 import {TransactionStatus} from '../../models/Transaction'
@@ -225,7 +226,7 @@ export const commitReservation = function (
         // binding can't bind non-primitive objects to an INTEGER column and
         // would silently drop the row, leaving the proof in MST but absent
         // from the database (lost on the next restart).
-        const amount = typeof proof.amount === 'number' ? proof.amount : Number(proof.amount)
+        const amount = typeof proof.amount === 'number' ? proof.amount : Amount.from(proof.amount as any).toNumber()
         batch.push([
           `INSERT OR REPLACE INTO proofs (id, amount, secret, C, dleq_r, dleq_s, dleq_e, unit, tId, mintUrl, state, updatedAt)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,

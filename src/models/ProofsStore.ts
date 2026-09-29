@@ -5,6 +5,7 @@ import {
     flow,
     isAlive,
   } from 'mobx-state-tree'
+  import { Amount } from '@cashu/cashu-ts'
   import { withSetPropAction } from './helpers/withSetPropAction'
   import { ProofModel, Proof, ProofRecord, ProofState } from './Proof'
   import { TransactionData, TransactionStatus } from './Transaction'
@@ -588,7 +589,7 @@ import {
                     } else {
                         const node = ProofModel.create({
                             ...proof,
-                            amount: Number(proof.amount),
+                            amount: Amount.from(proof.amount as any).toNumber(),
                             mintUrl: commitMintUrl,
                             tId: group.tId,
                             unit: reservation.unit,

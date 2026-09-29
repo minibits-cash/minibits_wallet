@@ -140,7 +140,7 @@ const handleClaimTask = async function (params: {
 
         const result: TransactionTaskResult = await receiveTask(
             decodedToken,
-            Number(tokenInfo.amount),
+            tokenInfo.amount.toNumber(),
             tokenInfo.memo || 'Received to Lightning address',
             encodedToken,
         )
@@ -402,7 +402,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
         if (incoming.type === IncomingDataType.CASHU) {
 
             const tokenInfo = getTokenMetadata(incoming.encoded)
-            const amountToReceive = Number(tokenInfo.amount)
+            const amountToReceive = tokenInfo.amount.toNumber()
             const memo = tokenInfo.memo || 'Received over Nostr'
             const {unit, mint: mintUrl} = tokenInfo
 

@@ -318,7 +318,7 @@ async function execute(prepared: PreparedReceiveData): Promise<CompletedTransact
         tx.id,
     )
 
-    const receivedAmount = proofs.reduce((acc, p) => acc + Number(p.amount), 0)
+    const receivedAmount = CashuUtils.getProofsAmount(proofs)
     const outputToken = getEncodedToken({
         mint: prepared.mintUrl,
         proofs: normalizeProofAmounts(proofs),

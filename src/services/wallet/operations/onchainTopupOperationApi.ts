@@ -70,7 +70,7 @@ import {
     NUT20_RECOVERY_GAP_LIMIT,
 } from '../../cashu/nut20'
 import {capMintAmount, mintableAmount} from './onchainAmounts'
-import {CashuProof} from '../../cashu/cashuUtils'
+import {CashuProof, CashuUtils} from '../../cashu/cashuUtils'
 import {MintUnit} from '../currency'
 import {WalletUtils} from '../utils'
 import {sendTopupNotification} from '../notifications'
@@ -548,7 +548,7 @@ async function _mintAvailable(
         })
     }
 
-    const mintedAmount = proofs.reduce((acc, p) => acc + Number(p.amount), 0)
+    const mintedAmount = CashuUtils.getProofsAmount(proofs)
     const currentSpendable = proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
     const balanceAfter = currentSpendable + mintedAmount
 

@@ -596,7 +596,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         log.trace('[handlePaymentRequest] decoded Cashu payment request', { pr })
 
         // Validate basics
-        if (!pr.amount || Number(pr.amount) <= 0) {
+        if (!pr.amount || pr.amount.toNumber() <= 0) {
             throw new AppError(Err.VALIDATION_ERROR, 'Payment request has no valid amount')
         }
 
@@ -616,7 +616,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
         // setEncodedCashuPaymentRequest(encoded)
         if (pr.description) setMemo(pr.description)
 
-        const requiredAmount = Number(pr.amount)
+        const requiredAmount = pr.amount.toNumber()
         const eligibleBalances = await getEligibleMintBalancesForCashu(pr, requiredAmount, unit)
 
         if (eligibleBalances.length === 0) {

@@ -625,7 +625,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         setIsCashuPrWithDesc(true)
                     }
 
-                    const prAmount = pr.amount ? Number(pr.amount) : undefined
+                    const prAmount = pr.amount ? pr.amount.toNumber() : undefined
 
                     if (prAmount) {
                         setAmountToSend(`${numbro(prAmount / getCurrency(unitRef.current).precision).format({
