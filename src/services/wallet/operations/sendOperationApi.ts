@@ -389,7 +389,8 @@ async function execute(prepared: PreparedSendData): Promise<PendingTransaction> 
                 // The mint may have executed the swap: its outputs would exist only
                 // there. Hand the reservation to the resolver, which asks the mint and
                 // restores them from the recorded counter range.
-                log.error('[SendOperationApi.execute] Swap outcome unknown, handing to resolver', {
+                // warn: the MintError returned below already logs (and reports) the error itself.
+                log.warn('[SendOperationApi.execute] Swap outcome unknown, handing to resolver', {
                     transactionId: tx.id,
                     error: e.message,
                 })

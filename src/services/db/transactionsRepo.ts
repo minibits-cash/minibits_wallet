@@ -555,6 +555,30 @@ export const getAbandonedDraftTransactions = function (): Array<{id: number; dat
   }
 }
 
+/**
+ * Transactions paying the same melt quote, or the same invoice (payment hash).
+ * Any status: the caller decides which ones are still unresolved.
+ */
+export const getTransactionsByQuoteOrPaymentId = function (
+  quote: string,
+  paymentId?: string,
+): Array<{id: number; status: TransactionStatus}> {
+  try {
+    const {rows} = getInstance().execute(
+      `SELECT id, status FROM transactions WHERE quote = ? OR (? IS NOT NULL AND paymentId = ?)`,
+      [quote, paymentId ?? null, paymentId ?? null],
+    )
+    const result: Array<{id: number; status: TransactionStatus}> = []
+    for (let i = 0; i < (rows?.length ?? 0); i++) {
+      const row = rows!.item(i)
+      result.push({id: row.id, status: row.status})
+    }
+    return result
+  } catch (e: any) {
+    throw dbError('Could not read transactions by quote', e)
+  }
+}
+
 export const getTransactionById = function (id: number) {
   try {
     const query = `

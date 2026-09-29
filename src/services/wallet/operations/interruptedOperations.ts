@@ -74,7 +74,9 @@ const resolveInterruptedOperationsTask = async function (): Promise<WalletTaskRe
         } catch (e: any) {
             // Held until the next sweep — most often the mint is unreachable.
             errors.push(`tId=${row.transactionId}: ${e.message}`)
-            log.error('[resolveInterruptedOperationsTask] Could not resolve, will retry', {
+            // warn: repeats on every sweep while the mint is unreachable; the failing
+            // mint call has already reported the error.
+            log.warn('[resolveInterruptedOperationsTask] Could not resolve, will retry', {
                 transactionId: row.transactionId,
                 operationType: row.operationType,
                 error: e.message,

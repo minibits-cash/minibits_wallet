@@ -182,3 +182,27 @@ describe('revertAbandonedDrafts', () => {
     expect(proofsStore.getBySecret('swapIn1')!.state).toBe('PENDING')
   })
 })
+
+describe('getTransactionsByQuoteOrPaymentId', () => {
+  const insert = (id: number, status: string, quote: string | null, paymentId: string | null) =>
+    Database.getInstance().execute(
+      `INSERT INTO transactions (id, type, amount, fee, unit, mint, status, quote, paymentId, data, createdAt)
+       VALUES (?, 'TRANSFER', 1, 0, 'sat', ?, ?, ?, ?, '[]', ?)`,
+      [id, MINT_URL, status, quote, paymentId, new Date().toISOString()],
+    )
+
+  test('matches the same quote, or the same invoice under a different quote', () => {
+    Database.getInstance().execute('DELETE FROM transactions')
+    insert(50, 'ERROR', 'q1', 'hash1') // first attempt, e.g. held for the resolver
+    insert(51, 'PENDING', 'q2', 'hash1') // same invoice, new quote
+    insert(52, 'PENDING', 'q3', 'hash3') // unrelated
+    insert(53, 'DRAFT', 'q1', null)
+
+    const ids = (quote: string, hash?: string) =>
+      Database.getTransactionsByQuoteOrPaymentId(quote, hash).map(t => t.id).sort()
+
+    expect(ids('q1', 'hash1')).toEqual([50, 51, 53])
+    expect(ids('q1')).toEqual([50, 53]) // no payment hash (onchain): quote only
+    expect(ids('q9', 'hash9')).toEqual([])
+  })
+})

@@ -215,6 +215,26 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
         throw new ValidationError('Could not find mint', {mintUrl})
     }
 
+    // One unresolved attempt per quote / invoice. A mint settles a quote at most
+    // once, so a second melt cannot pay twice — but after the mint rejects it,
+    // _handleExecuteError reads the SHARED quote state (PAID / PENDING) and would
+    // settle the second attempt's never-spent inputs as SPENT. Before creating a
+    // draft, so a refused retry leaves nothing behind. Frees up once the earlier
+    // attempt is resolved (e.g. REVERTED because it never reached the mint).
+    const unresolved = Database.getTransactionsByQuoteOrPaymentId(resolved.quoteId, resolved.paymentId).find(
+        t =>
+            t.id !== draftTransactionId &&
+            (t.status === TransactionStatus.PENDING ||
+                t.status === TransactionStatus.EXECUTING ||
+                proofsStore.isTransactionInterrupted(t.id)),
+    )
+    if (unresolved) {
+        throw new ValidationError(
+            'A previous attempt to pay this invoice is still being confirmed with the mint. Please wait for it to finish.',
+            {previousTransactionId: unresolved.id, status: unresolved.status},
+        )
+    }
+
     // Second line of defence on the destination network. The Pay screen already refuses
     // non-mainnet addresses, but this is the last point before real money moves and an
     // onchain payment cannot be taken back — so the check lives here too, where every
@@ -413,7 +433,8 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
                 // (they may be spent) nor melting them is safe: hand the reservation
                 // to the resolver, which asks the mint and restores the outputs from
                 // the recorded counter range if the swap went through.
-                log.error('[TransferOperationApi.prepare] Preemptive swap outcome unknown, handing to resolver', {
+                // warn: the MintError thrown below already logs (and reports) the error itself.
+                log.warn('[TransferOperationApi.prepare] Preemptive swap outcome unknown, handing to resolver', {
                     transactionId,
                     error: swapError.message,
                 })
@@ -1050,13 +1071,21 @@ async function _handleExecuteError(
     try {
         meltQuoteCheck = await _checkQuote(tx, resolved.quoteId)
     } catch (checkError: any) {
-        // Quote check itself failed — leave the reservation as-is, the orphan
-        // recovery sweep + sync will reconcile on the next startup.
-        log.error(
-            '[TransferOperationApi.execute] Quote re-check failed after execute error; reservation left open for recovery',
+        // Neither the melt nor the quote check got an answer: the mint may be
+        // paying right now. Keep the inputs locked and hand the reservation to the
+        // resolver, which asks the mint (retrying until it is reachable) and either
+        // rolls back or hands over to refresh — no restart needed.
+        // warn: the MintError thrown below already logs (and reports) the error itself.
+        log.warn(
+            '[TransferOperationApi.execute] Quote re-check failed after execute error; handing to resolver',
             {transactionId: tx.id, originalError: e.message, checkError: checkError.message},
         )
-        throw e
+        proofsStore.holdInterruptedReservation(reservation)
+        WalletTask.resolveInterruptedQueue()
+        throw new MintError(
+            'The mint could not be reached, so the payment status is unknown. Your ecash stays locked until the wallet confirms the payment with the mint.',
+            {transactionId: tx.id, caller: 'TransferOperationApi.execute', cause: e.message},
+        )
     }
 
     // ── PAID despite client error → recover change, mark RECOVERED ──────
