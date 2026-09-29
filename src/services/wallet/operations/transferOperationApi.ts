@@ -365,6 +365,7 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
             rollbackTo: 'UNSPENT',
         })
 
+        let swapRequestSent = false
         try {
             const swapResult = await walletStore.send(
                 mintUrl,
@@ -372,7 +373,12 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
                 unit,
                 swapInputProofs,
                 transactionId,
-                {onCountersReserved: info => Database.setReservationCounters(swapReservation.id, info)},
+                {
+                    onCountersReserved: info => {
+                        swapRequestSent = true
+                        Database.setReservationCounters(swapReservation.id, info)
+                    },
+                },
             )
 
             const returnedSecrets = new Set(swapResult.returnedProofs.map(p => p.secret))
@@ -402,6 +408,22 @@ async function prepare(input: PrepareTransferInput): Promise<PreparedTransferDat
                 meltFeeReserve,
             })
         } catch (swapError: any) {
+            if (WalletUtils.isSwapOutcomeUnknown(swapError, swapRequestSent)) {
+                // The mint may have executed the swap. Neither rolling the inputs back
+                // (they may be spent) nor melting them is safe: hand the reservation
+                // to the resolver, which asks the mint and restores the outputs from
+                // the recorded counter range if the swap went through.
+                log.error('[TransferOperationApi.prepare] Preemptive swap outcome unknown, handing to resolver', {
+                    transactionId,
+                    error: swapError.message,
+                })
+                proofsStore.holdInterruptedReservation(swapReservation)
+                WalletTask.resolveInterruptedQueue()
+                throw new MintError(
+                    'The payment was not sent. The mint did not confirm an internal step; your ecash is being checked with the mint and will be restored automatically.',
+                    {transactionId, caller: 'TransferOperationApi.prepare', cause: swapError.message},
+                )
+            }
             log.warn(
                 '[TransferOperationApi.prepare] Preemptive swap failed, continuing with original proofs',
                 {error: swapError.message},

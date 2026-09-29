@@ -61,10 +61,27 @@ const isTokenPendingError = function (e: any): boolean {
     return e.code === CashuErrorCode.TOKEN_PENDING
 }
 
+/**
+ * True when a swap failed without the mint definitively rejecting it, after the
+ * request may already have been sent: the mint may have executed it, and its
+ * outputs would then exist only at the mint.
+ *
+ * `requestSent` is whether onCountersReserved fired — cashu-ts calls it right
+ * before the POST, so if it never fired the request never left. A mint REJECTION
+ * carries a NUT-00 code (copied onto e.code by WalletStore) and is definitive; a
+ * timeout, dropped connection, 5xx, or a local error after the response (e.g. while
+ * committing it) is not.
+ */
+const isSwapOutcomeUnknown = function (e: any, requestSent: boolean): boolean {
+    if (!requestSent) return false
+    return !(e instanceof AppError && e.code)
+}
+
 export const WalletUtils = {
     formatError,
     shouldHealOutputsError,
     isTokenAlreadySpentError,
     isTokenPendingError,
+    isSwapOutcomeUnknown,
 }
 

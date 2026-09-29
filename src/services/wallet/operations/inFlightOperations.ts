@@ -1,11 +1,9 @@
-import {isAlive} from 'mobx-state-tree'
 import {getEncodedToken, normalizeProofAmounts} from '@cashu/cashu-ts'
 import {log} from '../../logService'
 import {Database} from '../../sqlite'
 import {CashuUtils} from '../../cashu/cashuUtils'
 import {rootStoreInstance} from '../../../models'
 import {Mint} from '../../../models/Mint'
-import {Proof} from '../../../models/Proof'
 import {
     TransactionData,
     TransactionStatus,
@@ -118,96 +116,6 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                                 fee: swapFeePaid > 0 ? swapFeePaid : tx.fee,
                             },
                         })
-
-                        break
-                    }
-
-                    case TransactionType.SEND: {
-                        // Defensive: a stale/old-format in-flight request may lack the input
-                        // proofs (e.g. persisted by an earlier version, or request migrated to
-                        // null). Without them the swap can't be retried — drop it so it stops
-                        // throwing on every sweep instead of recovering.
-                        if (!Array.isArray(inFlight.request?.proofs)) {
-                            log.warn('[handleInFlightByMintTask] SEND in-flight request missing proofs, dropping', {
-                                tId: tx.id,
-                            })
-                            break
-                        }
-
-                        // Look up the MST nodes for the persisted input proofs so
-                        // they can be reserved (and atomically transitioned to
-                        // SPENT below). In the common case all proofs exist and
-                        // are PENDING (left by the original send that died). Edge
-                        // case: a prior retry could have committed and only the
-                        // tx update failed — then they're already SPENT and
-                        // commit + rollback are no-ops for those entries.
-                        const lockedInputs = inFlight.request.proofs
-                            .map((p: {secret: string}) => proofsStore.getBySecret(p.secret))
-                            .filter((p: Proof | undefined): p is Proof => !!p && isAlive(p))
-
-                        // rollbackTo: 'preserve' keeps each input at its actual
-                        // pre-reservation state on failure (PENDING stays PENDING,
-                        // SPENT stays SPENT — never un-spends).
-                        const reservation = proofsStore.reserve(lockedInputs, {
-                            transactionId: tx.id,
-                            mintUrl,
-                            unit,
-                            operationType: 'in-flight-send-retry',
-                            rollbackTo: 'preserve',
-                        })
-
-                        try {
-                            const {returnedProofs, proofsToSend, swapFeePaid} = await walletStore.send(
-                                mintUrl,
-                                inFlight.request.amount,
-                                unit,
-                                inFlight.request.proofs,
-                                tx.id,
-                                {inFlightRequest: inFlight},
-                            )
-
-                            // Pre-compute everything that needs to land
-                            // atomically. balanceAfter: locked inputs were
-                            // PENDING (contribute 0 to UNSPENT); marking SPENT
-                            // changes nothing. The returnedProofs (change) are
-                            // added as UNSPENT, raising spendable.
-                            const outputToken = getEncodedToken({
-                                mint: mintUrl,
-                                proofs: normalizeProofAmounts(proofsToSend),
-                                unit,
-                            })
-                            const currentSpendable = proofsStore.getUnitBalance(unit)?.unitBalance ?? 0
-                            const sumReturnedChange = CashuUtils.getProofsAmount(returnedProofs)
-                            const balanceAfter = currentSpendable + sumReturnedChange
-
-                            txData.push({status: TransactionStatus.PENDING, createdAt: new Date()})
-
-                            // ATOMIC: inputs → SPENT, change → UNSPENT,
-                            // proofsToSend → PENDING, tx → PENDING, reservation
-                            // row deleted — single SQLite transaction.
-                            proofsStore.commitReservation(reservation, {
-                                toSpent: lockedInputs,
-                                newProofs: [
-                                    { proofs: returnedProofs, state: 'UNSPENT', tId: tx.id },
-                                    { proofs: proofsToSend, state: 'PENDING', tId: tx.id },
-                                ],
-                                transactionUpdate: {
-                                    id: tx.id,
-                                    status: TransactionStatus.PENDING,
-                                    data: JSON.stringify(txData),
-                                    outputToken,
-                                    balanceAfter,
-                                    fee: swapFeePaid > 0 ? swapFeePaid : tx.fee,
-                                },
-                            })
-                        } catch (sendError: any) {
-                            // Rollback restores each input to its pre-reservation
-                            // state (atomic with reservation row deletion).
-                            // inFlightRequest stays in place so the next sweep
-                            // retries this entry.
-                            proofsStore.rollbackReservation(reservation)
-                            throw sendError
-                        }
 
                         break
                     }
@@ -328,17 +236,25 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
                         break
                     }
 
-                    // TRANSFER / TRANSFER_ONCHAIN (melt retry)
-                    // NO-OP — solved by syncStateWithMintTask which recovers change from
-                    // pending-yet-paid transfers. Request params (meltPreview) is stored in
-                    // proofsCounter.meltCounterValues, not inFlightRequests.
+                    // SEND / TRANSFER / TRANSFER_ONCHAIN — owned by the interrupted-operation
+                    // resolver, not by replay.
                     //
-                    // Melts need no replay for the reason mints do. A lost mint RESPONSE
-                    // strands issued ecash (the mint counts it as issued, we never see it),
-                    // so TOPUP replays the request against the mint's NUT-19 cache. A lost
-                    // melt response strands nothing: the money is either gone (mint paid, and
-                    // sync recovers the change) or still ours (mint did not, and sync returns
-                    // the proofs). Replaying a melt would risk paying twice to fix nothing.
+                    // Their records come from swaps (an online send, a transfer's preemptive
+                    // swap), which run under a reservation. When a swap's outcome is unknown —
+                    // the process died, or the request failed without a mint rejection — that
+                    // reservation is held and the resolver settles it: it asks the mint, and
+                    // restores the outputs via NUT-09 from the counter range recorded before
+                    // the request. That works without NUT-19, after the cache ttl, and after
+                    // the counter was reused; a replay needs all three to hold. Held
+                    // transactions are skipped above, and the resolver deletes their record.
+                    //
+                    // Melts are not replayed either: a lost melt response strands nothing the
+                    // melt_recovery record and refresh() cannot rebuild, and replaying one
+                    // risks paying twice.
+                    //
+                    // Reaching here means a record left by an older version, whose
+                    // reservation is gone; the NUT-19 cache has expired by now, so drop it.
+                    case TransactionType.SEND:
                     case TransactionType.TRANSFER:
                     case TransactionType.TRANSFER_ONCHAIN: {
                         break

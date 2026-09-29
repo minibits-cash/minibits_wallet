@@ -20,6 +20,11 @@ import {
   import { generateId } from '../utils/generateId'
   import { INTERRUPTIBLE_OPERATION_TYPES, ProofReservation } from '../services/wallet/proofReservation'
 
+  const _heldEntry = (r: {transactionId: number; lockedProofs: Array<{secret: string}>}) => ({
+    transactionId: r.transactionId,
+    secrets: new Set(r.lockedProofs.map(p => p.secret)),
+  })
+
   export const ProofsStoreModel = types
     .model('ProofsStore', {
       proofs: types.optional(types.map(ProofModel), {}),
@@ -682,10 +687,7 @@ import {
             let recoveredCount = 0
             for (const orphan of orphans) {
                 if (INTERRUPTIBLE_OPERATION_TYPES.has(orphan.operationType)) {
-                    self.interruptedReservations.set(orphan.id, {
-                        transactionId: orphan.transactionId,
-                        secrets: new Set(orphan.lockedProofs.map(p => p.secret)),
-                    })
+                    self.interruptedReservations.set(orphan.id, _heldEntry(orphan))
                     log.warn('[recoverOrphanReservations] Holding interrupted operation for mint check', {
                         id: orphan.id,
                         transactionId: orphan.transactionId,
@@ -762,6 +764,15 @@ import {
                 }
             }
             return { revertedCount }
+        },
+
+        /**
+         * Hand a reservation from THIS process to the resolver: its request reached
+         * (or may have reached) the mint, but no definitive answer came back. Left
+         * open with its proofs PENDING until the mint is asked what happened.
+         */
+        holdInterruptedReservation(reservation: ProofReservation): void {
+            self.interruptedReservations.set(reservation.id, _heldEntry(reservation))
         },
 
         /** The resolver settled this interrupted reservation; stop tracking it. */

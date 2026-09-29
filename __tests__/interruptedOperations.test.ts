@@ -212,3 +212,19 @@ test('mint unreachable: stays held for the next sweep, mint marked OFFLINE', asy
   expect(tx.update).not.toHaveBeenCalled()
   expect(mockRoot.mintsStore.findByUrl(MINT_URL).status).toBe('OFFLINE')
 })
+
+test('a hold from the running process (no restart) is resolved the same way', async () => {
+  const {proofsStore, reservation, tx} = interrupted('send-online-swap', {start: 40, count: 3, next: 43})
+  // Re-open as if the swap had just failed in this process: drop the startup hold,
+  // then hand it over the way SendOperationApi.execute does.
+  proofsStore.releaseInterruptedReservation(reservation.id)
+  proofsStore.holdInterruptedReservation(reservation)
+  mintSays('UNSPENT')
+
+  await run()
+
+  expect([state('in1'), state('in2')]).toEqual(['UNSPENT', 'UNSPENT'])
+  expect(openRows()).toBe(0)
+  expect(tx.status).toBe(TransactionStatus.REVERTED)
+  expect(proofsStore.interruptedReservations.size).toBe(0)
+})

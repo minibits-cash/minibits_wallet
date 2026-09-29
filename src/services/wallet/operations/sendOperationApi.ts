@@ -378,8 +378,32 @@ async function execute(prepared: PreparedSendData): Promise<PendingTransaction> 
         // ── Mint call ───────────────────────────────────────────────────
         const p2pk = method.method === 'p2pk' ? method.options : undefined
         let sendResult: {returnedProofs: CashuProof[]; proofsToSend: CashuProof[]; swapFeePaid: number}
-        const onCountersReserved = (info: ReservationCounters) =>
+        let swapRequestSent = false
+        const onCountersReserved = (info: ReservationCounters) => {
+            swapRequestSent = true
             Database.setReservationCounters(reservation.id, info)
+        }
+        /** Settle the reservation for a failed swap; returns the error to throw. */
+        const abortSwap = (e: any): Error => {
+            if (WalletUtils.isSwapOutcomeUnknown(e, swapRequestSent)) {
+                // The mint may have executed the swap: its outputs would exist only
+                // there. Hand the reservation to the resolver, which asks the mint and
+                // restores them from the recorded counter range.
+                log.error('[SendOperationApi.execute] Swap outcome unknown, handing to resolver', {
+                    transactionId: tx.id,
+                    error: e.message,
+                })
+                proofsStore.holdInterruptedReservation(reservation)
+                WalletTask.resolveInterruptedQueue()
+                return new MintError(
+                    'The mint did not confirm the swap. Nothing was sent; your ecash is being checked with the mint and will be restored automatically.',
+                    {transactionId: tx.id, caller: 'SendOperationApi.execute', cause: e.message},
+                )
+            }
+            // Definitive (the mint rejected it, or it never left): proofs back to UNSPENT.
+            proofsStore.rollbackReservation(reservation)
+            return e
+        }
         try {
             sendResult = await walletStore.send(
                 mintUrl,
@@ -390,8 +414,11 @@ async function execute(prepared: PreparedSendData): Promise<PendingTransaction> 
                 {p2pk: p2pk && p2pk.pubkey ? p2pk : undefined, onCountersReserved},
             )
         } catch (e: any) {
-            if (WalletUtils.shouldHealOutputsError(e)) {
-                log.error('[SendOperationApi.execute]', 'Increasing proofsCounter outdated values and repeating send.')
+            if (!WalletUtils.shouldHealOutputsError(e)) throw abortSwap(e)
+
+            log.error('[SendOperationApi.execute]', 'Increasing proofsCounter outdated values and repeating send.')
+            swapRequestSent = false
+            try {
                 sendResult = await walletStore.send(
                     mintUrl,
                     sendAmount,
@@ -400,11 +427,8 @@ async function execute(prepared: PreparedSendData): Promise<PendingTransaction> 
                     tx.id,
                     {p2pk: p2pk && p2pk.pubkey ? p2pk : undefined, increaseCounterBy: 10, onCountersReserved},
                 )
-            } else {
-                // Rollback restores the reservation (proofs back to UNSPENT, tx
-                // → REVERTED via the atomic reservation rollback).
-                proofsStore.rollbackReservation(reservation)
-                throw e
+            } catch (e2: any) {
+                throw abortSwap(e2)
             }
         }
 
