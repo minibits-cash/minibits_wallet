@@ -6,6 +6,7 @@ import {
 } from '@env'
 import { WalletProfileRecord } from "../models/WalletProfileStore"
 import { CurrencyCode } from "./wallet/currency"
+import type { AvatarSelection } from "../utils/avatar"
 import { rootStoreInstance } from "../models"
 import { AuthChallengeResponse, TokenPair, VerifyChallengeResponse } from "../models/AuthStore"
  // refresh
@@ -103,27 +104,15 @@ const getRandomPictures = async function () {
 }
 
 
-const getAvatarOptions = async function () {
-    const url = MINIBITS_SERVER_API_HOST + '/profile/avatars/options'
+// server renders and stores the PNG from the selected avatar traits
+const updateWalletAvatar = async function (avatar: AvatarSelection) {
+    const url = MINIBITS_SERVER_API_HOST + '/profile/avatar'
 
     return await fetchApi(url, {
-        method: 'GET',
+        method: 'PUT',
+        body: {avatar},
         jwtAuthRequired: true,
-    }) as Record<string, string[]>
-}
-
-
-// returns base64 encoded png
-const renderAvatar = async function (options: Record<string, string>) {
-    const url = MINIBITS_SERVER_API_HOST + '/profile/avatars/render'
-
-    const {avatar} = await fetchApi(url, {
-        method: 'POST',
-        body: {options},
-        jwtAuthRequired: true,
-    }) as {avatar: string}
-
-    return avatar
+    }) as WalletProfileRecord
 }
 
 
@@ -482,8 +471,7 @@ export const MinibitsClient = {
     recoverProfile,
     recoverAddress,   
     getRandomPictures,
-    getAvatarOptions,
-    renderAvatar,
+    updateWalletAvatar,
     getWalletProfileBySeedHash,
     createDonation,
     checkDonationPaid,

@@ -457,7 +457,6 @@
 	"payerMemo": "Poznámka pre príjemcu",
 	"payWithBitcoinDesc": "Zadajte alebo vložte Lightning faktúru, adresu či platobný kód, alebo Bitcoin adresu, ktorej chcete zaplatiť.",
 	"pictureRandom": "Náhodne",
-	"pictureRetrieveFail": "Nejde načítať obrázky zo servera, skús neskôr.",
 	"placeholderNpub": "npub...",
 	"placeholderRelay": "wss://...",
 	"privacyScreen_logger": "Povoľ logovanie",

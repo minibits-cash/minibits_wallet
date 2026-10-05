@@ -2946,6 +2946,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@dicebear/avataaars@npm:9.4.3":
+  version: 9.4.3
+  resolution: "@dicebear/avataaars@npm:9.4.3"
+  peerDependencies:
+    "@dicebear/core": ^9.0.0
+  checksum: f0a410f4170fdf597798bca6d8a3eaca71ff7211cae0b62f4c27e990c4a31643ec64cdeeb7a2f91f20216bd7bcf308d70469f1c8fefb9ea76deccee6ddec6239
+  languageName: node
+  linkType: hard
+
+"@dicebear/core@npm:9.4.3":
+  version: 9.4.3
+  resolution: "@dicebear/core@npm:9.4.3"
+  dependencies:
+    "@types/json-schema": ^7.0.15
+  checksum: ab42b72ecd36a26eef25f9866d01187755d535061e7f746c73ab6969077f510b9c618b42c0be6c41e201b1ee7b5f8d83d27c60a5f27ec8e7d9dc23e54a933b26
+  languageName: node
+  linkType: hard
+
 "@egjs/hammerjs@npm:^2.0.17":
   version: 2.0.17
   resolution: "@egjs/hammerjs@npm:2.0.17"
@@ -7207,7 +7225,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/json-schema@npm:^7.0.6":
+"@types/json-schema@npm:^7.0.15, @types/json-schema@npm:^7.0.6":
   version: 7.0.15
   resolution: "@types/json-schema@npm:7.0.15"
   checksum: 97ed0cb44d4070aecea772b7b2e2ed971e10c81ec87dd4ecc160322ffa55ff330dace1793489540e3e318d90942064bb697cc0f8989391797792d919737b3b98
@@ -14763,6 +14781,8 @@ __metadata:
     "@babel/preset-env": ^7.25.3
     "@babel/runtime": ^7.25.0
     "@cashu/cashu-ts": ^4.11.0
+    "@dicebear/avataaars": 9.4.3
+    "@dicebear/core": 9.4.3
     "@expo/fingerprint": ^0.13.4
     "@fortawesome/fontawesome-svg-core": ^7.1.0
     "@fortawesome/free-brands-svg-icons": ^7.1.0

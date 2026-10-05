@@ -4,6 +4,7 @@ import {KeyChain, MinibitsClient, NostrClient, NostrKeyPair, NostrUnsignedEvent,
 import {log} from '../services/logService'
 import { Err } from '../utils/AppError'
 import { getRandomUsername } from '../utils/usernames'
+import type { AvatarSelection } from '../utils/avatar'
 import { getRootStore } from './helpers/getRootStore'
 
 
@@ -40,6 +41,7 @@ export const WalletProfileStoreModel = types
         lud16: types.maybe(types.maybeNull(types.string)),
         device: types.maybe(types.maybeNull(types.string)),        
         isOwnProfile: types.optional(types.boolean, false),        
+        avatarSelection: types.maybe(types.frozen<AvatarSelection>()), // traits of the last saved custom avatar, reloaded by the editor
     })
     .actions(self => ({  
         publishToRelays: flow(function* publishToRelays() {
@@ -105,6 +107,7 @@ export const WalletProfileStoreModel = types
             self.nip05 = nip05 // default is name@minibits.cash set on server side
             self.lud16 = lud16 // equals to nip05 for all @minibits.cash addresses, set on server side
             self.picture = avatar // default picture is set on server side              
+            self.avatarSelection = undefined // picture came from the server, saved traits no longer describe it
             self.pubkey = pubkey                
             self.walletId = walletId
 
@@ -154,19 +157,16 @@ export const WalletProfileStoreModel = types
             log.debug('[updateName] ', 'Wallet name updated in the WalletProfileStore', {self})
             return self         
         }),
-        updatePicture: flow(function* updatePicture(picture: string) {
+        updateAvatar: flow(function* updateAvatar(avatar: AvatarSelection) {
 
-            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletProfile(
-                {   
-                    avatar: picture, // this is png in base64
-                }
-            )   
+            let profileRecord: WalletProfileRecord = yield MinibitsClient.updateWalletAvatar(avatar)
 
             self.picture = profileRecord.avatar + '?r=' + Math.floor(Math.random() * 100) // force refresh as image URL stays the same
+            self.avatarSelection = avatar
 
             const publishedEvent = yield self.publishToRelays()
             
-            log.debug('[updatePicture] ', 'Wallet picture updated in the WalletProfileStore', {self, publishedEvent})
+            log.debug('[updateAvatar] ', 'Wallet picture updated in the WalletProfileStore', {self, publishedEvent})
             return self         
         }),
         updateNip05: flow(function* updateNip05(newPubkey: string, name: string, nip05: string, lud16: string, picture: string, isOwnProfile: boolean) {

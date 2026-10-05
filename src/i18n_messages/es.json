@@ -457,7 +457,6 @@
 	"payerMemo": "Memo para el pagador",
 	"payWithBitcoinDesc": "Introduce o pega una factura Lightning, dirección o código de pago, o una dirección Bitcoin a la que quieras pagar.",
 	"pictureRandom": "Aleatorio",
-	"pictureRetrieveFail": "No se pudieron recuperar las imágenes del servidor, inténtelo nuevamente más tarde.",
 	"placeholderNpub": "npub...",
 	"placeholderRelay": "wss://...",
 	"privacyScreen_logger": "Habilitar el registro",

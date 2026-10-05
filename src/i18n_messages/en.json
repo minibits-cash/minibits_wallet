@@ -442,7 +442,6 @@
 	"payerMemo": "Memo for the payer",
 	"payWithBitcoinDesc": "Enter or paste a Lightning invoice, address or pay code, or a Bitcoin address you want to pay to.",
 	"pictureRandom": "Random",
-	"pictureRetrieveFail": "Could not retrieve pictures from the server, try again later.",
 	"placeholderNpub": "npub...",
 	"placeholderRelay": "wss://...",
 	"privacyScreen_logger": "Enable logging",
