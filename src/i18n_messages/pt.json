@@ -286,6 +286,8 @@
 	"mintInfo_notSupported": "Não suportado",
 	"mintInfo_paymentMethodsHeading": "Métodos de pagamento",
 	"mintInfo_technicalDetails": "Detalhes técnicos",
+	"optimizeOptions_ecash": "Otimizar ecash",
+	"optimizeOptions_ecashDesc": "Troque muitas notas pequenas de ecash por menos notas maiores para manter a carteira rápida.",
 	"orphanedSeed_copied": "Frase seed copiada para a área de transferência.",
 	"orphanedSeed_copyFirst": "Copie primeiro a sua frase seed. A recuperação pede que você a digite, e informar outra sobrescreveria as chaves mostradas acima — o único caminho de volta aos fundos daquela carteira.",
 	"orphanedSeed_explainDescription": "Este dispositivo ainda guarda as chaves de uma carteira Minibits anterior, mas nenhum dos seus dados. Remover o app apaga o ecash, o histórico e os mints, enquanto o iOS mantém as chaves. A frase seed abaixo é a única forma de alcançar os fundos que essa carteira ainda tenha.",
@@ -454,6 +456,7 @@
 	"pos_waitingForPayment": "Aguardando pagamento...",
 	"payerMemo": "Memorando para o pagador",
 	"payWithBitcoinDesc": "Introduza ou cole uma fatura Lightning, endereço ou código de pagamento, ou um endereço Bitcoin que pretende pagar.",
+	"pictureRandom": "Aleatório",
 	"pictureRetrieveFail": "Não foi possível recuperar imagens do servidor, tente mais tarde.",
 	"placeholderNpub": "npub...",
 	"placeholderRelay": "wss://...",
@@ -481,6 +484,7 @@
 	"profileOnboarding_ownAddrTitle": "Seu próprio endereço de carteira",
 	"profileOnboarding_title": "Criar endereço de carteira",
 	"profilePublicKeyMismatchError": "Pubkey do perfil dos relays difere da pubkey da sua carteira. Redefina este perfil em Privacidade e importe novamente com novas chaves.",
+	"profileScreen_nostrKeys": "Chaves Nostr",
 	"profileScreen_batchReceive": "Recebimento em lote",
 	"profileScreen_batchReceiveDesc": "Recomendado para colecionadores de zaps. Se houver múltiplos pagamentos/zaps recebidos em seu endereço Lightning, agrupe-os em um único.",
 	"profileScreen_changeAvatar": "Alterar imagem",
@@ -673,7 +677,7 @@
 	"settingsScreen_preferredUnit": "Unidade preferida",
 	"settingsScreen_privacy": "Privacidade",
 	"settingsScreen_recovery": "Recuperação",
-	"settingsScreen_optimizeEcash": "Otimizar ecash",
+	"settingsScreen_optimizeEcash": "Otimizar",
 	"settingsScreen_relaysCount": {
 		"one": "%{count} relay",
 		"other": "%{count} relays"

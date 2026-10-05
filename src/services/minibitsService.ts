@@ -103,6 +103,30 @@ const getRandomPictures = async function () {
 }
 
 
+const getAvatarOptions = async function () {
+    const url = MINIBITS_SERVER_API_HOST + '/profile/avatars/options'
+
+    return await fetchApi(url, {
+        method: 'GET',
+        jwtAuthRequired: true,
+    }) as Record<string, string[]>
+}
+
+
+// returns base64 encoded png
+const renderAvatar = async function (options: Record<string, string>) {
+    const url = MINIBITS_SERVER_API_HOST + '/profile/avatars/render'
+
+    const {avatar} = await fetchApi(url, {
+        method: 'POST',
+        body: {options},
+        jwtAuthRequired: true,
+    }) as {avatar: string}
+
+    return avatar
+}
+
+
 const createWalletProfile = async function (walletId: string, seedHash: string) {    
     const url = MINIBITS_SERVER_API_HOST + '/profile'
     const method = 'POST'    
@@ -457,7 +481,9 @@ export const MinibitsClient = {
     updateDeviceToken,
     recoverProfile,
     recoverAddress,   
-    getRandomPictures, 
+    getRandomPictures,
+    getAvatarOptions,
+    renderAvatar,
     getWalletProfileBySeedHash,
     createDonation,
     checkDonationPaid,

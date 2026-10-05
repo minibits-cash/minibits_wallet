@@ -48,6 +48,16 @@ import { faCheck } from '@fortawesome/free-solid-svg-icons/faCheck'
 import { faArrowTurnUp } from '@fortawesome/free-solid-svg-icons/faArrowTurnUp'
 import { faArrowTurnDown } from '@fortawesome/free-solid-svg-icons/faArrowTurnDown'
 import { faPencil } from '@fortawesome/free-solid-svg-icons/faPencil'
+import { faScissors } from '@fortawesome/free-solid-svg-icons/faScissors'
+import { faPalette } from '@fortawesome/free-solid-svg-icons/faPalette'
+import { faGlasses } from '@fortawesome/free-solid-svg-icons/faGlasses'
+import { faEye } from '@fortawesome/free-solid-svg-icons/faEye'
+import { faFaceSmile } from '@fortawesome/free-solid-svg-icons/faFaceSmile'
+import { faMask } from '@fortawesome/free-solid-svg-icons/faMask'
+import { faEyeDropper } from '@fortawesome/free-solid-svg-icons/faEyeDropper'
+import { faShirt } from '@fortawesome/free-solid-svg-icons/faShirt'
+import { faFillDrip } from '@fortawesome/free-solid-svg-icons/faFillDrip'
+import { faDice } from '@fortawesome/free-solid-svg-icons/faDice'
 import { faTags } from '@fortawesome/free-solid-svg-icons/faTags'
 import { faShareFromSquare } from '@fortawesome/free-solid-svg-icons/faShareFromSquare'
 import { faRotate } from '@fortawesome/free-solid-svg-icons/faRotate'
@@ -113,7 +123,7 @@ export type IconTypes = keyof typeof iconRegistry
 
 // TODO remove need for manual iconregistry? 
 // would be best to just import all of them, i guess, or figure out something smart
-export const iconRegistry = { faWifi, faNfcSymbol, faAddressCard, faAddressBook, faWallet, faQrcode, faClipboard, faSliders, faCoins, faEllipsisVertical, faEllipsis, faArrowUp, faArrowDown, faArrowLeft, faXmark, faInfoCircle, faBug, faCheckCircle, faCheck, faArrowTurnUp, faArrowTurnDown, faPencil, faTags, faShareFromSquare, faRotate, faCode, faBan, faCircle, faPaperPlane, faBolt, faArrowUpFromBracket, faArrowRightToBracket, faPlus, faShieldHalved, faCloudArrowUp, faPaintbrush, faCopy, faBurst, faUserShield, faLock, faLockOpen, faTriangleExclamation, faDownload, faUpload, faRecycle, faListUl, faExpand, faFingerprint, faWandMagicSparkles, faCircleUser, faComment, faKey, faCircleNodes, faBullseye, faEyeSlash, faUpRightFromSquare, faShareNodes, faPaste, faKeyboard, faMoneyBill1, faGears, faTag, faBank, faChevronDown, faChevronUp, faCircleExclamation, faCircleQuestion, faEnvelope, faTwitter, faTelegramPlane, faDiscord, faGithub, faReddit, faCircleArrowUp, faCircleArrowDown, faGlobe, faCubes, faClock, faArrowRotateLeft, faHeartPulse, faSeedling, faChevronLeft, faArrowRightArrowLeft, faMagnifyingGlass, faBitcoin }
+export const iconRegistry = { faWifi, faNfcSymbol, faAddressCard, faAddressBook, faWallet, faQrcode, faClipboard, faSliders, faCoins, faEllipsisVertical, faEllipsis, faArrowUp, faArrowDown, faArrowLeft, faXmark, faInfoCircle, faBug, faCheckCircle, faCheck, faArrowTurnUp, faArrowTurnDown, faPencil, faTags, faShareFromSquare, faRotate, faCode, faBan, faCircle, faPaperPlane, faBolt, faArrowUpFromBracket, faArrowRightToBracket, faPlus, faShieldHalved, faCloudArrowUp, faPaintbrush, faCopy, faBurst, faUserShield, faLock, faLockOpen, faTriangleExclamation, faDownload, faUpload, faRecycle, faListUl, faExpand, faFingerprint, faWandMagicSparkles, faCircleUser, faComment, faKey, faCircleNodes, faBullseye, faEyeSlash, faUpRightFromSquare, faShareNodes, faPaste, faKeyboard, faMoneyBill1, faGears, faTag, faBank, faChevronDown, faChevronUp, faCircleExclamation, faCircleQuestion, faEnvelope, faTwitter, faTelegramPlane, faDiscord, faGithub, faReddit, faCircleArrowUp, faCircleArrowDown, faGlobe, faCubes, faClock, faArrowRotateLeft, faHeartPulse, faSeedling, faChevronLeft, faArrowRightArrowLeft, faMagnifyingGlass, faBitcoin, faScissors, faPalette, faGlasses, faEye, faFaceSmile, faMask, faEyeDropper, faShirt, faFillDrip, faDice }
 
 
 interface IconProps extends TouchableOpacityProps {

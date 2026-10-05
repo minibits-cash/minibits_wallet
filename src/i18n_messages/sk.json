@@ -286,6 +286,8 @@
 	"mintInfo_notSupported": "Nepodporované",
 	"mintInfo_paymentMethodsHeading": "Spôsoby platby",
 	"mintInfo_technicalDetails": "Technické detaily",
+	"optimizeOptions_ecash": "Optimalizovať ecash",
+	"optimizeOptions_ecashDesc": "Vymeň veľa malých ecash bankoviek za menej väčších, aby peňaženka zostala rýchla.",
 	"orphanedSeed_copied": "Mnemonická veta bola skopírovaná do schránky.",
 	"orphanedSeed_copyFirst": "Najprv si skopíruj mnemonickú vetu. Obnova ťa vyzve, aby si ju zadal, a zadanie inej by prepísalo kľúče zobrazené vyššie — jedinú cestu k prostriedkom tej peňaženky.",
 	"orphanedSeed_explainDescription": "Na tomto zariadení sú stále kľúče od predchádzajúcej Minibits peňaženky, ale žiadne jej dáta. Odinštalovanie aplikácie zmaže jej ecash, históriu aj minty, no iOS si kľúče ponechá. Mnemonická veta nižšie je jediná cesta k prostriedkom, ktoré tá peňaženka ešte drží.",
@@ -454,6 +456,7 @@
 	"pos_waitingForPayment": "Čakám na platbu...",
 	"payerMemo": "Poznámka pre príjemcu",
 	"payWithBitcoinDesc": "Zadajte alebo vložte Lightning faktúru, adresu či platobný kód, alebo Bitcoin adresu, ktorej chcete zaplatiť.",
+	"pictureRandom": "Náhodne",
 	"pictureRetrieveFail": "Nejde načítať obrázky zo servera, skús neskôr.",
 	"placeholderNpub": "npub...",
 	"placeholderRelay": "wss://...",
@@ -481,6 +484,7 @@
 	"profileOnboarding_ownAddrTitle": "Tvoja vlastná adresa peňaženky",
 	"profileOnboarding_title": "Vytvoriť adresu peňaženky",
 	"profilePublicKeyMismatchError": "Verejný kľúč profilu z relay je iný ako tvoj kľúč peňažneky. Resetuj tento profil v nastaveniach súkromia.",
+	"profileScreen_nostrKeys": "Nostr kľúče",
 	"profileScreen_batchReceive": "Dávkový príjem",
 	"profileScreen_batchReceiveDesc": "Odporúčané pre veľkých zberateľov zapov. Ak je do tvojej lightning adresy prijatých viac platieb alebo zapov, zhlukni ich do jednej.",
 	"profileScreen_changeAvatar": "Zmeň obrázok",
@@ -673,7 +677,7 @@
 	"settingsScreen_preferredUnit": "Preferovaná mena",
 	"settingsScreen_privacy": "Súkromie",
 	"settingsScreen_recovery": "Obnova",
-	"settingsScreen_optimizeEcash": "Optimalizovať ecash",
+	"settingsScreen_optimizeEcash": "Optimalizovať",
 	"settingsScreen_relaysCount": {
 		"one": "%{count} relay",
 		"other": "%{count} relays"

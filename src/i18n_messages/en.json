@@ -441,6 +441,7 @@
 	"pos_waitingForPayment": "Waiting for payment...",
 	"payerMemo": "Memo for the payer",
 	"payWithBitcoinDesc": "Enter or paste a Lightning invoice, address or pay code, or a Bitcoin address you want to pay to.",
+	"pictureRandom": "Random",
 	"pictureRetrieveFail": "Could not retrieve pictures from the server, try again later.",
 	"placeholderNpub": "npub...",
 	"placeholderRelay": "wss://...",
@@ -468,6 +469,7 @@
 	"profileOnboarding_ownAddrTitle": "Your own wallet address",
 	"profileOnboarding_title": "Create wallet address",
 	"profilePublicKeyMismatchError": "Profile from relays public key differs from yor wallet pubkey. Reset this profile in Privacy settings and import again with new keys.",
+	"profileScreen_nostrKeys": "Nostr keys",
 	"profileScreen_batchReceive": "Batch receive",
 	"profileScreen_batchReceiveDesc": "Recommended for heavy zap collectors. If there are more payments or zaps received to your lightning address, batch them into a single one.",
 	"profileScreen_changeAvatar": "Change picture",
@@ -660,7 +662,7 @@
 	"settingsScreen_preferredUnit": "Preferred unit",
 	"settingsScreen_privacy": "Privacy",
 	"settingsScreen_recovery": "Recovery",
-	"settingsScreen_optimizeEcash": "Optimize ecash",
+	"settingsScreen_optimizeEcash": "Optimize",
 	"settingsScreen_relaysCount": {
 		"one": "%{count} relay",
 		"other": "%{count} relays"
@@ -879,6 +881,8 @@
 	"orphanedSeed_title": "Wallet keys found",
 	"orphanedSeed_explainTitle": "Your wallet data is gone, your keys are not",
 	"orphanedSeed_explainDescription": "This device still holds the keys to a previous Minibits wallet, but none of its data. Removing the app deletes its ecash, history and mints, while iOS keeps its keys. The seed phrase below is the only way to reach any funds that wallet still holds.",
+	"optimizeOptions_ecash": "Optimize ecash",
+	"optimizeOptions_ecashDesc": "Swap many small ecash notes for fewer, larger ones to keep the wallet fast.",
 	"orphanedSeed_copied": "Seed phrase copied to the clipboard.",
 	"orphanedSeed_recoverTitle": "Recover this wallet",
 	"orphanedSeed_recoverDescription": "Restore the ecash, the mints and your minibits.cash address from this seed phrase. Choose this if the previous wallet might still hold funds.",

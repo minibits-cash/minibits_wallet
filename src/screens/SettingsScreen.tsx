@@ -207,9 +207,9 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
     navigation.navigate('RecoveryOptions')
   }
 
-  const gotoOptimizeEcash = function() {
+  const gotoOptimizeOptions = function() {
     // @ts-ignore
-    navigation.navigate('OptimizeEcash')
+    navigation.navigate('OptimizeOptions')
   }
 
   const gotoUpdate = function() {
@@ -472,7 +472,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
                     leftIconColor={colors.palette.gold200}
                     leftIconInverse={true}
                     style={$item}
-                    onPress={gotoOptimizeEcash}
+                    onPress={gotoOptimizeOptions}
                 />
               </>
             }

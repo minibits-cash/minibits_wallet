@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, Platform, Share, View, ViewStyle } from "react-native"
+import { ActivityIndicator, Alert, Platform, Share, StyleProp, View, ViewStyle } from "react-native"
 import { HCESession, NFCTagType4NDEFContentType, NFCTagType4 } from 'react-native-hce'
 import NfcManager  from 'react-native-nfc-manager'
 import { UR, UREncoder } from '@gandlaf21/bc-ur';
@@ -53,10 +53,11 @@ export const QRCodeBlock = function (props: {
     hints?: TxKeyPath[]
     /** Heading for the hint sheet. Defaults to a generic "How does this work?". */
     hintTitleTx?: TxKeyPath
+    containerStyle?: StyleProp<ViewStyle>
   }
 ) {
 
-    const { qrCodeData, title, titleTx, type, size, startNfcOnLoad = false, hints, hintTitleTx } = props
+    const { qrCodeData, title, titleTx, type, size, startNfcOnLoad = false, hints, hintTitleTx, containerStyle } = props
     const {mintsStore} = useStores()
 
     const [isHintVisible, setIsHintVisible] = useState(false)
@@ -197,7 +198,7 @@ export const QRCodeBlock = function (props: {
           message: qrCodeData as string,
         })
   
-        if (result.action === Share.sharedAction) {          
+        if (result.action === Share.sharedAction && type === 'Bolt11Invoice') {
           setTimeout(
             () => infoMessage(translate('lightningInvoiceSharedWaiting')),              
             500,
@@ -314,7 +315,7 @@ export const QRCodeBlock = function (props: {
         heading={title}
         headingTx={titleTx}
         headingStyle={{textAlign: 'center', color: colors.light.text, marginBottom: spacing.extraSmall}}
-        style={{backgroundColor: 'white', paddingBottom: spacing.small}}
+        style={[{backgroundColor: 'white', paddingBottom: spacing.small}, containerStyle]}
         ContentComponent={qrError ? (
           <ListItem 
               text={translate("qr_fail")}

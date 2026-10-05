@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState} from 'react'
-import {Platform, ScrollView, Share, Switch, TextStyle, View, ViewStyle} from 'react-native'
+import {ScrollView, TextStyle, View, ViewStyle} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading, Header} from '../components'
 import {useStores} from '../models'
@@ -9,10 +9,11 @@ import { ProfileHeader } from '../components/ProfileHeader'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { log } from '../services/logService'
 import { KeyChain, MinibitsClient, NostrClient, NostrProfile } from '../services'
-import { translate, TxKeyPath } from '../i18n'
+import { translate } from '../i18n'
 import { CollapsibleText } from '../components/CollapsibleText'
 import { CommonActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
-import { QRShareModal } from '../components/QRShareModal'
+import { QRCodeBlock } from './Wallet/QRCode'
+import { useTabBarInset } from '../navigation/tabBarVisibility'
 
 type Props = StaticScreenProps<{
     prevScreen: 'Contacts' | 'Wallet'
@@ -26,36 +27,16 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
     const {walletProfileStore, userSettingsStore, relaysStore, walletStore} = useStores() 
     const {npub, nip05, pubkey} = walletProfileStore    
 
-    const [isBatchClaimOn, setIsBatchClaimOn] = useState<boolean>(
-        userSettingsStore.isBatchClaimOn,
-    )
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
-    const [isShareModalVisible, setIsShareModalVisible] = useState<boolean>(false)
-    const [isQrCodeModalVisible, setIsQrCodeModalVisible] = useState(false)
-    const [qrCodeData, setQrCodeData] = useState<{title: TxKeyPath, data: string}>()
+    const [isKeysModalVisible, setIsKeysModalVisible] = useState<boolean>(false)
     const [isLoading, setIsLoading] = useState<boolean>(false)
     const [info, setInfo] = useState('')    
     const [error, setError] = useState<AppError | undefined>()
-
-    const onShareContact = async () => {
-        try {
-            const result = await Share.share({
-                message: `${nip05}`,
-            })
-
-        } catch (e: any) {
-            handleError(e)
-        }
-    }
 
     const toggleUpdateModal = () => {
         setIsUpdateModalVisible(previousState => !previousState)
     }
 
-    const toggleQrCodeModal = () => {
-        setIsQrCodeModalVisible(previousState => !previousState)
-    }
-        
     const gotoAvatar = function() {
         toggleUpdateModal()
         //@ts-ignore
@@ -75,46 +56,13 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
         navigation.navigate('Privacy')
     }
 
-    const toggleShareModal = () => {      
-        setIsShareModalVisible(previousState => !previousState)      
+    const toggleKeysModal = () => {
+        setIsKeysModalVisible(previousState => !previousState)
     }
 
-    const onShareNpub = function () { 
-        toggleShareModal()
-        setQrCodeData({
-            title: 'shareWalletNpub',
-            data: npub,
-        })
-        
-        if(Platform.OS === 'ios') {
-            setTimeout(() => {
-                toggleQrCodeModal()
-            }, 500) // ios fix
-        } else {
-            toggleQrCodeModal()
-        }
-    }
-
-
-    const onSharePubkey = function () {
-        toggleShareModal()
-        setQrCodeData({
-            title: 'shareWalletPubkey',
-            data: pubkey,
-        })
-
-        if(Platform.OS === 'ios') {
-            setTimeout(() => {
-                toggleQrCodeModal()
-            }, 500) // ios fix
-        } else {
-            toggleQrCodeModal()
-        }
-    }
-
-    const onCopyNip05 = function () {        
+    const onCopy = function (value: string) {
         try {
-          Clipboard.setString(nip05)
+          Clipboard.setString(value)
         } catch (e: any) {
           setInfo(translate('commonCopyFailParam', { param: e.message }))
         }
@@ -161,27 +109,18 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
         }        
     }
 
-    
-    const toggleBatchClaimSwitch = () => {
-        try {          
-          const result = userSettingsStore.setIsBatchClaimOn(!isBatchClaimOn)
-          setIsBatchClaimOn(result)
-        } catch (e: any) {
-          handleError(e)
-        }
-      }
 
     const handleError = function (e: AppError): void {
         setIsLoading(false)      
         setError(e)
     }
 
-    const icon = useThemeColor('textDim')
+    const tabBarInset = useTabBarInset()
+    const textDim = useThemeColor('textDim')
     const $subText = {color: useThemeColor('textDim'), fontSize: 14}
-    const $itemRight = {color: useThemeColor('textDim')}
     
     return (
-      <Screen contentContainerStyle={$screen} preset='fixed'>
+      <Screen contentContainerStyle={$screen} preset='auto'>
             <Header 
                 leftIcon='faArrowLeft'
                 onLeftPress={() => {
@@ -198,83 +137,29 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
                         navigation.goBack()
                     } 
                 }}
-                rightIcon='faCopy'
-                onRightPress={onCopyNip05}
+                rightIcon='faPencil'
+                onRightPress={toggleUpdateModal}
             />        
             <ProfileHeader />        
-            <ScrollView style={$contentContainer}>
-                <Card
-                    ContentComponent={                        
-                        <>
-                            {walletProfileStore.isOwnProfile ? (
-                                <ListItem
-                                    tx="profileOnboarding_ownAddrTitle"
-                                    subTx="profileOnboarding_ownAddrDesc"
-                                    leftIcon='faCircleUser'
-                                    bottomSeparator={true}
-                                    style={{paddingRight: spacing.small}}
+            <View style={$contentContainer}>
+                
+                            <View style={$qrContainer}>
+                                <QRCodeBlock
+                                    qrCodeData={nip05}
+                                    type='PUBKEY'
+                                    size={spacing.screenWidth * 0.6}
+                                    containerStyle={{paddingTop: spacing.huge}}
                                 />
-                            ) : (
-                                <ListItem
-                                    tx="profileOnboarding_minibitsTitle"
-                                    //subTx="profileOnboarding_minibitsDesc"
-                                    leftIcon='faCircleUser'
-                                    BottomComponent={
-                                        <CollapsibleText
-                                            collapsed={true}                                
-                                            text={translate('profileOnboarding_minibitsDesc')}
-                                            textProps={{style: $subText}}
-                                        />}
-                                    bottomSeparator={true}
-                                    style={{paddingRight: spacing.small}}
-                                />   
-                            )}
-                            <View style={$buttonContainer}>                            
-                                <Button
-                                    preset='secondary'                                
-                                    tx='commonShare'
-                                    LeftAccessory={() => <Icon icon='faShareNodes'/>}
-                                    onPress={toggleShareModal}
-                                />
-                                <Button
-                                    preset='secondary'                                
-                                    tx="commonChange"
-                                    style={{marginLeft: spacing.small}}
-                                    LeftAccessory={() => <Icon icon='faRotate'/>}
-                                    onPress={toggleUpdateModal}
-                                />  
                             </View>
-                        </>
-                    }  
-                />
-                <Card
-                    style={[$card, {marginTop: spacing.small}]}
-                    ContentComponent={
-                    <>
-                        <ListItem
-                            tx='profileScreen_batchReceive'                            
-                            leftIcon='faCubes'                            
-                            style={$item}                        
-                            RightComponent={
-                                <View style={$rightContainer}>
-                                    <Switch
-                                        onValueChange={toggleBatchClaimSwitch}
-                                        value={isBatchClaimOn}
-                                    />
-                                </View>
-                            }
-                            BottomComponent={
-                                <CollapsibleText
-                                    collapsed={true}                                
-                                    text={translate('profileScreen_batchReceiveDesc')}
-                                    textProps={{style: $subText}}
-                                />}
-                            bottomSeparator={false}                            
-                        />
-                    </>
-                    }
-                />
-            </ScrollView>
+                            <Button
+                                preset='tertiary'
+                                tx='profileScreen_nostrKeys'
+                                onPress={toggleKeysModal}
+                                LeftAccessory={() => <Icon icon='faKey' size={spacing.small} color={textDim} />}
+                                textStyle={{color: textDim, fontSize: 12}}
+                                style={{alignSelf: 'center'}}
+                            />
+            </View>
             <BottomModal
                 isVisible={isUpdateModalVisible ? true : false}
                 style={{alignItems: 'stretch'}}
@@ -309,44 +194,32 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
                 onBackdropPress={toggleUpdateModal}
             />
             <BottomModal
-                isVisible={isShareModalVisible ? true : false}
+                isVisible={isKeysModalVisible}
                 style={{alignItems: 'stretch'}}
                 ContentComponent={
-                    <>   
+                    <>
                         <ListItem
-                            tx="shareWalletAddress"
-                            subText={nip05}
-                            leftIcon='faShareNodes'
-                            onPress={onShareContact}
-                            bottomSeparator={true}
-                        />    
-                        <ListItem
-                            tx="shareWalletNpub"
+                            text='NPUB'
                             subText={npub}
-                            leftIcon='faQrcode'
-                            onPress={onShareNpub}
+                            subTextEllipsizeMode='middle'
+                            leftIcon='faKey'
+                            rightIcon='faCopy'
+                            onPress={() => onCopy(npub)}
                             bottomSeparator={true}
                         />
                         <ListItem
-                            tx="shareWalletPubkey"
+                            text='HEX'
                             subText={pubkey}
-                            leftIcon='faQrcode'
-                            onPress={onSharePubkey}
+                            subTextEllipsizeMode='middle'
+                            leftIcon='faKey'
+                            rightIcon='faCopy'
+                            onPress={() => onCopy(pubkey)}
                         />
                     </>
                 }
-                onBackButtonPress={toggleShareModal}
-                onBackdropPress={toggleShareModal}
+                onBackButtonPress={toggleKeysModal}
+                onBackdropPress={toggleKeysModal}
             />
-            {qrCodeData && (
-                <QRShareModal
-                    data={qrCodeData.data}
-                    subHeadingTx={qrCodeData.title}
-                    type='PUBKEY'
-                    isVisible={isQrCodeModalVisible}
-                    onClose={toggleQrCodeModal}
-                />
-            )}
             {isLoading && <Loading />}
             {error && <ErrorModal error={error} />}
             {info && <InfoModal message={info} />}
@@ -380,19 +253,19 @@ return (
 }
 
 const $screen: ViewStyle = {
-    flex: 1,
+    // flex: 1,
 }
 
 const $headerContainer: TextStyle = {
     alignItems: 'center',
     padding: spacing.medium,
-    height: spacing.screenHeight * 0.20,
+    height: spacing.screenHeight * 0.22,
 }
 
 const $contentContainer: TextStyle = {
     // flex: 1,
-    padding: spacing.extraSmall,
-    // alignItems: 'center',
+    padding: spacing.small,
+    marginTop: -spacing.large * 1.5,
 }
 
 const $bottomModal: ViewStyle = {
@@ -412,17 +285,9 @@ const $bottomContainer: ViewStyle = {
     alignSelf: 'stretch',    
   }
 
-const $buttonContainer: ViewStyle = {
-    marginTop: spacing.small,
-    flexDirection: 'row',
-    alignSelf: 'center',
-    alignItems: 'center',
-}
-
-const $qrCodeContainer: ViewStyle = {
-    backgroundColor: 'white',
-    padding: spacing.small,
-    margin: spacing.small,
+const $qrContainer: ViewStyle = {
+    //paddingTop: spacing.large,
+    //marginVertical: spacing.small,
 }
 
 const $card: ViewStyle = {
@@ -433,10 +298,3 @@ const $item: ViewStyle = {
     // paddingHorizontal: spacing.small,
     paddingLeft: 0,
 }
-
-const $rightContainer: ViewStyle = {
-    padding: spacing.extraSmall,
-    alignSelf: 'center',
-    marginLeft: spacing.small,
-}
-

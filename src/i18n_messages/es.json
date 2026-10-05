@@ -286,6 +286,8 @@
 	"mintInfo_notSupported": "No compatible",
 	"mintInfo_paymentMethodsHeading": "Métodos de pago",
 	"mintInfo_technicalDetails": "Detalles técnicos",
+	"optimizeOptions_ecash": "Optimizar ecash",
+	"optimizeOptions_ecashDesc": "Cambia muchas notas pequeñas de ecash por menos notas más grandes para mantener la billetera rápida.",
 	"orphanedSeed_copied": "Frase semilla copiada al portapapeles.",
 	"orphanedSeed_copyFirst": "Copia primero tu frase semilla. La recuperación te pide escribirla, e introducir otra distinta sobrescribiría las claves mostradas arriba, que son la única vía de vuelta a los fondos de esa billetera.",
 	"orphanedSeed_explainDescription": "Este dispositivo todavía guarda las claves de una billetera Minibits anterior, pero ninguno de sus datos. Desinstalar la app borra su ecash, su historial y sus mints, mientras que iOS conserva las claves. La frase semilla de abajo es la única forma de llegar a los fondos que esa billetera aún tenga.",
@@ -454,6 +456,7 @@
 	"pos_waitingForPayment": "Esperando el pago...",
 	"payerMemo": "Memo para el pagador",
 	"payWithBitcoinDesc": "Introduce o pega una factura Lightning, dirección o código de pago, o una dirección Bitcoin a la que quieras pagar.",
+	"pictureRandom": "Aleatorio",
 	"pictureRetrieveFail": "No se pudieron recuperar las imágenes del servidor, inténtelo nuevamente más tarde.",
 	"placeholderNpub": "npub...",
 	"placeholderRelay": "wss://...",
@@ -481,6 +484,7 @@
 	"profileOnboarding_ownAddrTitle": "Tu propia dirección de billetera",
 	"profileOnboarding_title": "Crear una dirección de billetera",
 	"profilePublicKeyMismatchError": "El perfil de la clave pública de los relés es diferente al de tu billetera. Restablece este perfil en la configuración de privacidad e impórtalo de nuevo con las nuevas claves.",
+	"profileScreen_nostrKeys": "Claves Nostr",
 	"profileScreen_batchReceive": "Recepción por lotes",
 	"profileScreen_batchReceiveDesc": "Recomendado para quienes acumulan zaps con frecuencia. Si recibes más pagos o zaps en tu dirección Lightning, agrúpalos en uno solo.",
 	"profileScreen_changeAvatar": "Cambiar imagen",
@@ -673,7 +677,7 @@
 	"settingsScreen_preferredUnit": "Unidad preferida",
 	"settingsScreen_privacy": "Privacidad",
 	"settingsScreen_recovery": "Recuperación",
-	"settingsScreen_optimizeEcash": "Optimizar ecash",
+	"settingsScreen_optimizeEcash": "Optimizar",
 	"settingsScreen_relaysCount": {
 		"one": "Relé %{count}",
 		"other": "%{count} relés"
