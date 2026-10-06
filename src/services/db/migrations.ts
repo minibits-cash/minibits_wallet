@@ -2,7 +2,7 @@ import {DbConnection, SQLBatchTuple} from './connection'
 // RESERVATIONS_COLUMNS / ONCHAIN_MINT_QUOTES_COLUMNS are deliberately NOT imported:
 // v26 and v31 build those tables from the frozen historical shapes below, not from
 // the live schema. See the note there.
-import {createTable, PROOFS_COLUMNS, PROOFS_COLUMN_NAMES, MINT_COUNTERS_COLUMNS, MINT_COUNTERS_COLUMN_NAMES, MELT_RECOVERY_COLUMNS, INFLIGHT_REQUESTS_COLUMNS, WALLET_COUNTERS_COLUMNS, MINTS_COLUMNS, MINT_KEYSETS_COLUMNS} from './schema'
+import {createTable, PROOFS_COLUMNS, PROOFS_COLUMN_NAMES, MINT_COUNTERS_COLUMNS, MINT_COUNTERS_COLUMN_NAMES, MELT_RECOVERY_COLUMNS, INFLIGHT_REQUESTS_COLUMNS, WALLET_COUNTERS_COLUMNS, MINTS_COLUMNS, MINT_KEYSETS_COLUMNS, MESSAGES_COLUMNS, MESSAGES_INDEX} from './schema'
 import {dbError} from './errors'
 import {log} from '../logService'
 
@@ -284,6 +284,16 @@ export const MIGRATIONS: Migration[] = [
     // it (NUT-09). Nullable: rows opened before v36 simply have no range.
     version: 36,
     queries: [[`ALTER TABLE reservations ADD COLUMN counters TEXT`]],
+  },
+  {
+    // Conversations with contacts (NIP-17 messages + local payment records).
+    // New table, nothing to carry over: messages were never stored before.
+    // Frozen shape: this IS the change that produced MESSAGES_COLUMNS.
+    version: 37,
+    queries: [
+      [createTable('messages', MESSAGES_COLUMNS)],
+      [MESSAGES_INDEX],
+    ],
   },
 ]
 

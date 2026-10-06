@@ -42,7 +42,9 @@ import {Mint, MintBalance} from '../models/Mint'
 import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import {StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
-import {Contact, ContactType} from '../models/Contact'
+import {useHardwareBack} from '../utils/useHardwareBack'
+import {Contact, isNostrContact} from '../models/Contact'
+import {MessagingService} from '../services/messagingService'
 import {getImageSource, infoMessage} from '../utils/utils'
 import {ReceiveOption} from './ReceiveScreen'
 import {LNURLWithdrawParams} from 'js-lnurl'
@@ -79,6 +81,8 @@ type Props = StaticScreenProps<{
   contact?: Contact,
   lnurlParams?: LNURLWithdrawParams,
   mintUrl?: string, 
+  /** Opened from a contact's conversation: leaving returns there. */
+  prevScreen?: 'Conversation',
 }>
 
 // ─── State machine ───────────────────────────────────────────────────────────
@@ -182,7 +186,8 @@ function topupReducer(state: TopupState, action: TopupAction): TopupState {
                 contactToSendTo: action.contactTo,
                 relaysToShareTo: action.relays,
                 // open immediately if invoice was already created before contact was selected
-                isNostrDMModalVisible: !!state.invoiceToPay,
+                // lightning-address contacts cannot receive a DM, the invoice is shared by hand
+                isNostrDMModalVisible: !!state.invoiceToPay && isNostrContact(action.contactTo),
             }
 
         case 'PREPARE_LNURL_WITHDRAW':
@@ -422,11 +427,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
               paymentOption,
             )
 
-            if (contact?.type === ContactType.PUBLIC) {
-              relays = relaysStore.allPublicUrls
-            } else {
-              relays = relaysStore.allUrls
-            }
+            relays = relaysStore.allUrls
 
             if (!relays) {
               throw new AppError(Err.VALIDATION_ERROR, translate("nostr_missingRelaysError"))
@@ -779,6 +780,10 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
 
       const tx = result.transaction as Transaction
 
+      if (contactToSendTo && !isNostrContact(contactToSendTo) && contactToSendTo.id) {
+        MessagingService.addLocalMessage(contactToSendTo.id, result.encodedInvoice as string, tx.id)
+      }
+
       dispatch({
         type: 'INVOICE_READY',
         transactionId: tx.id,
@@ -811,14 +816,12 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
           content = content + `Memo: ${memo}`
         }
 
-        const keys = await walletStore.getCachedWalletKeys()
-        const sentEvent = await NostrClient.encryptAndSendDirectMessageNip17(
-          receiverPubkey as string,
-          content as string,
-          relaysToShareTo,
-          keys.NOSTR,
-          walletProfileStore.nip05
-        )
+        const {sentEvent} = await MessagingService.sendMessage({
+          recipientPubkey: receiverPubkey as string,
+          content,
+          relays: relaysToShareTo,
+          transactionId,
+        })
 
         if (sentEvent) {
           dispatch({ type: 'DM_SENT' })
@@ -922,7 +925,14 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       navigation.dispatch(                
        StackActions.popToTop()
       )
+      // the contacts tab kept its stack, so this lands back in the conversation
+      if (route.params?.prevScreen === 'Conversation') {
+        //@ts-ignore
+        navigation.navigate('ContactsNavigator')
+      }
     }
+
+    useHardwareBack(route.params?.prevScreen === 'Conversation' ? gotoWallet : undefined)
 
     const resetState = function () {
       dispatch({ type: 'RESET' })
@@ -986,6 +996,7 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
               : undefined
           }
           unit={unitRef.current}          
+          onBackPress={route.params?.prevScreen === 'Conversation' ? gotoWallet : undefined}
         />
         <AmountEntryLayout
           entry={amountEntry}
@@ -1294,7 +1305,7 @@ const InvoiceOptionsBlock = observer(function (props: {
     <View style={{flex: 1}}>
       <View style={$bottomContainer}>
         <View style={$buttonContainer}>
-          {props.contactToSendTo ? (
+          {props.contactToSendTo && isNostrContact(props.contactToSendTo) ? (
             <Button
               text={translate("topup_sendToNip", { 
                 sendToNip05: props.contactToSendTo.nip05

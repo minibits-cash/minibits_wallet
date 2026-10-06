@@ -93,6 +93,15 @@ import {
   updateMintUrl as updateMintUrlWithProofs,
   seedMints,
 } from './mintsRepo'
+import {
+  addMessage,
+  updateMessage,
+  getMessages,
+  getConversationSummaries,
+  markMessagesRead,
+  deleteMessage,
+  deleteMessages,
+} from './messagesRepo'
 
 export type {TransactionSearchFilters, NwcTransactionQuery} from './transactionsRepo'
 export type {
@@ -108,6 +117,8 @@ export {ONCHAIN_QUOTE_WATCH_DAYS} from './onchainQuotesRepo'
 export type {MeltRecoveryRecord, MeltRecoverySeed} from './meltRecoveryRepo'
 export type {InFlightRequestRecord, InFlightRequestSeed} from './inFlightRepo'
 export type {MintRecord} from './mintsRepo'
+export type {MessageRecord, ConversationSummary} from './messagesRepo'
+export {MessageDirection, MessageTransport, MessageStatus} from './messagesRepo'
 
 export const Database = {
   getInstance,
@@ -181,4 +192,11 @@ export const Database = {
   getWatchedOnchainMintQuotes,
   updateOnchainMintQuoteAmounts,
   extendOnchainMintQuoteWatch,
+  addMessage,
+  updateMessage,
+  getMessages,
+  getConversationSummaries,
+  markMessagesRead,
+  deleteMessage,
+  deleteMessages,
 }

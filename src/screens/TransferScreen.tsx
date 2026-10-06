@@ -1,6 +1,8 @@
+import {MessagingService} from '../services/messagingService'
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useState, useReducer, useCallback, useRef} from 'react'
 import {StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
+import {useHardwareBack} from '../utils/useHardwareBack'
 import {
   UIManager,
   Platform,
@@ -59,6 +61,8 @@ type Props = StaticScreenProps<{
   mintUrl?: string,
   isDonation?: boolean,
   donationForName?: string
+  /** Opened from a contact's conversation: leaving returns there. */
+  prevScreen?: 'Conversation'
 }>
 
 export enum TransferOption {  
@@ -622,7 +626,14 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
         navigation.dispatch(
             StackActions.popToTop()
         )
+        // the contacts tab kept its stack, so this lands back in the conversation
+        if (route.params?.prevScreen === 'Conversation') {
+            //@ts-ignore
+            navigation.navigate('ContactsNavigator')
+        }
     }
+
+    useHardwareBack(route.params?.prevScreen === 'Conversation' ? gotoWallet : undefined)
 
 
     const resetState = function () {
@@ -852,6 +863,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
                         sentTo: profile.nip05 || profile.name || lnurlPayParams.address,
                         profile: JSON.stringify(profile),
                     })
+                    MessagingService.addLocalMessage(profile.id, lnurlPayParams.address, transaction.id)
                 } else {
                     transaction.update({
                         sentTo: lnurlPayParams.address,
@@ -949,6 +961,7 @@ export const TransferScreen = observer(function TransferScreen({ route }: Props)
               : undefined
           }
           unit={unitRef.current}          
+          onBackPress={route.params?.prevScreen === 'Conversation' ? gotoWallet : undefined}
         />
         <AmountEntryLayout
           entry={amountEntry}

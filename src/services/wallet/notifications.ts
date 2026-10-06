@@ -85,3 +85,16 @@ export const sendIncomingInvoiceNotification = async function (
         from.picture,
     )
 }
+
+export const sendMessageNotification = async function (from: Contact, text: string) {
+    const enabled = await NotificationService.areNotificationsEnabled()
+    if (!enabled) return
+
+    const sender = from.nip05 || from.name || 'Unknown'
+    // ponytail: tapping opens the app, not the conversation; add routing via notification data if asked
+    await NotificationService.createLocalNotification(
+        Platform.OS === 'android' ? `💬 <b>${sender}</b>` : `💬 ${sender}`,
+        text.length > 200 ? text.slice(0, 200) + '…' : text,
+        from.picture,
+    )
+}

@@ -1,5 +1,5 @@
 import {addSeconds} from 'date-fns'
-import {GiftWrap, EncryptedDirectMessage} from 'nostr-tools/kinds'
+import {GiftWrap, EncryptedDirectMessage, PrivateDirectMessage} from 'nostr-tools/kinds'
 import {UnsignedEvent} from 'nostr-tools'
 import {SubCloser} from 'nostr-tools/abstract-pool'
 import {
@@ -12,7 +12,8 @@ import {MINIBITS_NIP05_DOMAIN, MINIBIT_SERVER_NOSTR_PUBKEY} from '@env'
 import {log} from '../../logService'
 import {Err, ValidationError} from '../../../utils/AppError'
 import {rootStoreInstance} from '../../../models'
-import {Contact} from '../../../models/Contact'
+import {Contact, ContactKind, getContactName} from '../../../models/Contact'
+import {Database, MessageDirection, MessageStatus, MessageTransport} from '../../db'
 import {MintBalance} from '../../../models/Mint'
 import {
     TransactionData,
@@ -45,6 +46,7 @@ import {
     sendReceiveNotification,
     sendErrorReceiveNotification,
     sendIncomingInvoiceNotification,
+    sendMessageNotification,
 } from '../notifications'
 
 const {
@@ -199,6 +201,7 @@ const handleNwcRequestQueue = async function (params: {requestEvent: NostrEvent}
 }
 
 let _receiveSubscription: SubCloser | undefined = undefined
+let _isDmRelayListChecked = false
 
 /**
  * Checks with NOSTR relays whether there is ecash to be received or an invoice to be paid.
@@ -232,6 +235,14 @@ const receiveEventsFromRelaysQueue = async function (): Promise<void> {
         }
 
         let relaysToConnect = relaysStore.allUrls
+
+        // Lets other NIP-17 clients find where this wallet reads its messages.
+        if (!_isDmRelayListChecked) {
+            _isDmRelayListChecked = true
+            walletStore.getCachedWalletKeys()
+                .then(keys => NostrClient.ensureDirectMessageRelays(relaysToConnect, keys.NOSTR))
+                .catch((e: any) => log.warn('[receiveEventsFromRelays] Could not publish DM relay list', {message: e.message}))
+        }
         let eventsBatch: NostrEvent[] = []
 
         // this runs on every foreground, profile creation and manual reconnect, and
@@ -290,6 +301,46 @@ const receiveEventsFromRelaysQueue = async function (): Promise<void> {
     }
 }
 
+
+/** Incoming payloads the wallet acts on; any other content is a text message. */
+const PAYMENT_TYPES = [
+    IncomingDataType.CASHU,
+    IncomingDataType.INVOICE,
+    IncomingDataType.CASHU_PAYMENT_REQUEST,
+    IncomingDataType.CASHU_PAYMENT_REQUEST_PAYLOAD,
+]
+
+/**
+ * A contact for a sender the user has not added, shown as a message request. The
+ * profile lookup is best effort: a request without a name still shows the npub.
+ */
+const createRequestContact = async function (pubkey: string, npub: string, sentFrom?: string) {
+    let profile: NostrProfile | undefined = undefined
+
+    try {
+        const relays = sentFrom?.includes(MINIBITS_NIP05_DOMAIN)
+            ? NostrClient.getMinibitsRelays()
+            : relaysStore.allUrls
+        profile = await NostrClient.getProfileFromRelays(pubkey, relays)
+    } catch (e: any) {
+        log.warn('[createRequestContact]', 'Could not get sender profile', {pubkey, message: e.message})
+    }
+
+    log.info('[createRequestContact]', 'Message from a sender not in contacts, adding as a request', {pubkey})
+
+    return contactsStore.addContact({
+        kind: ContactKind.NOSTR,
+        pubkey,
+        npub,
+        name: profile?.name ? String(profile.name) : undefined,
+        nip05: profile?.nip05 ? String(profile.nip05) : undefined,
+        lud16: profile?.lud16,
+        picture: profile?.picture ? String(profile.picture) : undefined,
+        about: profile?.about,
+        isRequest: true,
+    })
+}
+
 const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Promise<WalletTaskResult> {
     try {
         let directMessageEvent: NostrEvent | UnsignedEvent | undefined = undefined
@@ -316,59 +367,92 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
 
         log.trace('[handleReceivedEventTask]', 'Received event', {directMessageEvent})
 
+        // Kind 15 file messages, reactions and the like are not supported.
+        if (encryptedEvent.kind === GiftWrap && directMessageEvent.kind !== PrivateDirectMessage) {
+            log.debug('[handleReceivedEventTask]', 'Skipping unsupported sealed event kind', {kind: directMessageEvent.kind})
+            return {taskFunction: HANDLE_RECEIVED_EVENT_TASK, message: 'Unsupported message kind.'} as WalletTaskResult
+        }
+
+        // NIP-04 events are signed, so their id is trustworthy as is; a rumor's id
+        // is whatever the sender wrote, so it is recomputed.
+        const messageId = encryptedEvent.kind === GiftWrap
+            ? NostrClient.getRumorId(directMessageEvent as UnsignedEvent)
+            : encryptedEvent.id
+        const transport = encryptedEvent.kind === GiftWrap ? MessageTransport.NIP17 : MessageTransport.NIP04
+
         let sentFromPubkey = directMessageEvent.pubkey
         let sentFrom = NostrClient.getFirstTagValue(directMessageEvent.tags, 'from') as string | undefined
         let sentFromNpub = NostrClient.getNpubkey(sentFromPubkey)
 
-        if (userSettingsStore.isReceiveOnlyFromContactsOn
-            && sentFromPubkey !== MINIBIT_SERVER_NOSTR_PUBKEY) {
+        // Our own NIP-17 self-copy coming back from a relay. Recorded in the
+        // conversation if missing (sent by another client of the same keys) and never
+        // processed further: its payload is what WE sent, and treating it as incoming
+        // would claim back the very ecash token we just gave away.
+        if (sentFromPubkey === walletProfileStore.pubkey) {
+            const recipientPubkey = NostrClient.getFirstTagValue(directMessageEvent.tags, 'p') as string | undefined
 
-            const contactInstance = contactsStore.findByPubkey(sentFromPubkey)
-
-            if (!contactInstance) {
-                let message = 'Message received over Nostr has been blocked, the sender is not in your contacts.'
-                log.error(message, {sentFromPubkey, sentFrom, decryptedMessage})
-
-                return {
-                    taskFunction: HANDLE_RECEIVED_EVENT_TASK,
-                    message,
-                } as WalletTaskResult
+            if (recipientPubkey && Database.addMessage({
+                id: messageId,
+                contactId: recipientPubkey,
+                direction: MessageDirection.OUT,
+                transport,
+                content: decryptedMessage,
+                status: MessageStatus.SENT,
+                createdAt: directMessageEvent.created_at,
+            })) {
+                contactsStore.refreshConversations()
             }
+
+            return {taskFunction: HANDLE_RECEIVED_EVENT_TASK, message: 'Own message copy recorded.'} as WalletTaskResult
+        }
+
+        const isFromMinibitsServer = sentFromPubkey === MINIBIT_SERVER_NOSTR_PUBKEY
+
+        if (userSettingsStore.isReceiveOnlyFromContactsOn
+            && !isFromMinibitsServer
+            && !contactsStore.isAcceptedContact(sentFromPubkey)) {
+
+            let message = 'Message received over Nostr has been blocked, the sender is not in your contacts.'
+            log.error(message, {sentFromPubkey, sentFrom})
+
+            return {
+                taskFunction: HANDLE_RECEIVED_EVENT_TASK,
+                message,
+            } as WalletTaskResult
         }
 
         let contactFrom: Contact | undefined = undefined
         let zapSenderProfile: NostrProfile | undefined = undefined
         let sentFromPicture: string | undefined = undefined
 
-        if (sentFrom
-            && sentFrom.includes(MINIBITS_NIP05_DOMAIN)
-            && userSettingsStore.isReceiveOnlyFromContactsOn === false
-        ) {
-            try {
-                const nostrProfile = await NostrClient.getProfileFromRelays(sentFromPubkey, NostrClient.getMinibitsRelays())
+        if (!isFromMinibitsServer) {
+            contactFrom = contactsStore.findByPubkey(sentFromPubkey)
 
-                if (nostrProfile) {
-                    log.info('[handleReceivedEventTask]', 'Event sent from Minibits server user, adding to contacts...', {sentFrom, sentFromPubkey})
+            // A stranger: shown as a message request until the user accepts it.
+            if (!contactFrom) {
+                contactFrom = await createRequestContact(sentFromPubkey, sentFromNpub, sentFrom)
+            }
 
-                    const {nip05, lud16, name, picture} = nostrProfile
-                    contactFrom = {
-                        pubkey: sentFromPubkey,
-                        npub: sentFromNpub,
-                        nip05,
-                        lud16,
-                        name,
-                        picture,
-                        isExternalDomain: false,
-                    } as Contact
+            sentFrom = sentFrom || contactFrom?.nip05 || (contactFrom ? getContactName(contactFrom) : undefined)
+            sentFromPicture = contactFrom?.picture
 
-                    contactsStore.addContact(contactFrom)
-                }
-            } catch (e: any) {
-                log.error('[handleReceivedEventTask]', 'Failed to get sender profile from Minibits server, skipping adding to contacts...', {sentFrom, sentFromPubkey, message: e.message})
+            const isNew = Database.addMessage({
+                id: messageId,
+                contactId: sentFromPubkey,
+                direction: MessageDirection.IN,
+                transport,
+                content: decryptedMessage,
+                createdAt: directMessageEvent.created_at,
+            })
+            contactsStore.refreshConversations()
+
+            // Seen before: either already processed, or a relay re-delivering it.
+            if (!isNew) {
+                return {taskFunction: HANDLE_RECEIVED_EVENT_TASK, message: 'Message already received.'} as WalletTaskResult
             }
         }
 
-        if (sentFromPubkey === MINIBIT_SERVER_NOSTR_PUBKEY) {
+        if (isFromMinibitsServer) {
             log.info('[handleReceivedEventTask]', 'Event sent from Minibits server, extracting zap sender profile...')
 
             const maybeZapSenderString = extractZapSenderData(decryptedMessage)
@@ -394,7 +478,28 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
             }
         }
 
-        const incoming = IncomingParser.findAndExtract(decryptedMessage)
+        // Anything that is not a payment is a plain text message.
+        let incoming: {type: IncomingDataType, encoded: any} | undefined = undefined
+        try {
+            incoming = IncomingParser.findAndExtract(decryptedMessage)
+        } catch (e: any) {}
+
+        if (!incoming || !PAYMENT_TYPES.includes(incoming.type)) {
+            if (contactFrom) {
+                sendMessageNotification(contactFrom, decryptedMessage)
+            }
+
+            return {
+                taskFunction: HANDLE_RECEIVED_EVENT_TASK,
+                message: 'Message received.',
+            } as WalletTaskResult
+        }
+
+        // Links the conversation row to the transaction the payload produced.
+        const linkTransaction = (transactionId?: number) => {
+            if (!transactionId || isFromMinibitsServer) return
+            Database.updateMessage(messageId, {transactionId})
+        }
 
         log.trace('[handleReceivedEventTask]', 'Incoming data', {incoming})
 
@@ -431,6 +536,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
 
                 const transaction = await transactionsStore.addTransaction(newTransaction)
                 transaction.update({inputToken: incoming.encoded})
+                linkTransaction(transaction.id)
 
                 await sendErrorReceiveNotification(
                     amountToReceive,
@@ -459,6 +565,8 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                 memo,
                 incoming.encoded as string,
             )
+
+            linkTransaction(transaction?.id)
 
             if (transaction && sentFrom) {
                 if (contactFrom) {
@@ -548,6 +656,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
             }
 
             const transaction = await transactionsStore.addTransaction(newTransaction)
+            linkTransaction(transaction.id)
 
             transaction.update({
                 paymentId: paymentHash,
@@ -593,7 +702,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
             }
 
             const {amount: rawAmount, unit, description, id, mints} = decoded
-            const amount = Number(rawAmount)
+            const amount = rawAmount.toNumber()
 
             const availableBalances: MintBalance[] = []
 
@@ -640,6 +749,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
             }
 
             const transaction = await transactionsStore.addTransaction(newTransaction)
+            linkTransaction(transaction.id)
             transaction.update({
                 paymentId: id,
                 paymentRequest: incoming.encoded,
@@ -667,6 +777,8 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
             const {transaction, receivedAmount, message} = await receiveByCashuPaymentRequestTask(
                 decoded,
             )
+
+            linkTransaction(transaction?.id)
 
             if (transaction && sentFrom) {
                 if (contactFrom) {

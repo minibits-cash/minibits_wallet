@@ -40,7 +40,7 @@ const TAB_BAR_BOTTOM_GAP = spacing.tiny
 
 /**
  * Breathing room reserved above the bar. It is part of the height the bar reports,
- * so bottom-aligned screen content — WalletScreen's Scan button, PrivateContacts'
+ * so bottom-aligned screen content — WalletScreen's Scan button, ContactsScreen'
  * Add button — clears the bar instead of resting against it.
  */
 const TAB_BAR_TOP_GAP = spacing.small

@@ -28,7 +28,8 @@ export * from './ContactsScreen'
 export * from './ProfileScreen'
 export * from './PictureScreen'
 export * from './WalletNameScreen'
-export * from './ContactDetailScreen'
+export * from './ConversationScreen'
+export * from './AddContactScreen'
 export * from './OwnKeysScreen'
 
 // SettingsNavigator

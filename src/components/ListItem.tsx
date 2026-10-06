@@ -183,9 +183,16 @@ export const ListItem = function (props: ListItemProps) {
 
   const $touchableStyles = [$touchableStyle, { minHeight: height }, style]
 
+  // A row with nothing to do on touch must not flash as if it did: without a press
+  // handler the touchable is disabled (no opacity feedback). Controls inside it, like
+  // a RightComponent icon with its own onPress, keep working. An explicit `disabled`
+  // still wins either way.
+  const {onPress, onLongPress, onPressIn, onPressOut} = TouchableOpacityProps
+  const isDisabled = TouchableOpacityProps.disabled ?? !(onPress || onLongPress || onPressIn || onPressOut)
+
   return (
     <View style={$containerStyles}>
-      <TouchableOpacity {...TouchableOpacityProps} style={$touchableStyles}>
+      <TouchableOpacity {...TouchableOpacityProps} disabled={isDisabled} style={$touchableStyles}>
         <ListItemAction
           side="left"
           size={height}

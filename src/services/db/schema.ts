@@ -334,6 +334,35 @@ export const MINT_KEYSETS_COLUMNS = `
   keys TEXT
 `
 
+/**
+ * Conversation messages with contacts.
+ *
+ * `id` is the NIP-17 rumor id for nostr messages. The rumor is shared by the copy
+ * wrapped to the recipient and the copy wrapped to ourselves, so the self-copy
+ * coming back from relays collides with the row written at send time and is
+ * ignored — that is the dedup, no separate seen-events list involved.
+ *
+ * `transport` LOCAL rows never left the device: they record a payment made to or
+ * requested from a lightning-address contact, so that thread has history too.
+ *
+ * `contactId` is Contact.id (pubkey hex or lowercased lud16). Contacts live in the
+ * MST snapshot, so this is a soft reference; rows of a deleted contact are
+ * removed together with it.
+ */
+export const MESSAGES_COLUMNS = `
+  id TEXT PRIMARY KEY NOT NULL,
+  contactId TEXT NOT NULL,
+  direction TEXT NOT NULL,
+  transport TEXT NOT NULL,
+  content TEXT NOT NULL,
+  transactionId INTEGER,
+  status TEXT,
+  isRead INTEGER NOT NULL DEFAULT 0,
+  createdAt INTEGER NOT NULL
+`
+
+export const MESSAGES_INDEX = `CREATE INDEX IF NOT EXISTS messages_contact_created ON messages (contactId, createdAt)`
+
 /** Build a CREATE TABLE statement from a column block. */
 export const createTable = (
   name: string,
@@ -377,4 +406,7 @@ export const createSchemaQueries: SQLBatchTuple[] = [
   // after the migration.
   [createTable('mints', MINTS_COLUMNS)],
   [createTable('mint_keysets', MINT_KEYSETS_COLUMNS)],
+  // Conversations with contacts (see messagesRepo).
+  [createTable('messages', MESSAGES_COLUMNS)],
+  [MESSAGES_INDEX],
 ]

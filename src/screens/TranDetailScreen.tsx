@@ -59,7 +59,7 @@ import { Mint, MintStatus } from '../models/Mint'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { MintUnit, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { pollerExists } from '../utils/poller'
-import { CommonActions, StaticScreenProps, useFocusEffect, useNavigation } from '@react-navigation/native'
+import { CommonActions, StackActions, StaticScreenProps, useFocusEffect, useNavigation } from '@react-navigation/native'
 import { QRCodeBlock } from './Wallet/QRCode'
 import { Database } from '../services'
 import { OnchainOperationService } from '../services/wallet/operations/onchainOperations'
@@ -80,7 +80,7 @@ type ProofsByStatus = {
 
 type Props = StaticScreenProps<{
   id: number,
-  prevScreen: 'Wallet' | 'TranHistory'
+  prevScreen: 'Wallet' | 'TranHistory' | 'Conversation'
 }>
 
 export const TranDetailScreen = observer(function TranDetailScreen({ route }: Props) {
@@ -203,6 +203,12 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
 
         if(prevScreen === 'TranHistory') {
             navigation.goBack()
+        } else if(prevScreen === 'Conversation') {
+            // leave the transactions tab on its list, then return to the contacts
+            // tab, which kept its stack and so lands back in the conversation
+            navigation.dispatch(StackActions.popToTop())
+            //@ts-ignore
+            navigation.navigate('ContactsNavigator')
         } else {
             navigation.dispatch(                
                 CommonActions.reset({

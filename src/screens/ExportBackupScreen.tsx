@@ -131,7 +131,6 @@ export const ExportBackupScreen = function ExportBackup({ route }: Props) {
           let exportedContactsStore: ContactsStoreSnapshot = {
               contacts: [], 
               publicPubkey: undefined, 
-              selectedContact: undefined, 
               lastPendingReceivedCheck: undefined
           }            
 

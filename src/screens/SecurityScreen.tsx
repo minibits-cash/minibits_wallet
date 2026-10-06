@@ -166,8 +166,8 @@ export const SecurityScreen = observer(function SecurityScreen({ route }: Props)
                 style={[$card, {marginTop: spacing.small}]}
                 ContentComponent={
                     <ListItem
-                        text="Receive only from contacts"
-                        subText="Only allow receiving funds over Nostr from your contacts to block spam or malicious attempts."
+                        tx="securityScreen_receiveOnlyFromContacts"
+                        subTx="securityScreen_receiveOnlyFromContactsDesc"
                         leftIcon={'faUserShield'}
                         leftIconColor={
                             userSettingsStore.isReceiveOnlyFromContactsOn

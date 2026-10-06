@@ -4,14 +4,14 @@ import type {
     UnsignedEvent as NostrUnsignedEvent 
 } from 'nostr-tools/core' 
 import type { Filter as NostrFilter } from 'nostr-tools/filter'
-import { finalizeEvent, validateEvent } from 'nostr-tools/pure'
+import { finalizeEvent, validateEvent, getEventHash } from 'nostr-tools/pure'
 import { normalizeURL } from 'nostr-tools/utils'
 import { encrypt, decrypt } from 'nostr-tools/nip04'
-import { wrapEvent, unwrapEvent } from 'nostr-tools/nip59'
+import { wrapEvent, unwrapEvent, createRumor, createSeal, createWrap } from 'nostr-tools/nip59'
 import { neventEncode as nostrNeventEncode, naddrEncode as nostrNaddrEncode, npubEncode, decode as nip19Decode, nprofileEncode } from 'nostr-tools/nip19'
 import {SimplePool} from 'nostr-tools/pool'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
-import { PrivateDirectMessage, Metadata } from 'nostr-tools/kinds'
+import { PrivateDirectMessage, Metadata, DirectMessageRelaysList } from 'nostr-tools/kinds'
 /*import {
     MINIBITS_RELAY_URL,    
 } from '@env'*/
@@ -296,6 +296,81 @@ const decryptDirectMessageNip17 = async function (
 }
 
 
+/**
+ * A NIP-17 message as one rumor sealed twice: to the recipient and to ourselves.
+ * Both copies share the rumor id, which is how the self-copy is recognized when a
+ * relay delivers it back (and how other clients of the same keys see what we sent).
+ */
+const createDirectMessageNip17 = function (
+    recipientPublicKey: string,
+    message: string,
+    keys: NostrKeyPair,
+    senderNip05?: string,
+) {
+    const privateKey = hexToBytes(keys.privateKey)
+    const tags = [['p', recipientPublicKey]]
+    if (senderNip05) tags.push(['from', senderNip05])
+
+    const rumor = createRumor({kind: PrivateDirectMessage, tags, content: message}, privateKey)
+    const toRecipient = createWrap(createSeal(rumor, privateKey, recipientPublicKey), recipientPublicKey)
+    const toSelf = createWrap(createSeal(rumor, privateKey, keys.publicKey), keys.publicKey)
+
+    return {rumor, toRecipient, toSelf}
+}
+
+/** The rumor id recomputed from its content: a sender can put anything in `id`. */
+const getRumorId = function (rumor: NostrUnsignedEvent) {
+    return getEventHash(rumor)
+}
+
+const _dmRelaysCache = new Map<string, string[]>()
+
+/** The relays a user wants to receive DMs on (NIP-17 kind 10050), empty if none published. */
+const getDirectMessageRelays = async function (pubkey: string, lookupRelays: string[]): Promise<string[]> {
+    const cached = _dmRelaysCache.get(pubkey)
+    if (cached) return cached
+
+    const events = await getEvents(lookupRelays, {kinds: [DirectMessageRelaysList], authors: [pubkey]})
+    const newest = events.sort((a, b) => b.created_at - a.created_at)[0]
+    const relays: string[] = []
+
+    for (const tag of newest?.tags ?? []) {
+        if (tag[0] !== 'relay' || !tag[1]) continue
+        try {
+            relays.push(getNormalizedRelayUrl(tag[1]))
+        } catch (e: any) {} // skip a malformed url, keep the rest
+    }
+
+    _dmRelaysCache.set(pubkey, relays)
+    return relays
+}
+
+/**
+ * Publish our DM relay list, but only where there is none: a wallet running on the
+ * user's own nostr keys must not overwrite the list their other clients rely on.
+ */
+// ponytail: published once, a later relay change is not reflected; republish on RelaysScreen edits if needed
+const ensureDirectMessageRelays = async function (relays: string[], keys: NostrKeyPair) {
+    const existing = await getDirectMessageRelays(keys.publicKey, relays)
+    if (existing.length > 0) return
+
+    await publish(
+        {
+            kind: DirectMessageRelaysList,
+            pubkey: keys.publicKey,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: relays.map(r => ['relay', r]),
+            content: '',
+        },
+        relays,
+        keys,
+        false,
+    )
+    _dmRelaysCache.set(keys.publicKey, relays)
+    log.info('[ensureDirectMessageRelays] Published DM relay list', {relays})
+}
+
+
 const publish = async function (
     event: NostrUnsignedEvent,
     relays: string[],
@@ -493,8 +568,10 @@ const getProfileFromRelays = async function (pubkey: string, relays: string[]): 
         return undefined
     }
 
-    const profile: NostrProfile = JSON.parse(events[events.length - 1].content)
-    profile.pubkey = events[events.length - 1].pubkey // pubkey might not be in ev.content
+    // relays may hold different versions of a replaceable event; the newest wins
+    const newest = events.reduce((a, b) => (b.created_at > a.created_at ? b : a))
+    const profile: NostrProfile = JSON.parse(newest.content)
+    profile.pubkey = newest.pubkey // pubkey might not be in ev.content
 
     log.trace('[getProfileFromRelays]', {profile})
 
@@ -650,6 +727,10 @@ export const NostrClient = { // TODO split helper functions to separate module
     decryptNip04,
     encryptAndSendDirectMessageNip17,
     decryptDirectMessageNip17,
+    createDirectMessageNip17,
+    getRumorId,
+    getDirectMessageRelays,
+    ensureDirectMessageRelays,
     getDomainFromNip05,
     getNameFromNip05,
     publish,   

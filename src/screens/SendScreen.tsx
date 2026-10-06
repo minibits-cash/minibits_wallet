@@ -7,6 +7,7 @@ import React, {
   useRef,
 } from 'react'
 import {StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
+import {useHardwareBack} from '../utils/useHardwareBack'
 import {
   TextInput,
   TextStyle,
@@ -42,7 +43,8 @@ import EventEmitter from '../utils/eventEmitter'
 import {ResultModalInfo} from './Wallet/ResultModalInfo'
 import useIsInternetReachable from '../utils/useIsInternetReachable'
 import { Proof } from '../models/Proof'
-import { Contact, ContactType } from '../models/Contact'
+import { Contact, isNostrContact } from '../models/Contact'
+import { MessagingService } from '../services/messagingService'
 import { getImageSource, infoMessage } from '../utils/utils'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
 import { MintUnit, MintUnits, formatCurrency, getCurrency } from "../services/wallet/currency"
@@ -78,6 +80,8 @@ type Props = StaticScreenProps<{
     contact?: Contact,
     mintUrl?: string,
     scannedPubkey?: string 
+    /** Opened from a contact's conversation: leaving returns there. */
+    prevScreen?: 'Conversation'
 }>
 
 // ─── State machine ──────────────────────────────────────────────────────────
@@ -507,11 +511,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     let relays: string[] = []
                     log.trace('[prepareSendToContact] selected contact', contact, paymentOption)
 
-                    if(contact?.type === ContactType.PUBLIC) {
-                        relays = relaysStore.allPublicUrls
-                    } else {
-                        relays = relaysStore.allUrls
-                    }
+                    relays = relaysStore.allUrls
 
                     if (relays.length === 0) {
                         throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
@@ -982,11 +982,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             log.trace('[onLockPubkeySelect] Provided pubkey belongs to a contact', { contactName: contact.name })
             let relays: string[] = []
 
-            if (contact?.type === ContactType.PUBLIC) {
-                relays = relaysStore.allPublicUrls
-            } else {
-                relays = relaysStore.allUrls
-            }
+            relays = relaysStore.allUrls
 
             if (relays.length === 0) {
                 throw new AppError(Err.VALIDATION_ERROR, 'Missing NOSTR relays')
@@ -1239,14 +1235,12 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 })
             }
 
-            const keys = await walletStore.getCachedWalletKeys()
-            const sentEvent = await NostrClient.encryptAndSendDirectMessageNip17(
-                contactToSendTo.pubkey,
-                messageContent!,
-                relaysToShareTo,
-                keys.NOSTR,
-                walletProfileStore.nip05
-            )
+            const {sentEvent} = await MessagingService.sendMessage({
+                recipientPubkey: contactToSendTo.pubkey!,
+                content: messageContent!,
+                relays: relaysToShareTo,
+                transactionId,
+            })
             
             if(sentEvent) {
                 dispatch({ type: 'TRANSPORT_SUCCESS', channel: 'nostrDM' })
@@ -1442,6 +1436,11 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         navigation.dispatch(                
          StackActions.popToTop()
         )
+        // the contacts tab kept its stack, so this lands back in the conversation
+        if (route.params?.prevScreen === 'Conversation') {
+            //@ts-ignore
+            navigation.navigate('ContactsNavigator')
+        }
      }
 
     const resetState = function () {
@@ -1453,6 +1452,8 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         setLockedPubkey(undefined)
         setLockTime(1)
     }
+
+    useHardwareBack(route.params?.prevScreen === 'Conversation' ? gotoWallet : undefined)
 
     /* Avoid modals stacked if we have an error */
     const handleError = function(e: AppError): void {
@@ -1493,6 +1494,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         <MintHeader 
             mint={mintBalanceToSendFrom ? mintsStore.findByUrl(mintBalanceToSendFrom?.mintUrl) : undefined}
             unit={unitRef.current}            
+            onBackPress={route.params?.prevScreen === 'Conversation' ? gotoWallet : undefined}
         />
         <AmountEntryLayout
           entry={amountEntry}
@@ -1702,7 +1704,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         onPress={gotoScan}
                     />
                 </View>
-                {contactsStore.contacts.length > 0 && (
+                {contactsStore.sorted.some(isNostrContact) && (
                     <View
                         style={{
                             flexDirection: 'row',
@@ -1713,12 +1715,12 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                         }}
                         >
                         <FlatList
-                            data={contactsStore.contacts}
+                            data={contactsStore.sorted.filter(isNostrContact)}
                             renderItem={({ item }) => {
                                 return (
                                     <ContactItem 
                                         contact={item}
-                                        onPress={() => setLockedPubkey(item.npub)}
+                                        onPress={() => setLockedPubkey(item.npub!)}
                                         containerStyle={{
                                             paddingHorizontal: spacing.small,
                                             borderRadius: spacing.tiny,
@@ -1728,7 +1730,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                                 )
                                 }}
                             horizontal={true}
-                            keyExtractor={(item) => item.npub}
+                            keyExtractor={(item) => item.id}
                             style={{marginBottom: spacing.medium}}
                             contentContainerStyle={{
                                 justifyContent: 'center', // Center items horizontally

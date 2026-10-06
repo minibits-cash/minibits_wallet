@@ -82,17 +82,19 @@ export const PictureScreen = function PictureScreen({route}: Props) {
                 ))}
             </View>
             <View style={$buttonContainer}>
+
+                <Button
+                    preset='default'
+                    tx='commonSave'
+                    onPress={onSave}
+                    LeftAccessory={() => <Icon icon='faCheck' />}
+                    style={{marginRight: spacing.medium, paddingRight: spacing.medium}}
+                />
                 <Button
                     preset='secondary'
                     tx='pictureRandom'
                     LeftAccessory={() => <Icon icon='faDice' />}
                     onPress={() => setSelection(randomAvatarSelection())}
-                />
-                <Button
-                    preset='default'
-                    tx='commonSave'
-                    onPress={onSave}
-                    style={{marginLeft: spacing.small}}
                 />
             </View>
         </ScrollView>

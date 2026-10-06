@@ -93,6 +93,9 @@ export async function setupRootStore(rootStore: RootStore, opts: SetupRootStoreO
         // hydrateMintsFromDatabase for why that must not be gated on a version.
         mintsStore.hydrateMintsFromDatabase()
 
+        // Conversation order and unread badges, derived from the messages table.
+        rootStore.contactsStore.refreshConversations()
+
         // Did the keychain outlive the wallet? Answered HERE because both halves are
         // only true here: the database has just been opened (so "was it built this
         // launch" is meaningful), and no screen has rendered yet (so onboarding cannot
