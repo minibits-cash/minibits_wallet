@@ -579,6 +579,27 @@ export const getTransactionsByQuoteOrPaymentId = function (
   }
 }
 
+/**
+ * PENDING sends and topups with their audit trail — the candidates for
+ * ProofsStore.repairCompletedStatus. A handful at most; the caller inspects data.
+ */
+export const getPendingSendAndTopupTransactions = function (): Array<{id: number; type: TransactionType; data: string}> {
+  try {
+    const {rows} = getInstance().execute(
+      `SELECT id, type, data FROM transactions WHERE status = ? AND type IN (?, ?)`,
+      [TransactionStatus.PENDING, TransactionType.SEND, TransactionType.TOPUP],
+    )
+    const result: Array<{id: number; type: TransactionType; data: string}> = []
+    for (let i = 0; i < (rows?.length ?? 0); i++) {
+      const row = rows!.item(i)
+      result.push({id: row.id, type: row.type, data: row.data})
+    }
+    return result
+  } catch (e: any) {
+    throw dbError('Could not read pending sends and topups', e)
+  }
+}
+
 export const getTransactionById = function (id: number) {
   try {
     const query = `

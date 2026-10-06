@@ -1271,9 +1271,10 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     updated[2].sentToRelays = relaysToShareTo
                     updated[2].sentEvent = sentEvent
                     
-                    // status does not change, just add event and relay info to tx.data 
-                    transaction.update({                    
-                        status: TransactionStatus.PENDING,
+                    // Only add event and relay info to tx.data. Never write the status:
+                    // the receiver may have redeemed the token while the relays were
+                    // confirming, and the tx is already COMPLETED by then.
+                    transaction.update({
                         data: JSON.stringify(updated)
                     })
                 }
@@ -1363,8 +1364,9 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
             if (updated.length > 2) {
                 updated[2].postEndpointUrl = postEndpointUrl
 
+                // Data only: the endpoint has typically redeemed the token before
+                // responding, so the tx may already be COMPLETED.
                 transaction.update({
-                    status: TransactionStatus.PENDING,
                     data: JSON.stringify(updated)
                 })
             }

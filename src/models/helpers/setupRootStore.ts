@@ -154,6 +154,18 @@ export async function setupRootStore(rootStore: RootStore, opts: SetupRootStoreO
                 log.warn('[setupRootStore] Reverted abandoned draft transactions', {revertedCount})
                 logMilestone('[setupRootStore] Recovery succeeded: abandoned drafts reverted', {revertedCount})
             }
+
+            // TEMPORARY: cleanup for the screen status race fixed 2026-10; remove with
+            // ProofsStore.repairCompletedStatus once this stops reporting repairs.
+            // Counts only: shows in Sentry how many wallets carried this, and on which rail.
+            const { repairedCount, sends, topups } = proofsStore.repairCompletedStatus()
+            if (repairedCount > 0) {
+                logMilestone('[setupRootStore] Recovery succeeded: stuck PENDING status repaired', {
+                    repairedCount,
+                    sends,
+                    topups,
+                })
+            }
         }
         const orphansRecovered = performance.now()
 

@@ -206,3 +206,38 @@ describe('getTransactionsByQuoteOrPaymentId', () => {
     expect(ids('q9', 'hash9')).toEqual([])
   })
 })
+
+describe('repairCompletedStatus', () => {
+  const insert = (id: number, type: string, trail: string[]) =>
+    Database.getInstance().execute(
+      `INSERT INTO transactions (id, type, amount, fee, unit, mint, status, data, createdAt)
+       VALUES (?, ?, 1, 0, 'sat', ?, 'PENDING', ?, ?)`,
+      [id, type, MINT_URL, JSON.stringify(trail.map(status => ({status}))), new Date().toISOString()],
+    )
+  const row = (id: number) =>
+    Database.getInstance().execute('SELECT status, data FROM transactions WHERE id = ?', [id]).rows?.item(0)
+
+  test('restores COMPLETED where finalize ran and only the status column is stale', () => {
+    const {proofsStore} = crashedMidOperations()
+    Database.getInstance().execute('DELETE FROM transactions')
+
+    insert(60, 'SEND', ['DRAFT', 'PREPARED', 'PENDING', 'COMPLETED']) // the screen race
+    insert(61, 'SEND', ['DRAFT', 'PREPARED', 'PENDING', 'COMPLETED']) // ...but a proof still PENDING
+    insert(62, 'SEND', ['DRAFT', 'PREPARED', 'PENDING']) // genuinely waiting for the receiver
+    insert(63, 'TOPUP', ['DRAFT', 'PREPARED', 'PENDING', 'COMPLETED'])
+    insert(64, 'TRANSFER', ['DRAFT', 'PREPARED', 'PENDING', 'COMPLETED']) // not a type the race hits
+
+    const pending = proofsStore.getBySecret('free')!
+    pending.setProp('state', 'PENDING')
+    pending.setProp('tId', 61)
+
+    expect(proofsStore.repairCompletedStatus()).toEqual({repairedCount: 2, sends: 1, topups: 1})
+
+    expect(row(60).status).toBe('COMPLETED')
+    expect(JSON.parse(row(60).data).at(-1)).toMatchObject({status: 'COMPLETED', repaired: true})
+    expect(row(63).status).toBe('COMPLETED')
+    expect(row(61).status).toBe('PENDING')
+    expect(row(62).status).toBe('PENDING')
+    expect(row(64).status).toBe('PENDING')
+  })
+})

@@ -840,9 +840,9 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
           if (updated.length > 1) {
             updated[1].sentToRelays = relaysToShareTo
 
-            // status does not change, just add event and relay info to tx.data
+            // Only add relay info to tx.data. Never write the status: the invoice
+            // may already be paid by the time the relays confirm.
             transaction.update({
-              status: TransactionStatus.PENDING,
               data: JSON.stringify(updated),
             })
           }

@@ -8,7 +8,7 @@ import {
   import { Amount } from '@cashu/cashu-ts'
   import { withSetPropAction } from './helpers/withSetPropAction'
   import { ProofModel, Proof, ProofRecord, ProofState } from './Proof'
-  import { TransactionData, TransactionStatus } from './Transaction'
+  import { TransactionData, TransactionStatus, TransactionType } from './Transaction'
   import { log } from '../services/logService'
   import { getRootStore } from './helpers/getRootStore'
   import AppError, { Err } from '../utils/AppError'
@@ -732,6 +732,56 @@ import {
          * Startup only, after recoverOrphanReservations and before any operation can
          * start. Writes the database directly: transactions are loaded afterwards.
          */
+        /**
+         * Restore the status of sends/topups stuck PENDING although they finished.
+         *
+         * A screen added transport details (Nostr relays, POST endpoint) to tx.data
+         * after awaiting the network, and wrote the status back as PENDING — after
+         * the receiver had already redeemed the token (or the payer paid) and the tx
+         * had been finalized COMPLETED. Nothing revisits such a tx: its proofs are
+         * SPENT, so the PENDING sync never looks at it again. Fixed at the source;
+         * this repairs transactions already affected.
+         *
+         * Only when the audit trail's LAST entry is COMPLETED and no proof is still
+         * PENDING under the tx — i.e. finalize really ran and only the status column
+         * is stale. Startup only, before transactions load.
+         *
+         * TEMPORARY: a one-off cleanup of transactions affected before the fix (2026-10).
+         * Remove once the logMilestone in setupRootStore stops reporting repairs.
+         */
+        repairCompletedStatus(): { repairedCount: number; sends: number; topups: number } {
+            let repairedCount = 0
+            let sends = 0
+            let topups = 0
+            for (const candidate of Database.getPendingSendAndTopupTransactions()) {
+                try {
+                    let data: TransactionData[] = []
+                    try {
+                        data = JSON.parse(candidate.data)
+                    } catch {}
+                    if (data.at(-1)?.status !== TransactionStatus.COMPLETED) continue
+                    if (self.getByTransactionId(candidate.id).some(p => p.state === 'PENDING')) continue
+
+                    data.push({
+                        status: TransactionStatus.COMPLETED,
+                        repaired: true,
+                        message: 'Status restored from the audit trail.',
+                        createdAt: new Date(),
+                    })
+                    Database.updateTransaction(candidate.id, {
+                        status: TransactionStatus.COMPLETED,
+                        data: JSON.stringify(data),
+                    })
+                    repairedCount++
+                    if (candidate.type === TransactionType.TOPUP) topups++
+                    else sends++
+                } catch (e: any) {
+                    log.error('[repairCompletedStatus] Could not repair', {transactionId: candidate.id, error: e.message})
+                }
+            }
+            return { repairedCount, sends, topups }
+        },
+
         revertAbandonedDrafts(): { revertedCount: number } {
             let revertedCount = 0
             for (const draft of Database.getAbandonedDraftTransactions()) {
