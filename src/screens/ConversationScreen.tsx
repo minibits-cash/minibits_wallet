@@ -1,8 +1,8 @@
 import {observer} from 'mobx-react-lite'
 import React, {useCallback, useEffect, useState} from 'react'
-import {FlatList, Platform, Pressable, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {FlatList, Keyboard, Platform, Pressable, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import {StackActions, StaticScreenProps, useFocusEffect, useIsFocused, useNavigation} from '@react-navigation/native'
-import Animated, {useAnimatedKeyboard, useAnimatedStyle} from 'react-native-reanimated'
+import Animated, {useAnimatedKeyboard, useAnimatedStyle, useSharedValue} from 'react-native-reanimated'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {toJS} from 'mobx'
 import {Button, ErrorModal, Icon, InfoModal, Screen, Text} from '../components'
@@ -57,10 +57,19 @@ export const ConversationScreen = observer(function ({route}: Props) {
     // keyboardDidHide is unreliable when the window never resizes, and a missed one
     // (or one shown while this screen sits in the background tab) used to leave the
     // composer stranded.
+    //
+    // Only while our own input is focused: a keyboard closed while no conversation
+    // was mounted leaves useAnimatedKeyboard reporting its last height to the next
+    // subscriber, which used to park the composer mid-screen on entry.
     const keyboard = useAnimatedKeyboard()
+    const isInputFocused = useSharedValue(false)
     const $composerLift = useAnimatedStyle(() => ({
-        marginBottom: Platform.OS === 'android' ? keyboard.height.value : 0,
+        marginBottom: Platform.OS === 'android' && isInputFocused.value ? keyboard.height.value : 0,
     }))
+
+    // Leaving (back, Android back, another tab) must not leave the keyboard over the
+    // next screen. Done on blur, while this screen is still mounted.
+    useFocusEffect(useCallback(() => () => Keyboard.dismiss(), []))
 
     useEffect(() => {
         try {
@@ -183,26 +192,28 @@ export const ConversationScreen = observer(function ({route}: Props) {
                     </View>
                 </Pressable>
             </View>
-            <FlatList
-                data={messages}
-                inverted
-                keyExtractor={m => m.id}
-                renderItem={({item}) => (
-                    <MessageBubble message={item} onOpenTransaction={gotoTransaction} onRetry={onRetry} />
-                )}
-                contentContainerStyle={$list}
-                keyboardShouldPersistTaps='handled'
-                ListEmptyComponent={
-                    // inverted, so flip the empty state back upright
-                    <View style={{transform: [{scaleY: -1}]}}>
-                        <Text
-                            size='xs'
-                            style={[$empty, {color: dimColor}]}
-                            tx={isNostr ? 'conversation_empty' : 'conversation_emptyLightning'}
-                        />
-                    </View>
-                }
-            />
+            {messages.length > 0 ? (
+                <FlatList
+                    data={messages}
+                    inverted
+                    keyExtractor={m => m.id}
+                    renderItem={({item}) => (
+                        <MessageBubble message={item} onOpenTransaction={gotoTransaction} onRetry={onRetry} />
+                    )}
+                    contentContainerStyle={$list}
+                    keyboardShouldPersistTaps='handled'
+                />
+            ) : (
+                // Outside the inverted list: Android inverts with scale(-1) on both axes,
+                // iOS only vertically, so no single counter-flip reads right on both.
+                <View style={$emptyContainer}>
+                    <Text
+                        size='xs'
+                        style={[$empty, {color: dimColor}]}
+                        tx={isNostr ? 'conversation_empty' : 'conversation_emptyLightning'}
+                    />
+                </View>
+            )}
             {contact.isRequest ? (
                 <Animated.View style={[$composer, {paddingBottom: spacing.medium}, $composerLift]}>
                     <Text
@@ -249,6 +260,8 @@ export const ConversationScreen = observer(function ({route}: Props) {
                             <TextInput
                                 value={text}
                                 onChangeText={setText}
+                                onFocus={() => { isInputFocused.value = true }}
+                                onBlur={() => { isInputFocused.value = false }}
                                 placeholder={translate('conversation_inputPlaceholder')}
                                 placeholderTextColor={placeholderColor}
                                 multiline
@@ -311,6 +324,11 @@ const $headerText: ViewStyle = {
 const $list: ViewStyle = {
     flexGrow: 1,
     paddingVertical: spacing.small,
+}
+
+const $emptyContainer: ViewStyle = {
+    flex: 1,
+    justifyContent: 'center',
 }
 
 const $empty: TextStyle = {
