@@ -1,4 +1,4 @@
-import notifee, { AndroidImportance, AuthorizationStatus, DisplayedNotification } from '@notifee/react-native'
+import notifee, { AndroidForegroundServiceType, AndroidImportance, AuthorizationStatus, DisplayedNotification } from '@notifee/react-native'
 import { colors } from '../theme'
 import { log } from './logService'
 import {
@@ -375,6 +375,8 @@ const createTaskNotification = async function (body: string, data: {task: string
         android: {
             channelId: TASK_QUEUE_CHANNEL_ID,
             asForegroundService: true,
+            // ~3 min Android cap (ANR past that); these tasks finish well within it.
+            foregroundServiceTypes: [AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE],
             largeIcon: minibitsPngIcon,
             importance: AndroidImportance.HIGH,
             progress: {
@@ -439,6 +441,9 @@ const createNwcListenerNotification = async function () {
             android: {
                 channelId: NWC_CHANNEL_ID,
                 asForegroundService: true,
+                // Matches the type notifee's manifest declares. Android caps it at ~3 min
+                // (ANR past that); the listener closes itself within 30s.
+                foregroundServiceTypes: [AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE],
                 largeIcon: minibitsPngIcon,
                 importance: AndroidImportance.HIGH,
                 /*progress: {
