@@ -176,7 +176,7 @@ export function FloatingTabBar(props: BottomTabBarProps) {
     return {
       transform: [{ translateY: progress * travel }],
     }
-  }, [travel])
+  })
 
   const onLayout = (event: LayoutChangeEvent) => {
     setBarHeight(event.nativeEvent.layout.height)

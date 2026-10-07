@@ -1,0 +1,17 @@
+diff --git a/node_modules/react-native-svg/src/lib/resolveAssetUri.ts b/node_modules/react-native-svg/src/lib/resolveAssetUri.ts
+index a4f0193..afe86f0 100644
+--- a/node_modules/react-native-svg/src/lib/resolveAssetUri.ts
++++ b/node_modules/react-native-svg/src/lib/resolveAssetUri.ts
+@@ -2,9 +2,10 @@ import {
+   ImageResolvedAssetSource,
+   PixelRatio,
+   type ImageProps as RNImageProps,
++  AssetRegistry,
+ } from 'react-native';
+-// @ts-expect-error react-native/assets-registry doesn't export types.
+-import { getAssetByID } from '@react-native/assets-registry/registry';
++// RN 0.87 removed @react-native/assets-registry; react-native exports AssetRegistry.
++const { getAssetByID } = AssetRegistry;
+ 
+ export type PackagerAsset = {
+   __packager_asset: boolean;

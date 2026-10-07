@@ -11,6 +11,7 @@ import {
   ScrollView,
   Image,
   ImageStyle,
+  TextInputInstance,
 } from 'react-native'
 import {spacing, useThemeColor, colors, typography} from '../theme'
 import {
@@ -329,10 +330,10 @@ export const TopupScreen = observer(function TopupScreen({ route }: Props) {
       walletStore,
       userSettingsStore
     } = useStores()
-    const amountInputRef = useRef<TextInput>(null)
-    const memoInputRef = useRef<TextInput>(null)
+    const amountInputRef = useRef<TextInputInstance>(null)
+    const memoInputRef = useRef<TextInputInstance>(null)
     const unitRef = useRef<MintUnit>('sat')
-    // const tokenInputRef = useRef<TextInput>(null)
+    // const tokenInputRef = useRef<TextInputInstance>(null)
 
     const [state, dispatch] = useReducer(topupReducer, INITIAL_STATE)
     // User-input state kept separate to avoid rebuilding the full state object on every keystroke.
@@ -1476,7 +1477,7 @@ const NostrDMInfoBlock = observer(function (props: {
               width: 40,
               height: walletProfileStore.isOwnProfile ? 40 : 43,
               borderRadius: walletProfileStore.isOwnProfile ? 20 : 0,            
-          }] as import("react-native-fast-image").ImageStyle}
+          }]}
           source={{
             uri: getImageSource(props.contactToSendFrom.picture as string),
           }}
@@ -1532,7 +1533,7 @@ const NostrDMInfoBlock = observer(function (props: {
                 $profileIcon, {
                   width: 40,
                   height: 40,                
-              }] as import("react-native-fast-image").ImageStyle}
+              }]}
               source={{
                 uri: getImageSource(props.contactToSendTo.picture as string),
               }}

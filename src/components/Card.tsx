@@ -195,7 +195,7 @@ export const Card = function (props: CardProps) {
   const isFooterPresent = !!(FooterComponent || footer || footerTx)
 
   const OuterWrapper = isLabelPresent ? View : Fragment
-  const Wrapper: ComponentType<TouchableOpacityProps> = isPressable ? TouchableOpacity : View
+  const Wrapper = (isPressable ? TouchableOpacity : View) as ComponentType<TouchableOpacityProps>
   const HeaderContentWrapper = verticalAlignment === "force-footer-bottom" ? View : Fragment
 
   const $containerStyle = [$containerPresets[preset], { backgroundColor, boxShadow: boxShadow as string }, $containerStyleOverride]

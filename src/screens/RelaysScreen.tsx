@@ -2,7 +2,7 @@ import {observer} from 'mobx-react-lite'
 import { Observer } from 'mobx-react-lite'
 import Clipboard from '@react-native-clipboard/clipboard'
 import React, {FC, useEffect, useRef, useState} from 'react'
-import {FlatList, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {FlatList, TextInput, TextStyle, View, ViewStyle, TextInputInstance} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal} from '../components'
 import {useHeader} from '../utils/useHeader'
@@ -27,7 +27,7 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
         onRightPress: () => onConnect()
     })
 
-    const newRelayInputRef = useRef<TextInput>(null)
+    const newRelayInputRef = useRef<TextInputInstance>(null)
     const {relaysStore, nwcStore, walletProfileStore} = useStores()
     
     const [selectedRelay, setSelectedRelay] = useState<Relay | undefined>()

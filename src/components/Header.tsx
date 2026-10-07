@@ -170,7 +170,7 @@ interface HeaderActionProps {
    managed by the root SystemBars in AppNavigator. */
 function FocusAwareStatusBar() {
   const isFocused = useIsFocused()
-  return isFocused ? <StatusBar translucent barStyle="light-content" /> : null
+  return isFocused ? <StatusBar barStyle="light-content" /> : null
 }
 
 /**

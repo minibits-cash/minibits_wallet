@@ -16,7 +16,7 @@
 import {observer} from 'mobx-react-lite'
 import React, {useCallback, useEffect, useReducer, useRef, useState} from 'react'
 import {StackActions, StaticScreenProps, useNavigation} from '@react-navigation/native'
-import {TextInput, View, ViewStyle} from 'react-native'
+import {View, ViewStyle, TextInputInstance} from 'react-native'
 import numbro from 'numbro'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {MeltQuoteOnchainResponse} from '@cashu/cashu-ts'
@@ -234,7 +234,7 @@ function onchainTransferReducer(
 
 export const OnchainTransferScreen = observer(function OnchainTransferScreen({route}: Props) {
     const navigation = useNavigation()
-    const amountInputRef = useRef<TextInput>(null)
+    const amountInputRef = useRef<TextInputInstance>(null)
     const unitRef = useRef<MintUnit>('sat')
 
     const {proofsStore, mintsStore, walletStore} = useStores()

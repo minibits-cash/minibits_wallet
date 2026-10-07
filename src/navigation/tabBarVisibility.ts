@@ -122,6 +122,5 @@ export function useTabBarScrollHandler(scrollY?: SharedValue<number>) {
         }
       },
     },
-    [scrollY],
   )
 }

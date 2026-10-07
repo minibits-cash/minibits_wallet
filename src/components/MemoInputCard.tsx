@@ -1,5 +1,5 @@
 import React, {forwardRef} from 'react'
-import {View, ViewStyle, TextInput, TextStyle} from 'react-native'
+import {View, ViewStyle, TextInput, TextStyle, TextInputInstance} from 'react-native'
 import {spacing, useThemeColor} from '../theme'
 import {Button} from './Button'
 import {Card} from './Card'
@@ -15,7 +15,7 @@ interface MemoInputProps {
   maxLength?: number
 }
 
-export const MemoInputCard = forwardRef<TextInput, MemoInputProps>((props, memoInputRef) => {
+export const MemoInputCard = forwardRef<TextInputInstance, MemoInputProps>((props, memoInputRef) => {
   const {
     memo,
     setMemo,

@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {useRef, useState} from 'react'
-import {Pressable, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {Pressable, TextInput, TextStyle, View, ViewStyle, TextInputInstance} from 'react-native'
 import Animated, {useAnimatedStyle} from 'react-native-reanimated'
 import {colors, spacing, typography, useThemeColor} from '../theme'
 import {Button, Card, ErrorModal, Header, Icon, ListItem, Loading, Screen, Text} from '../components'
@@ -54,7 +54,7 @@ const matchesQuery = function (contact: Contact, query: string) {
 export const ContactsScreen = observer(function ({ route }: Props) {
     const navigation = useNavigation()
     const {walletProfileStore, contactsStore, userSettingsStore} = useStores()
-    const searchInputRef = useRef<TextInput>(null)
+    const searchInputRef = useRef<TextInputInstance>(null)
 
     const paymentOption = route.params?.paymentOption
     const isPicker = !!paymentOption
@@ -82,7 +82,7 @@ export const ContactsScreen = observer(function ({ route }: Props) {
     const $addButtonAnimated = useAnimatedStyle(() => ({
         opacity: 1 - tabBarHiddenProgress.value,
         transform: [{translateY: tabBarHiddenProgress.value * addButtonTravel}],
-    }), [addButtonTravel])
+    }))
 
     const gotoProfile = function () {
         //@ts-ignore

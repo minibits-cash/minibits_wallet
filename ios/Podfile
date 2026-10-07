@@ -23,14 +23,6 @@ target 'minibits_wallet' do
   # Minibts - firebase start
   use_frameworks! :linkage => :static
   $RNFirebaseAsStaticFramework = true
-  # RCT-Folly and its transitive deps are no longer in the CocoaPods specs repo
-  # — point to the local podspecs shipped with react-native (needed by react-native-exit-app)
-  pod 'RCT-Folly',        :podspec => '../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec'
-  pod 'boost',            :podspec => '../node_modules/react-native/third-party-podspecs/boost.podspec'
-  pod 'DoubleConversion',  :podspec => '../node_modules/react-native/third-party-podspecs/DoubleConversion.podspec'
-  pod 'glog',             :podspec => '../node_modules/react-native/third-party-podspecs/glog.podspec'
-  pod 'fast_float',       :podspec => '../node_modules/react-native/third-party-podspecs/fast_float.podspec'
-  pod 'fmt',              :podspec => '../node_modules/react-native/third-party-podspecs/fmt.podspec'
   # Minibits - firebase end
   use_react_native!(
     :path => config[:reactNativePath],

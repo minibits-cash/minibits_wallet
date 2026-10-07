@@ -1,5 +1,5 @@
 import React, {forwardRef, useState} from 'react'
-import {View, ViewStyle, TextInput, TextStyle} from 'react-native'
+import {View, ViewStyle, TextInput, TextStyle, TextInputInstance} from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {spacing, typography, useThemeColor} from '../../theme'
 import {Button} from '../../components/Button'
@@ -16,7 +16,7 @@ interface MnemonicInputProps {
   onError: (e: AppError) => void    
 }
 
-export const MnemonicInput = forwardRef<TextInput, MnemonicInputProps>((props, mnemonicInputRef) => {
+export const MnemonicInput = forwardRef<TextInputInstance, MnemonicInputProps>((props, mnemonicInputRef) => {
     const {    
         mnemonic,
         isValidMnemonic,

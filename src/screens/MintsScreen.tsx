@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useRef, useState} from 'react'
-import {Alert, Platform, ScrollView, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {Alert, Platform, ScrollView, TextInput, TextStyle, View, ViewStyle, TextInputInstance} from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {
     MINIBITS_MINT_URL 
@@ -43,7 +43,7 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
     })
 
     const {mintsStore, proofsStore, walletStore, userSettingsStore} = useStores()    
-    const mintInputRef = useRef<TextInput>(null)
+    const mintInputRef = useRef<TextInputInstance>(null)
 
     const [mintUrl, setMintUrl] = useState('')
     const [defaultMintUrl, setDefaultMintUrl] = useState<string>(MINIBITS_MINT_URL)

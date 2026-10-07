@@ -181,7 +181,7 @@ export function Toggle(props: ToggleProps) {
   const disabled = editable === false || status === "disabled" || props.disabled
 
   const Wrapper = useMemo<ComponentType<TouchableOpacityProps>>(
-    () => (disabled ? View : TouchableOpacity),
+    () => (disabled ? View : TouchableOpacity) as ComponentType<TouchableOpacityProps>,
     [disabled],
   )
   const ToggleInput = useMemo(() => ToggleInputs[variant] || (() => null), [variant])
@@ -295,7 +295,7 @@ function Checkbox(props: ToggleInputProps) {
           $checkboxInner,
           { backgroundColor: onBackgroundColor },
           $innerStyleOverride,
-          useAnimatedStyle(() => ({ opacity: withTiming(on ? 1 : 0) }), [on]),
+          useAnimatedStyle(() => ({ opacity: withTiming(on ? 1 : 0) })),
         ]}
       >
         <Image
@@ -355,7 +355,7 @@ function Radio(props: ToggleInputProps) {
           $radioInner,
           { backgroundColor: onBackgroundColor },
           $innerStyleOverride,
-          useAnimatedStyle(() => ({ opacity: withTiming(on ? 1 : 0) }), [on]),
+          useAnimatedStyle(() => ({ opacity: withTiming(on ? 1 : 0) })),
         ]}
       >
         <View
@@ -433,7 +433,7 @@ function Switch(props: ToggleInputProps) {
     const marginStart = withTiming(on ? -(knobWidth || 0) - offsetRight : 0 + offsetLeft)
 
     return { start, marginStart }
-  }, [on, knobWidth])
+  })
 
   return (
     <View
@@ -448,7 +448,7 @@ function Switch(props: ToggleInputProps) {
           $switchInner,
           { backgroundColor: onBackgroundColor },
           $innerStyleOverride,
-          useAnimatedStyle(() => ({ opacity: withTiming(on ? 1 : 0) }), [on]),
+          useAnimatedStyle(() => ({ opacity: withTiming(on ? 1 : 0) })),
         ]}
       />
 

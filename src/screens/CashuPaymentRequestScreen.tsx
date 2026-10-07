@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useReducer } from "react"
 import { observer } from "mobx-react-lite"
 import { StackActions, StaticScreenProps, useNavigation } from "@react-navigation/native"
-import { View, TextInput, LayoutAnimation, Keyboard, ViewStyle, TextStyle } from "react-native"
+import { View, LayoutAnimation, Keyboard, ViewStyle, TextStyle, TextInputInstance } from "react-native"
 import { spacing, useThemeColor, typography, colors } from "../theme"
 import { useStores } from "../models"
 import { MintBalanceSelector } from "./Mints/MintBalanceSelector"
@@ -157,8 +157,8 @@ export const CashuPaymentRequestScreen = observer(function CashuPaymentRequestSc
     mintsStore,
   } = useStores()
 
-  const amountInputRef = useRef<TextInput>(null)
-  const memoInputRef = useRef<TextInput>(null)
+  const amountInputRef = useRef<TextInputInstance>(null)
+  const memoInputRef = useRef<TextInputInstance>(null)
   const unitRef = useRef<MintUnit>('sat')
 
   const [amountToRequest, setAmountToRequest] = useState<string>("0")

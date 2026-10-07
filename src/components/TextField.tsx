@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
   ViewStyle,
+  TextInputInstance,
 } from "react-native"
 import { isRTL, translate } from "../i18n"
 import { colors, spacing, typography } from "../theme"
@@ -102,7 +103,7 @@ export interface TextFieldProps extends Omit<TextInputProps, "ref"> {
  *
  * - [Documentation and Examples](https://github.com/infinitered/ignite/blob/master/docs/Components-TextField.md)
  */
-export const TextField = forwardRef(function TextField(props: TextFieldProps, ref: Ref<TextInput>) {
+export const TextField = forwardRef(function TextField(props: TextFieldProps, ref: Ref<TextInputInstance>) {
   const {
     labelTx,
     label,
@@ -123,7 +124,7 @@ export const TextField = forwardRef(function TextField(props: TextFieldProps, re
     inputWrapperStyle: $inputWrapperStyleOverride,
     ...TextInputProps
   } = props
-  const input = useRef<TextInput>()
+  const input = useRef<TextInputInstance>()
 
   const disabled = TextInputProps.editable === false || status === "disabled"
 

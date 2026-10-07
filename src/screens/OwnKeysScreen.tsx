@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useRef, useState} from 'react'
-import {Image, LayoutAnimation, Platform, ScrollView, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
+import {Image, LayoutAnimation, Platform, ScrollView, TextInput, TextStyle, UIManager, View, ViewStyle, TextInputInstance} from 'react-native'
 import {getPublicKey} from 'nostr-tools/pure'
 import { hexToBytes } from '@noble/hashes/utils.js'
 import {colors, spacing, typography, useThemeColor} from '../theme'
@@ -33,8 +33,8 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
         titleStyle: {fontFamily: typography.primary?.medium, fontSize: 16}      
     })
 
-    const ownNip05InputRef = useRef<TextInput>(null)
-    const ownNsecInputRef = useRef<TextInput>(null)        
+    const ownNip05InputRef = useRef<TextInputInstance>(null)
+    const ownNsecInputRef = useRef<TextInputInstance>(null)        
 
     const [ownNip05, setOwnNip05] = useState<string>('')
     const [ownNsec, setOwnNsec] = useState<string>('')

@@ -1,5 +1,5 @@
 import React, { forwardRef, useState, useEffect, useRef, useCallback } from "react"
-import { TextInput, TextStyle, View, ViewStyle } from "react-native"
+import { TextInput, TextStyle, View, ViewStyle, TextInputInstance } from "react-native"
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -100,7 +100,7 @@ const BOTTOM_GROWN_SCALE = Math.sqrt(TOP_FONT_SIZE / BOTTOM_FONT_SIZE)
 const SWAP_HINT_HEIGHT =
   SWAP_HINT_GAP * 2 + SWAP_HINT_ICON_SIZE + SWAP_HINT_BASELINE_SLACK
 
-export const AmountInput = forwardRef<TextInput, AmountInputProps>(
+export const AmountInput = forwardRef<TextInputInstance, AmountInputProps>(
   (
     {
       value,
@@ -121,14 +121,14 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(
 
     // The forwarded ref belongs to the parent (it autofocuses the amount), but the swap
     // affordance has to move focus between the two fields, so both are also held here.
-    const topInputRef = useRef<TextInput | null>(null)
-    const bottomInputRef = useRef<TextInput | null>(null)
+    const topInputRef = useRef<TextInputInstance | null>(null)
+    const bottomInputRef = useRef<TextInputInstance | null>(null)
 
     const setTopInputRef = useCallback(
-      (node: TextInput | null) => {
+      (node: TextInputInstance | null) => {
         topInputRef.current = node
         if (typeof ref === "function") ref(node)
-        else if (ref) (ref as React.MutableRefObject<TextInput | null>).current = node
+        else if (ref) (ref as React.MutableRefObject<TextInputInstance | null>).current = node
       },
       [ref]
     )

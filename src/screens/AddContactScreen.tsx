@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {useEffect, useRef, useState} from 'react'
-import {TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {TextInput, TextStyle, View, ViewStyle, TextInputInstance} from 'react-native'
 import {StackActions, useNavigation} from '@react-navigation/native'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {Metadata, Contacts} from 'nostr-tools/kinds'
@@ -57,7 +57,7 @@ const uniqueByPubkey = (list: Contact[]) =>
 export const AddContactScreen = observer(function () {
     const navigation = useNavigation()
     const {contactsStore, relaysStore} = useStores()
-    const inputRef = useRef<TextInput>(null)
+    const inputRef = useRef<TextInputInstance>(null)
     const searchId = useRef(0)
 
     useHeader({
@@ -253,7 +253,7 @@ export const AddContactScreen = observer(function () {
         <Screen preset='fixed' contentContainerStyle={$screen} contentUnderTabBar>
             <Animated.FlatList
                 data={[]}
-                renderItem={null}
+                renderItem={() => null}
                 keyboardShouldPersistTaps='handled'
                 onScroll={scrollHandler}
                 scrollEventThrottle={16}

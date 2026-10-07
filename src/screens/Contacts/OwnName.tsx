@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react'
-import {Text as RNText, TextStyle, View, ViewStyle, TextInput, ScrollView } from 'react-native'
+import {Text as RNText, TextStyle, View, ViewStyle, TextInput, ScrollView, TextInputInstance } from 'react-native'
 import {colors, spacing, typography, useThemeColor} from '../../theme'
 import {BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, Loading, Screen, Text} from '../../components'
 import {useStores} from '../../models'
@@ -27,7 +27,7 @@ const DONATION_LNURL_ADDRESS = 'minibits@minibits.cash'
 
 export const OwnName = observer(function (props: {pubkey: string}) { 
     const navigation = useNavigation() 
-    const ownNameInputRef = useRef<TextInput>(null)
+    const ownNameInputRef = useRef<TextInputInstance>(null)
     const {proofsStore, walletProfileStore} = useStores()
     const {pubkey} = props 
     

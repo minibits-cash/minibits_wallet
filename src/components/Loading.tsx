@@ -7,7 +7,7 @@ import { spacing } from '../theme'
 export function Loading(props: ViewProps & { statusMessage?: string, textStyle?: TextStyle, shiftedUp?: boolean }) {
   const loadingIndicator = useThemeColor('loadingIndicator')
   return (
-    <View style={[StyleSheet.absoluteFillObject, $loading(props?.shiftedUp ?? false), props.style]}>
+    <View style={[StyleSheet.absoluteFill, $loading(props?.shiftedUp ?? false), props.style]}>
       <ActivityIndicator color={loadingIndicator} animating size="large" />
       {props.statusMessage && (<Text style={[{opacity: 1}, props.textStyle]} text={props.statusMessage}/>)}
     </View>

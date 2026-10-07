@@ -18,6 +18,7 @@ import {
   FlatList,
   ImageStyle,  
   Pressable,
+  TextInputInstance,
 } from 'react-native'
 import {spacing, typography, useThemeColor, colors} from '../theme'
 import {
@@ -371,9 +372,9 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
         contactsStore,
     } = useStores()
 
-    const amountInputRef = useRef<TextInput>(null)
-    const memoInputRef = useRef<TextInput>(null)
-    const pubkeyInputRef = useRef<TextInput>(null) // Initialize pubkeyInputRef
+    const amountInputRef = useRef<TextInputInstance>(null)
+    const memoInputRef = useRef<TextInputInstance>(null)
+    const pubkeyInputRef = useRef<TextInputInstance>(null) // Initialize pubkeyInputRef
     const unitRef = useRef<MintUnit>('sat')
     const draftTransactionIdRef = useRef<number>(null)
     const isOnlineRef = useRef<boolean>(false)
@@ -2312,7 +2313,7 @@ const ContactItem = function (props: {
                         width: 40, 
                         height: props.contact.isExternalDomain ? 40 :  43,
                         borderRadius: props.contact.isExternalDomain ? 20 :  0,
-                        }] as import("react-native-fast-image").ImageStyle}
+                        }]}
                         source={{
                             uri: getImageSource(props.contact.picture as string) 
                         }} 

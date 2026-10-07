@@ -5,6 +5,7 @@ import {
     TextStyle,
     TextInput,
     TouchableOpacity,
+  TextInputInstance,
 } from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {log} from '../services/logService'
@@ -29,7 +30,7 @@ type Props = StaticScreenProps<{
 
 export const TokenReceiveScreen = function TokenReceiveScreen({ route }: Props) {
     const navigation = useNavigation()
-    const tokenInputRef = useRef<TextInput>(null)
+    const tokenInputRef = useRef<TextInputInstance>(null)
     const {mintsStore} = useStores()
 
     // New: controls visibility of token input

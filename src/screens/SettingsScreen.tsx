@@ -125,7 +125,7 @@ export const SettingsScreen = observer(function SettingsScreen({ route }: Props)
   useEffect(() => {        
     const subscription = AppState.addEventListener('change', async(nextAppState) => {
         if (
-            appState.current.match(/inactive|background/) &&
+            appState.current?.match(/inactive|background/) &&
             nextAppState === 'active') {
               try {
                 const enabled = await NotificationService.areNotificationsEnabled()

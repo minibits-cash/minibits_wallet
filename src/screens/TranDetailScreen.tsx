@@ -12,6 +12,7 @@ import {
   UIManager,
   View,
   ViewStyle,
+  TextInputInstance,
 } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {infoMessage} from '../utils/utils'
@@ -91,7 +92,7 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
     const scrollY = useSharedValue(0)
     const HEADER_SCROLL_DISTANCE = spacing.screenHeight * 0.15
 
-    const noteInputRef = useRef<TextInput>(null)
+    const noteInputRef = useRef<TextInputInstance>(null)
 
     const [transaction, setTransaction] = useState<Transaction>()
     const [error, setError] = useState<AppError | undefined>()

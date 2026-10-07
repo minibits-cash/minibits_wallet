@@ -1,4 +1,4 @@
-import {FlexStyle} from 'react-native'
+import {ViewStyle} from 'react-native'
 import {Edge, useSafeAreaInsets} from 'react-native-safe-area-context'
 
 export type ExtendedEdge = Edge | 'start' | 'end'
@@ -26,7 +26,7 @@ export function useSafeAreaInsetsStyle(
   safeAreaEdges: ExtendedEdge[] = [],
   property: 'padding' | 'margin' = 'padding',
 ): Pick<
-  FlexStyle,
+  ViewStyle,
   | 'marginBottom'
   | 'marginEnd'
   | 'marginStart'

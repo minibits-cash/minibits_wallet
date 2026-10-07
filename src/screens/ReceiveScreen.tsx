@@ -1,7 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useState, useCallback, useEffect, useRef} from 'react'
 import {CommonActions, StackActions, StaticScreenProps, useFocusEffect, useNavigation} from '@react-navigation/native'
-import {TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {TextStyle, View, ViewStyle, TextInputInstance} from 'react-native'
 import {spacing, useThemeColor, colors, typography} from '../theme'
 import {
   Button,
@@ -50,7 +50,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
     const navigation = useNavigation()
     const isInternetReachable = useIsInternetReachable()
 
-    const amountInputRef = useRef<TextInput>(null)
+    const amountInputRef = useRef<TextInputInstance>(null)
     
     const {mintsStore, walletStore} = useStores()
 

@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
-import {LayoutAnimation, Platform, ScrollView, TextInput, TextStyle, UIManager, View, ViewStyle} from 'react-native'
+import {LayoutAnimation, Platform, ScrollView, TextInput, TextStyle, UIManager, View, ViewStyle, TextInputInstance} from 'react-native'
 import {validateMnemonic} from '@scure/bip39'
 import QuickCrypto from 'react-native-quick-crypto'
 import { wordlist } from '@scure/bip39/wordlists/english.js'
@@ -53,8 +53,8 @@ export const ImportBackupScreen = observer(function ImportBackupScreen({ route }
         authStore
     } = useStores()
     
-    const mnemonicInputRef = useRef<TextInput>(null)
-    const backupInputRef = useRef<TextInput>(null)
+    const mnemonicInputRef = useRef<TextInputInstance>(null)
+    const backupInputRef = useRef<TextInputInstance>(null)
     const seedRef = useRef<Uint8Array | null>(null)
     const seedHashRef = useRef<string | null>(null)
     

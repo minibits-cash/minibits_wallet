@@ -1,5 +1,5 @@
 module.exports = {
-  preset: 'react-native',
+  preset: '@react-native/jest-preset',
   // Only treat *.test/*.spec files as tests. The default preset glob also
   // matches every .js file under __tests__, which would pull in the i18n
   // scripts (missingTranslations.js etc.) that are run via `yarn test:i18n`.

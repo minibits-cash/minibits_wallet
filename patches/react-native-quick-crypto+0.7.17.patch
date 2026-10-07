@@ -37,3 +37,36 @@ index 980cbed..dbd5ed5 100644
  #endif
  
  namespace margelo {
+diff --git a/node_modules/react-native-quick-crypto/ios/QuickCryptoModule.mm b/node_modules/react-native-quick-crypto/ios/QuickCryptoModule.mm
+index cbe5481..40c14db 100644
+--- a/node_modules/react-native-quick-crypto/ios/QuickCryptoModule.mm
++++ b/node_modules/react-native-quick-crypto/ios/QuickCryptoModule.mm
+@@ -8,6 +8,11 @@
+ #import "../cpp/MGLQuickCryptoHostObject.h"
+ #import "../cpp/JSIUtils/MGLTypedArray.h"
+ 
++// RN 0.87 dropped the RCTCxxBridge declaration; RCTBridgeProxy (bridgeless) still answers -runtime.
++@interface RCTBridge (QuickCryptoRuntime)
++- (void *)runtime;
++@end
++
+ @implementation QuickCryptoModule
+ 
+ @synthesize bridge=_bridge;
+@@ -20,14 +25,13 @@ - (void)setBridge:(RCTBridge *)bridge {
+ 
+ RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(install) {
+   NSLog(@"Installing JSI bindings for react-native-quick-crypto...");
+-  RCTCxxBridge* cxxBridge = (RCTCxxBridge*)_bridge;
+-  if (cxxBridge == nil) {
++  if (_bridge == nil) {
+     return @false;
+   }
+ 
+   using namespace facebook;
+ 
+-  auto jsiRuntime = (jsi::Runtime*)cxxBridge.runtime;
++  auto jsiRuntime = (jsi::Runtime*)_bridge.runtime;
+   if (jsiRuntime == nil) {
+     return @false;
+   }

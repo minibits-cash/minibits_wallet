@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {useState, useEffect, useRef, useLayoutEffect} from 'react'
-import {Platform, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {Platform, TextInput, TextStyle, View, ViewStyle, TextInputInstance} from 'react-native'
 import Animated, {
   useSharedValue,
 } from 'react-native-reanimated'
@@ -60,7 +60,7 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
 
     const unitRef = useRef<MintUnit>('sat')
     const mintBalancesRef = useRef<MintBalance[]>(proofsStore.getMintBalancesWithUnit('sat'))
-    const mintQuoteInputRef = useRef<TextInput>(null)
+    const mintQuoteInputRef = useRef<TextInputInstance>(null)
 
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<AppError | undefined>()

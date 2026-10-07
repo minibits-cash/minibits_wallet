@@ -9,6 +9,7 @@ import {
   Pressable,
   TextInput,
   Keyboard,
+  TextInputInstance,
 } from 'react-native'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import Animated, {
@@ -87,7 +88,7 @@ export const TranHistoryScreen = observer(function TranHistoryScreen({ route }: 
       onRightPress: () => toggleDeleteModal()
     })
 
-    const searchInputRef = useRef<TextInput>(null)
+    const searchInputRef = useRef<TextInputInstance>(null)
 
     const [info, setInfo] = useState('')
     const [error, setError] = useState<AppError | undefined>()

@@ -9,8 +9,8 @@ import {
   View,
   ViewStyle,
   FlatList,
-  TextInput,
   Keyboard,
+  TextInputInstance,
 } from 'react-native'
 import {spacing, useThemeColor, colors, typography} from '../theme'
 import {
@@ -233,8 +233,8 @@ function transferReducer(state: TransferState, action: TransferAction): Transfer
 
 export const TransferScreen = observer(function TransferScreen({ route }: Props) {
     const navigation = useNavigation()
-    const amountInputRef = useRef<TextInput>(null)
-    const lnurlCommentInputRef = useRef<TextInput>(null)
+    const amountInputRef = useRef<TextInputInstance>(null)
+    const lnurlCommentInputRef = useRef<TextInputInstance>(null)
     const unitRef = useRef<MintUnit>('sat')
     const mintUrlRef = useRef<string>('')
     const draftTransactionIdRef = useRef<number>(null)

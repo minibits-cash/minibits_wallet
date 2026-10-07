@@ -1,7 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import { Observer } from 'mobx-react-lite'
 import React, {FC, useEffect, useRef, useState} from 'react'
-import {FlatList, Platform, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {FlatList, Platform, TextInput, TextStyle, View, ViewStyle, TextInputInstance} from 'react-native'
 import {colors, spacing, useThemeColor} from '../theme'
 import {Icon, ListItem, Screen, Text, Card, BottomModal, Button, InfoModal, ErrorModal, Loading, Header} from '../components'
 import {useHeader} from '../utils/useHeader'
@@ -20,8 +20,8 @@ type Props = StaticScreenProps<{}>
 export const NwcScreen = observer(function NwcScreen(_props) {
 
     const navigation = useNavigation()
-    const connectionNameInputRef = useRef<TextInput>(null)
-    const dailyLimitInputRef = useRef<TextInput>(null)
+    const connectionNameInputRef = useRef<TextInputInstance>(null)
+    const dailyLimitInputRef = useRef<TextInputInstance>(null)
     const {nwcStore, walletProfileStore} = useStores()   
     
     const [selectedConnection, setSelectedConnection] = useState<NwcConnection | undefined>()
