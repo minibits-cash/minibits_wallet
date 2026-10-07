@@ -225,30 +225,38 @@ export const ContactsScreen = observer(function ({ route }: Props) {
                     </View>
                 )}
                 {contactsStore.count > 0 ? (
-                    <Animated.FlatList<Contact>
-                        data={contacts}
+                    <Animated.FlatList<string>
+                        // Ids, not the store's contact objects: React's dev-mode render
+                        // logging diffs a list's previous props, and a deleted contact
+                        // still sitting in the old `data` makes MST warn on every
+                        // read of the dead node.
+                        data={contacts.map(c => c.id!)}
                         ListHeaderComponent={requests.length > 0 ? renderRequests() : undefined}
-                        renderItem={({item, index}) => (
-                            // The card is drawn per row so it ends with the last contact;
-                            // the clearance for the Add button below stays outside it.
-                            <View style={[
-                                $cardRow,
-                                {backgroundColor: cardBg},
-                                index === 0 && $cardRowFirst,
-                                index === contacts.length - 1 && $cardRowLast,
-                            ]}>
-                                <ContactListItem
-                                    contact={item}
-                                    conversation={contactsStore.conversations[item.id!]}
-                                    isFirst={index === 0}
-                                    onPress={() => onSelect(item)}
-                                />
-                            </View>
-                        )}
+                        renderItem={({item: id, index}) => {
+                            const contact = contactsStore.findById(id)
+                            if (!contact) return null
+                            return (
+                                // The card is drawn per row so it ends with the last contact;
+                                // the clearance for the Add button below stays outside it.
+                                <View style={[
+                                    $cardRow,
+                                    {backgroundColor: cardBg},
+                                    index === 0 && $cardRowFirst,
+                                    index === contacts.length - 1 && $cardRowLast,
+                                ]}>
+                                    <ContactListItem
+                                        contact={contact}
+                                        conversation={contactsStore.conversations[id]}
+                                        isFirst={index === 0}
+                                        onPress={() => onSelect(contact)}
+                                    />
+                                </View>
+                            )
+                        }}
                         ListEmptyComponent={query ? (
                             <Text size='xs' style={{color: hintColor, padding: spacing.medium, textAlign: 'center'}} tx='contacts_noResults' />
                         ) : undefined}
-                        keyExtractor={item => item.id!}
+                        keyExtractor={id => id}
                         keyboardShouldPersistTaps='handled'
                         onScroll={scrollHandler}
                         scrollEventThrottle={16}
