@@ -5428,9 +5428,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@op-engineering/op-sqlite@npm:^16.2.0":
-  version: 16.2.0
-  resolution: "@op-engineering/op-sqlite@npm:16.2.0"
+"@op-engineering/op-sqlite@npm:^18.2.5":
+  version: 18.2.5
+  resolution: "@op-engineering/op-sqlite@npm:18.2.5"
   peerDependencies:
     "@sqlite.org/sqlite-wasm": "*"
     react: "*"
@@ -5438,7 +5438,7 @@ __metadata:
   peerDependenciesMeta:
     "@sqlite.org/sqlite-wasm":
       optional: true
-  checksum: 6201c72256f116d5ead337e50c55e4c7e583cf6a69983df9fef3e4d04f85b037900b734849c9eff85f4168bede6325a0f17f1a8e6d8348f9c45a05619b86d2b5
+  checksum: fd820d07c3e628e8c655513d762d4057ac7933887ae820400439dc2226b19658a992aa29fdf019a5058f9451d0a30021ca3e0dea96bca53fa49990dc27c87bb6
   languageName: node
   linkType: hard
 
@@ -14884,7 +14884,7 @@ __metadata:
     "@hot-updater/react-native": 0.36.18
     "@hot-updater/sentry-plugin": ^0.36.18
     "@notifee/react-native": ^9.1.8
-    "@op-engineering/op-sqlite": ^16.2.0
+    "@op-engineering/op-sqlite": ^18.2.5
     "@react-native-clipboard/clipboard": ^1.16.3
     "@react-native-community/cli": 20.2.0
     "@react-native-community/cli-platform-android": 20.2.0

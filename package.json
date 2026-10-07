@@ -36,7 +36,7 @@
     "@gorhom/portal": "^1.0.14",
     "@hot-updater/react-native": "0.36.18",
     "@notifee/react-native": "^9.1.8",
-    "@op-engineering/op-sqlite": "^16.2.0",
+    "@op-engineering/op-sqlite": "^18.2.5",
     "@react-native-clipboard/clipboard": "^1.16.3",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-firebase/app": "^23.5.0",
