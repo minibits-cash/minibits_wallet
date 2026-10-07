@@ -50,6 +50,7 @@
  * registration. And there is no cancel-to-reclaim — nothing local is locked while
  * we wait, because the "lock" is a mint-side address.
  */
+import {Amount} from '@cashu/cashu-ts'
 import {log} from '../../logService'
 import {MintError, ValidationError} from '../../../utils/AppError'
 import {rootStoreInstance} from '../../../models'
@@ -293,8 +294,8 @@ async function refreshQuote(quoteId: string): Promise<RefreshOnchainQuoteResult>
     const mint = _resolveQuoteMint(row)
     const quoteResponse = await walletStore.checkOnchainMintQuote(mint.mintUrl, quoteId)
 
-    const amountPaid = Number(quoteResponse.amount_paid ?? 0)
-    const amountIssued = Number(quoteResponse.amount_issued ?? 0)
+    const amountPaid = Amount.from(quoteResponse.amount_paid ?? 0).toNumber()
+    const amountIssued = Amount.from(quoteResponse.amount_issued ?? 0).toNumber()
 
     Database.updateOnchainMintQuoteAmounts(quoteId, amountPaid, amountIssued)
 
@@ -366,8 +367,8 @@ async function recoverQuote(input: {
 
     const quoteResponse = await walletStore.checkOnchainMintQuote(mintUrl, quoteId)
 
-    const amountPaid = Number(quoteResponse.amount_paid ?? 0)
-    const amountIssued = Number(quoteResponse.amount_issued ?? 0)
+    const amountPaid = Amount.from(quoteResponse.amount_paid ?? 0).toNumber()
+    const amountIssued = Amount.from(quoteResponse.amount_issued ?? 0).toNumber()
 
     if (mintableAmount(amountPaid, amountIssued) <= 0) {
         throw new ValidationError(
@@ -584,8 +585,8 @@ async function _mintAvailable(
 
     Database.updateOnchainMintQuoteAmounts(
         quote,
-        Number(quoteResponse.amount_paid ?? 0),
-        Number(quoteResponse.amount_issued ?? 0) + mintedAmount,
+        Amount.from(quoteResponse.amount_paid ?? 0).toNumber(),
+        Amount.from(quoteResponse.amount_issued ?? 0).toNumber() + mintedAmount,
     )
 
     sendTopupNotification(mintedAmount, unit)

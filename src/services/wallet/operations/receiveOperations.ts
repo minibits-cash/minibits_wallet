@@ -86,7 +86,7 @@ const receiveQueueAwaitable = (
     encodedToken: string,
 ): Promise<TransactionTaskResult> => {
     const {amount: rawAmount, memo, unit} = tokenMetadata
-    const amount = Number(rawAmount)
+    const amount = rawAmount.toNumber()
     const proofsCount = tokenMetadata.incompleteProofs.length
     const useBatch = proofsCount > MAX_SWAP_INPUT_SIZE
 
@@ -106,7 +106,7 @@ const receiveOfflinePrepareQueueAwaitable = (
     encodedToken: string,
 ): Promise<TransactionTaskResult> => {
     const {mint: mintUrl, amount: rawAmount, memo, unit} = tokenMetadata
-    const amount = Number(rawAmount)
+    const amount = rawAmount.toNumber()
 
     return createQueueAwaitable<TransactionTaskResult>({
         taskFunction: 'receiveOfflinePrepareTask',

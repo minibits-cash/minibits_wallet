@@ -137,7 +137,7 @@ export const ReceiveScreen = observer(function ReceiveScreen({ route }: Props) {
         // keysetsV2 support
         const tokenInfo = getTokenMetadata(encoded)
         const {amount: rawAmount, unit, memo, mint: mintUrl} = tokenInfo
-        const amount = Number(rawAmount)
+        const amount = rawAmount.toNumber()
 
         if(!unit) {
           throw new AppError(Err.VALIDATION_ERROR, translate("decodedMissingCurrencyUnit", { unit: CurrencyCode.SAT }))        

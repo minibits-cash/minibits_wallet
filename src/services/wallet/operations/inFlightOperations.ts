@@ -1,4 +1,4 @@
-import {getEncodedToken, normalizeProofAmounts} from '@cashu/cashu-ts'
+import {Amount, getEncodedToken, normalizeProofAmounts} from '@cashu/cashu-ts'
 import {log, logMilestone} from '../../logService'
 import {Database} from '../../sqlite'
 import {CashuUtils} from '../../cashu/cashuUtils'
@@ -235,8 +235,8 @@ const handleInFlightByMintTask = async (mint: Mint): Promise<WalletTaskResult> =
 
                         Database.updateOnchainMintQuoteAmounts(
                             quoteRow.quote,
-                            Number(quoteResponse.amount_paid ?? 0),
-                            Number(quoteResponse.amount_issued ?? 0),
+                            Amount.from(quoteResponse.amount_paid ?? 0).toNumber(),
+                            Amount.from(quoteResponse.amount_issued ?? 0).toNumber(),
                         )
 
                         logMilestone('[handleInFlightByMintTask] Recovery succeeded: in-flight request replayed', {
