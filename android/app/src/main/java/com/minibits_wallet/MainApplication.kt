@@ -7,6 +7,7 @@ import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 // minibits
+import com.facebook.react.modules.core.ReactChoreographer
 import com.facebook.react.modules.network.OkHttpClientProvider
 import com.hotupdater.HotUpdater
 
@@ -29,6 +30,8 @@ class MainApplication : Application(), ReactApplication {
   override fun onCreate() {
     super.onCreate()
     OkHttpClientProvider.setOkHttpClientFactory(CorePlaneOkHttpClientFactory())
+    // First initialize wins: must run before the React instance is created.
+    ReactChoreographer.initialize(VsyncFallbackChoreographerProvider())
     loadReactNative(this)
   }
 }
