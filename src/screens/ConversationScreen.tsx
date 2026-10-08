@@ -5,7 +5,7 @@ import {StackActions, StaticScreenProps, useFocusEffect, useIsFocused, useNaviga
 import Animated, {useAnimatedKeyboard, useAnimatedStyle, useSharedValue} from 'react-native-reanimated'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {toJS} from 'mobx'
-import {Button, ErrorModal, Icon, InfoModal, Screen, Text} from '../components'
+import {Button, ErrorModal, Icon, IconTypes, InfoModal, Screen, Text} from '../components'
 import {useStores} from '../models'
 import {getContactAddress, getContactName, isNostrContact} from '../models/Contact'
 import {Database, MessageRecord} from '../services/db'
@@ -13,7 +13,7 @@ import {MessagingService} from '../services/messagingService'
 import {LnurlClient} from '../services/lnurlService'
 import {log} from '../services/logService'
 import {spacing, typography, useThemeColor} from '../theme'
-import {translate} from '../i18n'
+import {translate, TxKeyPath} from '../i18n'
 import {useSafeAreaInsetsStyle} from '../utils/useSafeAreaInsetsStyle'
 import AppError from '../utils/AppError'
 import {ReceiveOption} from './ReceiveScreen'
@@ -229,31 +229,9 @@ export const ConversationScreen = observer(function ({route}: Props) {
             ) : (
                 <Animated.View style={[$composer, {paddingBottom: spacing.small}, $composerLift]}>
                     <View style={$actions}>
-                        <Button
-                            preset='secondary'
-                            tx='conversation_request'
-                            onPress={gotoRequest}
-                            style={$action}
-                            LeftAccessory={() => <Icon icon='faArrowDown' size={spacing.medium} />}
-                        />
-                        {isNostr && (
-                            <Button
-                                preset='secondary'
-                                tx='conversation_sendEcash'
-                                onPress={gotoSendEcash}
-                                style={$action}
-                                LeftAccessory={() => <Icon icon='faArrowUp' size={spacing.medium} />}
-                            />
-                        )}
-                        {contact.lud16 && (
-                            <Button
-                                preset='secondary'
-                                tx='conversation_pay'
-                                onPress={gotoPay}
-                                style={$action}
-                                LeftAccessory={() => <Icon icon='faBolt' size={spacing.medium} />}
-                            />
-                        )}
+                        <ActionPill tx='conversation_request' icon='faArrowDown' onPress={gotoRequest} />
+                        {isNostr && <ActionPill tx='conversation_sendEcash' icon='faArrowUp' onPress={gotoSendEcash} />}
+                        {contact.lud16 && <ActionPill tx='conversation_pay' icon='faBolt' onPress={gotoPay} />}
                     </View>
                     {isNostr && (
                         <View style={$inputRow}>
@@ -341,10 +319,36 @@ const $composer: ViewStyle = {
     paddingTop: spacing.extraSmall,
 }
 
+const ActionPill = function ActionPill({tx, icon, onPress}: {tx: TxKeyPath, icon: IconTypes, onPress: () => void}) {
+    const borderColor = useThemeColor('border')
+    const textColor = useThemeColor('textDim')
+
+    return (
+        <Pressable
+            onPress={onPress}
+            style={({pressed}) => [$pill, {borderColor}, pressed && {opacity: 0.7}]}
+            accessibilityRole='button'
+        >
+            <Icon icon={icon} size={spacing.small} color={textColor} containerStyle={{padding: 0, marginRight: spacing.tiny}} />
+            <Text tx={tx} size='xs' style={{color: textColor}} />
+        </Pressable>
+    )
+}
+
 const $actions: ViewStyle = {
     flexDirection: 'row',
     justifyContent: 'center',
     marginBottom: spacing.extraSmall,
+}
+
+const $pill: ViewStyle = {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.small,
+    paddingVertical: spacing.tiny,
+    borderRadius: spacing.medium,
+    borderWidth: 1,
+    marginHorizontal: spacing.tiny,
 }
 
 const $action: ViewStyle = {
