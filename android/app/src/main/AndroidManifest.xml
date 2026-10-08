@@ -110,6 +110,6 @@
             </intent-filter>
             <meta-data android:name="android.nfc.cardemulation.host_apdu_service" android:resource="@xml/aid_list"/>
         </service>
-        <meta-data android:name="com.hotupdater.FINGERPRINT_HASH" android:value="42f96edd8a64cfae93987ac32cacd202fda04a7e"/>
+        <meta-data android:name="com.hotupdater.FINGERPRINT_HASH" android:value="b8b07294a7b2f2a00c33b383e464d8f0ecad92a7"/>
     </application>
 </manifest>
