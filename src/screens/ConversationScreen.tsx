@@ -269,7 +269,7 @@ export const ConversationScreen = observer(function ({route}: Props) {
                                 style={[$input, {backgroundColor: inputBg, color: inputText}]}
                             />
                             <Button
-                                LeftAccessory={() => <Icon icon='faPaperPlane' color='white' size={spacing.medium} />}
+                                LeftAccessory={() => <Icon icon='faPaperPlane' color='white' size={spacing.medium * 1.1} containerStyle={{transform: [{rotate: '45deg'}]}} />}
                                 onPress={onSend}
                                 disabled={!text.trim()}
                                 style={$sendButton}

@@ -91,7 +91,10 @@ export const MessageBubble = observer(function (props: {
                     <Text size='xs' style={{color: fgDim}} text={title} />
                 </View>
                 {amount !== undefined && currency && (
-                    <Text preset='bold' size='md' style={{color: fg}} text={`${formatCurrency(amount, currency)} ${currency}`} />
+                    <View style={{flexDirection: 'row', alignItems: 'flex-start'}}>
+                        <Text preset='bold' size='md' style={{color: fg}} text={formatCurrency(amount, currency)} />
+                        <Text size='xxs' style={{color: fg, marginLeft: spacing.tiny, marginTop: spacing.tiny * 0.5}} text={currency} />
+                    </View>
                 )}
                 {!!memo && <Text size='xs' style={{color: fg}} text={memo} />}
                 {status && <Text size='xxs' style={{color: fgDim, marginTop: spacing.tiny}} text={status} />}
