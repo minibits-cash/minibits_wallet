@@ -80,3 +80,40 @@ index 73179ad..b607148 100644
      this.hceModel.getLastState()
        .postValue(enabled ? HceViewModel.HCE_STATE_ENABLED : HceViewModel.HCE_STATE_DISABLED);
    }
+diff --git a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/NFCTagType4.java b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/NFCTagType4.java
+index 312274e..8fed0d8 100644
+--- a/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/NFCTagType4.java
++++ b/node_modules/react-native-hce/android/src/main/java/com/reactnativehce/apps/nfc/NFCTagType4.java
+@@ -21,7 +21,11 @@ public class NFCTagType4 implements IHCEApplication {
+   private static final byte[] C_APDU_SELECT = BinaryUtils.HexStringToByteArray("00A4040007D276000085010100");
+   private static final byte[] FILENAME_CC = BinaryUtils.HexStringToByteArray("E103");
+   private static final byte[] FILENAME_NDEF = BinaryUtils.HexStringToByteArray("E104");
+-  private static final byte[] CC_HEADER = BinaryUtils.HexStringToByteArray("000F20010000FF");
++  // CCLEN=000F, mapping version 2.0, MLe=00FF, MLc=00FF.
++  // MLe must stay <= 0xFF: with MLe=0x0100 a reader may ask for a full 256-byte chunk,
++  // which a short APDU encodes as Le=0x00 (iOS CoreNFC does this; Android's reader stack
++  // caps its chunk below 256 and never does).
++  private static final byte[] CC_HEADER = BinaryUtils.HexStringToByteArray("000F2000FF00FF");
+   private final PrefManager prefManager;
+   private final HceViewModel hceModel;
+ 
+@@ -95,10 +99,17 @@ public class NFCTagType4 implements IHCEApplication {
+       return ApduHelper.R_APDU_ERROR;
+     }
+ 
+-    int offset = Integer.parseInt(BinaryUtils.ByteArrayToHexString(Arrays.copyOfRange(command, 2, 4)), 16);
+-    int length = Integer.parseInt(BinaryUtils.ByteArrayToHexString(Arrays.copyOfRange(command, 4, 5)), 16);
++    int offset = ((command[2] & 0xFF) << 8) | (command[3] & 0xFF);
++    // ISO 7816-4 short APDU: Le absent or 0x00 means "up to 256 bytes", not zero.
++    int length = command.length > 4 ? (command[4] & 0xFF) : 0;
++    if (length == 0) {
++      length = 256;
++    }
+ 
+     byte[] fullResponse = getFullResponseByFile();
++    if (offset >= fullResponse.length) {
++      return ApduHelper.R_APDU_ERROR;
++    }
+     byte[] slicedResponse = Arrays.copyOfRange(fullResponse, offset, fullResponse.length);
+ 
+     int realLength = Math.min(slicedResponse.length, length);
