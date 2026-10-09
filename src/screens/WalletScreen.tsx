@@ -802,6 +802,8 @@ export const WalletScreen = observer(function WalletScreen({ route }: Props) {
                     )}
                     <Pressable 
                             style={{paddingRight: spacing.large}}
+                            // left slop stays within the pending badge's marginRight so it never steals its taps
+                            hitSlop={{top: spacing.medium, bottom: spacing.medium, left: spacing.small}}
                             onPress={gotoNfcPay}
                     >
                         <SvgXml
