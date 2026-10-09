@@ -1,6 +1,6 @@
 import {observer} from 'mobx-react-lite'
 import React, {useEffect, useState} from 'react'
-import {Share, TextInput, TextStyle, View, ViewStyle} from 'react-native'
+import {ScrollView, Share, TextInput, TextStyle, View, ViewStyle} from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {BottomModal, Button, Icon, ListItem, Text} from '../../components'
 import {useStores} from '../../models'
@@ -116,7 +116,9 @@ export const ContactProfileModal = observer(function (props: {
                         <Text preset='subheading' text={getContactName(contact)} style={{marginTop: spacing.small}} />
                         {address && <Text size='xs' style={{color: textDim}} text={address} />}
                         {!!contact.about && (
-                            <Text size='xs' style={{color: textDim, marginTop: spacing.small, textAlign: 'center'}} text={contact.about.slice(0, 200)} />
+                            <ScrollView style={$about} nestedScrollEnabled>
+                                <Text size='xs' style={{color: textDim, textAlign: 'center'}} text={contact.about} />
+                            </ScrollView>
                         )}
                     </View>
                     <View style={$noteRow}>
@@ -186,6 +188,12 @@ export const ContactProfileModal = observer(function (props: {
 const $profile: ViewStyle = {
     alignItems: 'center',
     marginBottom: spacing.medium,
+}
+
+const $about: ViewStyle = {
+    maxHeight: 80,
+    alignSelf: 'stretch',
+    marginTop: spacing.small,
 }
 
 const $syncBadge: ViewStyle = {

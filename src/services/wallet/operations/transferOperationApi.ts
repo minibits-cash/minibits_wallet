@@ -85,7 +85,7 @@ import {WalletUtils} from '../utils'
 import {WalletTask} from '../../walletService'
 import {ProofReservation} from '../proofReservation'
 import {Database, ReservationRow} from '../../sqlite'
-import {poller} from '../../../utils/poller'
+import {poller, stopPolling} from '../../../utils/poller'
 import {Err} from '../../../utils/AppError'
 import {
     ResolvedTransferMethod,
@@ -1405,7 +1405,10 @@ async function _monitorAsyncMeltQuote(params: {
         settled = true
         poller(
             `meltQuotePoller-${quoteId}`,
-            () => refresh(transactionId),
+            async () => {
+                const tx = await refresh(transactionId)
+                if (!isPending(tx)) stopPolling(`meltQuotePoller-${quoteId}`)
+            },
             {interval: 15 * 1000, maxPolls: 8, maxErrors: 2},
         ).then(() => log.trace('[meltQuotePoller] polling completed', {quoteId}))
     }

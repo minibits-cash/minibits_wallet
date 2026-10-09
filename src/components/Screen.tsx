@@ -187,7 +187,7 @@ function ScreenWithScrolling(props: ScreenProps) {
       }}
       style={[$outerStyle, ScrollViewProps?.style, style]}
       contentContainerStyle={[
-        $innerStyle,
+        $scrollInnerStyle,
         ScrollViewProps?.contentContainerStyle,
         contentContainerStyle,
       ]}
@@ -265,4 +265,11 @@ const $innerStyle: ViewStyle = {
   flex: 1,
   justifyContent: "flex-start",
   alignItems: "stretch",   
+}
+
+// flexGrow, not flex: flex: 1 pins the content to the viewport height, so nothing scrolls.
+const $scrollInnerStyle: ViewStyle = {
+  ...$innerStyle,
+  flex: undefined,
+  flexGrow: 1,
 }

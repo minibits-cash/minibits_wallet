@@ -582,7 +582,7 @@ async function _monitorMintQuote(params: {
         const tx = transactionsStore.findById(transactionId)
         if (!tx) return
         const {MintOperationService} = await import('./mintOperations')
-        MintOperationService.enqueuePendingTopupCheck(tx)
+        MintOperationService.enqueuePendingTopupCheck(tx, true)
     }
 
     // The websocket is the fast path; the poller is the fallback that has to run

@@ -24,13 +24,19 @@ const formatError = function (e: AppError) {
     } as AppError
 }
 
+// cdk masks an output collision (its DB Duplicate on blinded messages/signatures)
+// as code 20006 "Invoice already paid or pending" — the exact detail string is
+// unique to that mapping, so it is safe to treat as outputs-already-signed.
+const HEAL_OUTPUTS_RE = /already.*signed|duplicate key|^Invoice already paid or pending$/i
+
 const shouldHealOutputsError = function (e: any): boolean {
-    if (e instanceof AppError) {
-        if (/already.*signed|duplicate key/i.test(e.message)) {
+    // Not `instanceof AppError`: task results carry a plain formatError() copy.
+    if (e) {
+        if (HEAL_OUTPUTS_RE.test(e.message)) {
           return true
         }
 
-        if (e.params && e.params.message && /already.*signed|duplicate key/i.test(e.params.message)) {
+        if (e.params && e.params.message && HEAL_OUTPUTS_RE.test(e.params.message)) {
           return true
         }
 

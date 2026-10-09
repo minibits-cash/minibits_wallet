@@ -294,10 +294,14 @@ const recoverMintQuote = async (
 }
 
 /**
- * Enqueue a pending topup check for a single transaction (used by handlePendingQueue).
+ * Enqueue a pending topup check for a single transaction.
+ *
+ * The sweep (handlePendingQueue) skips a tx whose ws-fallback poller is running, so
+ * the two don't double up. The poller itself (and the ws callback) passes `force`:
+ * otherwise it would see its own name and skip every tick, never checking at all.
  */
-const enqueuePendingTopupCheck = (tx: Transaction): void => {
-    if (pollerExists(`handlePendingTopupPoller-${tx.paymentId}`)) {
+const enqueuePendingTopupCheck = (tx: Transaction, force = false): void => {
+    if (!force && pollerExists(`handlePendingTopupPoller-${tx.paymentId}`)) {
         log.trace('[MintOperationService] Skipping topup – poller active', {paymentId: tx.paymentId})
         return
     }

@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react'
-import {FlatList, TextStyle, View, ViewStyle} from 'react-native'
+import {TextStyle, View, ViewStyle} from 'react-native'
 import {scale} from '@gocodingnow/rn-size-matters'
 import Clipboard from '@react-native-clipboard/clipboard'
 import {StaticScreenProps, useNavigation} from '@react-navigation/native'
@@ -15,10 +15,12 @@ import {
   Screen,
   Text,
 } from '../components'
+import {CollapsibleText} from '../components/CollapsibleText'
 import {translate} from '../i18n'
 import {KeyChain, log, resolveOrphanedSeed} from '../services'
 import {colors, spacing, useThemeColor} from '../theme'
 import AppError from '../utils/AppError'
+import {useSafeAreaInsetsStyle} from '../utils/useSafeAreaInsetsStyle'
 
 type Props = StaticScreenProps<undefined>
 
@@ -50,6 +52,9 @@ export const OrphanedSeedScreen = function ({route}: Props) {
   const navigation = useNavigation()
   const headerBg = useThemeColor('header')
   const headerTitle = useThemeColor('headerTitle')
+  const $subText = {color: useThemeColor('textDim'), fontSize: 14}
+  // Root stack, no nav header and no tab bar: this screen owns both safe-area edges.
+  const $topInset = useSafeAreaInsetsStyle(['top'])
 
   const [mnemonic, setMnemonic] = useState<string>()
   const [mnemonicArray, setMnemonicArray] = useState<string[]>([])
@@ -134,9 +139,11 @@ export const OrphanedSeedScreen = function ({route}: Props) {
   }
 
   return (
-    <Screen contentContainerStyle={$screen} preset="auto">
-      <View style={[$headerContainer, {backgroundColor: headerBg}]}>
-        <Text preset="heading" tx="orphanedSeed_title" style={{color: headerTitle}} />
+    <Screen contentContainerStyle={$screen} preset="scroll" safeAreaEdges={['bottom']}>
+      <View style={[{backgroundColor: headerBg}, $topInset]}>
+        <View style={$headerContainer}>
+          <Text preset="heading" tx="orphanedSeed_title" style={{color: headerTitle}} />
+        </View>
       </View>
       <View style={$contentContainer}>
         <Card
@@ -144,7 +151,13 @@ export const OrphanedSeedScreen = function ({route}: Props) {
           ContentComponent={
             <ListItem
               tx="orphanedSeed_explainTitle"
-              subTx="orphanedSeed_explainDescription"
+              BottomComponent={
+                <CollapsibleText
+                  collapsed={true}
+                  text={translate('orphanedSeed_explainDescription')}
+                  textProps={{style: $subText}}
+                />
+              }
               leftIcon="faTriangleExclamation"
               leftIconColor={colors.palette.accent400}
               leftIconInverse={true}
@@ -157,10 +170,9 @@ export const OrphanedSeedScreen = function ({route}: Props) {
           ContentComponent={
             <>
               {isLoading && <Loading />}
-              <FlatList
-                data={mnemonicArray}
-                numColumns={2}
-                renderItem={({item, index}) => (
+              {/* Plain View, not FlatList: a nested vertical list swallows the outer scroll on iOS. */}
+              <View style={$wordsContainer}>
+                {mnemonicArray.map((item, index) => (
                   <Button
                     key={index}
                     preset={'secondary'}
@@ -169,11 +181,8 @@ export const OrphanedSeedScreen = function ({route}: Props) {
                     style={{minWidth: scale(150), margin: spacing.tiny, minHeight: scale(25)}}
                     textStyle={[$sizeStyles.xs, {padding: 0, margin: 0, lineHeight: 16}]}
                   />
-                )}
-                keyExtractor={item => item}
-                style={{flexGrow: 0}}
-                contentContainerStyle={{alignItems: 'center'}}
-              />
+                ))}
+              </View>
             </>
           }
           FooterComponent={
@@ -253,8 +262,10 @@ const $screen: ViewStyle = {}
 
 const $headerContainer: TextStyle = {
   alignItems: 'center',
-  paddingBottom: spacing.medium,
-  height: spacing.screenHeight * 0.15,
+  justifyContent: 'center',
+  // Matches the content's negative marginTop, so the title centers in the visible band.
+  paddingBottom: spacing.extraLarge * 1.5,
+  height: spacing.screenHeight * 0.20,
 }
 
 const $contentContainer: TextStyle = {
@@ -264,6 +275,12 @@ const $contentContainer: TextStyle = {
 
 const $card: ViewStyle = {
   marginBottom: spacing.small,
+}
+
+const $wordsContainer: ViewStyle = {
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  justifyContent: 'center',
 }
 
 const $buttonContainer: ViewStyle = {
