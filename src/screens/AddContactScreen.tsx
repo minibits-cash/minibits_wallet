@@ -216,6 +216,13 @@ export const AddContactScreen = observer(function () {
         }
     }
 
+    const onResetFollowKey = function () {
+        contactsStore.setPublicPubkey(undefined)
+        setFollows([])
+        setFollowKey('')
+        setIsFollowKeyModalVisible(false)
+    }
+
     const onPasteFollowKey = async function () {
         setFollowKey((await Clipboard.getString()).trim())
     }
@@ -353,6 +360,14 @@ export const AddContactScreen = observer(function () {
                                     preset='tertiary'
                                     tx='contactsScreen_publicContacts_pasteDemoKey'
                                     onPress={() => setFollowKey(DEMO_FOLLOWS_NPUB)}
+                                />
+                            )}
+                            {contactsStore.publicPubkey && (
+                                <Button
+                                    preset='tertiary'
+                                    tx='commonReset'
+                                    onPress={onResetFollowKey}
+                                    style={{marginLeft: spacing.small}}
                                 />
                             )}
                             <Button

@@ -182,7 +182,7 @@ import {
                 self.contacts.clear()
                 log.debug('[removeAllContacts]', 'Removed all Contacts from ContactsStore')
             },
-            setPublicPubkey(publicPubkey: string) {
+            setPublicPubkey(publicPubkey?: string) {
                 self.publicPubkey = publicPubkey
                 log.debug('[setPublicPubkey]', publicPubkey)
             },
