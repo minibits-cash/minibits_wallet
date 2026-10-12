@@ -27,7 +27,9 @@ import {normalizeMintUrl} from '../services/cashu/mintUrl'
 import AppError, { Err } from '../utils/AppError'
 import {translate} from '../i18n'
 import {MintListItem} from './Mints/MintListItem'
+import {verticalScale} from '@gocodingnow/rn-size-matters'
 import { SvgXml } from 'react-native-svg'
+import { ScanIcon } from '../components/ScanIcon'
 import { isStateTreeNode } from 'mobx-state-tree'
 import { MintKeyset } from '@cashu/cashu-ts'
 import { QRShareModal } from '../components/QRShareModal'
@@ -453,25 +455,29 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
                     tx={selectedMint ? 'mintsScreen_updateMintUrl' : 'mintsScreen_addMintUrl'}
                     // style={{marginBottom: spacing.medium, textAlign: 'center'}}
                 />
-                <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
-                        <TextInput
-                            ref={mintInputRef}
-                            onChangeText={mintUrl => setMintUrl(mintUrl)}
-                            onFocus={() => mintUrl.length === 0 ? setMintUrl('https://') : undefined}
-                            autoCapitalize='none'
-                            keyboardType='url'
-                            value={mintUrl}
-                            style={[$mintInput, {backgroundColor: inputBg, color: inputText}]}
-                            maxLength={200}
-                            placeholder='https://'
-                            placeholderTextColor={placeholderTextColor}
-                        />
+                <View style={{flexDirection: 'row', alignItems: 'stretch', marginTop: spacing.small}}>
+                        <View style={[$inputWrap, {backgroundColor: inputBg}]}>
+                            <TextInput
+                                ref={mintInputRef}
+                                onChangeText={mintUrl => setMintUrl(mintUrl)}
+                                onFocus={() => mintUrl.length === 0 ? setMintUrl('https://') : undefined}
+                                autoCapitalize='none'
+                                keyboardType='url'
+                                value={mintUrl}
+                                style={[$mintInput, $inputInWrap, {color: inputText}]}
+                                maxLength={200}
+                                placeholder='https://'
+                                placeholderTextColor={placeholderTextColor}
+                            />
+                        </View>
                         <Button
                             preset='secondary'
-                            tx='commonPaste'
+                            accessibilityLabel={translate('commonPaste')}
+                            LeftAccessory={() => <Icon icon='faPaste' color={iconColor} size={spacing.medium} />}
                             style={{
-                                borderRadius: 0,                                
-                                marginLeft: -spacing.small,
+                                ...$buttonFitInput,
+                                ...$iconButton,
+                                borderRadius: 0,
                                 borderLeftWidth: 1,
                                 borderLeftColor: buttonBorder
                             }}
@@ -479,8 +485,11 @@ export const MintsScreen = observer(function MintsScreen({ route }: Props) {
                         />
                         <Button
                             preset='secondary'
-                            tx="commonScan"
+                            accessibilityLabel={translate('commonScan')}
+                            LeftAccessory={() => <SvgXml xml={ScanIcon} width={spacing.medium} height={spacing.medium} fill={iconColor} />}
                             style={{
+                                ...$buttonFitInput,
+                                ...$iconButton,
                                 borderTopLeftRadius: 0,
                                 borderBottomLeftRadius: 0,  
                                 marginHorizontal: 1,                                
@@ -579,10 +588,23 @@ const $bottomModal: ViewStyle = {
 
 const $mintInput: TextStyle = {
     flex: 1,    
-    borderRadius: spacing.extraSmall,    
-    padding: spacing.extraSmall,
-    alignSelf: 'stretch',
-    // textAlignVertical: 'top',
+    borderTopLeftRadius: spacing.extraSmall,
+    borderBottomLeftRadius: spacing.extraSmall,
+    fontSize: verticalScale(16),
+    padding: spacing.small,
+}
+
+// the attached buttons follow the input's height, not the Button's 50pt minimum
+// Paste and Scan the same width, whatever their icons' proportions
+const $iconButton: ViewStyle = {
+    width: spacing.huge,
+    paddingLeft: 0,
+    paddingRight: 0,
+}
+
+const $buttonFitInput: ViewStyle = {
+    minHeight: 0,
+    paddingVertical: 0,
 }
 
 const $textField: ViewStyle = {
@@ -599,4 +621,18 @@ const $iconContainer: ViewStyle = {
   padding: spacing.extraSmall,
   alignSelf: 'center',
   marginRight: spacing.medium,
+}
+
+// Holds the field background. A TextInput is a measured (text) node, so Yoga rounds
+// its bottom edge up to the pixel grid while the attached buttons round to nearest,
+// leaving them a pixel short. A plain View rounds like the buttons do.
+const $inputWrap: ViewStyle = {
+    flex: 1,
+    justifyContent: 'center',
+    borderTopLeftRadius: spacing.extraSmall,
+    borderBottomLeftRadius: spacing.extraSmall,
+}
+
+const $inputInWrap: TextStyle = {
+    flex: 0,
 }

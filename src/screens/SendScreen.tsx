@@ -48,6 +48,8 @@ import { Contact, isNostrContact } from '../models/Contact'
 import { MessagingService } from '../services/messagingService'
 import { getImageSource, infoMessage } from '../utils/utils'
 import { verticalScale } from '@gocodingnow/rn-size-matters'
+import { SvgXml } from 'react-native-svg'
+import { ScanIcon } from '../components/ScanIcon'
 import { MintUnit, MintUnits, formatCurrency, getCurrency } from "../services/wallet/currency"
 import { MintHeader } from './Mints/MintHeader'
 import { AmountEntryLayout, useAmountEntry } from '../components/AmountEntryLayout'
@@ -1665,30 +1667,34 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                 <View
                     style={{
                         flexDirection: 'row',
-                        alignItems: 'center',
+                        alignItems: 'stretch',
                         marginTop: spacing.small,
                     }}>
-                    <TextInput
-                        ref={pubkeyInputRef}
-                        onChangeText={pubkey =>
-                            setLockedPubkey(pubkey)
-                        }
-                        value={lockedPubkey}
-                        autoCapitalize="none"
-                        keyboardType="default"                  
-                        maxLength={66}
-                        selectTextOnFocus={true}
-                        style={[
-                            $pubkeyInput,                    
-                            {backgroundColor: inputBg, color: inputText},
-                        ]}
-                    />
+                    <View style={[$inputWrap, {backgroundColor: inputBg}]}>
+                        <TextInput
+                            ref={pubkeyInputRef}
+                            onChangeText={pubkey =>
+                                setLockedPubkey(pubkey)
+                            }
+                            value={lockedPubkey}
+                            autoCapitalize="none"
+                            keyboardType="default"                  
+                            maxLength={66}
+                            selectTextOnFocus={true}
+                            style={[
+                                $pubkeyInput,                    
+                                $inputInWrap,
+                                {color: inputText},
+                            ]}
+                        />
+                    </View>
                     <Button
                         preset='secondary'
-                        tx='commonPaste'
+                        accessibilityLabel={translate('commonPaste')}
+                        LeftAccessory={() => <Icon icon='faPaste' color={hintColor} size={spacing.medium} />}
                         style={{
+                            ...$attachedButton,
                             borderRadius: 0,
-                            marginLeft: -spacing.small,
                             borderLeftWidth: 1,
                             borderLeftColor: buttonBorder                 
                         }}
@@ -1696,11 +1702,13 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                     />
                     <Button
                         preset='secondary'
-                        tx="commonScan"
+                        accessibilityLabel={translate('commonScan')}
+                        LeftAccessory={() => <SvgXml xml={ScanIcon} width={spacing.medium} height={spacing.medium} fill={hintColor} />}
                         style={{
+                            ...$attachedButton,
                             borderTopLeftRadius: 0,
                             borderBottomLeftRadius: 0,  
-                            marginHorizontal: 1,                                
+                            marginLeft: 1,
                         }}
                         onPress={gotoScan}
                     />
@@ -2385,13 +2393,19 @@ const $screen: ViewStyle = {
 
 const $pubkeyInput: TextStyle = {
     flex: 1,
-    // borderRadius: 0,
-    borderRadius: spacing.extraSmall,    
+    borderTopLeftRadius: spacing.extraSmall,
+    borderBottomLeftRadius: spacing.extraSmall,
     fontSize: verticalScale(16),
     padding: spacing.small,
-    alignSelf: 'stretch',
-    textAlignVertical: 'top',
-// borderWidth: 1,
+}
+
+// buttons follow the input's height, not the Button's 50pt minimum, and share one width
+const $attachedButton: ViewStyle = {
+    minHeight: 0,
+    paddingVertical: 0,
+    width: spacing.huge,
+    paddingLeft: 0,
+    paddingRight: 0,
 }
 
 const $amountContainer: ViewStyle = {
@@ -2457,3 +2471,17 @@ const $bottomContainer: ViewStyle = {
     alignSelf: 'stretch',
     // opacity: 0,
   }
+
+// Holds the field background. A TextInput is a measured (text) node, so Yoga rounds
+// its bottom edge up to the pixel grid while the attached buttons round to nearest,
+// leaving them a pixel short. A plain View rounds like the buttons do.
+const $inputWrap: ViewStyle = {
+    flex: 1,
+    justifyContent: 'center',
+    borderTopLeftRadius: spacing.extraSmall,
+    borderBottomLeftRadius: spacing.extraSmall,
+}
+
+const $inputInWrap: TextStyle = {
+    flex: 0,
+}

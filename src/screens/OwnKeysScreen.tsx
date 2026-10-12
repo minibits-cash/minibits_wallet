@@ -14,6 +14,7 @@ import { KeyChain, NostrKeyPair, NostrClient, NostrProfile } from '../services'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import { ProfileHeader } from '../components/ProfileHeader'
 import { translate } from '../i18n'
+import {verticalScale} from '@gocodingnow/rn-size-matters'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 import FastImage from 'react-native-fast-image'
 import { nip19 } from 'nostr-tools'
@@ -244,6 +245,7 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
     const inputBg = useThemeColor('background')
     const inputText = useThemeColor('text')
     const placeholderTextColor = useThemeColor('textDim')
+    const dividerColor = useThemeColor('card')
     
     return (
       <Screen contentContainerStyle={$screen} preset='fixed'>
@@ -263,31 +265,35 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
                             />                    
                             <View style={{
                               flexDirection: 'row', 
-                              alignItems: 'center', 
+                              alignItems: 'stretch', 
                               marginVertical: spacing.medium
                             }}>                            
-                                <TextInput
-                                  ref={ownNip05InputRef}
-                                  onChangeText={(name) => setOwnNip05(name.trim())}
-                                  value={ownNip05}
-                                  autoCapitalize='none'
-                                  keyboardType='email-address'
-                                  maxLength={30}
-                                  placeholder='name@domain.com'
-                                  placeholderTextColor={placeholderTextColor}
-                                  selectTextOnFocus={true}
-                                  style={[$nip05Input, {backgroundColor: inputBg, color: inputText}]}                                                   
-                                />
+                                <View style={[$inputWrap, {backgroundColor: inputBg}]}>
+                                    <TextInput
+                                      ref={ownNip05InputRef}
+                                      onChangeText={(name) => setOwnNip05(name.trim())}
+                                      value={ownNip05}
+                                      autoCapitalize='none'
+                                      keyboardType='email-address'
+                                      maxLength={30}
+                                      placeholder='name@domain.com'
+                                      placeholderTextColor={placeholderTextColor}
+                                      selectTextOnFocus={true}
+                                      style={[$nip05Input, $inputInWrap, {color: inputText}]}                                                   
+                                    />
+                                </View>
                                 <Button
-                                  tx='commonPaste'
                                   preset='secondary'
-                                  style={$pasteButton}                                
+                                  accessibilityLabel={translate('commonPaste')}
+                                  LeftAccessory={() => <Icon icon='faPaste' color={placeholderTextColor} size={spacing.medium} />}
+                                  style={[$pasteButton, {borderLeftColor: dividerColor}]}
                                   onPress={onPasteOwnNip05}
                                 />
                                 <Button
-                                  tx='commonConfirm'
+                                  accessibilityLabel={translate('commonConfirm')}
+                                  LeftAccessory={() => <Icon icon='faCheck' color='white' size={spacing.medium} />}
                                   style={$saveButton}
-                                  onPress={onConfirmOwnNip05}                                
+                                  onPress={onConfirmOwnNip05}
                                 />                        
                               </View>     
                         </View>
@@ -343,30 +349,34 @@ export const OwnKeysScreen = observer(function OwnKeysScreen({ route }: Props) {
                                 bottomSeparator={true}
                                 style={{}}
                             />
-                            <View style={{flexDirection: 'row', alignItems: 'center', marginVertical: spacing.medium}}>
+                            <View style={{flexDirection: 'row', alignItems: 'stretch', marginVertical: spacing.medium}}>
                             
-                            <TextInput
-                                ref={ownNsecInputRef}
-                                onChangeText={(name) => setOwnNsec(name.trim())}
-                                value={ownNsec}
-                                autoCapitalize='none'
-                                keyboardType='default'
-                                maxLength={64}
-                                placeholder='nsec...'
-                                placeholderTextColor={placeholderTextColor}
-                                selectTextOnFocus={true}
-                                style={[$nip05Input, {backgroundColor: inputBg, color: inputText}]}                                                
+                            <View style={[$inputWrap, {backgroundColor: inputBg}]}>
+                                <TextInput
+                                    ref={ownNsecInputRef}
+                                    onChangeText={(name) => setOwnNsec(name.trim())}
+                                    value={ownNsec}
+                                    autoCapitalize='none'
+                                    keyboardType='default'
+                                    maxLength={64}
+                                    placeholder='nsec...'
+                                    placeholderTextColor={placeholderTextColor}
+                                    selectTextOnFocus={true}
+                                    style={[$nip05Input, $inputInWrap, {color: inputText}]}                                                
+                                />
+                            </View>
+                            <Button
+                              preset='secondary'
+                              accessibilityLabel={translate('commonPaste')}
+                              LeftAccessory={() => <Icon icon='faPaste' color={placeholderTextColor} size={spacing.medium} />}
+                              style={[$pasteButton, {borderLeftColor: dividerColor}]}
+                              onPress={onPasteOwnNsec}
                             />
                             <Button
-                                tx='commonPaste'
-                                preset='secondary'
-                                style={$pasteButton}                            
-                                onPress={onPasteOwnNsec}
-                            />
-                            <Button
-                                tx='commonConfirm'
-                                style={$saveButton}
-                                onPress={onConfirmOwnNsec}                            
+                              accessibilityLabel={translate('commonConfirm')}
+                              LeftAccessory={() => <Icon icon='faCheck' color='white' size={spacing.medium} />}
+                              style={$saveButton}
+                              onPress={onConfirmOwnNsec}
                             />                        
                         </View>
                         </View>
@@ -472,26 +482,35 @@ const $nip05Container: TextStyle = {
     // alignItems: 'center',
 }
 
+// buttons follow the input's height, not the Button's 50pt minimum, and share one width
+const $attachedButton: ViewStyle = {
+    minHeight: 0,
+    paddingVertical: 0,
+    width: spacing.huge,
+    paddingLeft: 0,
+    paddingRight: 0,
+}
+
 const $pasteButton: ViewStyle = {
-    borderTopLeftRadius: 0,
-    borderBottomLeftRadius: 0,
-    alignSelf: 'stretch',
-    justifyContent: 'center', 
+    ...$attachedButton,
+    borderRadius: 0,
+    borderLeftWidth: 1,
 }
 
 const $saveButton: ViewStyle = {
-    borderRadius: spacing.small,
-    marginLeft: spacing.small,
+    ...$attachedButton,
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+    borderTopRightRadius: spacing.small,
+    borderBottomRightRadius: spacing.small,
 }
 
 const $nip05Input: TextStyle = {
     flex: 1,    
     borderTopLeftRadius: spacing.small,
     borderBottomLeftRadius: spacing.small,
-    fontSize: 16,
+    fontSize: verticalScale(16),
     padding: spacing.small,
-    alignSelf: 'stretch',
-    textAlignVertical: 'top',
 }
 
 const $bottomModal: ViewStyle = {
@@ -538,3 +557,16 @@ const $rightContainer: ViewStyle = {
     marginLeft: spacing.small,
 }
 
+// Holds the field background. A TextInput is a measured (text) node, so Yoga rounds
+// its bottom edge up to the pixel grid while the attached buttons round to nearest,
+// leaving them a pixel short. A plain View rounds like the buttons do.
+const $inputWrap: ViewStyle = {
+    flex: 1,
+    justifyContent: 'center',
+    borderTopLeftRadius: spacing.small,
+    borderBottomLeftRadius: spacing.small,
+}
+
+const $inputInWrap: TextStyle = {
+    flex: 0,
+}

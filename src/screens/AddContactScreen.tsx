@@ -20,6 +20,8 @@ import {useTabBarInset, useTabBarScrollHandler} from '../navigation/tabBarVisibi
 import Animated from 'react-native-reanimated'
 import AppError, {Err} from '../utils/AppError'
 import {ContactAvatar} from './Contacts/ContactAvatar'
+import {SvgXml} from 'react-native-svg'
+import {ScanIcon} from '../components/ScanIcon'
 
 const SEARCH_DEBOUNCE_MS = 700
 const MAX_FOLLOWS = 50
@@ -89,6 +91,7 @@ export const AddContactScreen = observer(function ({route}: Props) {
     const inputBg = useThemeColor('background')
     const inputText = useThemeColor('text')
     const dimColor = useThemeColor('textDim')
+    const dividerColor = useThemeColor('card')
     // floats over the content and parks on scroll, as in the transactions list
     const scrollHandler = useTabBarScrollHandler()
     const tabBarInset = useTabBarInset()
@@ -295,7 +298,7 @@ export const AddContactScreen = observer(function ({route}: Props) {
                                 <View>
                                     <Text size='xxs' style={{color: dimColor, marginBottom: spacing.extraSmall}} tx='addContact_hint' />
                                     <View style={[$inputRow, $fitToInput]}>
-                                        <View style={$queryInputWrap}>
+                                        <View style={[$inputWrap, {backgroundColor: inputBg}]}>
                                             <TextInput
                                                 ref={inputRef}
                                                 value={query}
@@ -306,14 +309,26 @@ export const AddContactScreen = observer(function ({route}: Props) {
                                                 autoCorrect={false}
                                                 keyboardType='email-address'
                                                 maxLength={200}
-                                                style={[$input, $inputAttached, $queryInput, {backgroundColor: inputBg, color: inputText}]}
+                                                style={[$input, $inputAttached, $queryInput, {color: inputText}]}
                                             />
                                             {query.length > 0 && (
                                                 <Icon icon='faXmark' color={dimColor} onPress={() => setQuery('')} containerStyle={$clearIcon} />
                                             )}
                                         </View>
-                                        <Button preset='secondary' tx='commonPaste' onPress={onPasteQuery} style={[$pasteButton, $buttonFitInput]} />
-                                        <Button preset='secondary' tx='commonScan' onPress={gotoScan} style={[$saveButton, $buttonFitInput, {marginLeft: 1}]} />
+                                        <Button
+                                            preset='secondary'
+                                            accessibilityLabel={translate('commonPaste')}
+                                            LeftAccessory={() => <Icon icon='faPaste' color={dimColor} size={spacing.medium} />}
+                                            onPress={onPasteQuery}
+                                            style={[$pasteButton, $buttonFitInput, $iconButton, {borderLeftWidth: 1, borderLeftColor: dividerColor}]}
+                                        />
+                                        <Button
+                                            preset='secondary'
+                                            accessibilityLabel={translate('commonScan')}
+                                            LeftAccessory={() => <SvgXml xml={ScanIcon} width={spacing.medium} height={spacing.medium} fill={dimColor} />}
+                                            onPress={gotoScan}
+                                            style={[$saveButton, $buttonFitInput, $iconButton, {marginLeft: 1}]}
+                                        />
                                     </View>
                                     
                                     <Button
@@ -335,14 +350,16 @@ export const AddContactScreen = observer(function ({route}: Props) {
                                     <View>
                                         <Text size='xs' text={translate('addContact_lightningNameHint', {address: lightningCandidate})} />
                                         <View style={[$inputRow, $fitToInput, {marginTop: spacing.small, marginBottom: spacing.small}]}>
-                                            <TextInput
-                                                value={lightningName}
-                                                onChangeText={setLightningName}
-                                                placeholder={translate('addContact_lightningName')}
-                                                placeholderTextColor={dimColor}
-                                                maxLength={60}
-                                                style={[$input, $inputAttached, {backgroundColor: inputBg, color: inputText}]}
-                                            />
+                                            <View style={[$inputWrap, {backgroundColor: inputBg}]}>
+                                                <TextInput
+                                                    value={lightningName}
+                                                    onChangeText={setLightningName}
+                                                    placeholder={translate('addContact_lightningName')}
+                                                    placeholderTextColor={dimColor}
+                                                    maxLength={60}
+                                                    style={[$input, $inputAttached, $inputInWrap, {color: inputText}]}
+                                                />
+                                            </View>
                                             <Button tx='commonSave' onPress={onAddLightning} style={[$saveButton, $buttonFitInput]} />
                                         </View>
                                     </View>
@@ -367,19 +384,32 @@ export const AddContactScreen = observer(function ({route}: Props) {
                     <View style={$modalContent}>
                         <Text tx='addContact_loadFollows' preset='subheading' />
                         <Text size='xs' style={{color: dimColor, textAlign: 'center'}} tx='addContact_followsSubText' />
-                        <View style={[$inputRow, {marginTop: spacing.small}]}>
-                            <TextInput
-                                value={followKey}
-                                onChangeText={setFollowKey}
-                                placeholder='npub...'
-                                placeholderTextColor={dimColor}
-                                autoCapitalize='none'
-                                autoCorrect={false}
-                                selectTextOnFocus={true}
-                                style={[$keyInput, {backgroundColor: inputBg, color: inputText}]}
+                        <View style={[$inputRow, $fitToInput, {marginTop: spacing.small}]}>
+                            <View style={[$inputWrap, {backgroundColor: inputBg}]}>
+                                <TextInput
+                                    value={followKey}
+                                    onChangeText={setFollowKey}
+                                    placeholder='npub...'
+                                    placeholderTextColor={dimColor}
+                                    autoCapitalize='none'
+                                    autoCorrect={false}
+                                    selectTextOnFocus={true}
+                                    style={[$keyInput, $inputInWrap, {color: inputText}]}
+                                />
+                            </View>
+                            <Button
+                                preset='secondary'
+                                accessibilityLabel={translate('commonPaste')}
+                                LeftAccessory={() => <Icon icon='faPaste' color={dimColor} size={spacing.medium} />}
+                                onPress={onPasteFollowKey}
+                                style={[$pasteButton, $buttonFitInput, $iconButton, {borderLeftWidth: 1, borderLeftColor: dividerColor}]}
                             />
-                            <Button preset='secondary' tx='commonPaste' onPress={onPasteFollowKey} style={$pasteButton} />
-                            <Button tx='commonSave' onPress={onSaveFollowKey} style={$saveButton} />
+                            <Button
+                                accessibilityLabel={translate('commonSave')}
+                                LeftAccessory={() => <Icon icon='faCheck' color='white' size={spacing.medium} />}
+                                onPress={onSaveFollowKey}
+                                style={[$saveButton, $buttonFitInput, $iconButton]}
+                            />
                         </View>
                         <View style={$modalButtons}>
                             {!followKey && (
@@ -509,9 +539,8 @@ const $keyInput: TextStyle = {
     flex: 1,
     borderTopLeftRadius: spacing.small,
     borderBottomLeftRadius: spacing.small,
-    fontSize: 16,
+    fontSize: verticalScale(16),
     padding: spacing.small,
-    alignSelf: 'stretch',
 }
 
 const $pasteButton: ViewStyle = {
@@ -550,11 +579,6 @@ const $inputAttached: TextStyle = {
     borderBottomRightRadius: 0,
 }
 
-const $queryInputWrap: ViewStyle = {
-    flex: 1,
-    justifyContent: 'center',
-}
-
 // room for the clear icon laid over the input's right end
 const $queryInput: TextStyle = {
     flex: 0,
@@ -566,7 +590,28 @@ const $clearIcon: ViewStyle = {
     right: 0,
 }
 
+// Paste and Scan the same width, whatever their icons' proportions
+const $iconButton: ViewStyle = {
+    width: spacing.huge,
+    paddingLeft: 0,
+    paddingRight: 0,
+}
+
 const $buttonFitInput: ViewStyle = {
     minHeight: 0,
     paddingVertical: 0,
+}
+
+// Holds the field background. A TextInput is a measured (text) node, so Yoga rounds
+// its bottom edge up to the pixel grid while the attached buttons round to nearest,
+// leaving them a pixel short. A plain View rounds like the buttons do.
+const $inputWrap: ViewStyle = {
+    flex: 1,
+    justifyContent: 'center',
+    borderTopLeftRadius: spacing.small,
+    borderBottomLeftRadius: spacing.small,
+}
+
+const $inputInWrap: TextStyle = {
+    flex: 0,
 }

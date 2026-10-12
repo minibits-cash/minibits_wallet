@@ -18,6 +18,7 @@ import {
   BottomModal,
   Header,
   AnimatedHeader,
+  Icon,
 } from '../components'
 import {log} from '../services/logService'
 import AppError, { Err } from '../utils/AppError'
@@ -25,6 +26,7 @@ import { useStores } from '../models'
 import { SYNC_STATE_WITH_ALL_MINTS_TASK, SyncStateTaskResult, WalletTask } from '../services/walletService'
 import EventEmitter from '../utils/eventEmitter'
 import { translate } from '../i18n'
+import {verticalScale} from '@gocodingnow/rn-size-matters'
 import { NotificationService } from '../services/notificationService'
 import { StaticScreenProps, useNavigation } from '@react-navigation/native'
 import { ResultModalInfo } from './Wallet/ResultModalInfo'
@@ -319,6 +321,8 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
     const inputBg = useThemeColor('background')
     const mintsModalBg = useThemeColor('background')
     const inputText = useThemeColor('text')
+    const dimColor = useThemeColor('textDim')
+    const dividerColor = useThemeColor('card')
 
     const scrollHandler = useTabBarScrollHandler(scrollY)
     const tabBarInset = useTabBarInset()
@@ -488,21 +492,24 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
           ContentComponent={
             <View style={$quoteContainer}>
                 <Text tx='recoveryEnterMintQuote' />
-                <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
-                    <TextInput
-                        ref={mintQuoteInputRef}
-                        onChangeText={(quote) => setMintQuote(quote)}
-                        value={mintQuote}
-                        autoCapitalize='none'
-                        keyboardType='default'
-                        maxLength={80}
-                        selectTextOnFocus={true}
-                        style={[$quoteInput, {backgroundColor: inputBg, color: inputText}]}
-                    />
+                <View style={{flexDirection: 'row', alignItems: 'stretch', marginTop: spacing.small}}>
+                    <View style={[$inputWrap, {backgroundColor: inputBg}]}>
+                        <TextInput
+                            ref={mintQuoteInputRef}
+                            onChangeText={(quote) => setMintQuote(quote)}
+                            value={mintQuote}
+                            autoCapitalize='none'
+                            keyboardType='default'
+                            maxLength={80}
+                            selectTextOnFocus={true}
+                            style={[$quoteInput, $inputInWrap, {color: inputText}]}
+                        />
+                    </View>
                     <Button
-                        tx='commonPaste'
                         preset='secondary'
-                        style={$pasteButton}
+                        accessibilityLabel={translate('commonPaste')}
+                        LeftAccessory={() => <Icon icon='faPaste' color={dimColor} size={spacing.medium} />}
+                        style={[$pasteButton, {borderLeftColor: dividerColor}]}
                         onPress={onPasteMintQuote}
                     />                    
                 </View>
@@ -541,21 +548,24 @@ export const RecoveryOptionsScreen = observer(function RecoveryOptionsScreen(_: 
           ContentComponent={
             <View style={$quoteContainer}>
                 <Text tx='recoveryEnterMeltQuote' />
-                <View style={{flexDirection: 'row', alignItems: 'center', marginTop: spacing.small}}>
-                    <TextInput
-                        ref={mintQuoteInputRef}
-                        onChangeText={(quote) => setMeltQuote(quote)}
-                        value={meltQuote}
-                        autoCapitalize='none'
-                        keyboardType='default'
-                        maxLength={40}                        
-                        selectTextOnFocus={true}
-                        style={[$quoteInput, {backgroundColor: inputBg, color: inputText}]}
-                    />
+                <View style={{flexDirection: 'row', alignItems: 'stretch', marginTop: spacing.small}}>
+                    <View style={[$inputWrap, {backgroundColor: inputBg}]}>
+                        <TextInput
+                            ref={mintQuoteInputRef}
+                            onChangeText={(quote) => setMeltQuote(quote)}
+                            value={meltQuote}
+                            autoCapitalize='none'
+                            keyboardType='default'
+                            maxLength={40}                        
+                            selectTextOnFocus={true}
+                            style={[$quoteInput, $inputInWrap, {color: inputText}]}
+                        />
+                    </View>
                     <Button
-                        tx={'commonPaste'}
                         preset='secondary'
-                        style={$pasteButton}
+                        accessibilityLabel={translate('commonPaste')}
+                        LeftAccessory={() => <Icon icon='faPaste' color={dimColor} size={spacing.medium} />}
+                        style={[$pasteButton, {borderLeftColor: dividerColor}]}
                         onPress={onPasteMeltQuote}
                     />                    
                 </View>
@@ -616,22 +626,24 @@ const $quoteContainer: TextStyle = {
   maxHeight: spacing.screenHeight * 0.3,
 }
 
+// follows the input's height, not the Button's 50pt minimum
 const $pasteButton: ViewStyle = {
   borderTopLeftRadius: 0,
   borderBottomLeftRadius: 0,
-  alignSelf: 'stretch',
-  justifyContent: 'center',
-  marginLeft: 1
+  borderLeftWidth: 1,
+  minHeight: 0,
+  paddingVertical: 0,
+  width: spacing.huge,
+  paddingLeft: 0,
+  paddingRight: 0,
 }
 
 const $quoteInput: TextStyle = {
   flex: 1,    
   borderTopLeftRadius: spacing.small,
   borderBottomLeftRadius: spacing.small,
-  fontSize: 16,
+  fontSize: verticalScale(16),
   padding: spacing.small,
-  alignSelf: 'stretch',
-  textAlignVertical: 'top',
 }
 
 
@@ -660,4 +672,18 @@ const $item: ViewStyle = {
 const $buttonContainer: ViewStyle = {
   flexDirection: 'row',
   alignSelf: 'center',
+}
+
+// Holds the field background. A TextInput is a measured (text) node, so Yoga rounds
+// its bottom edge up to the pixel grid while the attached buttons round to nearest,
+// leaving them a pixel short. A plain View rounds like the buttons do.
+const $inputWrap: ViewStyle = {
+    flex: 1,
+    justifyContent: 'center',
+    borderTopLeftRadius: spacing.small,
+    borderBottomLeftRadius: spacing.small,
+}
+
+const $inputInWrap: TextStyle = {
+    flex: 0,
 }
