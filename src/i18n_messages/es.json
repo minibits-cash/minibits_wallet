@@ -8,6 +8,7 @@
 	"addContact_loadFollows": "Cargar a quienes sigues en Nostr",
 	"addContact_noResults": "No se encontró nada. Revisa la dirección o prueba otro nombre.",
 	"addContact_placeholder": "Nombre, dirección o npub",
+	"addContact_search": "Buscar",
 	"addContact_searching": "Buscando...",
 	"addContact_title": "Nuevo contacto",
 	"addMints": "Agregar mints",

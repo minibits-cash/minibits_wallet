@@ -100,6 +100,7 @@ const ContactsStack = createNativeStackNavigator({
     Picture: PictureScreen,
     Conversation: ConversationScreen,
     AddContact: AddContactScreen,
+    Scan: ScanScreen,
     OwnKeys: OwnKeysScreen,
     WalletName: WalletNameScreen,    
   }

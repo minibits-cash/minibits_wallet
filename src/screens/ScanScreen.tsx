@@ -24,7 +24,7 @@ import { MintUnit } from '../services/wallet/currency'
 import { Mint } from '../models/Mint'
 import { CashuUtils } from '../services/cashu/cashuUtils'
 import { BitcoinUtils } from '../services/bitcoin/bitcoinUtils'
-import { StaticScreenProps, useNavigation } from '@react-navigation/native'
+import { StackActions, StaticScreenProps, useNavigation } from '@react-navigation/native'
 
 const hasAndroidCameraPermission = async () => {
     const cameraPermission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
@@ -173,6 +173,9 @@ export const ScanScreen = function ScanScreen({ route }: Props) {
                     handleError(e)
                     break
                 }
+            case 'AddContact':
+                // the contact search works out what it is
+                return navigation.dispatch(StackActions.popTo('AddContact', {scanned: incoming}))
             case 'Send':     
                 try {               
                     const pubkey = IncomingParser.findAndExtract(incoming, IncomingDataType.NPUB_OR_HEX) // throws

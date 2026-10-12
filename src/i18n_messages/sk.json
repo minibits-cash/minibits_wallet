@@ -8,6 +8,7 @@
 	"addContact_loadFollows": "Načítať koho sleduješ na Nostr",
 	"addContact_noResults": "Nič sa nenašlo. Skontroluj adresu alebo skús iné meno.",
 	"addContact_placeholder": "Meno, adresa alebo npub",
+	"addContact_search": "Hľadať",
 	"addContact_searching": "Hľadám...",
 	"addContact_title": "Nový kontakt",
 	"addMints": "Pridať minty",

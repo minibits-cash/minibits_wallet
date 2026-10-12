@@ -1,7 +1,7 @@
 import {observer} from 'mobx-react-lite'
 import React, {useEffect, useRef, useState} from 'react'
 import {TextInput, TextStyle, View, ViewStyle, TextInputInstance} from 'react-native'
-import {StackActions, useNavigation} from '@react-navigation/native'
+import {StackActions, StaticScreenProps, useNavigation} from '@react-navigation/native'
 import {verticalScale} from '@gocodingnow/rn-size-matters'
 import {Metadata, Contacts} from 'nostr-tools/kinds'
 import Clipboard from '@react-native-clipboard/clipboard'
@@ -54,9 +54,16 @@ const uniqueByPubkey = (list: Contact[]) =>
  * lightning address, or a name to search nostr for. Followed by the user's nostr
  * follows as one-tap candidates.
  */
-export const AddContactScreen = observer(function () {
+type Props = StaticScreenProps<{
+    scanned?: string
+} | undefined>
+
+/** Drops a nostr:/lightning: URI prefix, so a scanned or pasted QR value resolves like a typed one. */
+const cleanScanned = (value: string) => value.trim().replace(/^(nostr|lightning):/i, '')
+
+export const AddContactScreen = observer(function ({route}: Props) {
     const navigation = useNavigation()
-    const {contactsStore, relaysStore} = useStores()
+    const {contactsStore, relaysStore, userSettingsStore} = useStores()
     const inputRef = useRef<TextInputInstance>(null)
     const searchId = useRef(0)
 
@@ -92,6 +99,11 @@ export const AddContactScreen = observer(function () {
         setTimeout(() => inputRef.current?.focus(), 200)
         if (contactsStore.publicPubkey) loadFollows(contactsStore.publicPubkey)
     }, [])
+
+    // back from the Scan screen
+    useEffect(() => {
+        if (route.params?.scanned) setQuery(cleanScanned(route.params.scanned))
+    }, [route.params?.scanned])
 
     useEffect(() => {
         const q = query.trim()
@@ -223,6 +235,15 @@ export const AddContactScreen = observer(function () {
         setIsFollowKeyModalVisible(false)
     }
 
+    const onPasteQuery = async function () {
+        setQuery(cleanScanned(await Clipboard.getString()))
+    }
+
+    const gotoScan = function () {
+        // @ts-ignore
+        navigation.navigate('Scan', {unit: userSettingsStore.preferredUnit})
+    }
+
     const onPasteFollowKey = async function () {
         setFollowKey((await Clipboard.getString()).trim())
     }
@@ -268,27 +289,33 @@ export const AddContactScreen = observer(function () {
                 ListHeaderComponent={
                     <>
                         <Card
+                            headingTx='addContact_search'
                             style={$card}
                             ContentComponent={
                                 <View>
-                                    <View style={$inputRow}>
-                                        <TextInput
-                                            ref={inputRef}
-                                            value={query}
-                                            onChangeText={setQuery}
-                                            placeholder={translate('addContact_placeholder')}
-                                            placeholderTextColor={dimColor}
-                                            autoCapitalize='none'
-                                            autoCorrect={false}
-                                            keyboardType='email-address'
-                                            maxLength={200}
-                                            style={[$input, {backgroundColor: inputBg, color: inputText}]}
-                                        />
-                                        {query.length > 0 && (
-                                            <Icon icon='faXmark' color={dimColor} onPress={() => setQuery('')} />
-                                        )}
+                                    <Text size='xxs' style={{color: dimColor, marginBottom: spacing.extraSmall}} tx='addContact_hint' />
+                                    <View style={[$inputRow, $fitToInput]}>
+                                        <View style={$queryInputWrap}>
+                                            <TextInput
+                                                ref={inputRef}
+                                                value={query}
+                                                onChangeText={setQuery}
+                                                placeholder={translate('addContact_placeholder')}
+                                                placeholderTextColor={dimColor}
+                                                autoCapitalize='none'
+                                                autoCorrect={false}
+                                                keyboardType='email-address'
+                                                maxLength={200}
+                                                style={[$input, $inputAttached, $queryInput, {backgroundColor: inputBg, color: inputText}]}
+                                            />
+                                            {query.length > 0 && (
+                                                <Icon icon='faXmark' color={dimColor} onPress={() => setQuery('')} containerStyle={$clearIcon} />
+                                            )}
+                                        </View>
+                                        <Button preset='secondary' tx='commonPaste' onPress={onPasteQuery} style={[$pasteButton, $buttonFitInput]} />
+                                        <Button preset='secondary' tx='commonScan' onPress={gotoScan} style={[$saveButton, $buttonFitInput, {marginLeft: 1}]} />
                                     </View>
-                                    <Text size='xxs' style={{color: dimColor, marginTop: spacing.extraSmall}} tx='addContact_hint' />
+                                    
                                     <Button
                                         preset='tertiary'
                                         tx='addContact_loadFollows'
@@ -521,6 +548,22 @@ const $fitToInput: ViewStyle = {
 const $inputAttached: TextStyle = {
     borderTopRightRadius: 0,
     borderBottomRightRadius: 0,
+}
+
+const $queryInputWrap: ViewStyle = {
+    flex: 1,
+    justifyContent: 'center',
+}
+
+// room for the clear icon laid over the input's right end
+const $queryInput: TextStyle = {
+    flex: 0,
+    paddingRight: spacing.extraLarge,
+}
+
+const $clearIcon: ViewStyle = {
+    position: 'absolute',
+    right: 0,
 }
 
 const $buttonFitInput: ViewStyle = {
