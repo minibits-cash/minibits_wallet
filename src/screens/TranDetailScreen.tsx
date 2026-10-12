@@ -558,6 +558,31 @@ export const TranDetailScreen = observer(function TranDetailScreen({ route }: Pr
     )
   })
 
+/** njump link to the note or addressable event a zap request points at. */
+const getZapEventUrl = function (zapRequest?: string | null): string | undefined {
+  if(!zapRequest) {
+    return undefined
+  }
+
+  try {
+    const zapRequestData: NostrEvent = JSON.parse(zapRequest)
+    // zaps to addressable events (articles, apps...) are identified by the a tag, the e tag alone is not resolvable
+    const aTagValue = NostrClient.getFirstTagValue(zapRequestData.tags, 'a')
+    const eventIdHex = NostrClient.getFirstTagValue(zapRequestData.tags, 'e')
+    const relays = (NostrClient.getTagsByName(zapRequestData.tags, 'relays') || []).slice(0, 2)
+
+    const pointer = aTagValue
+      ? NostrClient.naddrEncode(aTagValue as string, relays)
+      : eventIdHex
+        ? NostrClient.neventEncode(eventIdHex as string, relays)
+        : undefined
+
+    return pointer ? `https://njump.me/${pointer}` : undefined
+  } catch(e: any) {
+    return undefined
+  }
+}
+
 const ReceiveInfoBlock = function (props: {
     transaction: Transaction
     isDataParsable: boolean
@@ -594,29 +619,7 @@ const ReceiveInfoBlock = function (props: {
           setSentFromUrl(`${urlPrefix}${transaction.sentFrom}`)
         }
 
-        try {
-          const zapRequestData: NostrEvent = JSON.parse(transaction.zapRequest)
-          // zaps to addressable events (articles, apps...) are identified by the a tag, the e tag alone is not resolvable
-          const aTagValue = NostrClient.getFirstTagValue(zapRequestData.tags, 'a')
-          const eventIdHex = NostrClient.getFirstTagValue(zapRequestData.tags, 'e')
-          const relays = (NostrClient.getTagsByName(zapRequestData.tags, 'relays') || []).slice(0, 2)
-
-          const pointer = aTagValue
-            ? NostrClient.naddrEncode(aTagValue as string, relays)
-            : eventIdHex
-              ? NostrClient.neventEncode(eventIdHex as string, relays)
-              : undefined
-
-          if(pointer) {
-            setEventUrl(`${urlPrefix}${pointer}`)
-
-            log.trace('[extractZapUrls]', {aTagValue, eventIdHex, pointer})
-          }
-        } catch(e: any) {
-          return
-        }
-        
-        
+        setEventUrl(getZapEventUrl(transaction.zapRequest))
       }     
       
       extractZapUrls()
@@ -2140,6 +2143,7 @@ const TransferInfoBlock = function (props: {
   const {transaction, mint, isDataParsable} = props
   const {proofsStore, transactionsStore, mintsStore} = useStores()
   const navigation = useNavigation()
+  const zapEventUrl = getZapEventUrl(transaction.zapRequest)
 
   
   const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
@@ -2270,6 +2274,13 @@ const TransferInfoBlock = function (props: {
                 <TranItem
                     label="tranDetailScreen_sentTo"
                     value={transaction.sentTo}
+                />
+            )}
+            {zapEventUrl && (
+                <TranItem
+                    label="tranDetailScreen_eventUrl"
+                    value={`${zapEventUrl.substring(0,30)}...`}
+                    url={zapEventUrl}
                 />
             )}
             <TranItem

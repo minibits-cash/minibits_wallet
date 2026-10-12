@@ -5,6 +5,8 @@
  * whole store (nostr, notifee, firebase); NwcStore owns the protocol handlers,
  * this owns what a transaction looks like once it leaves the wallet.
  */
+import {sha256} from '@noble/hashes/sha2.js'
+import {bytesToHex, utf8ToBytes} from '@noble/hashes/utils.js'
 import type {NwcTransactionQuery} from '../services/db'
 import {
     getTransactionDirection,
@@ -27,6 +29,8 @@ export type NwcTransaction = {
     created_at: number
     settled_at: number | null
     expires_at: number | null
+    /** NWC-06 metadata; carries the zap request as `nostr` for a zap. */
+    metadata?: {nostr: object}
 }
 
 // NIP-47 leaves list_transactions paging to the wallet: reply with a sane page when
@@ -67,7 +71,40 @@ export const toNwcTransaction = function (t: Transaction): NwcTransaction {
         // told clients an invoice they are still waiting on had already been paid.
         settled_at: isSettled ? toUnixSeconds(t.createdAt) : null,
         expires_at: t.expiresAt ? toUnixSeconds(t.expiresAt) : null,
+        metadata: toZapMetadata(t.zapRequest),
     }
+}
+
+const toZapMetadata = function (zapRequest?: string | null) {
+    if (!zapRequest) return undefined
+    try {
+        return {nostr: JSON.parse(zapRequest)}
+    } catch (e) {
+        return undefined
+    }
+}
+
+/**
+ * The NIP-57 zap request a client attached to pay_invoice as NWC-06 `metadata.nostr`,
+ * serialized for the transaction's zapRequest column — but only when the invoice
+ * commits to it (its description_hash is the sha256 of the zap request). The client
+ * may send anything; an unverified one could label the payment with a note it
+ * never zapped.
+ */
+export const getVerifiedZapRequest = function (
+    metadata: any,
+    descriptionHash?: string,
+): string | undefined {
+    const nostr = metadata?.nostr
+    if (!nostr || !descriptionHash) return undefined
+
+    // Must be hashed as the lnurl server received it. Clients send JSON.stringify of
+    // the event, which a parse/stringify round-trip reproduces; a string is taken verbatim.
+    const zapRequest = typeof nostr === 'string' ? nostr : JSON.stringify(nostr)
+
+    return bytesToHex(sha256(utf8ToBytes(zapRequest))) === descriptionHash.toLowerCase()
+        ? zapRequest
+        : undefined
 }
 
 /**

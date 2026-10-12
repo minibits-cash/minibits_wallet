@@ -18,10 +18,13 @@ jest.mock('../src/services/logService', () => ({
   log: {debug: jest.fn(), error: jest.fn(), info: jest.fn(), trace: jest.fn(), warn: jest.fn()},
 }))
 
+import {sha256} from '@noble/hashes/sha2.js'
+import {bytesToHex, utf8ToBytes} from '@noble/hashes/utils.js'
 import {Database} from '../src/services/db'
 import {TransactionStatus, TransactionType} from '../src/models/Transaction'
 import {
   DEFAULT_LIST_TRANSACTIONS,
+  getVerifiedZapRequest,
   MAX_LIST_TRANSACTIONS,
   toNwcTransaction,
   toNwcTransactionQuery,
@@ -308,5 +311,39 @@ describe('list_transactions', () => {
         expires_at: Math.floor(new Date('2026-01-01T00:00:00.000Z').getTime() / 1000),
       })
     })
+  })
+})
+
+/**
+ * pay_invoice can carry the zap request in NWC-06 `metadata.nostr`. It is kept only
+ * when the invoice's description_hash commits to it, so a client cannot label a
+ * payment with a note it did not zap.
+ */
+describe('getVerifiedZapRequest', () => {
+  const descriptionHash = bytesToHex(sha256(utf8ToBytes(ZAP_REQUEST)))
+
+  it('keeps a zap request the invoice commits to, sent as an object', () => {
+    expect(getVerifiedZapRequest({nostr: JSON.parse(ZAP_REQUEST)}, descriptionHash)).toBe(ZAP_REQUEST)
+  })
+
+  it('keeps one sent as a string', () => {
+    expect(getVerifiedZapRequest({nostr: ZAP_REQUEST}, descriptionHash.toUpperCase())).toBe(ZAP_REQUEST)
+  })
+
+  it('drops a zap request the invoice does not commit to', () => {
+    const forged = {...JSON.parse(ZAP_REQUEST), content: 'forged'}
+    expect(getVerifiedZapRequest({nostr: forged}, descriptionHash)).toBeUndefined()
+  })
+
+  it('drops it without metadata or a description hash', () => {
+    expect(getVerifiedZapRequest(undefined, descriptionHash)).toBeUndefined()
+    expect(getVerifiedZapRequest({comment: 'hi'}, descriptionHash)).toBeUndefined()
+    expect(getVerifiedZapRequest({nostr: ZAP_REQUEST}, undefined)).toBeUndefined()
+  })
+
+  it('returns the stored zap request as metadata.nostr', () => {
+    const tx = toNwcTransaction({zapRequest: ZAP_REQUEST, amount: 21, createdAt: new Date()} as any)
+    expect(tx.metadata).toEqual({nostr: JSON.parse(ZAP_REQUEST)})
+    expect(toNwcTransaction({amount: 21, createdAt: new Date()} as any).metadata).toBeUndefined()
   })
 })

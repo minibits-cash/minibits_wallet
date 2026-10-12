@@ -28,7 +28,7 @@ import { LightningUtils } from '../services/lightning/lightningUtils'
 import EventEmitter from '../utils/eventEmitter'
 import { addSeconds } from 'date-fns/addSeconds'
 import { Transaction, TransactionStatus } from './Transaction'
-import { toNwcTransaction, toNwcTransactionQuery } from './NwcTransaction'
+import { getVerifiedZapRequest, toNwcTransaction, toNwcTransactionQuery } from './NwcTransaction'
 import { MeltQuoteBolt11Response } from '@cashu/cashu-ts'
 import { WalletStore } from './WalletStore'
 import { ProofsStore } from './ProofsStore'
@@ -262,7 +262,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             false
         )    
     }),
-    payInvoice: flow(function* payInvoice(nwcRequest: NwcRequest, encodedInvoice: string, requestEvent: NostrEvent) {
+    payInvoice: flow(function* payInvoice(nwcRequest: NwcRequest, encodedInvoice: string, requestEvent: NostrEvent, metadata?: any) {
         log.debug('[Nwc.payInvoice] start')       
 
         try {            
@@ -275,6 +275,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
                 amount: amountToPay, 
                 expiry, 
                 description, 
+                description_hash,
                 timestamp
             } = LightningUtils.getInvoiceData(invoice)
 
@@ -334,6 +335,13 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             }
 
             self.setLastMeltQuoteId(result.meltQuote?.quote)
+
+            // Zap paid from a nostr client: keep its zap request so the zapped note
+            // shows on the transaction, as it does for received zaps.
+            const zapRequest = getVerifiedZapRequest(metadata, description_hash)
+            if(zapRequest && result.transaction?.id) {
+                self.getTransactionsStore().findById(result.transaction.id)?.update({zapRequest})
+            }
 
             let txStatus: TransactionStatus | undefined = result.transaction?.status
             let completedAmount: number = result.transaction?.amount ?? 0
@@ -571,7 +579,7 @@ export const NwcConnectionModel = types.model('NwcConnection', {
             self.setCurrentDay()
         }
 
-        const nwcResponse = yield self.payInvoice(nwcRequest, nwcRequest.params.invoice, requestEvent)
+        const nwcResponse = yield self.payInvoice(nwcRequest, nwcRequest.params.invoice, requestEvent, nwcRequest.params.metadata)
         return nwcResponse as NwcResponse | NwcError | NwcPending
     }),
     handleMultiPayInvoice: flow(function* handleMultiPayInvoice(nwcRequest: NwcRequest, requestEvent: NostrEvent) {
