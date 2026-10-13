@@ -38,6 +38,7 @@ const TITLE_KEYS: Record<MessageContentKind, TxKeyPath> = {
 export const MessageBubble = observer(function (props: {
     message: MessageRecord
     onOpenTransaction: (id: number) => void
+    onPayRequest: (content: string) => void
     onRetry: (message: MessageRecord) => void
 }) {
     const {message} = props
@@ -102,11 +103,16 @@ export const MessageBubble = observer(function (props: {
         )
     }
 
+    // an incoming cashu payment request has no transaction, it is paid from the Send screen
+    const canPayRequest = !isOut && !tx && parsed.kind === MessageContentKind.PAYMENT_REQUEST
+
     const onPress = () => {
         if (isOut && message.status === MessageStatus.FAILED) {
             props.onRetry(message)
         } else if (tx) {
             props.onOpenTransaction(tx.id!)
+        } else if (canPayRequest) {
+            props.onPayRequest(message.content)
         }
     }
 
@@ -114,7 +120,7 @@ export const MessageBubble = observer(function (props: {
         <View style={[$row, {justifyContent: isOut ? 'flex-end' : 'flex-start'}]}>
             <Pressable
                 onPress={onPress}
-                disabled={!tx && message.status !== MessageStatus.FAILED}
+                disabled={!tx && !canPayRequest && message.status !== MessageStatus.FAILED}
                 style={[
                     $bubble,
                     {backgroundColor: isOut ? outBg : inBg},

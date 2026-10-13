@@ -54,6 +54,7 @@
 	"buttonAdd": "Adicionar",
 	"buttonCheck": "Verificar",
 	"cashuPaymentRequest_create": "Criar solicitação",
+	"cashuPaymentRequest_nostrDMreceived": "nostr:%{npub} enviou pedido de pagamento Cashu de %{amount} %{currency} da carteira Minibits!",
 	"cashuPaymentRequest_to": "Receber para",
 	"cashuPaymentRequestQRTitle": "Solicitação de pagamento Cashu",
 	"cashuPaymentRequestTitle": "Mint para receber",

@@ -36,6 +36,7 @@ const canServe = function (contact: Contact, paymentOption?: ContactPickerOption
     switch (paymentOption) {
         case SendOption.SEND_TOKEN:
         case ReceiveOption.SEND_PAYMENT_REQUEST:
+        case ReceiveOption.SEND_CASHU_PAYMENT_REQUEST:
             return isNostrContact(contact)
         case TransferOption.LNURL_ADDRESS:
             return !!contact.lud16
@@ -134,9 +135,13 @@ export const ContactsScreen = observer(function ({ route }: Props) {
                 await NostrClient.verifyNip05(contact.nip05, contact.pubkey) // throws
             }
 
+            const screen = paymentOption === SendOption.SEND_TOKEN
+                ? 'Send'
+                : paymentOption === ReceiveOption.SEND_CASHU_PAYMENT_REQUEST ? 'CashuPaymentRequest' : 'Topup'
+
             //@ts-ignore
             navigation.navigate('WalletNavigator', {
-                screen: paymentOption === SendOption.SEND_TOKEN ? 'Send' : 'Topup',
+                screen,
                 params: {
                     paymentOption,
                     contact: toJS(contact),
@@ -160,7 +165,7 @@ export const ContactsScreen = observer(function ({ route }: Props) {
         ? 'contactsScreen_privateContacts_selectSendToken'
         : paymentOption === TransferOption.LNURL_ADDRESS
             ? 'contactsScreen_privateContacts_selectSendLnURL'
-            : paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST
+            : paymentOption === ReceiveOption.SEND_PAYMENT_REQUEST || paymentOption === ReceiveOption.SEND_CASHU_PAYMENT_REQUEST
                 ? 'contactsScreen_privateContacts_selectSendPaymentRequest'
                 : undefined
 

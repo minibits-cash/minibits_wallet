@@ -1,6 +1,6 @@
-import React, { useRef, useState, useEffect, useReducer } from "react"
+import React, { useRef, useState, useEffect, useReducer, useCallback } from "react"
 import { observer } from "mobx-react-lite"
-import { StackActions, StaticScreenProps, useNavigation } from "@react-navigation/native"
+import { StackActions, StaticScreenProps, useFocusEffect, useNavigation } from "@react-navigation/native"
 import { View, LayoutAnimation, Keyboard, ViewStyle, TextStyle, TextInputInstance } from "react-native"
 import { spacing, useThemeColor, typography, colors } from "../theme"
 import { useStores } from "../models"
@@ -22,6 +22,7 @@ import {
   BottomModal,
   Text,
   AmountInput,
+  Icon,
 } from "../components"
 import {HANDLE_RECEIVED_EVENT_TASK, log, TransactionTaskResult, WalletTask } from "../services"
 import { QRCodeBlock } from "./Wallet/QRCode"
@@ -32,10 +33,17 @@ import { ResultModalInfo } from "./Wallet/ResultModalInfo"
 import { MintHeader } from "./Mints/MintHeader"
 import { AmountEntryLayout, useAmountEntry } from "../components/AmountEntryLayout"
 import { MemoInputCard } from "../components/MemoInputCard"
+import { Contact } from "../models/Contact"
+import { MessagingService } from "../services/messagingService"
+import { ReceiveOption } from "./ReceiveScreen"
+import { NostrDMSuccessBlock, SendAsNostrDMBlock } from "./TopupScreen"
 
 type Props = StaticScreenProps<{
   unit: MintUnit,
   mintUrl?: string,
+  /** Set when returning from the contact picker. */
+  paymentOption?: ReceiveOption,
+  contact?: Contact,
 }>
 
 type CashuPaymentRequestState = {
@@ -52,6 +60,10 @@ type CashuPaymentRequestState = {
   encodedPaymentRequest: string | undefined
   resultModalInfo: { status: TransactionStatus; title?: string; message: string } | undefined
   isResultModalVisible: boolean
+  contactToSendTo: Contact | undefined
+  isNostrDMModalVisible: boolean
+  isNostrDMSending: boolean
+  isNostrDMSuccess: boolean
 }
 
 type CashuPaymentRequestAction =
@@ -63,6 +75,10 @@ type CashuPaymentRequestAction =
   | { type: 'REQUEST_FAILED'; status: TransactionStatus; title?: string; message: string }
   | { type: 'REQUEST_COMPLETE'; transaction: Transaction; message: string }
   | { type: 'TOGGLE_RESULT_MODAL' }
+  | { type: 'SET_CONTACT'; contact: Contact }
+  | { type: 'DM_SENDING' }
+  | { type: 'DM_SENT' }
+  | { type: 'TOGGLE_NOSTR_DM_MODAL' }
   | { type: 'SET_INFO'; message: string }
   | { type: 'SET_ERROR'; error: AppError }
   | { type: 'RESET' }
@@ -81,6 +97,10 @@ const INITIAL_STATE: CashuPaymentRequestState = {
   encodedPaymentRequest: undefined,
   resultModalInfo: undefined,
   isResultModalVisible: false,
+  contactToSendTo: undefined,
+  isNostrDMModalVisible: false,
+  isNostrDMSending: false,
+  isNostrDMSuccess: false,
 }
 
 function cashuPaymentRequestReducer(
@@ -129,10 +149,20 @@ function cashuPaymentRequestReducer(
           status: TransactionStatus.COMPLETED,
           message: action.message,
         },
+        isNostrDMModalVisible: false,
         isResultModalVisible: true,
       }
     case 'TOGGLE_RESULT_MODAL':
       return { ...state, isResultModalVisible: !state.isResultModalVisible }
+    case 'SET_CONTACT':
+      // the request already exists when the contact is picked, confirm sending right away
+      return { ...state, contactToSendTo: action.contact, isNostrDMModalVisible: true }
+    case 'DM_SENDING':
+      return { ...state, isNostrDMSending: true }
+    case 'DM_SENT':
+      return { ...state, isNostrDMSending: false, isNostrDMSuccess: true }
+    case 'TOGGLE_NOSTR_DM_MODAL':
+      return { ...state, isNostrDMModalVisible: !state.isNostrDMModalVisible }
     case 'SET_INFO':
       return { ...state, info: action.message }
     case 'SET_ERROR':
@@ -140,6 +170,7 @@ function cashuPaymentRequestReducer(
         ...state,
         isLoading: false,
         isCashuPaymentRequestTaskSentToQueue: false,
+        isNostrDMSending: false,
         error: action.error,
       }
     case 'RESET':
@@ -155,6 +186,8 @@ export const CashuPaymentRequestScreen = observer(function CashuPaymentRequestSc
   const {
     proofsStore,
     mintsStore,
+    walletProfileStore,
+    transactionsStore,
   } = useStores()
 
   const amountInputRef = useRef<TextInputInstance>(null)
@@ -178,7 +211,18 @@ export const CashuPaymentRequestScreen = observer(function CashuPaymentRequestSc
     encodedPaymentRequest,
     resultModalInfo,
     isResultModalVisible,
+    contactToSendTo,
+    isNostrDMModalVisible,
+    isNostrDMSending,
+    isNostrDMSuccess,
   } = state
+
+  const contactToSendFrom: Contact = {
+    pubkey: walletProfileStore.pubkey,
+    npub: walletProfileStore.npub,
+    name: walletProfileStore.name,
+    picture: walletProfileStore.picture,
+  }
 
   const amountEntry = useAmountEntry({
     isEnabled: transactionStatus !== TransactionStatus.PENDING,
@@ -268,7 +312,20 @@ useEffect(() => {
 }, [transactionId])
 
 
+// Back from the contact picker with the contact to send the request to
+useFocusEffect(
+  useCallback(() => {
+    const {paymentOption, contact} = route.params
+    if (paymentOption !== ReceiveOption.SEND_CASHU_PAYMENT_REQUEST || !contact) return
+
+    dispatch({ type: 'SET_CONTACT', contact })
+    // @ts-ignore
+    navigation.setParams({ paymentOption: undefined, contact: undefined })
+  }, [route.params?.paymentOption]),
+)
+
 const toggleResultModal = () => dispatch({ type: 'TOGGLE_RESULT_MODAL' })
+const toggleNostrDMModal = () => dispatch({ type: 'TOGGLE_NOSTR_DM_MODAL' })
 
 const onAmountEndEditing = () => {
   log.trace("[onAmountEndEditing] called")
@@ -394,6 +451,48 @@ const handlePayReqTaskResult = async (result: TransactionTaskResult) => {
   })
 }
 
+const gotoContacts = () => {
+  //@ts-ignore
+  navigation.navigate('ContactsNavigator', {
+    screen: 'Contacts',
+    params: { paymentOption: ReceiveOption.SEND_CASHU_PAYMENT_REQUEST },
+  })
+}
+
+const sendToContact = async () => {
+  if (!contactToSendTo?.pubkey || !encodedPaymentRequest) return
+
+  try {
+    dispatch({ type: 'DM_SENDING' })
+
+    const content = translate('cashuPaymentRequest_nostrDMreceived', {
+      npub: walletProfileStore.npub,
+      amount: amountToRequest,
+      currency: getCurrency(unitRef.current).code,
+    }) + ' \n' + encodedPaymentRequest
+
+    // transactionId links the message to the request, so the sender opens it from the conversation
+    const {sentEvent} = await MessagingService.sendMessage({
+      recipientPubkey: contactToSendTo.pubkey,
+      content,
+      transactionId,
+    })
+
+    // the contact is who is asked to pay, as for a topup invoice
+    transactionsStore.findById(transactionId!)?.update({
+      sentFrom: contactToSendTo.nip05 || contactToSendTo.name,
+    })
+
+    if (sentEvent) {
+      dispatch({ type: 'DM_SENT' })
+    } else {
+      dispatch({ type: 'SET_INFO', message: translate('topup_relayMissingSentEvent') })
+    }
+  } catch (e: any) {
+    handleError(e)
+  }
+}
+
 const resetState = () => {
   setAmountToRequest("0")
   setMemo("")
@@ -488,6 +587,22 @@ return (
               type='PaymentRequest'     
               size={270}
             />
+            {!isNostrDMSuccess && (
+              <View style={$bottomContainer}>
+                <View style={$buttonContainer}>
+                  <Button
+                    text={contactToSendTo
+                      ? translate('topup_sendToNip', {sendTonip05: contactToSendTo.nip05 || contactToSendTo.name})
+                      : undefined}
+                    tx={contactToSendTo ? undefined : 'topup_sendToContact'}
+                    preset="secondary"
+                    onPress={contactToSendTo ? toggleNostrDMModal : gotoContacts}
+                    style={{maxHeight: 50}}
+                    LeftAccessory={() => <Icon icon="faPaperPlane" size={spacing.medium} />}
+                  />
+                </View>
+              </View>
+            )}
           </>
       )}
       {transaction && transactionStatus === TransactionStatus.COMPLETED && (
@@ -535,6 +650,34 @@ return (
         </>
       )}
     </AmountEntryLayout>
+    <BottomModal
+      isVisible={isNostrDMModalVisible}
+      ContentComponent={
+        isNostrDMSuccess ? (
+          <NostrDMSuccessBlock
+            toggleNostrDMModal={toggleNostrDMModal}
+            contactToSendFrom={contactToSendFrom}
+            contactToSendTo={contactToSendTo as Contact}
+            amountToTopup={amountToRequest}
+            onClose={gotoWallet}
+          />
+        ) : (
+          <SendAsNostrDMBlock
+            toggleNostrDMModal={toggleNostrDMModal}
+            encodedInvoiceToSend={encodedPaymentRequest as string}
+            contactToSendFrom={contactToSendFrom}
+            contactToSendTo={contactToSendTo as Contact}
+            relaysToShareTo={[]}
+            amountToTopup={amountToRequest}
+            unit={unitRef.current}
+            sendAsNostrDM={sendToContact}
+            isNostrDMSending={isNostrDMSending}
+          />
+        )
+      }
+      onBackButtonPress={toggleNostrDMModal}
+      onBackdropPress={toggleNostrDMModal}
+    />
     <BottomModal
       isVisible={isResultModalVisible ? true : false}
       ContentComponent={

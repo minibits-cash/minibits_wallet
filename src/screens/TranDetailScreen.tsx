@@ -71,6 +71,7 @@ import { Token, TokenMetadata, getDecodedToken, getTokenMetadata } from '@cashu/
 import FastImage from 'react-native-fast-image'
 import { MintHeader } from './Mints/MintHeader'
 import { TransferOption } from './TransferScreen'
+import { SendOption } from './SendScreen'
 import { WalletUtils } from '../services/wallet/utils'
 
 type ProofsByStatus = {
@@ -925,6 +926,18 @@ const ReceiveInfoBlock = function (props: {
                 </>
             }
         />
+        {transaction.type === TransactionType.RECEIVE_BY_PAYMENT_REQUEST &&
+          transaction.status === TransactionStatus.PENDING &&
+          transaction.paymentRequest && (
+          <View style={{marginBottom: spacing.small}}>
+            <QRCodeBlock
+              qrCodeData={transaction.paymentRequest}
+              titleTx='cashuPaymentRequestQRTitle'
+              type='PaymentRequest'
+              size={spacing.screenWidth * 0.8}
+            />
+          </View>
+        )}
         <Card
             labelTx='transactionCommon_receivedTo'
             style={$dataCard}
@@ -1279,6 +1292,7 @@ const SendInfoBlock = function (props: {
 }) {
     const {transaction, mint} = props
     const {proofsStore} = useStores()
+    const navigation = useNavigation()
 
     const [isResultModalVisible, setIsResultModalVisible] = useState<boolean>(false)
     const [resultModalInfo, setResultModalInfo] = useState<
@@ -1328,6 +1342,24 @@ const SendInfoBlock = function (props: {
       }
     }
 
+    // Pay cashu payment request received over Nostr
+    const onPayDraftSend = function () {
+      log.trace('[onPayDraftSend] start', {tId: transaction.id})
+
+      //@ts-ignore
+      navigation.navigate('WalletNavigator', {
+        screen: 'Send',
+        params: {
+          encodedCashuPaymentRequest: transaction.paymentRequest,
+          paymentOption: SendOption.PAY_CASHU_PAYMENT_REQUEST,
+          unit: transaction.unit,
+          // the mint's live url, not the one frozen in history
+          mintUrl: mint?.mintUrl,
+          draftTransactionId: transaction.id,
+        },
+      })
+    }
+
     const handleRevertTaskResult = async (result: TransactionTaskResult) => {
       log.trace('[handleRevertTaskResult] start')
       
@@ -1354,13 +1386,30 @@ const SendInfoBlock = function (props: {
                 style={$dataCard}
                 ContentComponent={
                     <>
-                        <TranItem
-                            label="tranDetailScreen_amount"
-                            value={transaction.amount}
-                            unit={transaction.unit}
-                            isCurrency={true}
-                            isFirst={true}
-                        />
+                        {transaction.status === TransactionStatus.DRAFT && transaction.paymentRequest ? (
+                          <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                            <TranItem
+                                label="tranDetailScreen_amount"
+                                value={transaction.amount}
+                                unit={transaction.unit}
+                                isCurrency={true}
+                                isFirst={true}
+                            />
+                            <Button
+                                style={{marginTop: spacing.medium}}
+                                tx="transactionCommon_payNow"
+                                onPress={onPayDraftSend}
+                            />
+                          </View>
+                        ) : (
+                          <TranItem
+                              label="tranDetailScreen_amount"
+                              value={transaction.amount}
+                              unit={transaction.unit}
+                              isCurrency={true}
+                              isFirst={true}
+                          />
+                        )}
                         {transaction.memo && (
                         <TranItem
                             label="receiverMemo"

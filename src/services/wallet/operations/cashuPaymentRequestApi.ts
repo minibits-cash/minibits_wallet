@@ -247,6 +247,8 @@ async function execute(
         status: TransactionStatus.PENDING,
         data: JSON.stringify(txData),
         paymentId: cashuPrId,
+        // kept to show the request again from the transaction detail
+        paymentRequest: encoded,
     })
 
     const refreshed = transactionsStore.findById(tx.id)!

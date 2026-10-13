@@ -1309,7 +1309,7 @@ const InvoiceOptionsBlock = observer(function (props: {
           {props.contactToSendTo && isNostrContact(props.contactToSendTo) ? (
             <Button
               text={translate("topup_sendToNip", { 
-                sendToNip05: props.contactToSendTo.nip05
+                sendTonip05: props.contactToSendTo.nip05
               })}
               preset="secondary"
               onPress={props.toggleNostrDMModal}
@@ -1358,7 +1358,7 @@ const InvoiceOptionsBlock = observer(function (props: {
   )
 })
 
-const SendAsNostrDMBlock = observer(function (props: {
+export const SendAsNostrDMBlock = observer(function (props: {
   toggleNostrDMModal: any
   encodedInvoiceToSend: string
   contactToSendFrom: Contact
@@ -1422,7 +1422,7 @@ const SendAsNostrDMBlock = observer(function (props: {
   )
 })
 
-const NostrDMSuccessBlock = observer(function (props: {
+export const NostrDMSuccessBlock = observer(function (props: {
   toggleNostrDMModal: any
   contactToSendFrom: Contact
   contactToSendTo: Contact

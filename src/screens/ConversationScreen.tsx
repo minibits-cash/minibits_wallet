@@ -8,6 +8,8 @@ import {toJS} from 'mobx'
 import {Button, ErrorModal, Icon, IconTypes, InfoModal, Screen, Text} from '../components'
 import {useStores} from '../models'
 import {getContactAddress, getContactName, isNostrContact} from '../models/Contact'
+import {decodePaymentRequest} from '@cashu/cashu-ts'
+import {CashuUtils} from '../services/cashu/cashuUtils'
 import {Database, MessageRecord} from '../services/db'
 import {MessagingService} from '../services/messagingService'
 import {LnurlClient} from '../services/lnurlService'
@@ -18,6 +20,7 @@ import {useSafeAreaInsetsStyle} from '../utils/useSafeAreaInsetsStyle'
 import AppError from '../utils/AppError'
 import {ReceiveOption} from './ReceiveScreen'
 import {SendOption} from './SendScreen'
+import {TransactionStatus, TransactionType} from '../models/Transaction'
 import {TransferOption} from './TransferScreen'
 import {ContactAvatar} from './Contacts/ContactAvatar'
 import {ContactProfileModal} from './Contacts/ContactProfileModal'
@@ -30,7 +33,7 @@ type Props = StaticScreenProps<{
 export const ConversationScreen = observer(function ({route}: Props) {
     const navigation = useNavigation()
     const {contactId} = route.params
-    const {contactsStore, userSettingsStore} = useStores()
+    const {contactsStore, userSettingsStore, transactionsStore, mintsStore} = useStores()
     const contact = contactsStore.findById(contactId)
     // Re-read the thread whenever the store's summary of it changes: a message
     // arrived, a send finished, a status moved.
@@ -158,7 +161,58 @@ export const ConversationScreen = observer(function ({route}: Props) {
         }
     }
 
+    const gotoSendPayRequest = function (encoded: string, draftTransactionId?: number) {
+        //@ts-ignore
+        navigation.navigate('WalletNavigator', {
+            screen: 'Send',
+            params: {
+                encodedCashuPaymentRequest: encoded,
+                paymentOption: SendOption.PAY_CASHU_PAYMENT_REQUEST,
+                unit: decodePaymentRequest(encoded).unit ?? userSettingsStore.preferredUnit,
+                draftTransactionId,
+                prevScreen: 'Conversation',
+            },
+        })
+    }
+
+    // a request that got no draft transaction on receive (e.g. no matching mint then)
+    const gotoPayRequest = function (content: string) {
+        try {
+            gotoSendPayRequest(CashuUtils.extractEncodedCashuPaymentRequest(CashuUtils.findEncodedCashuPaymentRequest(content)!))
+        } catch (e: any) {
+            setError(e)
+        }
+    }
+
     const gotoTransaction = function (id: number) {
+        const tx = transactionsStore.findById(id)
+
+        // an unpaid cashu payment request received from the contact goes straight to Send
+        if (tx?.type === TransactionType.SEND && tx.status === TransactionStatus.DRAFT && tx.paymentRequest) {
+            try {
+                return gotoSendPayRequest(tx.paymentRequest, tx.id)
+            } catch (e: any) {
+                return setError(e)
+            }
+        }
+
+        // an unpaid invoice received from the contact goes straight to Transfer
+        const mint = tx && mintsStore.findByTransaction(tx)
+        if (tx?.type === TransactionType.TRANSFER && tx.status === TransactionStatus.DRAFT && tx.paymentRequest && mint) {
+            //@ts-ignore
+            return navigation.navigate('WalletNavigator', {
+                screen: 'Transfer',
+                params: {
+                    encodedInvoice: tx.paymentRequest,
+                    paymentOption: TransferOption.PASTE_OR_SCAN_INVOICE,
+                    unit: tx.unit,
+                    mintUrl: mint.mintUrl,
+                    draftTransactionId: tx.id,
+                    prevScreen: 'Conversation',
+                },
+            })
+        }
+
         //@ts-ignore
         // initial: false keeps the history list beneath it, so the transactions tab is
         // not left holding this detail once we come back
@@ -198,7 +252,7 @@ export const ConversationScreen = observer(function ({route}: Props) {
                     inverted
                     keyExtractor={m => m.id}
                     renderItem={({item}) => (
-                        <MessageBubble message={item} onOpenTransaction={gotoTransaction} onRetry={onRetry} />
+                        <MessageBubble message={item} onOpenTransaction={gotoTransaction} onPayRequest={gotoPayRequest} onRetry={onRetry} />
                     )}
                     contentContainerStyle={$list}
                     keyboardShouldPersistTaps='handled'

@@ -54,6 +54,7 @@
 	"buttonAdd": "Pridaj",
 	"buttonCheck": "Skontroluj",
 	"cashuPaymentRequest_create": "Vytvoriť žiadosť",
+	"cashuPaymentRequest_nostrDMreceived": "nostr:%{npub} ti poslal Cashu žiadosť o platbu na %{amount} %{currency} z peňaženky Minibits!",
 	"cashuPaymentRequest_to": "Prijať na",
 	"cashuPaymentRequestQRTitle": "Cashu platobná požiadavka",
 	"cashuPaymentRequestTitle": "Mint na prijatie",
