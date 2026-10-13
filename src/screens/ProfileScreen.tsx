@@ -26,6 +26,7 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
     } = route.params 
     const {walletProfileStore, userSettingsStore, relaysStore, walletStore} = useStores() 
     const {npub, nip05, pubkey} = walletProfileStore    
+    const nprofile = NostrClient.encodeNprofile(pubkey, relaysStore.allUrls)
 
     const [isUpdateModalVisible, setIsUpdateModalVisible] = useState<boolean>(false)
     const [isKeysModalVisible, setIsKeysModalVisible] = useState<boolean>(false)
@@ -205,6 +206,15 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
                             leftIcon='faKey'
                             rightIcon='faCopy'
                             onPress={() => onCopy(npub)}
+                            bottomSeparator={true}
+                        />
+                        <ListItem
+                            text='NPROFILE'
+                            subText={nprofile}
+                            subTextEllipsizeMode='middle'
+                            leftIcon='faKey'
+                            rightIcon='faCopy'
+                            onPress={() => onCopy(nprofile)}
                             bottomSeparator={true}
                         />
                         <ListItem

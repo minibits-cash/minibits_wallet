@@ -127,7 +127,7 @@ export const WelcomeScreen = function ({ route }: Props) {
             await mintsStore.addMint(MINIBITS_MINT_URL)
           }
 
-          relaysStore.addDefaultRelays()
+          relaysStore.ensureRelays()
           userSettingsStore.setIsOnboarded(true)
 
           navigation.navigate('Tabs')

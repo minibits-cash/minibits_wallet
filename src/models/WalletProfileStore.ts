@@ -1,6 +1,6 @@
 import {Instance, SnapshotOut, types, flow} from 'mobx-state-tree'
 import { Metadata } from 'nostr-tools/kinds'
-import {KeyChain, MinibitsClient, NostrClient, NostrKeyPair, NostrUnsignedEvent, WalletTask} from '../services'
+import {KeyChain, MinibitsClient, NostrClient, NostrKeyPair, NostrUnsignedEvent} from '../services'
 import {log} from '../services/logService'
 import { Err } from '../utils/AppError'
 import { getRandomUsername } from '../utils/usernames'
@@ -73,11 +73,8 @@ export const WalletProfileStoreModel = types
                 const {relaysStore} = rootStore                
                 
                 // new wallet profile has not yet the relays
-                if(relaysStore.allUrls.length === 0) {
-                    // saves default relays and creates subscription for incoming nostr messages
-                    WalletTask.receiveEventsFromRelaysQueue()
-                }
-                
+                relaysStore.ensureRelays()
+
                 const relaysToPublish: string[]  = relaysStore.allUrls
                 const keys: NostrKeyPair = (yield KeyChain.getWalletKeys()).NOSTR
 

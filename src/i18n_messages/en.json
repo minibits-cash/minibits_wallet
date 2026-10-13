@@ -599,6 +599,7 @@
 	"relaysSetYourRelay": "Set your own relay",
 	"relayurlPasteError": "Copy your relay URL key before pasting",
 	"removeRelay": "Remove relay",
+	"relaysMinOneRequired": "At least one relay is required.",
 	"removingMintLostBalanceWarning": "Your wallet has non-zero balance with this mint. If removed, your ecash will be lost!",
 	"resetAborted": "Reset aborted, there are no transactions in local database.",
 	"resetCompletedDetail": "Reset completed. %{transCount} recent transactions were loaded from database.",

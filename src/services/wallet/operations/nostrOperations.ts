@@ -230,9 +230,7 @@ const receiveEventsFromRelaysQueue = async function (): Promise<void> {
         contactsStore.setLastPendingReceivedCheck()
         const pool = NostrClient.getRelayPool()
 
-        if (relaysStore.allRelays.length < 3) {
-            relaysStore.addDefaultRelays()
-        }
+        relaysStore.ensureRelays()
 
         let relaysToConnect = relaysStore.allUrls
 

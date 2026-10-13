@@ -102,6 +102,14 @@ export const RelaysStoreModel = types
             return self.receivedEventIds.includes(id)
         },
     })) 
+    .actions(self => ({
+        // the single place guaranteeing at least one relay; the screen blocks removing the last one
+        ensureRelays() {
+            if (self.relays.length === 0) {
+                self.addDefaultRelays()
+            }
+        },
+    }))
     .views(self => ({
         get allUrls() {
             return self.relays.map(r => r.url)

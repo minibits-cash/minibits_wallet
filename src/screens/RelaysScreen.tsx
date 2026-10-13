@@ -63,8 +63,14 @@ export const RelaysScreen = observer(function RelaysScreen({ route }: Props) {
     }
 
     const removeRelay = function () {
+        setSelectedRelay(undefined)
+
+        if (relaysStore.allRelays.length <= 1) {
+            setInfo(translate('relaysMinOneRequired'))
+            return
+        }
+
         relaysStore.removeRelay(selectedRelay?.url as string)
-        setSelectedRelay(undefined)        
     }
 
     const onConnect = async function () {

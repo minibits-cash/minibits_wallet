@@ -614,6 +614,7 @@
 	"relaysSetYourRelay": "Establece tu propio relé",
 	"relayurlPasteError": "Copie su clave URL de retransmisión antes de pegarla",
 	"removeRelay": "Quitar relé",
+	"relaysMinOneRequired": "Se requiere al menos un relé.",
 	"removingMintLostBalanceWarning": "Tu billetera tiene saldo distinto de cero con esta moneda. Si la eliminas, perderás tu ecash.",
 	"resetAborted": "Reinicio abortado, no hay transacciones en la base de datos local.",
 	"resetCompletedDetail": "Restablecimiento completado. Se cargaron %{transCount} transacciones recientes desde la base de datos.",

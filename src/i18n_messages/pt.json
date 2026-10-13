@@ -614,6 +614,7 @@
 	"relaysSetYourRelay": "Defina seu próprio relay",
 	"relayurlPasteError": "Copie sua chave URL de relay antes de colar",
 	"removeRelay": "Remover relay",
+	"relaysMinOneRequired": "É necessário pelo menos um relay.",
 	"removingMintLostBalanceWarning": "Sua carteira tem saldo não zero com este mint. Se removido, seu ecash será perdido!",
 	"resetAborted": "Reinicialização abortada, não há transações no banco de dados local.",
 	"resetCompletedDetail": "Reinicialização concluída. %{transCount} transações recentes carregadas do banco de dados.",
