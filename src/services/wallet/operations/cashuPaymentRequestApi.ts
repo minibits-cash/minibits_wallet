@@ -32,6 +32,7 @@ import {
     PaymentRequest as CashuPaymentRequest,
     PaymentRequestTransport,
     PaymentRequestTransportType,
+    decodePaymentRequest,
     getEncodedToken,
     normalizeProofAmounts,
 } from '@cashu/cashu-ts'
@@ -322,7 +323,21 @@ async function finalize(
         throw new ValidationError('Transaction not found', {transactionId})
     }
     if (tx.status === TransactionStatus.COMPLETED) {
-        return tx as CompletedTransaction
+        // A reusable request takes every further payment, each as its own transaction.
+        if (!_isSingleUse(tx)) {
+            const next = await _addRepeatTransaction(tx)
+            return finalize(next.id, paymentRequestPayload)
+        }
+
+        // Single use: rejected unclaimed, the payer still holds the ecash and can revert it.
+        const code = getCurrency(tx.unit).code
+        const paidAmount = CashuUtils.getProofsAmount(paymentRequestPayload.proofs ?? [])
+        throw new ValidationError(
+            `Payment request ${paymentRequestPayload.id} has already been paid. It accepts a single payment, ` +
+            `so this additional payment of ${formatCurrency(paidAmount, code)} ${code} has not been received. ` +
+            `The payer can revert it in their wallet.`,
+            {transactionId, paymentRequestId: paymentRequestPayload.id},
+        )
     }
     if (!isPending(tx)) {
         throw new ValidationError(
@@ -479,6 +494,41 @@ async function _receiveWithHealing(
         }
         throw e
     }
+}
+
+/** The request's own singleUse flag, as issued. */
+function _isSingleUse(tx: Transaction): boolean {
+    return !!tx.paymentRequest && decodePaymentRequest(tx.paymentRequest).singleUse
+}
+
+/**
+ * A further payment to a completed reusable request: a new PENDING transaction for
+ * the same request, so each payment keeps its own proofs, fee and balance in history.
+ */
+async function _addRepeatTransaction(paid: Transaction): Promise<Transaction> {
+    const transactionData: TransactionData[] = [{
+        status: TransactionStatus.PENDING,
+        repeatOfTransactionId: paid.id,
+        createdAt: new Date(),
+    }]
+
+    const tx = await transactionsStore.addTransaction({
+        type: TransactionType.RECEIVE_BY_PAYMENT_REQUEST,
+        amount: paid.amount,
+        fee: 0,
+        unit: paid.unit,
+        data: JSON.stringify(transactionData),
+        memo: paid.memo,
+        mint: paid.mint,
+        status: TransactionStatus.PENDING,
+    })
+    tx.update({paymentId: paid.paymentId, paymentRequest: paid.paymentRequest})
+
+    log.debug('[CashuPaymentRequestApi]', 'Repeat payment of a reusable request', {
+        transactionId: tx.id,
+        repeatOf: paid.id,
+    })
+    return tx
 }
 
 function _parseData(tx: Transaction): TransactionData[] {

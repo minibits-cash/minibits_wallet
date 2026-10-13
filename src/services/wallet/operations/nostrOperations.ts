@@ -774,13 +774,15 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
             const decoded: PaymentRequestPayload = JSON.parse(incoming.encoded)
             log.trace('[handleReceivedEventTask]', 'Decoded payment request payload', {decoded})
 
-            const {transaction, receivedAmount, message} = await receiveByCashuPaymentRequestTask(
+            const {transaction, receivedAmount, message, error} = await receiveByCashuPaymentRequestTask(
                 decoded,
             )
 
-            linkTransaction(transaction?.id)
+            // a failed receive still returns the request's transaction, which this payment
+            // did not complete, so neither link it nor announce it as received
+            if (!error) linkTransaction(transaction?.id)
 
-            if (transaction && sentFrom) {
+            if (transaction && sentFrom && !error) {
                 if (contactFrom) {
                     transaction.update({profile: JSON.stringify(contactFrom), sentFrom})
                 }
@@ -801,6 +803,7 @@ const handleReceivedEventTask = async function (encryptedEvent: NostrEvent): Pro
                 mintUrl: decoded.mint,
                 taskFunction: HANDLE_RECEIVED_EVENT_TASK,
                 message,
+                error,
                 proofsCount: decoded.proofs.length,
                 proofsAmount: receivedAmount,
                 transaction,

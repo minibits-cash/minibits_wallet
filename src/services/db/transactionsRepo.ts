@@ -619,7 +619,9 @@ export const getTransactionById = function (id: number) {
 
 
 export const getLastTransactionBy = function (
-  criteria: { paymentId?: string; quote?: string; paymentRequest?: string }
+  criteria: { paymentId?: string; quote?: string; paymentRequest?: string },
+  /** Narrows the match: one id can be shared by transactions of different types. */
+  type?: TransactionType,
 ): Transaction {
   try {
     // === 1. Validate exactly one search criterion ===
@@ -634,11 +636,12 @@ export const getLastTransactionBy = function (
     // === 2. Build query with ORDER BY createdAt DESC + LIMIT 1 ===
     let query: string
     let params: string[]
+    const typeFilter = type ? ' AND type = ?' : ''
 
     if (criteria.paymentId != null) {
       query = `
         SELECT * FROM transactions
-        WHERE paymentId = ?
+        WHERE paymentId = ?${typeFilter}
         ORDER BY createdAt DESC
         LIMIT 1
       `
@@ -646,7 +649,7 @@ export const getLastTransactionBy = function (
     } else if (criteria.quote != null) {
       query = `
         SELECT * FROM transactions
-        WHERE quote = ?
+        WHERE quote = ?${typeFilter}
         ORDER BY createdAt DESC
         LIMIT 1
       `
@@ -656,7 +659,7 @@ export const getLastTransactionBy = function (
     ) {
       query = `
         SELECT * FROM transactions
-        WHERE paymentRequest = ?
+        WHERE paymentRequest = ?${typeFilter}
         ORDER BY createdAt DESC
         LIMIT 1
       `
@@ -665,6 +668,8 @@ export const getLastTransactionBy = function (
       // This should never happen due to validation above
       throw new AppError(Err.DATABASE_ERROR, 'No valid criterion provided')
     }
+
+    if (type) params.push(type)
 
     // === 3. Execute ===
     const db = getInstance()

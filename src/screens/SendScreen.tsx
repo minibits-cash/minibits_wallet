@@ -33,7 +33,7 @@ import {
   Text,
   AmountInput,  
 } from '../components'
-import {TransactionStatus, Transaction, TransactionData} from '../models/Transaction'
+import {TransactionStatus, Transaction, TransactionData, TransactionType} from '../models/Transaction'
 import {useStores} from '../models'
 import {NostrClient, SYNC_STATE_WITH_MINT_TASK, SyncStateTaskResult, TransactionTaskResult, WalletTask} from '../services'
 import {log} from '../services/logService'
@@ -559,6 +559,20 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
                             'Payment request can not be paid as it does not have any transport defined.',
                             {caller: 'handlePaymentRequest', paymentRequest: pr}
                         )
+                    }
+
+                    // A single use request this wallet has already paid (or is paying) must not be paid again:
+                    // the payee would reject the second payment and it would sit pending until reverted.
+                    if (pr.singleUse && pr.id) {
+                        const paid = transactionsStore.findLastBy({paymentId: pr.id}, TransactionType.SEND)
+                        if (paid && paid.id !== draftTransactionId &&
+                            (paid.status === TransactionStatus.COMPLETED || paid.status === TransactionStatus.PENDING)) {
+                            throw new AppError(Err.VALIDATION_ERROR,
+                                `This payment request has already been paid from your wallet (transaction ${paid.id}). ` +
+                                'It accepts a single payment only, so it can not be paid again.',
+                                {caller: 'handlePaymentRequest', paymentRequestId: pr.id, transactionId: paid.id}
+                            )
+                        }
                     }
 
                     const transports: PaymentRequestTransport[] = pr.transport

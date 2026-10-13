@@ -114,10 +114,10 @@ export const TransactionsStoreModel = types
             return tx
         },
 
-        findLastBy(criteria: { paymentId?: string; quote?: string; paymentRequest?: string }): Transaction | undefined {
+        findLastBy(criteria: { paymentId?: string; quote?: string; paymentRequest?: string }, type?: TransactionType): Transaction | undefined {
             let dbTx: Transaction
             try {
-                dbTx = Database.getLastTransactionBy(criteria)
+                dbTx = Database.getLastTransactionBy(criteria, type)
             } catch {
                 return undefined
             }

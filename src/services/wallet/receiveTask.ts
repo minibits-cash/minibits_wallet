@@ -3,6 +3,7 @@ import {
     Transaction,
     TransactionData,
     TransactionStatus,
+    TransactionType,
 } from '../../models/Transaction'
 import {rootStoreInstance} from '../../models'
 import {WalletUtils} from './utils'
@@ -241,8 +242,13 @@ export const receiveByCashuPaymentRequestTask = async function (
     const paymentRequestId = paymentRequestPayload.id
 
     // The tx was created by `cashuPaymentRequestTask` (now CashuPaymentRequestApi)
-    // and parked at PENDING with paymentId === paymentRequestId.
-    const tx = transactionsStore.findLastBy({paymentId: paymentRequestId}) as
+    // and parked at PENDING with paymentId === paymentRequestId. A SEND paying the
+    // same request carries that id too (e.g. the wallet paid its own request), so
+    // match the type, or the payment is finalized against the wrong transaction.
+    const tx = transactionsStore.findLastBy(
+        {paymentId: paymentRequestId},
+        TransactionType.RECEIVE_BY_PAYMENT_REQUEST,
+    ) as
         | Transaction
         | undefined
 
@@ -295,7 +301,8 @@ function _stampErrorIfNeeded(transactionId: number | undefined, e: any) {
     if (!transactionId) return
     const tx = transactionsStore.findById(transactionId)
     if (!tx) return
-    if (tx.status === TransactionStatus.ERROR || tx.status === TransactionStatus.BLOCKED) return
+    // a completed request rejecting a repeat payment stays completed
+    if (tx.status === TransactionStatus.ERROR || tx.status === TransactionStatus.BLOCKED || tx.status === TransactionStatus.COMPLETED) return
 
     let transactionData: TransactionData[] = []
     try { transactionData = JSON.parse(tx.data) } catch {}
