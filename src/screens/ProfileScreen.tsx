@@ -23,7 +23,7 @@ export const ProfileScreen = observer(function ProfileScreen({ route }: Props) {
     const navigation = useNavigation()
     const {
         prevScreen
-    } = route.params 
+    } = route.params ?? {}
     const {walletProfileStore, userSettingsStore, relaysStore, walletStore} = useStores() 
     const {npub, nip05, pubkey} = walletProfileStore    
     const nprofile = NostrClient.encodeNprofile(pubkey, relaysStore.allUrls)
