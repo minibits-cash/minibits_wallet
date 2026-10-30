@@ -1,3 +1,4 @@
+import { JSONInt } from "@cashu/cashu-ts"
 import AppError, { Err } from "../utils/AppError"
 import { log } from "./logService"
 import {
@@ -385,7 +386,8 @@ const fetchApi = async (url: string, options: MinibitsRequestOptions, timeout = 
     log.debug('[fetchApi] HTTP request', {url})
     
     const controller = new AbortController()
-    const body = options.body ? JSON.stringify(options.body) : undefined
+    // JSONInt keeps cashu-ts Amount values (e.g. proof amounts) as JSON numbers, not strings
+    const body = options.body ? JSONInt.stringify(options.body) : undefined
     const jwtAuthRequired = options.jwtAuthRequired
     
     let headers: Record<string, string>

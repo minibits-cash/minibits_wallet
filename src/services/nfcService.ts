@@ -1,6 +1,6 @@
 import { Platform } from 'react-native'
 import NfcManager, { NfcTech, Ndef, NfcEvents, TagEvent } from 'react-native-nfc-manager'
-import { log } from './logService'
+import { log, logMilestone } from './logService'
 import AppError, { Err } from '../utils/AppError'
 
 
@@ -56,7 +56,7 @@ const goToNfcSetting = function () {
 
 
 const readNdefTag = async () => {
-    log.trace('[readNdefTag] start')
+    logMilestone('[readNdefTag] start')
     try {
         if (Platform.OS === 'ios') {
             await NfcManager.requestTechnology(NfcTech.Ndef)
@@ -85,7 +85,7 @@ const writeNdefMessage = async (text: string) => {
         log.trace('[writeNdefMessage] start') // no more requestTechnology, it requires second tap then
         const bytes = Ndef.encodeMessage([Ndef.textRecord(text)])
         await NfcManager.ndefHandler.writeNdefMessage(bytes)
-        log.trace('[writeNdefMessage] write completed')
+        logMilestone('[writeNdefMessage] write completed')
         // NOTE: do NOT cancelTechnologyRequest here. The token is already delivered to the
         // payee by writeNdefMessage above; cancelling would disable Android reader mode
         // mid-payment and let the payee's still-presented HCE tag trigger the OS "Complete
@@ -203,6 +203,7 @@ export const NfcService = {
     readNdefTag,
     writeNdefMessage,
     getLaunchNdefText,
+    decodeNdefTagText,
     setBackgroundTagListener,
     removeBackgroundTagListener,
 }

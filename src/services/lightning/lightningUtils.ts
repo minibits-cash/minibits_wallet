@@ -66,7 +66,10 @@ const extractEncodedLightningInvoice = function (maybeInvoice: string) {
     ) {        
         const url = new URL(maybeInvoice.toLowerCase())
         // Use URLSearchParams to get the value of the "lightning" parameter
-        encodedInvoice = url.searchParams.get("lightning") as string
+        // No lightning= param (e.g. invoice in another query param): take the bolt11 itself
+        encodedInvoice = url.searchParams.get("lightning")
+            ?? maybeInvoice.toLowerCase().match(/lnbc[a-z0-9]+/)?.[0]
+            ?? ''
         invoice = decodeInvoice(encodedInvoice) // throws
         return encodedInvoice  
     }

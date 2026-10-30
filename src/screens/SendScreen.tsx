@@ -59,7 +59,7 @@ import { QRCodeBlock } from './Wallet/QRCode'
 import numbro from 'numbro'
 import { TranItem } from './TranDetailScreen'
 import { MemoInputCard } from '../components/MemoInputCard'
-import { PaymentRequest as CashuPaymentRequest, PaymentRequestTransport, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken } from '@cashu/cashu-ts'
+import { PaymentRequest as CashuPaymentRequest, PaymentRequestTransport, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken, JSONInt } from '@cashu/cashu-ts'
 import { ProfilePointer } from 'nostr-tools/nip19'
 import { MINIBITS_NIP05_DOMAIN } from '@env'
 import FastImage from 'react-native-fast-image'
@@ -1244,7 +1244,7 @@ export const SendScreen = observer(function SendScreen({ route }: Props) {
 
                 const decodedTokenToSend = getDecodedToken(encodedTokenToSend, mintKeysetIds)
 
-                messageContent = JSON.stringify({
+                messageContent = JSONInt.stringify({
                     id: decodedCashuPaymentRequest.id,
                     mint: decodedTokenToSend.mint,
                     unit: decodedTokenToSend.unit,

@@ -7,11 +7,11 @@ import {
     Pressable,
     StyleSheet,
 } from 'react-native'
-import { PaymentRequest as CashuPaymentRequest, MeltQuoteBolt11Response, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken, getTokenMetadata } from '@cashu/cashu-ts'
-import NfcManager, { Ndef, NfcEvents } from 'react-native-nfc-manager'
+import { PaymentRequest as CashuPaymentRequest, MeltQuoteBolt11Response, PaymentRequestTransportType, decodePaymentRequest, getDecodedToken, getTokenMetadata, JSONInt } from '@cashu/cashu-ts'
+import NfcManager, { NfcEvents } from 'react-native-nfc-manager'
 import { colors, spacing, typography, useThemeColor } from '../theme'
 import EventEmitter from '../utils/eventEmitter'
-import { log } from '../services/logService'
+import { log, logMilestone } from '../services/logService'
 import { IncomingDataType, IncomingParser } from '../services/incomingParser'
 import AppError, { Err } from '../utils/AppError'
 import { AmountInput, BottomModal, Button, Card, ErrorModal, Icon, InfoModal, ListItem, ScanIcon, Screen, Text } from '../components'
@@ -516,8 +516,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             setIsProcessing(true)
 
             //log.info('NFC Tag found', {tag});
-            const bytes = new Uint8Array(tag.ndefMessage[0]?.payload ?? [])
-            decoded = Ndef.text.decodePayload(bytes)
+            decoded = NfcService.decodeNdefTagText(tag)
 
             log.trace({decoded})
 
@@ -529,7 +528,7 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
 
             setNfcInfo('Processing, keep your device still...')            
 
-            log.info('NFC tag decoded', { decoded })
+            logMilestone('[startNfcSession] NFC tag decoded')
 
             //setReadNfcData(decoded)
             await handleIncomingData(decoded)
@@ -768,12 +767,12 @@ export const NfcPayScreen = observer(function NfcPayScreen({ route }: Props) {
             }
 
             log.debug('[NfcScreen] handleSendTaskResult: Sending ecash token via Nostr NIP-17 to payee.', { pubkey, relays })
-            const messageContent = JSON.stringify({
+            const messageContent = JSONInt.stringify({
                 id: decodedCashuPaymentRequest.id,
                 mint: decodedTokenToSend.mint,
                 unit: decodedTokenToSend.unit,
                 proofs: decodedTokenToSend.proofs,
-            })
+            }) as string
         
             const keys = await walletStore.getCachedWalletKeys()
             const sentEvent = await NostrClient.encryptAndSendDirectMessageNip17(
