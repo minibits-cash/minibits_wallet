@@ -1768,7 +1768,9 @@ const OnchainTransferInfoBlock = function (props: {
             const refreshed = transactionsStore.findById(transaction.id)
 
             if (refreshed?.status === TransactionStatus.PENDING) {
-                setCheckResult(translate('tranDetail_onchainStillUnconfirmed'))
+                setCheckResult(translate(refreshed.outpoint
+                    ? 'tranDetail_onchainStillUnconfirmed'
+                    : 'tranDetail_onchainNotBroadcast'))
             }
             // Anything else settled the transaction; the observer re-renders it.
         } catch (e: any) {

@@ -211,12 +211,16 @@ export const transferOnchainTask = async function (
             } as TransactionTaskResult
         }
 
-        // The normal path: broadcast, awaiting confirmations.
+        // The normal path: queued or broadcast, awaiting confirmations. Only the outpoint
+        // proves a broadcast — CDK queues the payment and may still fail to build the
+        // transaction (e.g. mint short of onchain funds), reverting the quote to UNPAID.
         return {
             taskFunction: TRANSFER_ONCHAIN_TASK,
             mintUrl,
             transaction: settled,
-            message: translate('transactionResult_onchainPaymentBroadcast'),
+            message: settled.outpoint
+                ? translate('transactionResult_onchainPaymentBroadcast')
+                : translate('transactionResult_onchainPaymentSubmitted'),
             meltQuote,
             nwcEvent,
         } as TransactionTaskResult

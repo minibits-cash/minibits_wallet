@@ -14,6 +14,9 @@ export const CashuErrorCode = {
     TOKEN_ALREADY_SPENT: 11001,
     QUOTE_PENDING: 11005,
     TOKEN_PENDING: 11006,
+    // Not in NUT-00: CDK's catch-all for any payment backend failure, with the
+    // reason redacted to "Payment backend error".
+    CDK_PAYMENT_BACKEND_ERROR: 50000,
 } as const
 
 const formatError = function (e: AppError) {

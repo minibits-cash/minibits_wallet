@@ -33,6 +33,7 @@ import { Proof } from './Proof'
 import { InFlightRequest, Mint } from './Mint'
 import { MINT_INFO_TTL_SECONDS, isMintInfoStale } from './helpers/mintInfoStale'
 import { getRootStore } from './helpers/getRootStore'
+import { CashuErrorCode } from '../services/wallet/utils'
 import { Transaction } from './Transaction'
 
 // 
@@ -1470,12 +1471,18 @@ export const WalletStoreModel = types
 
             } catch (e: any) {
                 let message = 'The mint could not return the onchain melt quote.'
+                // CDK estimates the miner fee by coin-selecting over its own UTXOs, so a mint
+                // short of onchain funds fails here, with the reason redacted.
+                if (e.code === CashuErrorCode.CDK_PAYMENT_BACKEND_ERROR) {
+                    message = 'The mint can not make this onchain payment right now. Try a smaller amount or a different mint.'
+                }
                 if (isOnionMint(mintUrl)) message += TorVPNSetupInstructions;
                 throw new AppError(
                     Err.MINT_ERROR,
                     message,
                     {
                         message: e.message,
+                        code: e.code || undefined,
                         caller: 'createOnchainMeltQuote',
                         request: {mintUrl, unit, address, amount},
                     }
