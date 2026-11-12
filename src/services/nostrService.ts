@@ -7,6 +7,7 @@ import type { Filter as NostrFilter } from 'nostr-tools/filter'
 import { finalizeEvent, validateEvent, getEventHash } from 'nostr-tools/pure'
 import { normalizeURL } from 'nostr-tools/utils'
 import { encrypt, decrypt } from 'nostr-tools/nip04'
+import { v2 as nip44 } from 'nostr-tools/nip44'
 import { wrapEvent, unwrapEvent, createRumor, createSeal, createWrap } from 'nostr-tools/nip59'
 import { neventEncode as nostrNeventEncode, naddrEncode as nostrNaddrEncode, npubEncode, decode as nip19Decode, nprofileEncode } from 'nostr-tools/nip19'
 import {SimplePool} from 'nostr-tools/pool'
@@ -234,6 +235,47 @@ const decryptNip04 = async function(
     log.trace('[decryptNip04]', {decryptedContent})
 
     return decryptedContent
+}
+
+
+const encryptNip44 = function (
+    receiverPubkey: string,
+    content: string,
+    keys: NostrKeyPair
+): string {
+    try {
+        const conversationKey = nip44.utils.getConversationKey(hexToBytes(keys.privateKey), receiverPubkey)
+        return nip44.encrypt(content, conversationKey)
+    } catch (e: any) {
+        throw new AppError(Err.CONNECTION_ERROR, e.message)
+    }
+}
+
+
+const decryptNip44 = function (
+    senderPubkey: string,
+    payload: string,
+    keys: NostrKeyPair
+): string {
+    const conversationKey = nip44.utils.getConversationKey(hexToBytes(keys.privateKey), senderPubkey)
+    return nip44.decrypt(payload, conversationKey)
+}
+
+
+/**
+ * NIP-47 encryption. A request names its scheme in an `encryption` tag and the
+ * reply must use the same one. No tag means a legacy client that only speaks
+ * NIP-04, so that stays the default and those clients keep working untouched.
+ * Order is our preference, and is what the info event advertises.
+ */
+const NWC_ENCRYPTION_SCHEMES = ['nip44_v2', 'nip04']
+
+const getNwcEncryption = (event: NostrEvent): string => {
+    const requested = event.tags.find(t => t[0] === 'encryption')?.[1]?.trim()
+    if (!requested) return 'nip04'
+    // Spec says one value; tolerate a list and take the client's first we support.
+    const schemes = requested.split(/\s+/)
+    return schemes.find(s => NWC_ENCRYPTION_SCHEMES.includes(s)) ?? schemes[0]
 }
 
 
@@ -725,6 +767,10 @@ export const NostrClient = { // TODO split helper functions to separate module
     // maybeConvertNpub,
     encryptNip04,
     decryptNip04,
+    encryptNip44,
+    decryptNip44,
+    NWC_ENCRYPTION_SCHEMES,
+    getNwcEncryption,
     encryptAndSendDirectMessageNip17,
     decryptDirectMessageNip17,
     createDirectMessageNip17,
